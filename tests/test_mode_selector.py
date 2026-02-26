@@ -15,42 +15,39 @@ Tests the complete ModeSelector pipeline:
 
 Target: 70+ tests all passing.
 """
-import sys
-from pathlib import Path
-from datetime import datetime
-from unittest.mock import MagicMock, patch
 
-import pytest
+import sys
+from datetime import datetime
+from pathlib import Path
+from unittest.mock import MagicMock
 
 # Add parent to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from core.intelligence.swarm.agent_metrics import (
+    AgentInvocationResult,
+    AgentPool,
+    AgentProfile,
+)
 from core.intelligence.swarm.collaboration_modes import (
     CollaborationMode,
-    ModeCharacteristics,
-    MODE_CHARACTERISTICS,
     get_mode_characteristics,
-)
-from core.intelligence.swarm.task_analyzer import (
-    TaskComplexity,
-    TaskDomain,
-    TaskAnalysis,
 )
 from core.intelligence.swarm.mode_selector import (
     AgentAssignment,
     ModeProposal,
     ModeSelector,
 )
-from core.intelligence.swarm.agent_metrics import (
-    AgentPool,
-    AgentProfile,
-    AgentInvocationResult,
+from core.intelligence.swarm.task_analyzer import (
+    TaskAnalysis,
+    TaskComplexity,
+    TaskDomain,
 )
-
 
 # =============================================================================
 # Helpers / Fixtures
 # =============================================================================
+
 
 def _make_analysis(
     complexity: TaskComplexity = TaskComplexity.MODERATE,
@@ -146,6 +143,7 @@ def _make_pool_with_agents(
 # 1. AgentAssignment Dataclass Tests
 # =============================================================================
 
+
 class TestAgentAssignment:
     """Tests for the AgentAssignment dataclass."""
 
@@ -182,6 +180,7 @@ class TestAgentAssignment:
 # =============================================================================
 # 2. ModeProposal Dataclass Tests
 # =============================================================================
+
 
 class TestModeProposal:
     """Tests for the ModeProposal dataclass."""
@@ -276,6 +275,7 @@ class TestModeProposal:
 # 3. ModeSelector Initialization Tests
 # =============================================================================
 
+
 class TestModeSelectorInit:
     """Tests for ModeSelector initialization."""
 
@@ -312,6 +312,7 @@ class TestModeSelectorInit:
 # =============================================================================
 # 4. Complexity Fit Scoring Tests
 # =============================================================================
+
 
 class TestComplexityFitScoring:
     """Tests for _score_complexity_fit."""
@@ -357,6 +358,7 @@ class TestComplexityFitScoring:
 # =============================================================================
 # 5. Domain Fit Scoring Tests
 # =============================================================================
+
 
 class TestDomainFitScoring:
     """Tests for _score_domain_fit."""
@@ -407,10 +409,7 @@ class TestDomainFitScoring:
 
     def test_domain_fit_capped_at_1(self):
         selector = ModeSelector()
-        agents = [
-            _make_agent(agent_id=f"agent_{i}", capabilities=["coding"])
-            for i in range(5)
-        ]
+        agents = [_make_agent(agent_id=f"agent_{i}", capabilities=["coding"]) for i in range(5)]
         analysis = _make_analysis(primary_domain=TaskDomain.CODING)
         char_ls = get_mode_characteristics(CollaborationMode.LEAD_SUPPORT)
         score = selector._score_domain_fit(char_ls, analysis, agents=agents)
@@ -420,6 +419,7 @@ class TestDomainFitScoring:
 # =============================================================================
 # 6. DyLAN Fit Scoring Tests
 # =============================================================================
+
 
 class TestDyLANFitScoring:
     """Tests for _score_dylan_fit."""
@@ -434,16 +434,20 @@ class TestDyLANFitScoring:
         """SPECIALIST should reward when one agent is clearly better."""
         selector = ModeSelector()
         # Agent A: very strong on coding, Agent B: weak
-        agent_a = _make_agent(agent_id="a", history=[
-            _make_invocation(agent_id="a", task_type="coding", quality=0.95, tokens=100, time_sec=1.0),
-        ])
-        agent_b = _make_agent(agent_id="b", history=[
-            _make_invocation(agent_id="b", task_type="coding", quality=0.1, tokens=1000, time_sec=10.0),
-        ])
-        analysis = _make_analysis(primary_domain=TaskDomain.CODING)
-        score = selector._score_dylan_fit(
-            CollaborationMode.SPECIALIST, analysis, agents=[agent_a, agent_b]
+        agent_a = _make_agent(
+            agent_id="a",
+            history=[
+                _make_invocation(agent_id="a", task_type="coding", quality=0.95, tokens=100, time_sec=1.0),
+            ],
         )
+        agent_b = _make_agent(
+            agent_id="b",
+            history=[
+                _make_invocation(agent_id="b", task_type="coding", quality=0.1, tokens=1000, time_sec=10.0),
+            ],
+        )
+        analysis = _make_analysis(primary_domain=TaskDomain.CODING)
+        score = selector._score_dylan_fit(CollaborationMode.SPECIALIST, analysis, agents=[agent_a, agent_b])
         # High variance => good for SPECIALIST
         assert score >= 0.5
 
@@ -457,26 +461,28 @@ class TestDyLANFitScoring:
         agent_b = _make_agent(agent_id="b", history=[inv_b])
         analysis = _make_analysis(primary_domain=TaskDomain.CODING)
 
-        score = selector._score_dylan_fit(
-            CollaborationMode.PARALLEL, analysis, agents=[agent_a, agent_b]
-        )
+        score = selector._score_dylan_fit(CollaborationMode.PARALLEL, analysis, agents=[agent_a, agent_b])
         # Low variance => good for collaborative modes (close to 1.0)
         assert score >= 0.8
 
     def test_collaborative_mode_penalizes_high_variance(self):
         """Collaborative modes should penalize high variance."""
         selector = ModeSelector()
-        agent_a = _make_agent(agent_id="a", history=[
-            _make_invocation(agent_id="a", task_type="coding", quality=0.99, tokens=10, time_sec=0.1),
-        ])
-        agent_b = _make_agent(agent_id="b", history=[
-            _make_invocation(agent_id="b", task_type="coding", quality=0.01, tokens=5000, time_sec=50.0),
-        ])
+        agent_a = _make_agent(
+            agent_id="a",
+            history=[
+                _make_invocation(agent_id="a", task_type="coding", quality=0.99, tokens=10, time_sec=0.1),
+            ],
+        )
+        agent_b = _make_agent(
+            agent_id="b",
+            history=[
+                _make_invocation(agent_id="b", task_type="coding", quality=0.01, tokens=5000, time_sec=50.0),
+            ],
+        )
         analysis = _make_analysis(primary_domain=TaskDomain.CODING)
 
-        score_parallel = selector._score_dylan_fit(
-            CollaborationMode.PARALLEL, analysis, agents=[agent_a, agent_b]
-        )
+        score_parallel = selector._score_dylan_fit(CollaborationMode.PARALLEL, analysis, agents=[agent_a, agent_b])
         # High variance => bad for collaborative
         assert score_parallel < 0.9
 
@@ -490,9 +496,7 @@ class TestDyLANFitScoring:
         pool.get_session_aware_score = MagicMock(return_value=0.75)
 
         analysis = _make_analysis(primary_domain=TaskDomain.CODING)
-        score = selector._score_dylan_fit(
-            CollaborationMode.PARALLEL, analysis, agents=[agent_a, agent_b]
-        )
+        score = selector._score_dylan_fit(CollaborationMode.PARALLEL, analysis, agents=[agent_a, agent_b])
         # Should have called get_session_aware_score
         assert pool.get_session_aware_score.call_count == 2
         assert 0.0 <= score <= 1.0
@@ -501,6 +505,7 @@ class TestDyLANFitScoring:
 # =============================================================================
 # 7. Requirements Fit Scoring Tests
 # =============================================================================
+
 
 class TestRequirementsFitScoring:
     """Tests for _score_requirements_fit."""
@@ -596,6 +601,7 @@ class TestRequirementsFitScoring:
 # 8. Domain Protocol Bias (V12.4) Tests
 # =============================================================================
 
+
 class TestDomainProtocolBias:
     """Tests for V12.4 task-adaptive domain-protocol bias."""
 
@@ -634,7 +640,7 @@ class TestDomainProtocolBias:
         analysis = _make_analysis(primary_domain=TaskDomain.SECURITY)
 
         score_rb = selector._score_mode(CollaborationMode.RED_BLUE, analysis, agents)
-        score_seq = selector._score_mode(CollaborationMode.SEQUENTIAL, analysis, agents)
+        selector._score_mode(CollaborationMode.SEQUENTIAL, analysis, agents)
         # RED_BLUE should get a boost for security domain
         # (not guaranteed to be highest overall, but it gets a +0.10 bias)
         assert score_rb > 0.0
@@ -643,6 +649,7 @@ class TestDomainProtocolBias:
 # =============================================================================
 # 9. Full _score_mode Integration Tests
 # =============================================================================
+
 
 class TestScoreMode:
     """Tests for the combined _score_mode method."""
@@ -677,6 +684,7 @@ class TestScoreMode:
 # 10. Agent Assignment Tests
 # =============================================================================
 
+
 class TestAssignAgents:
     """Tests for _assign_agents agent-to-role assignment logic."""
 
@@ -684,9 +692,7 @@ class TestAssignAgents:
         selector = ModeSelector()
         agents = [_make_agent(agent_id="a"), _make_agent(agent_id="b")]
         analysis = _make_analysis()
-        assignments = selector._assign_agents(
-            CollaborationMode.PARALLEL, analysis, agents
-        )
+        assignments = selector._assign_agents(CollaborationMode.PARALLEL, analysis, agents)
         assert len(assignments) == 2
         assert all(a.role == "equal" for a in assignments)
 
@@ -694,27 +700,21 @@ class TestAssignAgents:
         selector = ModeSelector()
         agents = [_make_agent(agent_id="a"), _make_agent(agent_id="b")]
         analysis = _make_analysis()
-        assignments = selector._assign_agents(
-            CollaborationMode.PARALLEL, analysis, agents
-        )
+        assignments = selector._assign_agents(CollaborationMode.PARALLEL, analysis, agents)
         assert assignments[0].confidence > assignments[1].confidence
 
     def test_parallel_web_subtask(self):
         selector = ModeSelector()
         agents = [_make_agent(agent_id="a"), _make_agent(agent_id="b")]
         analysis = _make_analysis(requires_web=True)
-        assignments = selector._assign_agents(
-            CollaborationMode.PARALLEL, analysis, agents
-        )
+        assignments = selector._assign_agents(CollaborationMode.PARALLEL, analysis, agents)
         assert assignments[0].subtask == "research_and_web"
 
     def test_sequential_assigns_first_and_second(self):
         selector = ModeSelector()
         agents = [_make_agent(agent_id="a"), _make_agent(agent_id="b")]
         analysis = _make_analysis()
-        assignments = selector._assign_agents(
-            CollaborationMode.SEQUENTIAL, analysis, agents
-        )
+        assignments = selector._assign_agents(CollaborationMode.SEQUENTIAL, analysis, agents)
         assert len(assignments) == 2
         assert assignments[0].role == "first"
         assert assignments[1].role == "second"
@@ -723,9 +723,7 @@ class TestAssignAgents:
         selector = ModeSelector()
         agents = [_make_agent(agent_id="a"), _make_agent(agent_id="b")]
         analysis = _make_analysis()
-        assignments = selector._assign_agents(
-            CollaborationMode.LEAD_SUPPORT, analysis, agents
-        )
+        assignments = selector._assign_agents(CollaborationMode.LEAD_SUPPORT, analysis, agents)
         assert len(assignments) == 2
         roles = {a.role for a in assignments}
         assert roles == {"lead", "support"}
@@ -734,9 +732,7 @@ class TestAssignAgents:
         selector = ModeSelector()
         agents = [_make_agent(agent_id="a"), _make_agent(agent_id="b")]
         analysis = _make_analysis()
-        assignments = selector._assign_agents(
-            CollaborationMode.LEAD_SUPPORT, analysis, agents
-        )
+        assignments = selector._assign_agents(CollaborationMode.LEAD_SUPPORT, analysis, agents)
         lead = next(a for a in assignments if a.role == "lead")
         support = next(a for a in assignments if a.role == "support")
         assert lead.confidence >= support.confidence
@@ -745,9 +741,7 @@ class TestAssignAgents:
         selector = ModeSelector()
         agents = [_make_agent(agent_id="a"), _make_agent(agent_id="b")]
         analysis = _make_analysis()
-        assignments = selector._assign_agents(
-            CollaborationMode.PING_PONG, analysis, agents
-        )
+        assignments = selector._assign_agents(CollaborationMode.PING_PONG, analysis, agents)
         assert len(assignments) == 2
         assert all(a.role == "equal" for a in assignments)
 
@@ -755,9 +749,7 @@ class TestAssignAgents:
         selector = ModeSelector()
         agents = [_make_agent(agent_id="a", capabilities=["coding"])]
         analysis = _make_analysis(primary_domain=TaskDomain.CODING)
-        assignments = selector._assign_agents(
-            CollaborationMode.SPECIALIST, analysis, agents
-        )
+        assignments = selector._assign_agents(CollaborationMode.SPECIALIST, analysis, agents)
         assert len(assignments) == 1
         assert assignments[0].role == "specialist"
 
@@ -765,27 +757,21 @@ class TestAssignAgents:
         selector = ModeSelector()
         agents = [_make_agent(agent_id="a", capabilities=["coding"])]
         analysis = _make_analysis(primary_domain=TaskDomain.CODING)
-        assignments = selector._assign_agents(
-            CollaborationMode.SPECIALIST, analysis, agents
-        )
+        assignments = selector._assign_agents(CollaborationMode.SPECIALIST, analysis, agents)
         assert assignments[0].confidence == 0.9
 
     def test_specialist_without_capability_match_has_lower_confidence(self):
         selector = ModeSelector()
         agents = [_make_agent(agent_id="a", capabilities=["music"])]
         analysis = _make_analysis(primary_domain=TaskDomain.CODING)
-        assignments = selector._assign_agents(
-            CollaborationMode.SPECIALIST, analysis, agents
-        )
+        assignments = selector._assign_agents(CollaborationMode.SPECIALIST, analysis, agents)
         assert assignments[0].confidence < 0.9
 
     def test_red_blue_assigns_blue_and_red(self):
         selector = ModeSelector()
         agents = [_make_agent(agent_id="a"), _make_agent(agent_id="b")]
         analysis = _make_analysis()
-        assignments = selector._assign_agents(
-            CollaborationMode.RED_BLUE, analysis, agents
-        )
+        assignments = selector._assign_agents(CollaborationMode.RED_BLUE, analysis, agents)
         assert len(assignments) == 2
         roles = {a.role for a in assignments}
         assert roles == {"blue", "red"}
@@ -794,9 +780,7 @@ class TestAssignAgents:
         selector = ModeSelector()
         agents = [_make_agent(agent_id="a"), _make_agent(agent_id="b")]
         analysis = _make_analysis()
-        assignments = selector._assign_agents(
-            CollaborationMode.RED_BLUE, analysis, agents
-        )
+        assignments = selector._assign_agents(CollaborationMode.RED_BLUE, analysis, agents)
         blue = next(a for a in assignments if a.role == "blue")
         red = next(a for a in assignments if a.role == "red")
         assert blue.subtask == "propose_and_defend"
@@ -805,9 +789,7 @@ class TestAssignAgents:
     def test_empty_agents_returns_empty(self):
         selector = ModeSelector()
         analysis = _make_analysis()
-        assignments = selector._assign_agents(
-            CollaborationMode.PARALLEL, analysis, agents=[]
-        )
+        assignments = selector._assign_agents(CollaborationMode.PARALLEL, analysis, agents=[])
         assert assignments == []
 
     def test_single_agent_non_specialist_mode_falls_back(self):
@@ -815,9 +797,7 @@ class TestAssignAgents:
         selector = ModeSelector()
         agents = [_make_agent(agent_id="solo")]
         analysis = _make_analysis()
-        assignments = selector._assign_agents(
-            CollaborationMode.PARALLEL, analysis, agents
-        )
+        assignments = selector._assign_agents(CollaborationMode.PARALLEL, analysis, agents)
         assert len(assignments) == 1
         assert assignments[0].role == "specialist"
 
@@ -825,23 +805,19 @@ class TestAssignAgents:
         """AutoMemory lead suggestion should promote the specified agent."""
         selector = ModeSelector()
         agent_a = _make_agent(agent_id="gemini_primary", provider="gemini")
-        agent_b = _make_agent(agent_id="claude_opus", provider="claude",
-                              capabilities=["coding"])
+        agent_b = _make_agent(agent_id="claude_opus", provider="claude", capabilities=["coding"])
         # Give agent_b higher DyLAN score for coding
-        agent_b.record_invocation(_make_invocation(
-            agent_id="claude_opus", task_type="coding", quality=0.95, tokens=100, time_sec=1.0
-        ))
+        agent_b.record_invocation(
+            _make_invocation(agent_id="claude_opus", task_type="coding", quality=0.95, tokens=100, time_sec=1.0)
+        )
         analysis = _make_analysis(primary_domain=TaskDomain.CODING)
 
         # Without auto_memory_lead, claude should be first (higher DyLAN)
-        assignments_no_lead = selector._assign_agents(
-            CollaborationMode.LEAD_SUPPORT, analysis, [agent_a, agent_b]
-        )
+        selector._assign_agents(CollaborationMode.LEAD_SUPPORT, analysis, [agent_a, agent_b])
 
         # With auto_memory_lead="gemini", gemini should be promoted to lead
         assignments_with_lead = selector._assign_agents(
-            CollaborationMode.LEAD_SUPPORT, analysis, [agent_a, agent_b],
-            auto_memory_lead="gemini"
+            CollaborationMode.LEAD_SUPPORT, analysis, [agent_a, agent_b], auto_memory_lead="gemini"
         )
         lead = next(a for a in assignments_with_lead if a.role == "lead")
         assert lead.agent_id == "gemini_primary"
@@ -850,6 +826,7 @@ class TestAssignAgents:
 # =============================================================================
 # 11. select_mode() Integration Tests
 # =============================================================================
+
 
 class TestSelectMode:
     """Integration tests for select_mode()."""
@@ -954,7 +931,7 @@ class TestSelectMode:
         proposal = selector.select_mode(analysis)
         # PING_PONG should be selected or at least highly ranked
         all_modes_with_scores = [(proposal.mode, proposal.confidence)] + proposal.alternatives
-        pp_entry = next((m, s) for m, s in all_modes_with_scores if m == CollaborationMode.PING_PONG)
+        next((m, s) for m, s in all_modes_with_scores if m == CollaborationMode.PING_PONG)
         # It should be the top mode or in top 2
         mode_ranking = [proposal.mode] + [m for m, _ in proposal.alternatives]
         pp_rank = mode_ranking.index(CollaborationMode.PING_PONG)
@@ -964,6 +941,7 @@ class TestSelectMode:
 # =============================================================================
 # 12. Default Agent Creation Tests
 # =============================================================================
+
 
 class TestDefaultAgents:
     """Tests for _create_default_agents fallback."""
@@ -996,6 +974,7 @@ class TestDefaultAgents:
 # =============================================================================
 # 13. Selection History and Statistics Tests
 # =============================================================================
+
 
 class TestSelectionHistory:
     """Tests for selection history recording and statistics."""
@@ -1043,6 +1022,7 @@ class TestSelectionHistory:
 # 14. Reasoning Generation Tests
 # =============================================================================
 
+
 class TestReasoningGeneration:
     """Tests for _generate_reasoning."""
 
@@ -1050,9 +1030,7 @@ class TestReasoningGeneration:
         selector = ModeSelector()
         analysis = _make_analysis(complexity=TaskComplexity.COMPLEX)
         scores = {mode: 0.5 for mode in CollaborationMode}
-        reasoning = selector._generate_reasoning(
-            CollaborationMode.PARALLEL, analysis, scores
-        )
+        reasoning = selector._generate_reasoning(CollaborationMode.PARALLEL, analysis, scores)
         assert "complex" in reasoning.lower()
 
     def test_reasoning_includes_domains(self):
@@ -1062,18 +1040,14 @@ class TestReasoningGeneration:
             primary_domain=TaskDomain.CODING,
         )
         scores = {mode: 0.5 for mode in CollaborationMode}
-        reasoning = selector._generate_reasoning(
-            CollaborationMode.PARALLEL, analysis, scores
-        )
+        reasoning = selector._generate_reasoning(CollaborationMode.PARALLEL, analysis, scores)
         assert "coding" in reasoning.lower()
 
     def test_reasoning_includes_recommended_lead(self):
         selector = ModeSelector()
         analysis = _make_analysis(gemini_fit=0.9, claude_fit=0.5)
         scores = {mode: 0.5 for mode in CollaborationMode}
-        reasoning = selector._generate_reasoning(
-            CollaborationMode.PARALLEL, analysis, scores
-        )
+        reasoning = selector._generate_reasoning(CollaborationMode.PARALLEL, analysis, scores)
         assert "gemini" in reasoning.lower()
 
     def test_reasoning_includes_confidence(self):
@@ -1081,9 +1055,7 @@ class TestReasoningGeneration:
         analysis = _make_analysis()
         scores = {mode: 0.5 for mode in CollaborationMode}
         scores[CollaborationMode.PARALLEL] = 0.85
-        reasoning = selector._generate_reasoning(
-            CollaborationMode.PARALLEL, analysis, scores
-        )
+        reasoning = selector._generate_reasoning(CollaborationMode.PARALLEL, analysis, scores)
         assert "85%" in reasoning
 
     def test_reasoning_includes_memory_boost_info(self):
@@ -1118,9 +1090,7 @@ class TestReasoningGeneration:
         selector = ModeSelector()
         analysis = _make_analysis(gemini_fit=0.5, claude_fit=0.5)
         scores = {mode: 0.5 for mode in CollaborationMode}
-        reasoning = selector._generate_reasoning(
-            CollaborationMode.PARALLEL, analysis, scores
-        )
+        reasoning = selector._generate_reasoning(CollaborationMode.PARALLEL, analysis, scores)
         # When recommended_lead is "equal", reasoning includes that text
         # (the _generate_reasoning code checks recommended_lead property)
         assert "equal" in reasoning.lower() or "capability scores" in reasoning.lower()
@@ -1129,6 +1099,7 @@ class TestReasoningGeneration:
 # =============================================================================
 # 15. Memory-Augmented Selection Tests (SuccessMemory)
 # =============================================================================
+
 
 class TestMemoryAugmentedSelection:
     """Tests for _apply_memory_boost with SuccessMemory."""
@@ -1214,6 +1185,7 @@ class TestMemoryAugmentedSelection:
 # =============================================================================
 # 16. AutoMemory Integration Tests
 # =============================================================================
+
 
 class TestAutoMemoryIntegration:
     """Tests for _apply_auto_memory_boost."""
@@ -1337,6 +1309,7 @@ class TestAutoMemoryIntegration:
 # 17. Spawned Agent Specialist Tests
 # =============================================================================
 
+
 class TestSpawnedAgentSpecialist:
     """Tests for _find_best_spawned_specialist and _assign_spawned_specialist."""
 
@@ -1401,6 +1374,7 @@ class TestSpawnedAgentSpecialist:
 # 18. Edge Cases and Boundary Tests
 # =============================================================================
 
+
 class TestEdgeCases:
     """Edge cases and boundary conditions."""
 
@@ -1442,6 +1416,7 @@ class TestEdgeCases:
     def test_proposal_to_dict_is_serializable(self):
         """Verify to_dict output is JSON-serializable."""
         import json
+
         selector = ModeSelector()
         analysis = _make_analysis()
         proposal = selector.select_mode(analysis)
@@ -1467,13 +1442,15 @@ class TestEdgeCases:
         selector = ModeSelector()
         agent = _make_agent(agent_id="veteran")
         for i in range(200):
-            agent.record_invocation(_make_invocation(
-                agent_id="veteran",
-                task_type="coding",
-                quality=0.7 + (i % 10) * 0.03,
-                tokens=100 + i * 10,
-                time_sec=1.0 + i * 0.1,
-            ))
+            agent.record_invocation(
+                _make_invocation(
+                    agent_id="veteran",
+                    task_type="coding",
+                    quality=0.7 + (i % 10) * 0.03,
+                    tokens=100 + i * 10,
+                    time_sec=1.0 + i * 0.1,
+                )
+            )
         analysis = _make_analysis()
         proposal = selector.select_mode(analysis, available_agents=[agent])
         assert isinstance(proposal, ModeProposal)
@@ -1483,9 +1460,7 @@ class TestEdgeCases:
         selector = ModeSelector()
         agents = [_make_agent(agent_id="a"), _make_agent(agent_id="b")]
         analysis = _make_analysis(requires_web=True)
-        assignments = selector._assign_agents(
-            CollaborationMode.PARALLEL, analysis, agents
-        )
+        assignments = selector._assign_agents(CollaborationMode.PARALLEL, analysis, agents)
         assert assignments[0].subtask == "research_and_web"
         assert assignments[1].subtask == "subtask_2"
 
@@ -1493,6 +1468,7 @@ class TestEdgeCases:
 # =============================================================================
 # 19. Mode Selection for Specific Task Patterns
 # =============================================================================
+
 
 class TestModeSelectionPatterns:
     """Tests verifying mode selection matches expected patterns for common tasks."""
@@ -1568,6 +1544,7 @@ class TestModeSelectionPatterns:
 # 20. Constants and Thresholds Tests
 # =============================================================================
 
+
 class TestConstantsAndThresholds:
     """Verify important constants have expected values."""
 
@@ -1592,9 +1569,16 @@ class TestConstantsAndThresholds:
     def test_domain_protocol_bias_has_expected_domains(self):
         bias = ModeSelector.DOMAIN_PROTOCOL_BIAS
         expected_domains = [
-            "coding", "debugging", "analysis", "architecture",
-            "testing", "research", "documentation", "web_interaction",
-            "creative", "security",
+            "coding",
+            "debugging",
+            "analysis",
+            "architecture",
+            "testing",
+            "research",
+            "documentation",
+            "web_interaction",
+            "creative",
+            "security",
         ]
         for domain in expected_domains:
             assert domain in bias, f"Missing domain in DOMAIN_PROTOCOL_BIAS: {domain}"

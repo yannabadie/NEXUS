@@ -14,11 +14,11 @@ Usage:
         # Use fallback
 """
 
-import json
-import re
 import ast
+import json
 import logging
-from typing import Any, Dict, Optional
+import re
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +54,7 @@ def _smart_quote_replace(json_str: str) -> str:
                 # Single quote as string delimiter - check context
                 # Look for pattern: {'key': or , 'value' or ['item'
                 prev_non_ws = _find_prev_non_ws(json_str, i)
-                if prev_non_ws in ('{', ',', '[', ':'):
+                if prev_non_ws in ("{", ",", "[", ":"):
                     # This is likely a string delimiter, convert to "
                     in_string = True
                     string_char = "'"
@@ -66,7 +66,7 @@ def _smart_quote_replace(json_str: str) -> str:
                 result.append(c)
         else:
             # Inside a string
-            if c == '\\':
+            if c == "\\":
                 # Escape sequence - keep next char as-is
                 result.append(c)
                 if i + 1 < len(json_str):
@@ -91,7 +91,7 @@ def _smart_quote_replace(json_str: str) -> str:
 
         i += 1
 
-    return ''.join(result)
+    return "".join(result)
 
 
 def _find_prev_non_ws(s: str, pos: int) -> str:
@@ -101,14 +101,12 @@ def _find_prev_non_ws(s: str, pos: int) -> str:
         if not s[pos].isspace():
             return s[pos]
         pos -= 1
-    return ''
+    return ""
 
 
 def parse_json_response(
-    response: Any,
-    agent_id: str = "unknown",
-    default: Optional[Dict[str, Any]] = None
-) -> Optional[Dict[str, Any]]:
+    response: Any, agent_id: str = "unknown", default: dict[str, Any] | None = None
+) -> dict[str, Any] | None:
     """
     Parse JSON from an LLM response using multiple strategies.
 
@@ -134,7 +132,7 @@ def parse_json_response(
         response = str(response)
 
     # Try to extract JSON from response
-    json_match = re.search(r'\{[\s\S]*\}', response)
+    json_match = re.search(r"\{[\s\S]*\}", response)
     if not json_match:
         logger.debug(f"{agent_id} response not in JSON format")
         return default
@@ -159,9 +157,9 @@ def parse_json_response(
     try:
         fixed = _smart_quote_replace(json_str)
         # Fix Python booleans/None
-        fixed = re.sub(r'\bTrue\b', 'true', fixed)
-        fixed = re.sub(r'\bFalse\b', 'false', fixed)
-        fixed = re.sub(r'\bNone\b', 'null', fixed)
+        fixed = re.sub(r"\bTrue\b", "true", fixed)
+        fixed = re.sub(r"\bFalse\b", "false", fixed)
+        fixed = re.sub(r"\bNone\b", "null", fixed)
         return json.loads(fixed)
     except json.JSONDecodeError:
         pass
@@ -172,22 +170,22 @@ def parse_json_response(
         brace_count = 0
         start = -1
         for i, c in enumerate(response):
-            if c == '{':
+            if c == "{":
                 if brace_count == 0:
                     start = i
                 brace_count += 1
-            elif c == '}':
+            elif c == "}":
                 brace_count -= 1
                 if brace_count == 0 and start != -1:
-                    candidate = response[start:i+1]
+                    candidate = response[start : i + 1]
                     try:
                         return json.loads(candidate)
                     except json.JSONDecodeError:
                         # Try with fixes (V10 FIX F6: Use smart quote replace)
                         fixed = _smart_quote_replace(candidate)
-                        fixed = re.sub(r'\bTrue\b', 'true', fixed)
-                        fixed = re.sub(r'\bFalse\b', 'false', fixed)
-                        fixed = re.sub(r'\bNone\b', 'null', fixed)
+                        fixed = re.sub(r"\bTrue\b", "true", fixed)
+                        fixed = re.sub(r"\bFalse\b", "false", fixed)
+                        fixed = re.sub(r"\bNone\b", "null", fixed)
                         try:
                             return json.loads(fixed)
                         except json.JSONDecodeError:
@@ -200,12 +198,7 @@ def parse_json_response(
     return default
 
 
-def extract_json_field(
-    response: Any,
-    field: str,
-    default: Any = None,
-    agent_id: str = "unknown"
-) -> Any:
+def extract_json_field(response: Any, field: str, default: Any = None, agent_id: str = "unknown") -> Any:
     """
     Extract a specific field from a JSON response.
 

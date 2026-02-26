@@ -36,10 +36,10 @@ References:
 import asyncio
 import logging
 import time
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
-from typing import Any, Callable, Coroutine, Dict, List, Optional, Set
 from enum import Enum
-
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -89,9 +89,9 @@ class SyncEvent:
     event_type: str
     source: str
     task_id: str
-    payload: Dict[str, Any]
+    payload: dict[str, Any]
     timestamp: float = field(default_factory=time.time)
-    correlation_id: Optional[str] = None
+    correlation_id: str | None = None
 
     def __post_init__(self):
         # Convert enum to string if needed
@@ -130,12 +130,12 @@ class EventBus:
             keep_history: Whether to keep event history
             max_history: Max events in history
         """
-        self._subscribers: Dict[str, List[EventHandler]] = {}
+        self._subscribers: dict[str, list[EventHandler]] = {}
         self._queue: asyncio.Queue = asyncio.Queue(maxsize=max_queue_size)
         self._handler_timeout = handler_timeout
         self._keep_history = keep_history
         self._max_history = max_history
-        self._history: List[SyncEvent] = []
+        self._history: list[SyncEvent] = []
         self._processing = False
         self._stats = {
             "published": 0,
@@ -213,16 +213,11 @@ class EventBus:
                     timeout=self._handler_timeout,
                 )
                 delivered += 1
-            except asyncio.TimeoutError:
-                logger.error(
-                    f"EventBus: Handler for '{event.event_type}' timed out "
-                    f"(>{self._handler_timeout}s)"
-                )
+            except TimeoutError:
+                logger.error(f"EventBus: Handler for '{event.event_type}' timed out (>{self._handler_timeout}s)")
                 self._stats["failed"] += 1
             except Exception as e:
-                logger.error(
-                    f"EventBus: Handler for '{event.event_type}' failed: {e}"
-                )
+                logger.error(f"EventBus: Handler for '{event.event_type}' failed: {e}")
                 self._stats["failed"] += 1
 
         self._stats["delivered"] += delivered
@@ -233,7 +228,7 @@ class EventBus:
         event: SyncEvent,
         response_type: str,
         timeout: float = 30.0,
-    ) -> Optional[SyncEvent]:
+    ) -> SyncEvent | None:
         """
         Publish an event and wait for a response event.
 
@@ -250,9 +245,8 @@ class EventBus:
         response_future: asyncio.Future = asyncio.Future()
 
         async def response_handler(response_event: SyncEvent):
-            if response_event.correlation_id == event.correlation_id:
-                if not response_future.done():
-                    response_future.set_result(response_event)
+            if response_event.correlation_id == event.correlation_id and not response_future.done():
+                response_future.set_result(response_event)
 
         # Subscribe temporarily
         self.subscribe(response_type, response_handler)
@@ -263,21 +257,18 @@ class EventBus:
 
             # Wait for response
             return await asyncio.wait_for(response_future, timeout=timeout)
-        except asyncio.TimeoutError:
-            logger.warning(
-                f"EventBus: Timeout waiting for '{response_type}' "
-                f"(correlation_id={event.correlation_id})"
-            )
+        except TimeoutError:
+            logger.warning(f"EventBus: Timeout waiting for '{response_type}' (correlation_id={event.correlation_id})")
             return None
         finally:
             self.unsubscribe(response_type, response_handler)
 
     def get_history(
         self,
-        event_type: Optional[str] = None,
-        task_id: Optional[str] = None,
+        event_type: str | None = None,
+        task_id: str | None = None,
         limit: int = 50,
-    ) -> List[SyncEvent]:
+    ) -> list[SyncEvent]:
         """
         Get event history with optional filters.
 
@@ -299,7 +290,7 @@ class EventBus:
 
         return events[:limit]
 
-    def get_stats(self) -> Dict[str, int]:
+    def get_stats(self) -> dict[str, int]:
         """Get event bus statistics."""
         return {
             **self._stats,
@@ -322,7 +313,7 @@ class EventBus:
 
 
 # Global singleton for easy access
-_global_bus: Optional[EventBus] = None
+_global_bus: EventBus | None = None
 
 
 def get_event_bus() -> EventBus:

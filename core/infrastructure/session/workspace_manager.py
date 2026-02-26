@@ -29,12 +29,12 @@ Date: 2025-12-13
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import shutil
 from datetime import datetime
 from pathlib import Path
 from threading import RLock
-from typing import Dict, Optional
 
 from .home_isolator import HomeIsolator
 
@@ -85,8 +85,8 @@ class SessionWorkspaceManager:
         self.base_workspace = Path(base_workspace)
         self.sessions_dir = self.base_workspace / ".sessions"  # Legacy V9.7
         self._lock = RLock()
-        self._active_workspaces: Dict[str, Path] = {}
-        self._creation_times: Dict[str, datetime] = {}
+        self._active_workspaces: dict[str, Path] = {}
+        self._creation_times: dict[str, datetime] = {}
 
         # V9.7.1: Initialize HOME isolator
         self._home_isolator = HomeIsolator(base_workspace)
@@ -96,11 +96,7 @@ class SessionWorkspaceManager:
 
         logger.debug(f"SessionWorkspaceManager initialized: {self.base_workspace}")
 
-    def get_or_create_workspace(
-        self,
-        session_id: str,
-        session_type: str = "swarm"
-    ) -> Path:
+    def get_or_create_workspace(self, session_id: str, session_type: str = "swarm") -> Path:
         """
         Get or create an isolated workspace for a session.
 
@@ -161,11 +157,7 @@ class SessionWorkspaceManager:
         # No symlinks needed - Gemini uses --include-directories flag
         # to access parent NEXUS code
 
-    def get_workspace(
-        self,
-        session_id: str,
-        session_type: str = "swarm"
-    ) -> Optional[Path]:
+    def get_workspace(self, session_id: str, session_type: str = "swarm") -> Path | None:
         """
         Get an existing workspace without creating it.
 
@@ -180,11 +172,7 @@ class SessionWorkspaceManager:
             workspace_key = f"{session_type}_{session_id}"
             return self._active_workspaces.get(workspace_key)
 
-    def cleanup_workspace(
-        self,
-        session_id: str,
-        session_type: str = "swarm"
-    ) -> bool:
+    def cleanup_workspace(self, session_id: str, session_type: str = "swarm") -> bool:
         """
         Remove an isolated workspace after session completion.
 
@@ -263,11 +251,7 @@ class SessionWorkspaceManager:
         """
         return self.base_workspace
 
-    def get_isolated_env(
-        self,
-        session_id: str,
-        session_type: str = "swarm"
-    ) -> Dict[str, str]:
+    def get_isolated_env(self, session_id: str, session_type: str = "swarm") -> dict[str, str]:
         """
         V9.7.1: Get isolated environment for Gemini subprocess.
 
@@ -290,11 +274,7 @@ class SessionWorkspaceManager:
         workspace_key = f"{session_type}_{session_id}"
         return self._home_isolator.get_isolated_env(workspace_key)
 
-    def cleanup_isolated_env(
-        self,
-        session_id: str,
-        session_type: str = "swarm"
-    ) -> bool:
+    def cleanup_isolated_env(self, session_id: str, session_type: str = "swarm") -> bool:
         """
         V9.7.1: Cleanup isolated HOME directory.
 
@@ -310,7 +290,7 @@ class SessionWorkspaceManager:
         workspace_key = f"{session_type}_{session_id}"
         return self._home_isolator.cleanup_home(workspace_key)
 
-    def list_active_workspaces(self) -> Dict[str, Path]:
+    def list_active_workspaces(self) -> dict[str, Path]:
         """
         List all active session workspaces.
 
@@ -320,7 +300,7 @@ class SessionWorkspaceManager:
         with self._lock:
             return dict(self._active_workspaces)
 
-    def get_stats(self) -> Dict[str, int]:
+    def get_stats(self) -> dict[str, int]:
         """
         Get workspace manager statistics.
 
@@ -336,38 +316,25 @@ class SessionWorkspaceManager:
             total_size = 0
             for workspace_path in self._active_workspaces.values():
                 if workspace_path.exists():
-                    try:
-                        total_size += sum(
-                            f.stat().st_size
-                            for f in workspace_path.rglob("*")
-                            if f.is_file()
-                        )
-                    except Exception:
-                        pass
+                    with contextlib.suppress(Exception):
+                        total_size += sum(f.stat().st_size for f in workspace_path.rglob("*") if f.is_file())
 
-            return {
-                "active_count": active_count,
-                "total_size_mb": round(total_size / (1024 * 1024), 2)
-            }
+            return {"active_count": active_count, "total_size_mb": round(total_size / (1024 * 1024), 2)}
 
     def __repr__(self) -> str:
         stats = self.get_stats()
-        return (
-            f"SessionWorkspaceManager("
-            f"base={self.base_workspace}, "
-            f"active={stats['active_count']})"
-        )
+        return f"SessionWorkspaceManager(base={self.base_workspace}, active={stats['active_count']})"
 
 
 # =============================================================================
 # V10 PRISM: Multi-Tenant Workspace Manager Access
 # =============================================================================
-_workspace_manager: Optional[SessionWorkspaceManager] = None
+_workspace_manager: SessionWorkspaceManager | None = None
 # V11 FIX F30: Thread-safe singleton lock
 _workspace_manager_lock = RLock()
 
 
-def get_workspace_manager(base_workspace: Optional[Path] = None) -> SessionWorkspaceManager:
+def get_workspace_manager(base_workspace: Path | None = None) -> SessionWorkspaceManager:
     """
     Get the workspace manager for the current tenant context.
 
@@ -383,8 +350,10 @@ def get_workspace_manager(base_workspace: Optional[Path] = None) -> SessionWorks
     # V10: Try ServiceFactory first (tenant-scoped)
     try:
         from ..context import has_active_session
+
         if has_active_session():
             from ..factory import ServiceFactory
+
             return ServiceFactory.get_workspace_manager()
     except ImportError:
         pass  # context module not available, use legacy
@@ -415,6 +384,7 @@ def reset_workspace_manager() -> None:
     try:
         from ..context import get_current_session_or_none
         from ..factory import ServiceFactory
+
         ctx = get_current_session_or_none()
         if ctx:
             ServiceFactory.clear_tenant_cache(ctx.tenant_id)

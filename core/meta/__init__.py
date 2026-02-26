@@ -2,10 +2,10 @@
 
 # V12.4 COGNITIVE BOOST: System Introspector
 from .system_introspector import (
-    SystemIntrospector,
     ComponentInfo,
-    SystemSnapshot,
     IntrospectorStats,
+    SystemIntrospector,
+    SystemSnapshot,
     get_introspector,
     reset_introspector,
 )

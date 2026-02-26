@@ -24,9 +24,9 @@ Usage:
 
 import logging
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, TYPE_CHECKING
 from datetime import datetime
 from enum import Enum
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from core.observability.telemetry.budget_tracker import BudgetTracker
@@ -41,6 +41,7 @@ DEFAULT_USD_PER_MILLION_TOKENS = 3.0
 
 class CostCategory(Enum):
     """Categories of costs."""
+
     ANALYSIS = "analysis"
     DEBATE = "debate"
     SPAWN = "spawn"
@@ -54,6 +55,7 @@ class CostCategory(Enum):
 @dataclass
 class CostRecord:
     """Record of a cost incurred."""
+
     operation: str
     category: CostCategory
     estimated_tokens: int
@@ -74,39 +76,31 @@ class CostEstimator:
         "independent_analysis_gemini": 1500,
         "independent_analysis_claude": 1500,
         "compare_analyses": 500,
-
         # Phase 2: Debate
         "debate_turn": 1200,
         "check_consensus": 300,
-
         # Phase 3: Architecture
         "generate_architecture": 800,
         "check_registry": 100,
         "spawn_agent": 600,
-
         # Phase 4: Execution
         "execution_step": 1000,
         "monitoring_check": 200,
-
         # Phase 5: Diagnosis
         "failure_diagnosis_gemini": 1000,
         "failure_diagnosis_claude": 1000,
         "synthesize_diagnosis": 500,
-
         # Phase 6: Retry
         "decide_retry": 400,
         "apply_changes": 300,
-
         # Phase 7: Consolidation
         "reflection_gemini": 800,
         "reflection_claude": 800,
         "decide_retention": 500,
         "consolidate": 300,
-
         # RAG
         "rag_retrieval": 200,
         "rag_injection": 500,
-
         # Breakpoints
         "breakpoint_display": 50,
     }
@@ -140,7 +134,7 @@ class CostEstimator:
         self,
         budget_limit: int = 50000,
         budget_tracker: Optional["BudgetTracker"] = None,
-        usd_per_million_tokens: float = None
+        usd_per_million_tokens: float = None,
     ):
         """
         Initialize cost estimator.
@@ -152,11 +146,11 @@ class CostEstimator:
         """
         self.budget_limit = budget_limit
         self.spent = 0
-        self.records: List[CostRecord] = []
+        self.records: list[CostRecord] = []
         self._task_start_spent = 0
 
         # V8.0: BudgetTracker integration
-        self._budget_tracker: Optional["BudgetTracker"] = budget_tracker
+        self._budget_tracker: BudgetTracker | None = budget_tracker
         self._usd_per_million = usd_per_million_tokens or DEFAULT_USD_PER_MILLION_TOKENS
 
     def set_budget_tracker(self, tracker: "BudgetTracker"):
@@ -200,10 +194,7 @@ class CostEstimator:
         remaining_usd = self._budget_tracker.get_remaining()
 
         if estimated_usd > remaining_usd:
-            logger.warning(
-                f"USD budget check failed: "
-                f"need ${estimated_usd:.4f}, have ${remaining_usd:.4f}"
-            )
+            logger.warning(f"USD budget check failed: need ${estimated_usd:.4f}, have ${remaining_usd:.4f}")
             return False
 
         return True
@@ -254,23 +245,17 @@ class CostEstimator:
         # Check token budget
         token_affordable = (self.spent + cost) <= self.budget_limit
         if not token_affordable:
-            logger.warning(
-                f"Cannot afford {operation} x{count} "
-                f"(need {cost} tokens, have {self.budget_remaining})"
-            )
+            logger.warning(f"Cannot afford {operation} x{count} (need {cost} tokens, have {self.budget_remaining})")
             return False
 
         # V8.0: Also check USD budget if tracker is set
         if not self.check_usd_budget(cost):
-            logger.warning(
-                f"Cannot afford {operation} x{count} "
-                f"(USD budget exceeded)"
-            )
+            logger.warning(f"Cannot afford {operation} x{count} (USD budget exceeded)")
             return False
 
         return True
 
-    def can_afford_multiple(self, operations: Dict[str, int]) -> bool:
+    def can_afford_multiple(self, operations: dict[str, int]) -> bool:
         """
         Check if multiple operations are affordable.
 
@@ -282,27 +267,16 @@ class CostEstimator:
         Returns:
             True if all affordable in both token and USD budgets
         """
-        total_cost = sum(
-            self.estimate_operation(op, count)
-            for op, count in operations.items()
-        )
+        total_cost = sum(self.estimate_operation(op, count) for op, count in operations.items())
 
         # Check token budget
         if (self.spent + total_cost) > self.budget_limit:
             return False
 
         # V8.0: Also check USD budget
-        if not self.check_usd_budget(total_cost):
-            return False
+        return self.check_usd_budget(total_cost)
 
-        return True
-
-    def record_cost(
-        self,
-        operation: str,
-        actual_tokens: int,
-        count: int = 1
-    ):
+    def record_cost(self, operation: str, actual_tokens: int, count: int = 1):
         """
         Record actual cost of an operation.
 
@@ -315,20 +289,14 @@ class CostEstimator:
         category = self.OPERATION_CATEGORIES.get(operation, CostCategory.OTHER)
 
         record = CostRecord(
-            operation=operation,
-            category=category,
-            estimated_tokens=estimated,
-            actual_tokens=actual_tokens
+            operation=operation, category=category, estimated_tokens=estimated, actual_tokens=actual_tokens
         )
         self.records.append(record)
         self.spent += actual_tokens
 
         # Log if actual differs significantly from estimate
         if actual_tokens > estimated * 1.5:
-            logger.warning(
-                f"Cost overrun for {operation}: "
-                f"estimated {estimated}, actual {actual_tokens}"
-            )
+            logger.warning(f"Cost overrun for {operation}: estimated {estimated}, actual {actual_tokens}")
 
     def reserve(self, operation: str, count: int = 1) -> bool:
         """
@@ -364,7 +332,7 @@ class CostEstimator:
         spawns: int = 1,
         execution_steps: int = 5,
         with_retry: bool = True,
-        with_consolidation: bool = True
+        with_consolidation: bool = True,
     ) -> int:
         """
         Estimate total cost of a full Hive Mind run.
@@ -415,12 +383,7 @@ class CostEstimator:
 
         return total
 
-    def would_exceed_budget(
-        self,
-        debate_turns: int = 4,
-        spawns: int = 1,
-        execution_steps: int = 5
-    ) -> bool:
+    def would_exceed_budget(self, debate_turns: int = 4, spawns: int = 1, execution_steps: int = 5) -> bool:
         """
         Check if a full Hive Mind run would exceed budget.
 
@@ -428,13 +391,11 @@ class CostEstimator:
             True if would exceed
         """
         estimated = self.estimate_full_hive_mind(
-            debate_turns=debate_turns,
-            spawns=spawns,
-            execution_steps=execution_steps
+            debate_turns=debate_turns, spawns=spawns, execution_steps=execution_steps
         )
         return (self.spent + estimated) > self.budget_limit
 
-    def get_category_breakdown(self) -> Dict[str, int]:
+    def get_category_breakdown(self) -> dict[str, int]:
         """Get cost breakdown by category."""
         breakdown = {cat.value: 0 for cat in CostCategory}
 
@@ -443,7 +404,7 @@ class CostEstimator:
 
         return breakdown
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> dict:
         """Get cost statistics including USD integration."""
         breakdown = self.get_category_breakdown()
 
@@ -455,10 +416,7 @@ class CostEstimator:
             "utilization_percent": round(self.spent / self.budget_limit * 100, 1),
             "operations_count": len(self.records),
             "category_breakdown": breakdown,
-            "average_cost_per_operation": (
-                round(self.spent / len(self.records), 1)
-                if self.records else 0
-            )
+            "average_cost_per_operation": (round(self.spent / len(self.records), 1) if self.records else 0),
         }
 
         # V8.0: Add USD stats if tracker is linked

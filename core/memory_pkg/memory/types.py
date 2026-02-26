@@ -10,9 +10,9 @@ V12.4 COGNITIVE BOOST:
 - chunk_id provides stable identity for deduplication across backends
 """
 
-from dataclasses import dataclass, asdict, field
-from typing import Any, Dict, FrozenSet, Optional
 import hashlib
+from dataclasses import asdict, dataclass, field
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -27,19 +27,20 @@ class Chunk:
     key-value pairs (e.g., task_id, quality_score for SuccessMemoryV2).
     Metadata is stored as JSON string to maintain immutability.
     """
+
     file_path: str
     start_line: int
     end_line: int
     content: str
-    terms: FrozenSet[str] = frozenset()
+    terms: frozenset[str] = frozenset()
     chunk_type: str = "lines"  # "function", "class", "section", "lines"
-    name: Optional[str] = None  # Function/class/section name if applicable
-    metadata: Optional[Dict[str, Any]] = None  # V12.4.1: Arbitrary metadata
+    name: str | None = None  # Function/class/section name if applicable
+    metadata: dict[str, Any] | None = None  # V12.4.1: Arbitrary metadata
 
     def __post_init__(self):
         # Coerce mutable set to frozenset for hashability safety
         if isinstance(self.terms, set):
-            object.__setattr__(self, 'terms', frozenset(self.terms))
+            object.__setattr__(self, "terms", frozenset(self.terms))
 
         # V12.4.1: Metadata is allowed to be mutable for convenience
         # (Chunk is still hashable via chunk_id, not by metadata)
@@ -54,7 +55,7 @@ class Chunk:
         """SHA-256 hash of the content (first 16 chars)."""
         return hashlib.sha256(self.content.encode("utf-8")).hexdigest()[:16]
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert to JSON-serializable dict."""
         result = {
             "file_path": self.file_path,
@@ -71,7 +72,7 @@ class Chunk:
         return result
 
     @classmethod
-    def from_dict(cls, data: Dict) -> 'Chunk':
+    def from_dict(cls, data: dict) -> "Chunk":
         """Create from JSON dict."""
         return cls(
             file_path=data["file_path"],
@@ -95,10 +96,11 @@ class ScoredChunk:
 
     The underlying Chunk remains immutable.
     """
+
     chunk: Chunk
     score: float = 0.0
     backend: str = ""
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     @property
     def chunk_id(self) -> str:
@@ -122,7 +124,7 @@ class ScoredChunk:
         return self.chunk.content
 
     @property
-    def terms(self) -> FrozenSet[str]:
+    def terms(self) -> frozenset[str]:
         return self.chunk.terms
 
     @property
@@ -130,18 +132,19 @@ class ScoredChunk:
         return self.chunk.chunk_type
 
     @property
-    def name(self) -> Optional[str]:
+    def name(self) -> str | None:
         return self.chunk.name
 
 
 @dataclass
 class IndexStats:
     """Statistics about the indexed project."""
+
     total_files: int = 0
     total_chunks: int = 0
     total_terms: int = 0
     indexed_at: str = ""
     storage_path: str = ""
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return asdict(self)

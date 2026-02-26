@@ -17,19 +17,18 @@ Usage:
     await get_redis_bus().publish(event)
 """
 
-from .types import CerebroEvent, CerebroEventType
-from .redis_bus import RedisEventBus, get_redis_bus, reset_redis_bus
-from .telemetry_bridge import TelemetryBridge, get_telemetry_bridge, reset_telemetry_bridge
-
 # V12.4 COGNITIVE BOOST: Event Analytics
 from .event_analytics import (
     EventAnalytics,
+    EventAnalyticsStats,
     EventRecord,
     EventTypeMetrics,
-    EventAnalyticsStats,
     get_event_analytics,
     reset_event_analytics,
 )
+from .redis_bus import RedisEventBus, get_redis_bus, reset_redis_bus
+from .telemetry_bridge import TelemetryBridge, get_telemetry_bridge, reset_telemetry_bridge
+from .types import CerebroEvent, CerebroEventType
 
 __all__ = [
     "CerebroEvent",

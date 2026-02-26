@@ -18,6 +18,7 @@ Security Features:
 - Path validation for learn/forget operations
 """
 
+import contextlib
 import logging
 import tempfile
 from pathlib import Path
@@ -27,7 +28,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Upload
 from pydantic import BaseModel, Field
 
 from ..deps import AuthenticatedUser
-from ..rbac import require_permission, Permission
+from ..rbac import Permission, require_permission
 
 logger = logging.getLogger(__name__)
 
@@ -44,14 +45,17 @@ MAX_UPLOAD_SIZE = 10_000_000  # 10MB for document uploads
 # Request/Response Models
 # =============================================================================
 
+
 class NamespaceCreateRequest(BaseModel):
     """Request body for creating an agent namespace."""
+
     name: str = Field(..., min_length=1, max_length=50, description="Namespace name")
     metadata: dict[str, Any] | None = Field(default=None, description="Optional metadata")
 
 
 class LearnRequest(BaseModel):
     """Request body for learning from path."""
+
     path: str = Field(..., description="Path to file or directory")
     recursive: bool = Field(default=True, description="Include subdirectories")
     namespace: str | None = Field(default=None, description="Target namespace (default: project)")
@@ -59,12 +63,14 @@ class LearnRequest(BaseModel):
 
 class ForgetRequest(BaseModel):
     """Request body for forgetting a file."""
+
     path: str = Field(..., description="Path to file to forget")
     namespace: str | None = Field(default=None, description="Target namespace (default: project)")
 
 
 class QueryRequest(BaseModel):
     """Request body for RAG query."""
+
     query: str = Field(..., min_length=1, description="Search query")
     limit: int = Field(default=5, ge=1, le=20, description="Max results")
     namespace: str | None = Field(default=None, description="Target namespace (default: project)")
@@ -72,6 +78,7 @@ class QueryRequest(BaseModel):
 
 class ChunkResponse(BaseModel):
     """Response model for a retrieved chunk."""
+
     file_path: str
     start_line: int
     end_line: int
@@ -85,6 +92,7 @@ class ChunkResponse(BaseModel):
 # Helper Functions
 # =============================================================================
 
+
 def _get_namespace_manager():
     """Get RAGNamespaceManager instance."""
     try:
@@ -96,7 +104,7 @@ def _get_namespace_manager():
         return RAGNamespaceManager(nexus_root)
     except Exception as e:
         logger.error(f"Failed to get namespace manager: {e}")
-        raise HTTPException(500, f"Memory system error: {e}")
+        raise HTTPException(500, f"Memory system error: {e}") from e
 
 
 def _get_rag_for_namespace(manager, namespace: str | None):
@@ -113,6 +121,7 @@ def _get_rag_for_namespace(manager, namespace: str | None):
 # =============================================================================
 # Endpoints
 # =============================================================================
+
 
 @router.get("/stats")
 async def memory_stats(
@@ -192,7 +201,7 @@ async def create_namespace(
         raise HTTPException(409, f"Namespace already exists: {body.name}")
 
     # Create namespace
-    rag = manager.create_agent_rag(body.name, metadata=body.metadata)
+    manager.create_agent_rag(body.name, metadata=body.metadata)
     info = manager.get_namespace_info(body.name)
 
     logger.info(f"[MEMORIA] Created namespace: {body.name} by user={user.user_id}")
@@ -281,10 +290,8 @@ async def ingest_file(
 
     finally:
         # Clean up temp file
-        try:
+        with contextlib.suppress(Exception):
             tmp_path.unlink()
-        except Exception:
-            pass
 
 
 @router.post("/learn")

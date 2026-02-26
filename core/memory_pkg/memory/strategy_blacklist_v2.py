@@ -42,7 +42,7 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from .project_memory import ProjectMemory
 from .types import Chunk
@@ -57,17 +57,18 @@ class BlacklistedStrategy:
 
     Same schema as V1 for backward compatibility.
     """
+
     task_hash: str  # Keep for backward compat, not used in V2
     description: str
     swarm_mode: str
     error_message: str
     retry_count: int
     timestamp: str
-    complexity: Optional[str] = None
-    domains: Optional[List[str]] = None
-    suggested_alternatives: Optional[List[str]] = None
+    complexity: str | None = None
+    domains: list[str] | None = None
+    suggested_alternatives: list[str] | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON storage."""
         return {
             "task_hash": self.task_hash,
@@ -78,11 +79,11 @@ class BlacklistedStrategy:
             "timestamp": self.timestamp,
             "complexity": self.complexity,
             "domains": self.domains,
-            "suggested_alternatives": self.suggested_alternatives
+            "suggested_alternatives": self.suggested_alternatives,
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "BlacklistedStrategy":
+    def from_dict(cls, data: dict[str, Any]) -> BlacklistedStrategy:
         """Create from dictionary."""
         return cls(
             task_hash=data.get("task_hash", ""),
@@ -93,7 +94,7 @@ class BlacklistedStrategy:
             timestamp=data.get("timestamp", ""),
             complexity=data.get("complexity"),
             domains=data.get("domains"),
-            suggested_alternatives=data.get("suggested_alternatives")
+            suggested_alternatives=data.get("suggested_alternatives"),
         )
 
 
@@ -134,9 +135,9 @@ class StrategyBlacklistV2:
     def __init__(
         self,
         workspace_path: Path,
-        nexus_root: Optional[Path] = None,
+        nexus_root: Path | None = None,
         max_entries: int = DEFAULT_MAX_ENTRIES,
-        similarity_threshold: float = SIMILARITY_THRESHOLD
+        similarity_threshold: float = SIMILARITY_THRESHOLD,
     ) -> None:
         """
         Initialize StrategyBlacklistV2.
@@ -191,6 +192,7 @@ class StrategyBlacklistV2:
         # Load V1 data
         try:
             import json
+
             data = json.loads(v1_path.read_text(encoding="utf-8"))
             strategies = data.get("strategies", [])
 
@@ -247,6 +249,7 @@ class StrategyBlacklistV2:
 
         # Extract terms for sparse retrieval
         from .project_memory import ProjectMemory
+
         pm_temp = ProjectMemory(self.nexus_root)
         terms = pm_temp._extract_terms(content)
 
@@ -270,7 +273,7 @@ class StrategyBlacklistV2:
                 "complexity": strategy.complexity,
                 "domains": strategy.domains or [],
                 "suggested_alternatives": strategy.suggested_alternatives or [],
-            }
+            },
         )
 
         # Add to ProjectMemory
@@ -283,8 +286,8 @@ class StrategyBlacklistV2:
         swarm_mode: str,
         error_message: str,
         retry_count: int,
-        complexity: Optional[str] = None,
-        domains: Optional[List[str]] = None
+        complexity: str | None = None,
+        domains: list[str] | None = None,
     ) -> BlacklistedStrategy:
         """
         Add a failed strategy to the blacklist.
@@ -301,7 +304,6 @@ class StrategyBlacklistV2:
             The created BlacklistedStrategy.
         """
         import hashlib
-        from datetime import datetime
 
         # Compute hash for backward compat
         normalized = " ".join(description.lower().split())
@@ -317,24 +319,20 @@ class StrategyBlacklistV2:
             timestamp=datetime.now().isoformat(),
             complexity=complexity,
             domains=domains or [],
-            suggested_alternatives=[]
+            suggested_alternatives=[],
         )
 
         # Index into LanceDB
         self._index_blacklisted_strategy(strategy)
 
         # Check FIFO eviction
-        blacklist_chunks = [
-            c for c in self.project_memory.chunks
-            if c.file_path.startswith(self.VIRTUAL_FILE_PREFIX)
-        ]
+        blacklist_chunks = [c for c in self.project_memory.chunks if c.file_path.startswith(self.VIRTUAL_FILE_PREFIX)]
 
         if len(blacklist_chunks) > self.max_entries:
             # Remove oldest entries
             to_remove = len(blacklist_chunks) - self.max_entries
             sorted_chunks = sorted(
-                blacklist_chunks,
-                key=lambda c: c.metadata.get("timestamp", "") if c.metadata else ""
+                blacklist_chunks, key=lambda c: c.metadata.get("timestamp", "") if c.metadata else ""
             )
 
             for chunk in sorted_chunks[:to_remove]:
@@ -347,17 +345,12 @@ class StrategyBlacklistV2:
         self.project_memory.save()
 
         self._logger.warning(
-            f"[BLACKLIST V2] Added failed strategy: {description[:50]}... "
-            f"(mode={swarm_mode}, retries={retry_count})"
+            f"[BLACKLIST V2] Added failed strategy: {description[:50]}... (mode={swarm_mode}, retries={retry_count})"
         )
 
         return strategy
 
-    def is_blacklisted(
-        self,
-        description: str,
-        swarm_mode: Optional[str] = None
-    ) -> Tuple[bool, Optional[str]]:
+    def is_blacklisted(self, description: str, swarm_mode: str | None = None) -> tuple[bool, str | None]:
         """
         Check if a strategy is blacklisted using semantic similarity.
 
@@ -372,17 +365,10 @@ class StrategyBlacklistV2:
             If blacklisted, reason explains why.
         """
         # Retrieve using ProjectMemory's semantic search
-        chunks = self.project_memory.retrieve(
-            description,
-            limit=5,
-            min_score=self.similarity_threshold
-        )
+        chunks = self.project_memory.retrieve(description, limit=5, min_score=self.similarity_threshold)
 
         # Filter to only blacklist chunks
-        blacklist_chunks = [
-            c for c in chunks
-            if c.file_path.startswith(self.VIRTUAL_FILE_PREFIX)
-        ]
+        blacklist_chunks = [c for c in chunks if c.file_path.startswith(self.VIRTUAL_FILE_PREFIX)]
 
         if not blacklist_chunks:
             return False, None
@@ -402,20 +388,14 @@ class StrategyBlacklistV2:
             retry_count = chunk.metadata.get("retry_count", 0)
 
             reason = (
-                f"Similar strategy failed {retry_count} times before.\n"
-                f"Failed approach: {failed_desc}\n"
-                f"Error: {error}"
+                f"Similar strategy failed {retry_count} times before.\nFailed approach: {failed_desc}\nError: {error}"
             )
 
             return True, reason
 
         return False, None
 
-    def suggest_alternatives(
-        self,
-        description: str,
-        limit: int = 3
-    ) -> List[str]:
+    def suggest_alternatives(self, description: str, limit: int = 3) -> list[str]:
         """
         Suggest alternative approaches based on similar failures.
 
@@ -433,13 +413,10 @@ class StrategyBlacklistV2:
         chunks = self.project_memory.retrieve(
             description,
             limit=10,
-            min_score=0.3  # Lower threshold for suggestions
+            min_score=0.3,  # Lower threshold for suggestions
         )
 
-        blacklist_chunks = [
-            c for c in chunks
-            if c.file_path.startswith(self.VIRTUAL_FILE_PREFIX)
-        ]
+        blacklist_chunks = [c for c in chunks if c.file_path.startswith(self.VIRTUAL_FILE_PREFIX)]
 
         # Collect suggested alternatives
         alternatives = []
@@ -459,15 +436,13 @@ class StrategyBlacklistV2:
                         return alternatives
 
         # If no stored alternatives, generate generic ones based on mode
-        if not alternatives:
-            # Extract failed mode
-            if blacklist_chunks:
-                failed_mode = blacklist_chunks[0].metadata.get("swarm_mode", "")
-                alternatives = self._generate_mode_alternatives(failed_mode)
+        if not alternatives and blacklist_chunks:
+            failed_mode = blacklist_chunks[0].metadata.get("swarm_mode", "")
+            alternatives = self._generate_mode_alternatives(failed_mode)
 
         return alternatives[:limit]
 
-    def _generate_mode_alternatives(self, failed_mode: str) -> List[str]:
+    def _generate_mode_alternatives(self, failed_mode: str) -> list[str]:
         """
         Generate alternative collaboration modes based on a failed mode.
 
@@ -483,22 +458,19 @@ class StrategyBlacklistV2:
             "sequential": ["parallel", "ping_pong", "lead_support"],
             "lead_support": ["ping_pong", "red_blue", "sequential"],
             "specialist": ["parallel", "lead_support", "ping_pong"],
-            "red_blue": ["lead_support", "ping_pong", "sequential"]
+            "red_blue": ["lead_support", "ping_pong", "sequential"],
         }
 
         return mode_alternatives.get(failed_mode.lower(), ["try a different mode"])
 
-    def get_all(self) -> List[BlacklistedStrategy]:
+    def get_all(self) -> list[BlacklistedStrategy]:
         """
         Get all blacklisted strategies.
 
         Returns:
             List of BlacklistedStrategy objects, oldest first.
         """
-        blacklist_chunks = [
-            c for c in self.project_memory.chunks
-            if c.file_path.startswith(self.VIRTUAL_FILE_PREFIX)
-        ]
+        blacklist_chunks = [c for c in self.project_memory.chunks if c.file_path.startswith(self.VIRTUAL_FILE_PREFIX)]
 
         # Sort by timestamp
         blacklist_chunks.sort(key=lambda c: c.metadata.get("timestamp", "") if c.metadata else "")
@@ -517,13 +489,13 @@ class StrategyBlacklistV2:
                 timestamp=chunk.metadata.get("timestamp", ""),
                 complexity=chunk.metadata.get("complexity"),
                 domains=chunk.metadata.get("domains"),
-                suggested_alternatives=chunk.metadata.get("suggested_alternatives")
+                suggested_alternatives=chunk.metadata.get("suggested_alternatives"),
             )
             strategies.append(strategy)
 
         return strategies
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """
         Get statistics about the blacklist.
 
@@ -538,14 +510,14 @@ class StrategyBlacklistV2:
                 "mode_distribution": {},
                 "domain_distribution": {},
                 "avg_retry_count": 0.0,
-                "backend": self.project_memory.get_backend_info()["backend"]
+                "backend": self.project_memory.get_backend_info()["backend"],
             }
 
-        mode_counts: Dict[str, int] = {}
+        mode_counts: dict[str, int] = {}
         for s in strategies:
             mode_counts[s.swarm_mode] = mode_counts.get(s.swarm_mode, 0) + 1
 
-        domain_counts: Dict[str, int] = {}
+        domain_counts: dict[str, int] = {}
         for s in strategies:
             if s.domains:
                 for d in s.domains:
@@ -558,7 +530,7 @@ class StrategyBlacklistV2:
             "mode_distribution": mode_counts,
             "domain_distribution": domain_counts,
             "avg_retry_count": round(avg_retries, 2),
-            "backend": self.project_memory.get_backend_info()["backend"]
+            "backend": self.project_memory.get_backend_info()["backend"],
         }
 
     def clear(self) -> int:
@@ -568,10 +540,7 @@ class StrategyBlacklistV2:
         Returns:
             Number of entries cleared.
         """
-        blacklist_chunks = [
-            c for c in self.project_memory.chunks
-            if c.file_path.startswith(self.VIRTUAL_FILE_PREFIX)
-        ]
+        blacklist_chunks = [c for c in self.project_memory.chunks if c.file_path.startswith(self.VIRTUAL_FILE_PREFIX)]
 
         count = len(blacklist_chunks)
 
@@ -588,10 +557,10 @@ class StrategyBlacklistV2:
 # Global Access
 # =============================================================================
 
-_default_blacklist_v2: Optional[StrategyBlacklistV2] = None
+_default_blacklist_v2: StrategyBlacklistV2 | None = None
 
 
-def get_strategy_blacklist_v2(workspace_path: Optional[Path] = None) -> Optional[StrategyBlacklistV2]:
+def get_strategy_blacklist_v2(workspace_path: Path | None = None) -> StrategyBlacklistV2 | None:
     """
     Get the StrategyBlacklistV2 instance.
 

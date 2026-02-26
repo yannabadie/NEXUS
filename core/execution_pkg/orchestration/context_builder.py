@@ -16,14 +16,13 @@ Usage:
 
 import json
 import logging
-from pathlib import Path
-from typing import TYPE_CHECKING, Dict, Optional, Any
-
-_logger = logging.getLogger(__name__)
+from typing import TYPE_CHECKING
 
 from core.foundation.agents.unified_registry import get_registry
-from core.memory_pkg.prompts import load_prompt
 from core.intelligence.swarm import TaskAnalysis, TaskComplexity
+from core.memory_pkg.prompts import load_prompt
+
+_logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from core.orchestration_v7 import OrchestratorV7
@@ -42,7 +41,7 @@ class ContextBuilder:
     Phase 14c: Extracted from OrchestratorV7 for better maintainability.
     """
 
-    def __init__(self, orchestrator: 'OrchestratorV7'):
+    def __init__(self, orchestrator: "OrchestratorV7"):
         """
         Initialize context builder with orchestrator reference.
 
@@ -89,17 +88,17 @@ class ContextBuilder:
 ---
 
 ## OBJECTIF UTILISATEUR
-{self._orch.blackboard.get('objective', 'Non défini')}
+{self._orch.blackboard.get("objective", "Non défini")}
 
 ---
 
 ## MODE
-{self._orch.blackboard.get('mode', 'Normal')}
+{self._orch.blackboard.get("mode", "Normal")}
 
 ---
 
 ## PLAN STRATÉGIQUE
-{json.dumps(self._orch.blackboard.get('strategic_plan', []), indent=2, ensure_ascii=False)}
+{json.dumps(self._orch.blackboard.get("strategic_plan", []), indent=2, ensure_ascii=False)}
 
 ---
 
@@ -151,7 +150,7 @@ class ContextBuilder:
         Returns:
             Markdown context for CFL validation
         """
-        objective = self._orch.blackboard.get('objective', 'Task in progress')
+        objective = self._orch.blackboard.get("objective", "Task in progress")
 
         # Get the last message (tool request)
         last_msg = self._orch.memory.get_last_message() if self._orch.memory else {}
@@ -163,7 +162,7 @@ class ContextBuilder:
         result_dict = self._orch.pending_tool_result.to_dict() if self._orch.pending_tool_result else {}
 
         # Truncate output if too long (CFL doesn't need full output)
-        output = result_dict.get('output', '')
+        output = result_dict.get("output", "")
         if len(output) > 2000:
             output = output[:1000] + "\n...[truncated]...\n" + output[-500:]
 
@@ -180,12 +179,12 @@ User objective: {objective}
 - Arguments: {json.dumps(tool_args, ensure_ascii=False)[:500]}
 
 ## Tool Result
-- Status: {result_dict.get('status', 'UNKNOWN')}
+- Status: {result_dict.get("status", "UNKNOWN")}
 - Output:
 ```
 {output}
 ```
-- Error: {result_dict.get('error', 'None')}
+- Error: {result_dict.get("error", "None")}
 
 ## YOUR TASK (IMPORTANT)
 1. Check if the tool executed successfully
@@ -203,12 +202,7 @@ User objective: {objective}
 """
         return context
 
-    def build_swarm_context(
-        self,
-        task_context: str,
-        task_type: str,
-        target_agent: Optional[str] = None
-    ) -> str:
+    def build_swarm_context(self, task_context: str, task_type: str, target_agent: str | None = None) -> str:
         """
         Build enriched context for swarm execution.
 
@@ -254,7 +248,7 @@ Path: {self._orch.workspace_path}
 ---
 
 ## OBJECTIF UTILISATEUR
-{self._orch.blackboard.get('objective', 'Non défini')}
+{self._orch.blackboard.get("objective", "Non défini")}
 
 ---
 
@@ -288,11 +282,7 @@ Path: {self._orch.workspace_path}
 
         return enriched
 
-    def build_simple_context(
-        self,
-        user_input: str,
-        task_analysis: TaskAnalysis
-    ) -> str:
+    def build_simple_context(self, user_input: str, task_analysis: TaskAnalysis) -> str:
         """
         Build lightweight context for SIMPLE task execution.
 
@@ -370,16 +360,17 @@ Execute efficiently. You are the sole agent for this task.
             Formatted markdown string with relevant chunks, or empty string.
         """
         import logging
+
         logger = logging.getLogger("nexus.rag_diagnostic")
 
         # Only inject for MODERATE+ complexity tasks
-        complexity = getattr(self._orch, '_current_complexity', None)
+        complexity = getattr(self._orch, "_current_complexity", None)
         if not complexity or complexity.value < TaskComplexity.MODERATE.value:
             logger.debug(f"[RAG] Skipped - complexity {complexity} < MODERATE")
             return ""
 
         # Check if project_memory is available
-        if not hasattr(self._orch, 'project_memory'):
+        if not hasattr(self._orch, "project_memory"):
             logger.warning("[RAG] ProjectMemory NOT AVAILABLE on orchestrator")
             return ""
 
@@ -415,6 +406,7 @@ Execute efficiently. You are the sole agent for this task.
             # V12.4: Record access patterns for Ebbinghaus decay scoring
             try:
                 from core.memory_pkg.memory.decay_scorer import get_decay_scorer
+
                 scorer = get_decay_scorer()
                 for chunk in chunks:
                     scorer.record_access(chunk.chunk_id)
@@ -424,8 +416,8 @@ Execute efficiently. You are the sole agent for this task.
             # V11 DIAGNOSTIC: Log retrieved chunks
             logger.info(f"[RAG] Retrieved {len(chunks)} chunks:")
             for i, chunk in enumerate(chunks):
-                source = getattr(chunk, 'file_path', getattr(chunk, 'source_path', 'unknown'))
-                logger.info(f"[RAG]   [{i+1}] {source}:{chunk.start_line}-{chunk.end_line}")
+                source = getattr(chunk, "file_path", getattr(chunk, "source_path", "unknown"))
+                logger.info(f"[RAG]   [{i + 1}] {source}:{chunk.start_line}-{chunk.end_line}")
 
             # Format for context
             formatted = self._orch.project_memory.format_chunks_for_context(chunks, max_chars=2000)

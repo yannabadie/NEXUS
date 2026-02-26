@@ -8,10 +8,10 @@ Applique les limites définies dans config.py:
 
 Historique stocké dans workspace/.nexus/evolution_history.json
 """
+
 import json
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Tuple, List, Dict
 
 
 class EvolutionRateLimiter:
@@ -35,24 +35,23 @@ class EvolutionRateLimiter:
 
     def _init_history(self):
         """Initialize empty history"""
-        self.history_file.write_text(json.dumps({
-            "evolutions": [],
-            "stats": {
-                "total_evolutions": 0,
-                "total_children": 0,
-                "last_evolution": None
-            }
-        }, indent=2), encoding='utf-8')
+        self.history_file.write_text(
+            json.dumps(
+                {"evolutions": [], "stats": {"total_evolutions": 0, "total_children": 0, "last_evolution": None}},
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
 
-    def _load_history(self) -> Dict:
+    def _load_history(self) -> dict:
         """Load evolution history"""
-        return json.loads(self.history_file.read_text(encoding='utf-8'))
+        return json.loads(self.history_file.read_text(encoding="utf-8"))
 
-    def _save_history(self, history: Dict):
+    def _save_history(self, history: dict):
         """Save evolution history"""
-        self.history_file.write_text(json.dumps(history, indent=2), encoding='utf-8')
+        self.history_file.write_text(json.dumps(history, indent=2), encoding="utf-8")
 
-    def can_evolve(self, num_children: int) -> Tuple[bool, str]:
+    def can_evolve(self, num_children: int) -> tuple[bool, str]:
         """
         Check if evolution is allowed
 
@@ -71,8 +70,7 @@ class EvolutionRateLimiter:
 
         # Check 2: Daily limit
         today = datetime.now().date()
-        today_count = sum(1 for ev in evolutions
-                         if datetime.fromisoformat(ev["timestamp"]).date() == today)
+        today_count = sum(1 for ev in evolutions if datetime.fromisoformat(ev["timestamp"]).date() == today)
 
         if today_count >= self.max_gen_per_day:
             return False, f"Daily limit reached ({today_count}/{self.max_gen_per_day} evolutions today)"
@@ -103,7 +101,7 @@ class EvolutionRateLimiter:
             "timestamp": datetime.now().isoformat(),
             "generation": generation,
             "parent_id": parent_id,
-            "num_children": num_children
+            "num_children": num_children,
         }
 
         history["evolutions"].append(evolution_record)
@@ -113,15 +111,14 @@ class EvolutionRateLimiter:
 
         self._save_history(history)
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> dict:
         """Get evolution statistics"""
         history = self._load_history()
         stats = history["stats"].copy()
 
         # Calculate today's evolutions
         today = datetime.now().date()
-        today_count = sum(1 for ev in history["evolutions"]
-                         if datetime.fromisoformat(ev["timestamp"]).date() == today)
+        today_count = sum(1 for ev in history["evolutions"] if datetime.fromisoformat(ev["timestamp"]).date() == today)
         stats["today_evolutions"] = today_count
         stats["remaining_today"] = max(0, self.max_gen_per_day - today_count)
 
@@ -143,7 +140,8 @@ class EvolutionRateLimiter:
 
         # Keep only non-today evolutions
         today = datetime.now().date()
-        history["evolutions"] = [ev for ev in history["evolutions"]
-                                if datetime.fromisoformat(ev["timestamp"]).date() != today]
+        history["evolutions"] = [
+            ev for ev in history["evolutions"] if datetime.fromisoformat(ev["timestamp"]).date() != today
+        ]
 
         self._save_history(history)

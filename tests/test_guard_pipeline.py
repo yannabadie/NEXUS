@@ -4,10 +4,11 @@ Tests for GuardPipeline - P5.1 Phase 1 Extraction
 Validates security input validation logic extracted from OrchestratorV7.
 """
 
-import pytest
 import sys
 from pathlib import Path
 from unittest.mock import Mock, patch
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -33,7 +34,7 @@ class TestGuardValidationResult:
             threat_level=ThreatLevel.CRITICAL,
             threat_type="prompt_injection",
             reason="Detected ignore instructions pattern",
-            risk_score=0.95
+            risk_score=0.95,
         )
         assert not result.is_safe
         assert result.threat_level == ThreatLevel.CRITICAL
@@ -73,7 +74,7 @@ class TestGuardPipeline:
 
         assert result.is_safe
 
-    @patch('core.execution_pkg.orchestration.guard_pipeline.get_input_guard')
+    @patch("core.execution_pkg.orchestration.guard_pipeline.get_input_guard")
     def test_validate_input_threat_detected(self, mock_get_guard, pipeline):
         """Threat detection should return unsafe result."""
         # Mock input guard to detect threat
@@ -104,7 +105,7 @@ class TestGuardPipeline:
             threat_level=ThreatLevel.CRITICAL,
             threat_type="prompt_injection",
             reason="Critical threat",
-            risk_score=0.99
+            risk_score=0.99,
         )
 
         assert pipeline.should_block(result)
@@ -116,7 +117,7 @@ class TestGuardPipeline:
             threat_level=ThreatLevel.HIGH,  # Not CRITICAL
             threat_type="suspicious_pattern",
             reason="High threat but not critical",
-            risk_score=0.75
+            risk_score=0.75,
         )
 
         assert not pipeline.should_block(result)  # Only CRITICAL is blocked

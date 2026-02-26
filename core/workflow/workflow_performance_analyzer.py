@@ -39,9 +39,9 @@ from __future__ import annotations
 import dataclasses
 import logging
 import threading
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -57,6 +57,7 @@ MAX_WORKFLOW_RECORDS: int = 50000
 # Dataclasses
 # =============================================================================
 
+
 @dataclass
 class WorkflowRunRecord:
     """
@@ -65,6 +66,7 @@ class WorkflowRunRecord:
     Contains detailed metrics about one workflow run including completion rate,
     duration, bottlenecks, and parallel efficiency.
     """
+
     run_id: str = ""
     workflow_name: str = ""
     steps_total: int = 0
@@ -87,7 +89,7 @@ class WorkflowRunRecord:
             return 0.0
         return self.steps_completed / self.steps_total
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         Convert to dictionary with computed properties.
 
@@ -107,6 +109,7 @@ class WorkflowProfile:
     Tracks cumulative metrics across all runs of a workflow, enabling
     performance trend analysis and bottleneck identification.
     """
+
     workflow_name: str = ""
     total_runs: int = 0
     total_steps_completed: int = 0
@@ -150,7 +153,7 @@ class WorkflowProfile:
             return 0.0
         return self.total_parallel_efficiency / self.total_runs
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         Convert to dictionary with computed properties.
 
@@ -171,12 +174,13 @@ class PerformanceStats:
 
     Provides high-level metrics for system-wide workflow performance.
     """
+
     total_runs: int = 0
     unique_workflows: int = 0
     avg_completion_rate: float = 0.0
     avg_duration_ms: float = 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return dataclasses.asdict(self)
 
@@ -184,6 +188,7 @@ class PerformanceStats:
 # =============================================================================
 # Main Analyzer
 # =============================================================================
+
 
 class WorkflowPerformanceAnalyzer:
     """
@@ -212,8 +217,8 @@ class WorkflowPerformanceAnalyzer:
             max_records: Maximum number of workflow run records to keep (FIFO eviction)
         """
         self._max_records = max_records
-        self._runs: List[WorkflowRunRecord] = []
-        self._profiles: Dict[str, WorkflowProfile] = {}
+        self._runs: list[WorkflowRunRecord] = []
+        self._profiles: dict[str, WorkflowProfile] = {}
         self._counter = 1
         self._lock = threading.Lock()
 
@@ -264,15 +269,13 @@ class WorkflowPerformanceAnalyzer:
                 total_duration_ms=total_duration_ms,
                 bottleneck_step=bottleneck_step,
                 parallel_efficiency=parallel_efficiency,
-                timestamp=datetime.now(timezone.utc).isoformat(),
+                timestamp=datetime.now(UTC).isoformat(),
             )
 
             # FIFO eviction if needed
             if len(self._runs) >= self._max_records:
                 evicted = self._runs.pop(0)
-                _logger.debug(
-                    f"Evicted workflow run {evicted.run_id} (FIFO at {self._max_records})"
-                )
+                _logger.debug(f"Evicted workflow run {evicted.run_id} (FIFO at {self._max_records})")
 
             # Add to runs
             self._runs.append(record)
@@ -308,7 +311,7 @@ class WorkflowPerformanceAnalyzer:
     # Querying - Profiles
     # =========================================================================
 
-    def get_workflow_profile(self, workflow_name: str) -> Optional[WorkflowProfile]:
+    def get_workflow_profile(self, workflow_name: str) -> WorkflowProfile | None:
         """
         Get aggregate profile for a specific workflow.
 
@@ -321,7 +324,7 @@ class WorkflowPerformanceAnalyzer:
         with self._lock:
             return self._profiles.get(workflow_name)
 
-    def get_all_profiles(self) -> List[WorkflowProfile]:
+    def get_all_profiles(self) -> list[WorkflowProfile]:
         """
         Get all workflow profiles sorted by total runs descending.
 
@@ -333,7 +336,7 @@ class WorkflowPerformanceAnalyzer:
             profiles.sort(key=lambda p: p.total_runs, reverse=True)
             return profiles
 
-    def get_best_workflow(self) -> Optional[str]:
+    def get_best_workflow(self) -> str | None:
         """
         Identify the best-performing workflow by completion rate.
 
@@ -344,21 +347,14 @@ class WorkflowPerformanceAnalyzer:
             if not self._profiles:
                 return None
 
-            best_profile = max(
-                self._profiles.values(),
-                key=lambda p: p.avg_completion_rate
-            )
+            best_profile = max(self._profiles.values(), key=lambda p: p.avg_completion_rate)
             return best_profile.workflow_name
 
     # =========================================================================
     # Querying - Runs
     # =========================================================================
 
-    def get_recent_runs(
-        self,
-        limit: int = 10,
-        workflow_name: Optional[str] = None
-    ) -> List[WorkflowRunRecord]:
+    def get_recent_runs(self, limit: int = 10, workflow_name: str | None = None) -> list[WorkflowRunRecord]:
         """
         Get most recent workflow runs.
 
@@ -379,7 +375,7 @@ class WorkflowPerformanceAnalyzer:
             # Return most recent
             return list(reversed(runs[-limit:]))
 
-    def list_workflows(self) -> List[str]:
+    def list_workflows(self) -> list[str]:
         """
         Get sorted list of all tracked workflow names.
 
@@ -449,7 +445,7 @@ class WorkflowPerformanceAnalyzer:
             self._counter = 1
             _logger.info("Cleared all workflow performance data")
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         Export analyzer state to dictionary.
 
@@ -478,7 +474,7 @@ class WorkflowPerformanceAnalyzer:
 # Singleton Pattern
 # =============================================================================
 
-_instance: Optional[WorkflowPerformanceAnalyzer] = None
+_instance: WorkflowPerformanceAnalyzer | None = None
 _lock = threading.Lock()
 
 

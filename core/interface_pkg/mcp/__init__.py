@@ -33,22 +33,22 @@ Usage (Server - expose NEXUS to external clients):
     }
 """
 
+from .client import MCPClient
+from .discovery import (
+    DiscoveredTool,
+    MCPToolDiscovery,
+    ToolDiscoveryResult,
+    validate_input_schema,
+)
 from .protocol import (
+    MCPCapabilities,
+    MCPError,
     MCPRequest,
     MCPResponse,
     MCPTool,
     MCPToolResult,
-    MCPError,
-    MCPCapabilities,
 )
-from .client import MCPClient
 from .registry import MCPRegistry
-from .discovery import (
-    MCPToolDiscovery,
-    DiscoveredTool,
-    ToolDiscoveryResult,
-    validate_input_schema,
-)
 
 # V9.0: Server exports (optional - only if MCP SDK installed)
 try:

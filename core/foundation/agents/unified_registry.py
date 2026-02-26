@@ -24,6 +24,7 @@ from typing import Any, Protocol, runtime_checkable
 
 class AgentProvider(Enum):
     """Supported agent providers"""
+
     GEMINI = "gemini"
     CLAUDE = "claude"
     OLLAMA = "ollama"  # V8.4.3 - Local models
@@ -32,6 +33,7 @@ class AgentProvider(Enum):
 
 class AgentCapability(Enum):
     """Agent capability domains for intelligent routing"""
+
     CODING = "coding"
     RESEARCH = "research"
     CREATIVE = "creative"
@@ -53,6 +55,7 @@ class AgentDescriptor:
         config_path: Path to config file (for spawned agents)
         is_available: Whether agent is currently usable
     """
+
     id: str
     provider: AgentProvider
     display_name: str
@@ -70,6 +73,7 @@ class AgentDescriptor:
 @runtime_checkable
 class DriverProtocol(Protocol):
     """Protocol that agent drivers must implement"""
+
     async def invoke(self, prompt: str, **kwargs: Any) -> str:
         """Invoke the agent with a prompt and return response"""
         ...
@@ -109,18 +113,22 @@ class UnifiedAgentRegistry:
 
     def _register_builtins(self) -> None:
         """Register Gemini and Claude as builtin agents"""
-        self.register(AgentDescriptor(
-            id="gemini",
-            provider=AgentProvider.GEMINI,
-            display_name="Gemini",
-            capabilities=[AgentCapability.RESEARCH, AgentCapability.ANALYSIS, AgentCapability.GENERAL],
-        ))
-        self.register(AgentDescriptor(
-            id="claude",
-            provider=AgentProvider.CLAUDE,
-            display_name="Claude",
-            capabilities=[AgentCapability.CODING, AgentCapability.CREATIVE, AgentCapability.GENERAL],
-        ))
+        self.register(
+            AgentDescriptor(
+                id="gemini",
+                provider=AgentProvider.GEMINI,
+                display_name="Gemini",
+                capabilities=[AgentCapability.RESEARCH, AgentCapability.ANALYSIS, AgentCapability.GENERAL],
+            )
+        )
+        self.register(
+            AgentDescriptor(
+                id="claude",
+                provider=AgentProvider.CLAUDE,
+                display_name="Claude",
+                capabilities=[AgentCapability.CODING, AgentCapability.CREATIVE, AgentCapability.GENERAL],
+            )
+        )
         # Register common aliases for case-insensitive lookup
         self._aliases["Gemini"] = "gemini"
         self._aliases["Claude"] = "claude"
@@ -299,9 +307,7 @@ class UnifiedAgentRegistry:
         return [a for a in self._agents.values() if a.provider == AgentProvider.SPAWNED]
 
     def select_for_capability(
-        self,
-        capability: AgentCapability,
-        exclude: list[str] | None = None
+        self, capability: AgentCapability, exclude: list[str] | None = None
     ) -> AgentDescriptor | None:
         """
         Select best agent for a capability using DyLAN scores.
@@ -315,25 +321,16 @@ class UnifiedAgentRegistry:
         """
         exclude_set = set(exclude or [])
         candidates = [
-            a for a in self._agents.values()
-            if capability in a.capabilities
-            and a.is_available
-            and a.id not in exclude_set
+            a
+            for a in self._agents.values()
+            if capability in a.capabilities and a.is_available and a.id not in exclude_set
         ]
         if not candidates:
             return None
         # Sort by DyLAN score for this capability (default 0.5)
-        return max(
-            candidates,
-            key=lambda a: a.dylan_scores.get(capability.value, 0.5)
-        )
+        return max(candidates, key=lambda a: a.dylan_scores.get(capability.value, 0.5))
 
-    def update_dylan_score(
-        self,
-        agent_id: str,
-        capability: str,
-        score: float
-    ) -> bool:
+    def update_dylan_score(self, agent_id: str, capability: str, score: float) -> bool:
         """
         Update DyLAN score for an agent capability.
 
@@ -366,7 +363,8 @@ class UnifiedAgentRegistry:
 # The registry is now tenant-scoped via ServiceFactory.
 # Legacy global singleton kept for backward compatibility.
 
-import threading
+import threading  # noqa: E402  # singleton setup after class definition
+
 _registry: UnifiedAgentRegistry | None = None
 _registry_lock = threading.Lock()
 
@@ -384,8 +382,10 @@ def get_registry() -> UnifiedAgentRegistry:
     # V10: Try ServiceFactory first (tenant-scoped)
     try:
         from ..context import has_active_session
+
         if has_active_session():
             from ..factory import ServiceFactory
+
             return ServiceFactory.get_registry()
     except ImportError:
         pass  # context module not available, use legacy
@@ -412,6 +412,7 @@ def reset_registry() -> None:
     try:
         from ..context import get_current_session_or_none
         from ..factory import ServiceFactory
+
         ctx = get_current_session_or_none()
         if ctx:
             ServiceFactory.clear_tenant_cache(ctx.tenant_id)

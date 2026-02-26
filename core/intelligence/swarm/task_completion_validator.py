@@ -21,25 +21,26 @@ Usage:
     )
 """
 
-from dataclasses import dataclass
-from typing import List, Tuple, Optional, Dict, Set
-from pathlib import Path
 import re
+from dataclasses import dataclass
+from pathlib import Path
+
+from core.utils.artifact_verifier import ArtifactVerifier
 
 from .task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
-from core.utils.artifact_verifier import ArtifactVerifier
 
 
 @dataclass
 class CompletionCriteria:
     """Expected completion criteria based on task type."""
+
     requires_file_changes: bool = False
     requires_code_execution: bool = False
     requires_test_validation: bool = False
     requires_multiple_agents: bool = False
     requires_user_confirmation: bool = False
     min_tool_calls: int = 0
-    expected_artifacts: List[str] = None
+    expected_artifacts: list[str] = None
 
     def __post_init__(self):
         if self.expected_artifacts is None:
@@ -49,19 +50,20 @@ class CompletionCriteria:
 @dataclass
 class ValidationResult:
     """Result of completion validation."""
+
     is_valid: bool
     confidence: float  # 0.0 to 1.0
     reason: str
-    missing_criteria: List[str]
-    warnings: List[str]
+    missing_criteria: list[str]
+    warnings: list[str]
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "is_valid": self.is_valid,
             "confidence": round(self.confidence, 2),
             "reason": self.reason,
             "missing_criteria": self.missing_criteria,
-            "warnings": self.warnings
+            "warnings": self.warnings,
         }
 
 
@@ -77,28 +79,64 @@ class TaskCompletionValidator:
 
     # Keywords that signal ongoing work (should NOT be finished)
     ONGOING_KEYWORDS = {
-        "will", "going to", "next step", "todo", "remaining",
-        "need to", "should", "plan to", "working on"
+        "will",
+        "going to",
+        "next step",
+        "todo",
+        "remaining",
+        "need to",
+        "should",
+        "plan to",
+        "working on",
     }
 
     # Keywords indicating actual work was done
     WORK_DONE_KEYWORDS = {
-        "created", "modified", "updated", "fixed", "implemented",
-        "added", "removed", "refactored", "wrote", "edited"
+        "created",
+        "modified",
+        "updated",
+        "fixed",
+        "implemented",
+        "added",
+        "removed",
+        "refactored",
+        "wrote",
+        "edited",
     }
 
     # V10 FIX F13: Action verbs that indicate task requirements
     ACTION_VERBS = {
-        "create", "write", "implement", "add", "fix", "update", "modify",
-        "delete", "remove", "refactor", "test", "validate", "check",
-        "build", "deploy", "configure", "setup", "install", "migrate",
-        "analyze", "review", "audit", "debug", "optimize", "document"
+        "create",
+        "write",
+        "implement",
+        "add",
+        "fix",
+        "update",
+        "modify",
+        "delete",
+        "remove",
+        "refactor",
+        "test",
+        "validate",
+        "check",
+        "build",
+        "deploy",
+        "configure",
+        "setup",
+        "install",
+        "migrate",
+        "analyze",
+        "review",
+        "audit",
+        "debug",
+        "optimize",
+        "document",
     }
 
     # V10 FIX F13: Minimum semantic alignment score (0.0-1.0)
     SEMANTIC_ALIGNMENT_THRESHOLD = 0.3
 
-    def __init__(self, workspace_path: Optional[Path] = None):
+    def __init__(self, workspace_path: Path | None = None):
         """
         Initialize validator.
 
@@ -109,11 +147,7 @@ class TaskCompletionValidator:
         self.artifact_verifier = ArtifactVerifier(self.workspace_path)
 
     def validate_completion(
-        self,
-        task_input: str,
-        agent_response: str,
-        task_analysis: TaskAnalysis,
-        tool_results: Optional[List[Dict]] = None
+        self, task_input: str, agent_response: str, task_analysis: TaskAnalysis, tool_results: list[dict] | None = None
     ) -> ValidationResult:
         """
         Validate if task is actually complete.
@@ -140,9 +174,7 @@ class TaskCompletionValidator:
 
         # Check 1: Completion keyword present
         total_checks += 1
-        has_completion_keyword = any(
-            kw in response_lower for kw in self.COMPLETION_KEYWORDS
-        )
+        has_completion_keyword = any(kw in response_lower for kw in self.COMPLETION_KEYWORDS)
         if has_completion_keyword:
             checks_passed += 1
         else:
@@ -167,9 +199,7 @@ class TaskCompletionValidator:
         # Check 4: Artifact verification (for file-related tasks)
         if criteria.requires_file_changes:
             total_checks += 1
-            artifacts_ok, successes, failures = self.artifact_verifier.verify_from_content(
-                agent_response
-            )
+            artifacts_ok, successes, failures = self.artifact_verifier.verify_from_content(agent_response)
             if artifacts_ok:
                 checks_passed += 1
             else:
@@ -188,27 +218,19 @@ class TaskCompletionValidator:
 
         # Check 6: Task complexity alignment
         total_checks += 1
-        complexity_aligned = self._check_complexity_alignment(
-            task_analysis, agent_response, tool_results
-        )
+        complexity_aligned = self._check_complexity_alignment(task_analysis, agent_response, tool_results)
         if complexity_aligned:
             checks_passed += 1
         else:
-            missing_criteria.append(
-                f"Response depth doesn't match {task_analysis.complexity.name} complexity"
-            )
+            missing_criteria.append(f"Response depth doesn't match {task_analysis.complexity.name} complexity")
 
         # V10 FIX F13: Check 7 - Semantic alignment (task requirements addressed?)
         total_checks += 1
-        alignment_score, unaddressed_reqs = self._calculate_semantic_alignment(
-            task_input, agent_response
-        )
+        alignment_score, unaddressed_reqs = self._calculate_semantic_alignment(task_input, agent_response)
         if alignment_score >= self.SEMANTIC_ALIGNMENT_THRESHOLD:
             checks_passed += 1
         else:
-            missing_criteria.append(
-                f"Semantic alignment too low ({alignment_score:.0%}): {unaddressed_reqs[:2]}"
-            )
+            missing_criteria.append(f"Semantic alignment too low ({alignment_score:.0%}): {unaddressed_reqs[:2]}")
 
         # Calculate confidence
         confidence = checks_passed / total_checks if total_checks > 0 else 0.0
@@ -228,7 +250,7 @@ class TaskCompletionValidator:
             confidence=confidence,
             reason=reason,
             missing_criteria=missing_criteria,
-            warnings=warnings
+            warnings=warnings,
         )
 
     def _get_completion_criteria(self, analysis: TaskAnalysis) -> CompletionCriteria:
@@ -256,12 +278,7 @@ class TaskCompletionValidator:
 
         return criteria
 
-    def _check_complexity_alignment(
-        self,
-        analysis: TaskAnalysis,
-        response: str,
-        tool_results: List[Dict]
-    ) -> bool:
+    def _check_complexity_alignment(self, analysis: TaskAnalysis, response: str, tool_results: list[dict]) -> bool:
         """Check if response depth matches task complexity."""
         response_length = len(response)
         tool_count = len(tool_results)
@@ -290,7 +307,7 @@ class TaskCompletionValidator:
             TaskComplexity.TRIVIAL: 0.5,
             TaskComplexity.MODERATE: 0.6,
             TaskComplexity.COMPLEX: 0.7,
-            TaskComplexity.EXPERT: 0.8
+            TaskComplexity.EXPERT: 0.8,
         }
         return thresholds.get(complexity, 0.6)
 
@@ -298,7 +315,7 @@ class TaskCompletionValidator:
     # V10 FIX F13: Semantic Alignment Validation
     # =========================================================================
 
-    def _extract_task_requirements(self, task_input: str) -> Dict[str, Set[str]]:
+    def _extract_task_requirements(self, task_input: str) -> dict[str, set[str]]:
         """
         Extract key requirements from task description.
 
@@ -308,7 +325,7 @@ class TaskCompletionValidator:
             Dict with 'actions', 'targets', 'key_terms'
         """
         task_lower = task_input.lower()
-        words = set(re.findall(r'\b\w+\b', task_lower))
+        words = set(re.findall(r"\b\w+\b", task_lower))
 
         # Extract action verbs from task
         actions = words & self.ACTION_VERBS
@@ -316,40 +333,68 @@ class TaskCompletionValidator:
         # Extract potential targets (nouns after action verbs)
         # Simple heuristic: words near action verbs
         targets = set()
-        for match in re.finditer(r'\b(' + '|'.join(self.ACTION_VERBS) + r')\s+(?:the\s+)?(\w+)', task_lower):
+        for match in re.finditer(r"\b(" + "|".join(self.ACTION_VERBS) + r")\s+(?:the\s+)?(\w+)", task_lower):
             targets.add(match.group(2))
 
         # Extract file patterns
-        file_patterns = set(re.findall(r'\b[\w/\\]+\.\w{1,5}\b', task_input))
+        file_patterns = set(re.findall(r"\b[\w/\\]+\.\w{1,5}\b", task_input))
         targets.update(file_patterns)
 
         # Extract quoted strings (specific requirements)
         quoted = set(re.findall(r'["\']([^"\']+)["\']', task_input))
         key_terms = set()
         for q in quoted:
-            key_terms.update(re.findall(r'\b\w+\b', q.lower()))
+            key_terms.update(re.findall(r"\b\w+\b", q.lower()))
 
         # Add important nouns (excluding common words)
         common_words = {
-            'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been',
-            'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would',
-            'could', 'should', 'may', 'might', 'must', 'shall', 'can',
-            'this', 'that', 'these', 'those', 'it', 'its', 'to', 'for',
-            'in', 'on', 'at', 'by', 'with', 'from', 'of', 'and', 'or'
+            "the",
+            "a",
+            "an",
+            "is",
+            "are",
+            "was",
+            "were",
+            "be",
+            "been",
+            "have",
+            "has",
+            "had",
+            "do",
+            "does",
+            "did",
+            "will",
+            "would",
+            "could",
+            "should",
+            "may",
+            "might",
+            "must",
+            "shall",
+            "can",
+            "this",
+            "that",
+            "these",
+            "those",
+            "it",
+            "its",
+            "to",
+            "for",
+            "in",
+            "on",
+            "at",
+            "by",
+            "with",
+            "from",
+            "of",
+            "and",
+            "or",
         }
         key_terms.update(words - common_words - self.ACTION_VERBS)
 
-        return {
-            'actions': actions,
-            'targets': targets,
-            'key_terms': key_terms
-        }
+        return {"actions": actions, "targets": targets, "key_terms": key_terms}
 
-    def _calculate_semantic_alignment(
-        self,
-        task_input: str,
-        response: str
-    ) -> Tuple[float, List[str]]:
+    def _calculate_semantic_alignment(self, task_input: str, response: str) -> tuple[float, list[str]]:
         """
         Calculate semantic alignment between task and response.
 
@@ -360,38 +405,43 @@ class TaskCompletionValidator:
         """
         requirements = self._extract_task_requirements(task_input)
         response_lower = response.lower()
-        response_words = set(re.findall(r'\b\w+\b', response_lower))
+        response_words = set(re.findall(r"\b\w+\b", response_lower))
 
         unaddressed = []
         scores = []
 
         # Check actions: Were requested actions performed?
-        if requirements['actions']:
+        if requirements["actions"]:
             # Look for past tense or related words
             action_matches = 0
-            for action in requirements['actions']:
+            for action in requirements["actions"]:
                 # Check action or its past tense variants
-                past_forms = {action, action + 'd', action + 'ed', action[:-1] + 'ied' if action.endswith('y') else action}
+                past_forms = {
+                    action,
+                    action + "d",
+                    action + "ed",
+                    action[:-1] + "ied" if action.endswith("y") else action,
+                }
                 if any(form in response_lower for form in past_forms):
                     action_matches += 1
                 else:
                     unaddressed.append(f"action:{action}")
 
-            action_score = action_matches / len(requirements['actions'])
+            action_score = action_matches / len(requirements["actions"])
             scores.append(action_score * 2)  # Weight actions higher
 
         # Check targets: Were targets mentioned?
-        if requirements['targets']:
-            target_matches = sum(1 for t in requirements['targets'] if t in response_lower)
-            target_score = target_matches / len(requirements['targets'])
+        if requirements["targets"]:
+            target_matches = sum(1 for t in requirements["targets"] if t in response_lower)
+            target_score = target_matches / len(requirements["targets"])
             scores.append(target_score)
             if target_score < 0.5:
                 unaddressed.append(f"targets:{list(requirements['targets'] - response_words)[:3]}")
 
         # Check key terms overlap
-        if requirements['key_terms']:
-            overlap = requirements['key_terms'] & response_words
-            term_score = len(overlap) / len(requirements['key_terms'])
+        if requirements["key_terms"]:
+            overlap = requirements["key_terms"] & response_words
+            term_score = len(overlap) / len(requirements["key_terms"])
             scores.append(term_score)
 
         # Calculate weighted average
@@ -402,7 +452,7 @@ class TaskCompletionValidator:
 
         return min(alignment, 1.0), unaddressed
 
-    def quick_validate(self, response: str) -> Tuple[bool, str]:
+    def quick_validate(self, response: str) -> tuple[bool, str]:
         """
         Quick validation - just keyword checking.
 
@@ -443,9 +493,9 @@ def get_adaptive_max_rounds(complexity: TaskComplexity) -> int:
         Appropriate max_rounds for the complexity
     """
     rounds_by_complexity = {
-        TaskComplexity.TRIVIAL: 3,    # Quick tasks
-        TaskComplexity.MODERATE: 6,   # Standard tasks (current default)
-        TaskComplexity.COMPLEX: 10,   # Complex tasks need more iterations
-        TaskComplexity.EXPERT: 15     # Expert tasks need thorough work
+        TaskComplexity.TRIVIAL: 3,  # Quick tasks
+        TaskComplexity.MODERATE: 6,  # Standard tasks (current default)
+        TaskComplexity.COMPLEX: 10,  # Complex tasks need more iterations
+        TaskComplexity.EXPERT: 15,  # Expert tasks need thorough work
     }
     return rounds_by_complexity.get(complexity, 6)

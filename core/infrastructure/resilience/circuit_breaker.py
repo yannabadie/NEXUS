@@ -19,23 +19,23 @@ Usage:
         logger.warning(f"Circuit open: {e.time_until_retry}s until retry")
 """
 
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from enum import Enum
-from threading import Lock
-from typing import Callable, Any, Optional, Dict
 import asyncio
 import logging
 import time
-
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from enum import Enum
+from threading import Lock
+from typing import Any
 
 logger = logging.getLogger("nexus.circuit_breaker")
 
 
 class CircuitState(Enum):
     """Circuit breaker states."""
-    CLOSED = "closed"      # Normal operation - requests pass through
-    OPEN = "open"          # Failures exceeded threshold - requests blocked
+
+    CLOSED = "closed"  # Normal operation - requests pass through
+    OPEN = "open"  # Failures exceeded threshold - requests blocked
     HALF_OPEN = "half_open"  # Testing if service recovered
 
 
@@ -47,8 +47,7 @@ class CircuitOpenError(Exception):
         self.time_until_retry = time_until_retry
         self.failure_count = failure_count
         super().__init__(
-            f"Circuit '{name}' is OPEN. {failure_count} consecutive failures. "
-            f"Retry in {time_until_retry:.1f}s"
+            f"Circuit '{name}' is OPEN. {failure_count} consecutive failures. Retry in {time_until_retry:.1f}s"
         )
 
 
@@ -72,6 +71,7 @@ class CircuitBreaker:
         max_backoff: Maximum backoff time in seconds
         backoff_multiplier: Multiplier for exponential backoff (default 2.0)
     """
+
     name: str
     failure_threshold: int = 3
     recovery_timeout: float = 30.0
@@ -81,7 +81,7 @@ class CircuitBreaker:
     # Internal state
     _state: CircuitState = field(default=CircuitState.CLOSED, repr=False)
     _failure_count: int = field(default=0, repr=False)
-    _last_failure_time: Optional[float] = field(default=None, repr=False)
+    _last_failure_time: float | None = field(default=None, repr=False)
     _current_backoff: float = field(default=30.0, repr=False)
     _lock: Lock = field(default_factory=Lock, repr=False)
 
@@ -132,28 +132,15 @@ class CircuitBreaker:
 
             if self._state == CircuitState.HALF_OPEN:
                 # Failed during recovery attempt - increase backoff
-                self._current_backoff = min(
-                    self._current_backoff * self.backoff_multiplier,
-                    self.max_backoff
-                )
+                self._current_backoff = min(self._current_backoff * self.backoff_multiplier, self.max_backoff)
                 self._state = CircuitState.OPEN
-                logger.warning(
-                    f"Circuit '{self.name}': Recovery failed - OPEN "
-                    f"(backoff: {self._current_backoff:.1f}s)"
-                )
+                logger.warning(f"Circuit '{self.name}': Recovery failed - OPEN (backoff: {self._current_backoff:.1f}s)")
 
             elif self._failure_count >= self.failure_threshold:
                 self._state = CircuitState.OPEN
-                logger.warning(
-                    f"Circuit '{self.name}': Threshold reached ({self._failure_count}) - OPEN"
-                )
+                logger.warning(f"Circuit '{self.name}': Threshold reached ({self._failure_count}) - OPEN")
 
-    async def call(
-        self,
-        func: Callable,
-        *args,
-        **kwargs
-    ) -> Any:
+    async def call(self, func: Callable, *args, **kwargs) -> Any:
         """
         Execute function through circuit breaker.
 
@@ -176,9 +163,7 @@ class CircuitBreaker:
                     self._state = CircuitState.HALF_OPEN
                 else:
                     raise CircuitOpenError(
-                        name=self.name,
-                        time_until_retry=self._get_time_until_retry(),
-                        failure_count=self._failure_count
+                        name=self.name, time_until_retry=self._get_time_until_retry(), failure_count=self._failure_count
                     )
 
         # Execute the call
@@ -195,12 +180,7 @@ class CircuitBreaker:
             self._on_failure(e)
             raise
 
-    def call_sync(
-        self,
-        func: Callable,
-        *args,
-        **kwargs
-    ) -> Any:
+    def call_sync(self, func: Callable, *args, **kwargs) -> Any:
         """
         Synchronous version of call() for non-async contexts.
 
@@ -223,9 +203,7 @@ class CircuitBreaker:
                     self._state = CircuitState.HALF_OPEN
                 else:
                     raise CircuitOpenError(
-                        name=self.name,
-                        time_until_retry=self._get_time_until_retry(),
-                        failure_count=self._failure_count
+                        name=self.name, time_until_retry=self._get_time_until_retry(), failure_count=self._failure_count
                     )
 
         # Execute the call
@@ -247,7 +225,7 @@ class CircuitBreaker:
             self._current_backoff = self.recovery_timeout
             self._last_failure_time = None
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """Get circuit breaker status for monitoring."""
         return {
             "name": self.name,
@@ -256,7 +234,7 @@ class CircuitBreaker:
             "failure_threshold": self.failure_threshold,
             "current_backoff": self._current_backoff,
             "time_until_retry": self._get_time_until_retry(),
-            "last_failure": self._last_failure_time
+            "last_failure": self._last_failure_time,
         }
 
 
@@ -296,7 +274,7 @@ class HierarchicalCircuitBreaker:
         global_failure_threshold: int = 10,
         global_recovery_timeout: float = 60.0,
         cascade_window: float = 30.0,
-        cascade_threshold: int = 3
+        cascade_threshold: int = 3,
     ):
         """
         Initialize hierarchical circuit breaker.
@@ -311,10 +289,10 @@ class HierarchicalCircuitBreaker:
             name="global",
             failure_threshold=global_failure_threshold,
             recovery_timeout=global_recovery_timeout,
-            max_backoff=600.0  # 10 min max for global
+            max_backoff=600.0,  # 10 min max for global
         )
 
-        self._per_provider: Dict[str, CircuitBreaker] = {}
+        self._per_provider: dict[str, CircuitBreaker] = {}
         self._lock = Lock()
 
         # Cascade detection
@@ -333,10 +311,7 @@ class HierarchicalCircuitBreaker:
         with self._lock:
             if provider not in self._per_provider:
                 self._per_provider[provider] = CircuitBreaker(
-                    name=provider,
-                    failure_threshold=3,
-                    recovery_timeout=30.0,
-                    max_backoff=300.0
+                    name=provider, failure_threshold=3, recovery_timeout=30.0, max_backoff=300.0
                 )
                 logger.debug(f"Created provider breaker: {provider}")
             return self._per_provider[provider]
@@ -353,10 +328,7 @@ class HierarchicalCircuitBreaker:
         self._recent_failures.append((provider, now))
 
         # Clean old failures outside window
-        self._recent_failures = [
-            (p, t) for p, t in self._recent_failures
-            if (now - t) <= self._cascade_window
-        ]
+        self._recent_failures = [(p, t) for p, t in self._recent_failures if (now - t) <= self._cascade_window]
 
         # Count unique providers that failed in window
         failed_providers = set(p for p, t in self._recent_failures)
@@ -370,13 +342,7 @@ class HierarchicalCircuitBreaker:
 
         return False
 
-    async def call(
-        self,
-        provider: str,
-        func: Callable,
-        *args,
-        **kwargs
-    ) -> Any:
+    async def call(self, provider: str, func: Callable, *args, **kwargs) -> Any:
         """
         Execute function through hierarchical circuit breaker.
 
@@ -400,7 +366,7 @@ class HierarchicalCircuitBreaker:
                 raise CircuitOpenError(
                     name="global",
                     time_until_retry=self._global._get_time_until_retry(),
-                    failure_count=self._global.failure_count
+                    failure_count=self._global.failure_count,
                 )
             # Allow recovery attempt
             logger.info("Global circuit: Attempting recovery (HALF_OPEN)")
@@ -431,13 +397,7 @@ class HierarchicalCircuitBreaker:
 
             raise
 
-    def call_sync(
-        self,
-        provider: str,
-        func: Callable,
-        *args,
-        **kwargs
-    ) -> Any:
+    def call_sync(self, provider: str, func: Callable, *args, **kwargs) -> Any:
         """
         Synchronous version of call().
 
@@ -459,7 +419,7 @@ class HierarchicalCircuitBreaker:
                 raise CircuitOpenError(
                     name="global",
                     time_until_retry=self._global._get_time_until_retry(),
-                    failure_count=self._global.failure_count
+                    failure_count=self._global.failure_count,
                 )
             self._global._state = CircuitState.HALF_OPEN
 
@@ -497,20 +457,17 @@ class HierarchicalCircuitBreaker:
         if provider in self._per_provider:
             self._per_provider[provider].reset()
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """Get hierarchical breaker status."""
         with self._lock:
             return {
                 "global": self._global.get_status(),
-                "providers": {
-                    name: breaker.get_status()
-                    for name, breaker in self._per_provider.items()
-                },
+                "providers": {name: breaker.get_status() for name, breaker in self._per_provider.items()},
                 "cascade_detection": {
                     "window_seconds": self._cascade_window,
                     "threshold": self._cascade_threshold,
-                    "recent_failures": len(self._recent_failures)
-                }
+                    "recent_failures": len(self._recent_failures),
+                },
             }
 
     @property
@@ -530,18 +487,15 @@ class HierarchicalCircuitBreaker:
 # =============================================================================
 
 # Global circuit breaker registry (legacy - per-provider independent)
-_circuit_breakers: Dict[str, CircuitBreaker] = {}
+_circuit_breakers: dict[str, CircuitBreaker] = {}
 _registry_lock = Lock()
 
 # V11: Hierarchical circuit breaker singleton
-_hierarchical_breaker: Optional[HierarchicalCircuitBreaker] = None
+_hierarchical_breaker: HierarchicalCircuitBreaker | None = None
 
 
 def get_circuit_breaker(
-    name: str,
-    failure_threshold: int = 3,
-    recovery_timeout: float = 30.0,
-    max_backoff: float = 300.0
+    name: str, failure_threshold: int = 3, recovery_timeout: float = 30.0, max_backoff: float = 300.0
 ) -> CircuitBreaker:
     """
     Get or create a circuit breaker by name.
@@ -561,7 +515,7 @@ def get_circuit_breaker(
                 name=name,
                 failure_threshold=failure_threshold,
                 recovery_timeout=recovery_timeout,
-                max_backoff=max_backoff
+                max_backoff=max_backoff,
             )
             logger.debug(f"Created circuit breaker '{name}'")
 
@@ -576,13 +530,10 @@ def reset_all_circuits():
         logger.info(f"Reset all {len(_circuit_breakers)} circuit breakers")
 
 
-def get_all_circuit_status() -> Dict[str, Dict[str, Any]]:
+def get_all_circuit_status() -> dict[str, dict[str, Any]]:
     """Get status of all circuit breakers."""
     with _registry_lock:
-        return {
-            name: breaker.get_status()
-            for name, breaker in _circuit_breakers.items()
-        }
+        return {name: breaker.get_status() for name, breaker in _circuit_breakers.items()}
 
 
 # =============================================================================

@@ -5,15 +5,14 @@ Validates context scoping for controlled inheritance between
 HiveMind phases, spawned agents, and parallel execution.
 """
 
-import pytest
 from datetime import datetime
 
 from core.intelligence.hive_mind.context_scope import (
+    SCOPE_POLICIES,
     ContextScope,
+    ContextScopePolicy,
     InheritanceDirection,
     ScopedContext,
-    ContextScopePolicy,
-    SCOPE_POLICIES,
     get_scope_policy,
 )
 
@@ -88,7 +87,7 @@ class TestScopedContext:
             full_history=[{"role": "user", "content": "test"}],
             metadata={"phase": "execution"},
             session_uuid="test-uuid-123",
-            model_context="You are an expert Python developer"
+            model_context="You are an expert Python developer",
         )
         assert ctx.scope == ContextScope.FULL
         assert ctx.task_description == "Implement feature X"
@@ -450,7 +449,7 @@ class TestEdgeCases:
             model_context="",
         )
         # Should not crash
-        prefix = ctx.to_prompt_prefix()
+        ctx.to_prompt_prefix()
         data = ctx.to_dict()
         assert data is not None
 

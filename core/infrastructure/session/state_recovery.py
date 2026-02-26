@@ -38,7 +38,7 @@ import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -55,8 +55,10 @@ DEFAULT_AUTO_INTERVAL = 60.0  # seconds
 # Types
 # =============================================================================
 
+
 class SnapshotReason(Enum):
     """Why a snapshot was taken."""
+
     MANUAL = "manual"
     AUTO = "auto"
     PRE_EXECUTION = "pre_execution"
@@ -68,19 +70,20 @@ class SnapshotReason(Enum):
 @dataclass
 class StateSnapshot:
     """A captured state snapshot."""
+
     snapshot_id: str
     session_id: str
-    state: Dict[str, Any]
+    state: dict[str, Any]
     reason: SnapshotReason = SnapshotReason.MANUAL
     label: str = ""
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
     timestamp: float = 0.0
 
     def __post_init__(self):
         if self.timestamp == 0.0:
             self.timestamp = time.monotonic()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "snapshot_id": self.snapshot_id,
             "session_id": self.session_id,
@@ -94,13 +97,14 @@ class StateSnapshot:
 @dataclass
 class RecoveryResult:
     """Result of a recovery attempt."""
+
     success: bool
     snapshot_id: str = ""
     session_id: str = ""
-    state: Dict[str, Any] = field(default_factory=dict)
+    state: dict[str, Any] = field(default_factory=dict)
     reason: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "success": self.success,
             "snapshot_id": self.snapshot_id,
@@ -113,6 +117,7 @@ class RecoveryResult:
 @dataclass
 class RecoveryStats:
     """Statistics about recovery operations."""
+
     total_snapshots: int
     total_recoveries: int
     successful_recoveries: int
@@ -125,7 +130,7 @@ class RecoveryStats:
             return 0.0
         return self.successful_recoveries / self.total_recoveries
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_snapshots": self.total_snapshots,
             "total_recoveries": self.total_recoveries,
@@ -139,6 +144,7 @@ class RecoveryStats:
 # =============================================================================
 # State Recovery Manager
 # =============================================================================
+
 
 class StateRecoveryManager:
     """
@@ -159,8 +165,8 @@ class StateRecoveryManager:
         *,
         max_snapshots: int = MAX_SNAPSHOTS_PER_SESSION,
     ):
-        self._snapshots: Dict[str, List[StateSnapshot]] = defaultdict(list)
-        self._snapshot_index: Dict[str, StateSnapshot] = {}  # id -> snapshot
+        self._snapshots: dict[str, list[StateSnapshot]] = defaultdict(list)
+        self._snapshot_index: dict[str, StateSnapshot] = {}  # id -> snapshot
         self._max_snapshots = max_snapshots
         self._total_recoveries = 0
         self._successful_recoveries = 0
@@ -174,11 +180,11 @@ class StateRecoveryManager:
     def capture(
         self,
         session_id: str,
-        state: Dict[str, Any],
+        state: dict[str, Any],
         *,
         reason: SnapshotReason = SnapshotReason.MANUAL,
         label: str = "",
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> str:
         """
         Capture a state snapshot.
@@ -218,10 +224,10 @@ class StateRecoveryManager:
     def savepoint(
         self,
         session_id: str,
-        state: Dict[str, Any],
+        state: dict[str, Any],
         label: str,
         *,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> str:
         """Create a named savepoint (convenience for capture with SAVEPOINT reason)."""
         return self.capture(
@@ -236,11 +242,11 @@ class StateRecoveryManager:
     # Query
     # =========================================================================
 
-    def get_snapshot(self, snapshot_id: str) -> Optional[StateSnapshot]:
+    def get_snapshot(self, snapshot_id: str) -> StateSnapshot | None:
         """Get a snapshot by ID."""
         return self._snapshot_index.get(snapshot_id)
 
-    def latest(self, session_id: str) -> Optional[StateSnapshot]:
+    def latest(self, session_id: str) -> StateSnapshot | None:
         """Get the latest snapshot for a session."""
         with self._lock:
             snaps = self._snapshots.get(session_id, [])
@@ -250,8 +256,8 @@ class StateRecoveryManager:
         self,
         session_id: str,
         *,
-        reason: Optional[SnapshotReason] = None,
-    ) -> List[StateSnapshot]:
+        reason: SnapshotReason | None = None,
+    ) -> list[StateSnapshot]:
         """List snapshots for a session, optionally filtered by reason."""
         with self._lock:
             snaps = list(self._snapshots.get(session_id, []))
@@ -259,7 +265,7 @@ class StateRecoveryManager:
             snaps = [s for s in snaps if s.reason == reason]
         return snaps
 
-    def find_savepoint(self, session_id: str, label: str) -> Optional[StateSnapshot]:
+    def find_savepoint(self, session_id: str, label: str) -> StateSnapshot | None:
         """Find a savepoint by label."""
         with self._lock:
             snaps = self._snapshots.get(session_id, [])
@@ -276,8 +282,8 @@ class StateRecoveryManager:
         self,
         session_id: str,
         *,
-        snapshot_id: Optional[str] = None,
-        label: Optional[str] = None,
+        snapshot_id: str | None = None,
+        label: str | None = None,
     ) -> RecoveryResult:
         """
         Recover state from a snapshot.
@@ -377,9 +383,7 @@ class StateRecoveryManager:
             if snapshot is None:
                 return False
             snaps = self._snapshots.get(snapshot.session_id, [])
-            self._snapshots[snapshot.session_id] = [
-                s for s in snaps if s.snapshot_id != snapshot_id
-            ]
+            self._snapshots[snapshot.session_id] = [s for s in snaps if s.snapshot_id != snapshot_id]
             return True
 
     def delete_session(self, session_id: str) -> int:
@@ -451,7 +455,7 @@ class StateRecoveryManager:
             self._successful_recoveries = 0
             self._failed_recoveries = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "session_count": self.session_count,
             "snapshot_count": self.snapshot_count,
@@ -463,7 +467,7 @@ class StateRecoveryManager:
 # Global Instance
 # =============================================================================
 
-_manager: Optional[StateRecoveryManager] = None
+_manager: StateRecoveryManager | None = None
 _manager_lock = threading.Lock()
 
 

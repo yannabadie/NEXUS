@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Optional, Literal
+from typing import Literal
 
 from core.security_pkg.security import PathGuardian
 from core.security_pkg.security.execution_policy import ExecutionPolicy
@@ -46,8 +46,8 @@ class ValidationService:
     def __init__(
         self,
         workspace_path: Path,
-        parent_path: Optional[Path] = None,
-        generation_active: Optional[Path] = None,
+        parent_path: Path | None = None,
+        generation_active: Path | None = None,
     ):
         """
         Initialize validation service.
@@ -63,9 +63,7 @@ class ValidationService:
 
         # Initialize security layers
         self.path_guardian = PathGuardian(
-            workspace_path=self.workspace_path,
-            parent_path=self.parent_path,
-            generation_active=self.generation_active
+            workspace_path=self.workspace_path, parent_path=self.parent_path, generation_active=self.generation_active
         )
         self.execution_policy = ExecutionPolicy(self.workspace_path)
 
@@ -135,10 +133,7 @@ class ValidationService:
                 return True
 
             # Check allowed root files
-            if path_str in self._evolution_root_files:
-                return True
-
-            return False
+            return path_str in self._evolution_root_files
 
         except ValueError:
             return False
@@ -167,11 +162,9 @@ class ValidationService:
                 return False
 
             # Check allowed prefixes (directory listing)
-            if any(path_str.startswith(prefix) or path_str == prefix
-                   for prefix in self._evolution_list_prefixes):
-                return True
-
-            return False
+            return bool(
+                any(path_str.startswith(prefix) or path_str == prefix for prefix in self._evolution_list_prefixes)
+            )
 
         except ValueError:
             return False
@@ -225,9 +218,8 @@ class ValidationService:
             elif operation == "list":
                 if self.is_evolution_safe_list(path):
                     return True
-            elif operation in ("write", "edit"):
-                if self.is_evolution_safe_write(path):
-                    return True
+            elif operation in ("write", "edit") and self.is_evolution_safe_write(path):
+                return True
 
         # Standard validation via PathGuardian
         try:
@@ -241,7 +233,7 @@ class ValidationService:
             logger.warning(f"Path validation failed for {path}: {e}")
             return False
 
-    def validate_command(self, command: str) -> tuple[bool, Optional[str]]:
+    def validate_command(self, command: str) -> tuple[bool, str | None]:
         """
         Validate a shell command using ExecutionPolicy.
 

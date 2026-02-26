@@ -23,11 +23,9 @@ Usage:
 import json
 import logging
 import threading
-import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -36,8 +34,10 @@ logger = logging.getLogger(__name__)
 # Prompt Techniques
 # =============================================================================
 
+
 class PromptTechnique(str, Enum):
     """Available prompting techniques."""
+
     CHAIN_OF_THOUGHT = "cot"
     FEW_SHOT = "few_shot"
     DECOMPOSITION = "decomposition"
@@ -47,18 +47,16 @@ class PromptTechnique(str, Enum):
 
 
 # Technique instruction templates injected into prompts
-TECHNIQUE_INSTRUCTIONS: Dict[PromptTechnique, str] = {
+TECHNIQUE_INSTRUCTIONS: dict[PromptTechnique, str] = {
     PromptTechnique.CHAIN_OF_THOUGHT: (
         "Think through this step by step, showing your reasoning chain. "
         "Explain each inference before reaching a conclusion."
     ),
     PromptTechnique.FEW_SHOT: (
-        "Consider similar past examples to guide your approach. "
-        "Apply patterns from analogous situations."
+        "Consider similar past examples to guide your approach. Apply patterns from analogous situations."
     ),
     PromptTechnique.DECOMPOSITION: (
-        "Break this task into smaller, independent sub-tasks. "
-        "Solve each sub-task separately, then combine the results."
+        "Break this task into smaller, independent sub-tasks. Solve each sub-task separately, then combine the results."
     ),
     PromptTechnique.SELF_CONSISTENCY: (
         "Generate multiple independent solutions, then compare them. "
@@ -79,12 +77,14 @@ TECHNIQUE_INSTRUCTIONS: Dict[PromptTechnique, str] = {
 # Task Clusters
 # =============================================================================
 
+
 @dataclass
 class TaskCluster:
     """A cluster of task types with associated effective techniques."""
+
     name: str
-    keywords: List[str]                                    # Semantic anchor words
-    techniques: List[Tuple[str, float]]                    # (technique_value, efficacy)
+    keywords: list[str]  # Semantic anchor words
+    techniques: list[tuple[str, float]]  # (technique_value, efficacy)
     description: str = ""
 
     def keyword_score(self, text: str) -> float:
@@ -94,7 +94,7 @@ class TaskCluster:
         return hits / max(len(self.keywords), 1)
 
 
-def _default_clusters() -> List[TaskCluster]:
+def _default_clusters() -> list[TaskCluster]:
     """Initialize default task clusters from prompt engineering knowledge."""
     return [
         TaskCluster(
@@ -181,10 +181,12 @@ def _default_clusters() -> List[TaskCluster]:
 # Technique Selector
 # =============================================================================
 
+
 @dataclass
 class SelectionResult:
     """Result of technique selection."""
-    techniques: List[PromptTechnique]
+
+    techniques: list[PromptTechnique]
     cluster_name: str
     cluster_score: float
     reasoning: str
@@ -202,9 +204,9 @@ class TechniqueSelector:
     EMA_ALPHA = 0.2  # Learning rate for outcome updates
     MAX_TECHNIQUES = 3  # Max techniques to apply simultaneously
 
-    def __init__(self, storage_path: Optional[Path] = None):
+    def __init__(self, storage_path: Path | None = None):
         self._clusters = _default_clusters()
-        self._history: Dict[str, List[float]] = {}  # technique -> outcome scores
+        self._history: dict[str, list[float]] = {}  # technique -> outcome scores
         self._storage_path = storage_path or Path("workspace/.nexus/technique_history.json")
         self._lock = threading.Lock()
         self._load()
@@ -216,7 +218,7 @@ class TechniqueSelector:
     def select(
         self,
         task_description: str,
-        domains: Optional[List[str]] = None,
+        domains: list[str] | None = None,
         max_techniques: int = 0,
     ) -> SelectionResult:
         """
@@ -233,7 +235,7 @@ class TechniqueSelector:
         limit = max_techniques or self.MAX_TECHNIQUES
 
         # Score each cluster
-        scored_clusters: List[Tuple[float, TaskCluster]] = []
+        scored_clusters: list[tuple[float, TaskCluster]] = []
         for cluster in self._clusters:
             score = cluster.keyword_score(task_description)
 
@@ -260,7 +262,7 @@ class TechniqueSelector:
         best_score, best_cluster = scored_clusters[0]
 
         # Get techniques ranked by cluster efficacy + historical performance
-        technique_scores: List[Tuple[float, PromptTechnique]] = []
+        technique_scores: list[tuple[float, PromptTechnique]] = []
         for tech_value, efficacy in best_cluster.techniques:
             technique = PromptTechnique(tech_value)
             # Combine cluster efficacy with learned history
@@ -281,7 +283,7 @@ class TechniqueSelector:
     def compose_prompt(
         self,
         base_prompt: str,
-        techniques: List[PromptTechnique],
+        techniques: list[PromptTechnique],
     ) -> str:
         """
         Enhance a base prompt by injecting technique-specific instructions.
@@ -308,7 +310,7 @@ class TechniqueSelector:
 
     def record_outcome(
         self,
-        techniques: List[PromptTechnique],
+        techniques: list[PromptTechnique],
         quality: float,
     ) -> None:
         """
@@ -334,11 +336,11 @@ class TechniqueSelector:
     # Info
     # -------------------------------------------------------------------------
 
-    def get_cluster_names(self) -> List[str]:
+    def get_cluster_names(self) -> list[str]:
         """Return all cluster names."""
         return [c.name for c in self._clusters]
 
-    def get_technique_stats(self) -> Dict[str, Dict]:
+    def get_technique_stats(self) -> dict[str, dict]:
         """Get historical effectiveness per technique."""
         stats = {}
         for tech in PromptTechnique:
@@ -389,7 +391,7 @@ class TechniqueSelector:
 # Singleton
 # =============================================================================
 
-_instance: Optional[TechniqueSelector] = None
+_instance: TechniqueSelector | None = None
 _instance_lock = threading.Lock()
 
 

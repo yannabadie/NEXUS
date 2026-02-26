@@ -1,21 +1,19 @@
 """Tests for EchoChamberGuard - sycophantic debate detection."""
 
-import pytest
 from core.intelligence.hive_mind.echo_chamber_guard import (
+    DEVIL_ADVOCATE_PROMPT,
+    INDEPENDENCE_PROMPT,
+    AgentPositionHistory,
     EchoChamberGuard,
     GuardActionType,
-    GuardAction,
-    AgentPositionHistory,
     get_echo_chamber_guard,
     reset_echo_chamber_guard,
-    INDEPENDENCE_PROMPT,
-    DEVIL_ADVOCATE_PROMPT,
 )
-
 
 # =============================================================================
 # AgentPositionHistory
 # =============================================================================
+
 
 class TestAgentPositionHistory:
     def test_record_position(self):
@@ -65,6 +63,7 @@ class TestAgentPositionHistory:
 # EchoChamberGuard - Sycophantic Flip Detection
 # =============================================================================
 
+
 class TestFlipDetection:
     def test_oppose_to_support_without_evidence_flagged(self):
         guard = EchoChamberGuard()
@@ -110,6 +109,7 @@ class TestFlipDetection:
 # EchoChamberGuard - Independence Checkpoints
 # =============================================================================
 
+
 class TestIndependenceCheckpoints:
     def test_checkpoint_at_interval(self):
         guard = EchoChamberGuard(checkpoint_interval=2)
@@ -144,6 +144,7 @@ class TestIndependenceCheckpoints:
 # =============================================================================
 # EchoChamberGuard - Devil's Advocate
 # =============================================================================
+
 
 class TestDevilsAdvocate:
     def test_premature_consensus_forces_advocate(self):
@@ -189,6 +190,7 @@ class TestDevilsAdvocate:
 # =============================================================================
 # EchoChamberGuard - Scoring & Stats
 # =============================================================================
+
 
 class TestScoringAndStats:
     def test_sycophancy_score_zero_clean_debate(self):
@@ -241,6 +243,7 @@ class TestScoringAndStats:
 # =============================================================================
 # Singleton
 # =============================================================================
+
 
 class TestSingleton:
     def test_get_returns_same_instance(self):

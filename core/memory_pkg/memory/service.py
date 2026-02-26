@@ -23,13 +23,14 @@ Usage:
 from __future__ import annotations
 
 import logging
-from pathlib import Path
-from typing import TYPE_CHECKING, List, Optional
 from dataclasses import dataclass
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from core.memory_pkg.memory.project_memory import ProjectMemory
     from core.interface_pkg.interface.console_v7 import ConsoleV7
+    from core.memory_pkg.memory.project_memory import ProjectMemory
+    from core.memory_pkg.memory.types import Chunk
 
 _logger = logging.getLogger(__name__)
 
@@ -37,35 +38,39 @@ _logger = logging.getLogger(__name__)
 @dataclass
 class MemoryStatus:
     """Status of project memory."""
+
     total_files: int
     total_chunks: int
     total_terms: int
     storage_path: str
-    indexed_files: List[str]
+    indexed_files: list[str]
 
 
 @dataclass
 class LearnResult:
     """Result of a learn operation."""
+
     success: bool
     chunks_added: int = 0
-    error: Optional[str] = None
+    error: str | None = None
 
 
 @dataclass
 class ForgetResult:
     """Result of a forget operation."""
+
     success: bool
     chunks_removed: int = 0
-    error: Optional[str] = None
+    error: str | None = None
 
 
 @dataclass
 class QueryResult:
     """Result of a RAG query."""
+
     success: bool
-    chunks: List["Chunk"] = None
-    error: Optional[str] = None
+    chunks: list[Chunk] = None
+    error: str | None = None
 
 
 class MemoryService:
@@ -76,12 +81,7 @@ class MemoryService:
     Extracted from InteractiveNexusV7 (repl.py) for proper separation of concerns.
     """
 
-    def __init__(
-        self,
-        project_memory: "ProjectMemory",
-        workspace_path: Path,
-        console: "ConsoleV7"
-    ):
+    def __init__(self, project_memory: ProjectMemory, workspace_path: Path, console: ConsoleV7):
         """
         Initialize MemoryService.
 
@@ -125,7 +125,7 @@ class MemoryService:
             self.console.print_error(f"Path not found: {path_str}")
             return LearnResult(success=False, error=f"Path not found: {path_str}")
 
-        self.console.print(f"\n[brain] [bold]Indexing into Project Memory[/bold]")
+        self.console.print("\n[brain] [bold]Indexing into Project Memory[/bold]")
         self.console.print(f"   Path: {path}")
 
         try:
@@ -174,7 +174,7 @@ class MemoryService:
         try:
             removed = self.project_memory.forget(path)
             if removed > 0:
-                self.console.print(f"\n[brain] [bold]Removed from Project Memory[/bold]")
+                self.console.print("\n[brain] [bold]Removed from Project Memory[/bold]")
                 self.console.print(f"   Path: {path_str}")
                 self.console.print(f"   [checkmark] Removed {removed} chunks\n")
             else:
@@ -186,7 +186,7 @@ class MemoryService:
             self.console.print_error(f"Forget failed: {e}")
             return ForgetResult(success=False, error=str(e))
 
-    def get_status(self) -> Optional[MemoryStatus]:
+    def get_status(self) -> MemoryStatus | None:
         """
         Get project memory status and statistics.
 
@@ -202,9 +202,9 @@ class MemoryService:
 
         lines = [
             "",
-            "+" + "="*62 + "+",
-            "|" + " "*15 + "[brain] PROJECT MEMORY STATUS" + " "*17 + "|",
-            "+" + "="*62 + "+",
+            "+" + "=" * 62 + "+",
+            "|" + " " * 15 + "[brain] PROJECT MEMORY STATUS" + " " * 17 + "|",
+            "+" + "=" * 62 + "+",
             "",
             f"  [folder] Indexed Files:    {stats.total_files}",
             f"  [package] Total Chunks:     {stats.total_chunks}",
@@ -232,7 +232,7 @@ class MemoryService:
             total_chunks=stats.total_chunks,
             total_terms=stats.total_terms,
             storage_path=str(stats.storage_path),
-            indexed_files=indexed_files
+            indexed_files=indexed_files,
         )
 
     def query(self, query_str: str, limit: int = 5) -> QueryResult:
@@ -254,6 +254,7 @@ class MemoryService:
         cache_key = f"rag:{query_str}:{limit}"
         try:
             from core.memory_pkg.memory.cache_manager import get_cache_manager
+
             cache = get_cache_manager()
             cached = cache.get(cache_key)
             if cached is not None:
@@ -275,6 +276,7 @@ class MemoryService:
         # V12.4: Record access patterns for Ebbinghaus decay scoring
         try:
             from core.memory_pkg.memory.decay_scorer import get_decay_scorer
+
             scorer = get_decay_scorer()
             for chunk in chunks:
                 scorer.record_access(chunk.chunk_id)
@@ -287,7 +289,7 @@ class MemoryService:
         for i, chunk in enumerate(chunks, 1):
             self.console.print(f"[cyan]{i}. {chunk.file_path}[/cyan] (L{chunk.start_line}-{chunk.end_line})")
             # Show first 150 chars of content
-            preview = chunk.content[:150].replace('\n', ' ')
+            preview = chunk.content[:150].replace("\n", " ")
             if len(chunk.content) > 150:
                 preview += "..."
             self.console.print(f"   {preview}\n")
@@ -317,11 +319,7 @@ class MemoryService:
         # Index workspace/memory/ with all file types
         extensions = [".json", ".jsonl", ".md", ".txt", ".yaml", ".yml", ".log"]
         try:
-            chunks = self.project_memory.index_directory(
-                memory_dir,
-                extensions=extensions,
-                recursive=True
-            )
+            chunks = self.project_memory.index_directory(memory_dir, extensions=extensions, recursive=True)
 
             stats = self.project_memory.get_stats()
             backend_info = self.project_memory.get_backend_info()

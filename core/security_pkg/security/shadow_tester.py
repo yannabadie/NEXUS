@@ -25,12 +25,12 @@ References:
 
 import asyncio
 import logging
-from typing import List, Dict, Any
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
-from core.security_pkg.security.input_guard import InputGuard, ThreatLevel
+from core.security_pkg.security.input_guard import InputGuard
 from core.security_pkg.security.output_guard import OutputGuard
 
 logger = logging.getLogger(__name__)
@@ -39,18 +39,20 @@ logger = logging.getLogger(__name__)
 @dataclass
 class AttackResult:
     """Result of a single attack test."""
+
     attack_type: str
     attack_payload: str
     blocked: bool
     threat_level: str
     risk_score: float
     reason: str
-    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
 
 @dataclass
 class SecurityMetrics:
     """Aggregated security metrics."""
+
     total_attacks: int = 0
     blocked_attacks: int = 0
     bypassed_attacks: int = 0
@@ -138,7 +140,7 @@ class ShadowRedTeam:
         test_interval: int = 300,  # 5 minutes
         alert_on_bypass: bool = True,
         log_results: bool = True,
-        metrics_file: Path = None
+        metrics_file: Path = None,
     ):
         """
         Initialize Shadow Red Team.
@@ -190,7 +192,7 @@ class ShadowRedTeam:
             self._running = False
             raise
 
-    async def _run_attack_suite(self) -> List[AttackResult]:
+    async def _run_attack_suite(self) -> list[AttackResult]:
         """
         Execute full attack suite.
 
@@ -232,10 +234,10 @@ class ShadowRedTeam:
             blocked=not validation.is_safe,
             threat_level=validation.threat_level.value,
             risk_score=validation.risk_score,
-            reason=validation.reason or "No threat detected"
+            reason=validation.reason or "No threat detected",
         )
 
-    def _update_metrics(self, results: List[AttackResult]):
+    def _update_metrics(self, results: list[AttackResult]):
         """Update aggregated security metrics."""
         attacks = [r for r in results if r.attack_type != "benign"]
         benign = [r for r in results if r.attack_type == "benign"]
@@ -252,7 +254,7 @@ class ShadowRedTeam:
         if len(benign) > 0:
             self.metrics.false_positive_rate = sum(1 for r in benign if r.blocked) / len(benign)
 
-    async def _log_results(self, results: List[AttackResult]):
+    async def _log_results(self, results: list[AttackResult]):
         """Log attack results to file."""
         if not self.log_results:
             return
@@ -260,8 +262,9 @@ class ShadowRedTeam:
         try:
             self.metrics_file.parent.mkdir(parents=True, exist_ok=True)
 
-            with open(self.metrics_file, 'a', encoding='utf-8') as f:
+            with open(self.metrics_file, "a", encoding="utf-8") as f:
                 import json
+
                 for result in results:
                     log_entry = {
                         "timestamp": result.timestamp,
@@ -270,14 +273,14 @@ class ShadowRedTeam:
                         "blocked": result.blocked,
                         "threat_level": result.threat_level,
                         "risk_score": result.risk_score,
-                        "reason": result.reason
+                        "reason": result.reason,
                     }
-                    f.write(json.dumps(log_entry) + '\n')
+                    f.write(json.dumps(log_entry) + "\n")
 
         except Exception as e:
             logger.error(f"Failed to log shadow red team results: {e}")
 
-    async def _alert_security_breach(self, bypassed: List[AttackResult]):
+    async def _alert_security_breach(self, bypassed: list[AttackResult]):
         """
         Alert on guard bypass.
 
@@ -291,15 +294,12 @@ class ShadowRedTeam:
 
         # Log each bypassed attack
         for result in bypassed:
-            logger.critical(
-                f"  - [{result.attack_type}] Risk={result.risk_score:.2f} "
-                f"Payload: {result.attack_payload}"
-            )
+            logger.critical(f"  - [{result.attack_type}] Risk={result.risk_score:.2f} Payload: {result.attack_payload}")
 
         # TODO: Auto-strengthen guards with new patterns
         # await self._strengthen_guards(bypassed)
 
-    async def _strengthen_guards(self, failed_attacks: List[AttackResult]):
+    async def _strengthen_guards(self, failed_attacks: list[AttackResult]):
         """
         Auto-update guards with new patterns from failed attacks.
 
@@ -313,7 +313,7 @@ class ShadowRedTeam:
         logger.warning("Guard strengthening not yet implemented")
         # TODO: Implement pattern learning and guard updates
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         """
         Get current security metrics.
 

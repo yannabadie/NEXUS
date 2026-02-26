@@ -5,17 +5,13 @@ when both agents CONCEDE or SUPPORT in consecutive turns, the debate
 terminates immediately without an LLM consensus check.
 """
 
-import pytest
-from datetime import datetime
-
 from core.intelligence.hive_mind.types import DebateArgument
 
 
 class TestQuorumDetection:
     """Unit tests for quorum detection logic."""
 
-    def _make_argument(self, agent_id: str, position: str, turn: int,
-                       modification: str = None) -> DebateArgument:
+    def _make_argument(self, agent_id: str, position: str, turn: int, modification: str = None) -> DebateArgument:
         return DebateArgument(
             agent_id=agent_id,
             turn_number=turn,

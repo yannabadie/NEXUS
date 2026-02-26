@@ -35,9 +35,8 @@ from __future__ import annotations
 
 import dataclasses
 import threading
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from dataclasses import dataclass
+from datetime import UTC, datetime
 
 # Constants
 MAX_EVENTS: int = 50000
@@ -166,9 +165,9 @@ class ResilienceEventTracker:
         """
         self._max_events = max_events
         self._lock = threading.Lock()
-        self._events: List[ResilienceEvent] = []
+        self._events: list[ResilienceEvent] = []
         self._counter = 1
-        self._type_metrics: Dict[str, EventTypeMetrics] = {}
+        self._type_metrics: dict[str, EventTypeMetrics] = {}
 
     def record_event(
         self,
@@ -202,7 +201,7 @@ class ResilienceEventTracker:
             self._counter += 1
 
             # Create event
-            timestamp = datetime.now(timezone.utc).isoformat()
+            timestamp = datetime.now(UTC).isoformat()
             event = ResilienceEvent(
                 event_id=event_id,
                 event_type=event_type,
@@ -223,9 +222,7 @@ class ResilienceEventTracker:
 
             # Update metrics
             if event_type not in self._type_metrics:
-                self._type_metrics[event_type] = EventTypeMetrics(
-                    event_type=event_type
-                )
+                self._type_metrics[event_type] = EventTypeMetrics(event_type=event_type)
 
             metrics = self._type_metrics[event_type]
             metrics.total_count += 1
@@ -235,7 +232,7 @@ class ResilienceEventTracker:
 
             return event
 
-    def get_type_metrics(self, event_type: str) -> Optional[EventTypeMetrics]:
+    def get_type_metrics(self, event_type: str) -> EventTypeMetrics | None:
         """
         Get aggregate metrics for a specific event type.
 
@@ -251,7 +248,7 @@ class ResilienceEventTracker:
         with self._lock:
             return self._type_metrics.get(event_type)
 
-    def get_all_metrics(self) -> List[EventTypeMetrics]:
+    def get_all_metrics(self) -> list[EventTypeMetrics]:
         """
         Get all event type metrics sorted by total count descending.
 
@@ -266,7 +263,7 @@ class ResilienceEventTracker:
             metrics.sort(key=lambda m: m.total_count, reverse=True)
             return metrics
 
-    def get_events_by_type(self, event_type: str) -> List[ResilienceEvent]:
+    def get_events_by_type(self, event_type: str) -> list[ResilienceEvent]:
         """
         Get all events of a specific type.
 
@@ -282,7 +279,7 @@ class ResilienceEventTracker:
         with self._lock:
             return [e for e in self._events if e.event_type == event_type]
 
-    def get_events_by_component(self, component: str) -> List[ResilienceEvent]:
+    def get_events_by_component(self, component: str) -> list[ResilienceEvent]:
         """
         Get all events from a specific component.
 
@@ -298,7 +295,7 @@ class ResilienceEventTracker:
         with self._lock:
             return [e for e in self._events if e.component == component]
 
-    def get_events_by_severity(self, severity: str) -> List[ResilienceEvent]:
+    def get_events_by_severity(self, severity: str) -> list[ResilienceEvent]:
         """
         Get all events with a specific severity.
 
@@ -314,7 +311,7 @@ class ResilienceEventTracker:
         with self._lock:
             return [e for e in self._events if e.severity == severity]
 
-    def get_recent_events(self, limit: int = 10) -> List[ResilienceEvent]:
+    def get_recent_events(self, limit: int = 10) -> list[ResilienceEvent]:
         """
         Get most recent events.
 
@@ -330,7 +327,7 @@ class ResilienceEventTracker:
         with self._lock:
             return list(reversed(self._events[-limit:]))
 
-    def get_critical_events(self) -> List[ResilienceEvent]:
+    def get_critical_events(self) -> list[ResilienceEvent]:
         """
         Get all critical severity events.
 
@@ -343,7 +340,7 @@ class ResilienceEventTracker:
         with self._lock:
             return [e for e in self._events if e.severity == "critical"]
 
-    def list_components(self) -> List[str]:
+    def list_components(self) -> list[str]:
         """
         List all unique components that have triggered events.
 
@@ -370,15 +367,11 @@ class ResilienceEventTracker:
         with self._lock:
             total_events = len(self._events)
             unique_types = len(self._type_metrics)
-            unique_components = len(
-                {e.component for e in self._events if e.component}
-            )
+            unique_components = len({e.component for e in self._events if e.component})
 
             # Calculate overall resolution rate
             total_resolved = sum(1 for e in self._events if e.resolved)
-            overall_resolution_rate = (
-                total_resolved / total_events if total_events > 0 else 0.0
-            )
+            overall_resolution_rate = total_resolved / total_events if total_events > 0 else 0.0
 
             return TrackerStats(
                 total_events=total_events,
@@ -439,7 +432,7 @@ class ResilienceEventTracker:
 
 
 # Singleton pattern with double-checked locking
-_instance: Optional[ResilienceEventTracker] = None
+_instance: ResilienceEventTracker | None = None
 _lock = threading.Lock()
 
 

@@ -29,7 +29,7 @@ import threading
 import time
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Any, Deque, Dict, List, Optional, Set
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -47,13 +47,15 @@ MAX_DEAD_LETTERS = 5000
 # Types
 # =============================================================================
 
+
 @dataclass
 class RoutedMessage:
     """A message routed between agents."""
+
     message_id: str
     sender: str
     recipient: str
-    payload: Dict[str, Any] = field(default_factory=dict)
+    payload: dict[str, Any] = field(default_factory=dict)
     topic: str = ""
     priority: int = 0
     timestamp: float = 0.0
@@ -64,9 +66,10 @@ class RoutedMessage:
             self.timestamp = time.monotonic()
         if not self.message_id:
             import secrets
+
             self.message_id = secrets.token_hex(8)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "message_id": self.message_id,
             "sender": self.sender,
@@ -80,6 +83,7 @@ class RoutedMessage:
 @dataclass
 class DeadLetter:
     """A message that could not be delivered."""
+
     message: RoutedMessage
     reason: str
     timestamp: float = 0.0
@@ -88,7 +92,7 @@ class DeadLetter:
         if self.timestamp == 0.0:
             self.timestamp = time.monotonic()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "message_id": self.message.message_id,
             "sender": self.message.sender,
@@ -100,11 +104,12 @@ class DeadLetter:
 @dataclass
 class RouteResult:
     """Result of a routing attempt."""
+
     success: bool
     message_id: str = ""
     error: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "success": self.success,
             "message_id": self.message_id,
@@ -115,12 +120,13 @@ class RouteResult:
 @dataclass
 class QueueInfo:
     """Info about an agent's message queue."""
+
     agent_id: str
     pending: int
     total_received: int
     total_delivered: int
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "agent_id": self.agent_id,
             "pending": self.pending,
@@ -132,13 +138,14 @@ class QueueInfo:
 @dataclass
 class RouterStats:
     """Message router statistics."""
+
     registered_agents: int
     total_routed: int
     total_delivered: int
     total_dead_letters: int
     total_broadcasts: int
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "registered_agents": self.registered_agents,
             "total_routed": self.total_routed,
@@ -151,6 +158,7 @@ class RouterStats:
 # =============================================================================
 # Message Router
 # =============================================================================
+
 
 class MessageRouter:
     """
@@ -168,11 +176,11 @@ class MessageRouter:
     """
 
     def __init__(self):
-        self._agents: Set[str] = set()
-        self._queues: Dict[str, Deque[RoutedMessage]] = {}
-        self._dead_letters: List[DeadLetter] = []
-        self._total_received: Dict[str, int] = {}
-        self._total_delivered: Dict[str, int] = {}
+        self._agents: set[str] = set()
+        self._queues: dict[str, deque[RoutedMessage]] = {}
+        self._dead_letters: list[DeadLetter] = []
+        self._total_received: dict[str, int] = {}
+        self._total_delivered: dict[str, int] = {}
         self._total_routed = 0
         self._total_delivered_count = 0
         self._total_broadcasts = 0
@@ -210,7 +218,7 @@ class MessageRouter:
         """Check if an agent is registered."""
         return agent_id in self._agents
 
-    def list_agents(self) -> List[str]:
+    def list_agents(self) -> list[str]:
         """List all registered agents."""
         return sorted(self._agents)
 
@@ -223,7 +231,7 @@ class MessageRouter:
         sender: str,
         recipient: str,
         *,
-        payload: Optional[Dict[str, Any]] = None,
+        payload: dict[str, Any] | None = None,
         topic: str = "",
         priority: int = 0,
         message_id: str = "",
@@ -262,7 +270,7 @@ class MessageRouter:
         self,
         sender: str,
         *,
-        payload: Optional[Dict[str, Any]] = None,
+        payload: dict[str, Any] | None = None,
         topic: str = "",
         priority: int = 0,
         exclude_sender: bool = True,
@@ -283,7 +291,7 @@ class MessageRouter:
     # Receiving
     # =========================================================================
 
-    def receive(self, agent_id: str, *, limit: int = 0) -> List[RoutedMessage]:
+    def receive(self, agent_id: str, *, limit: int = 0) -> list[RoutedMessage]:
         """Receive pending messages for an agent."""
         with self._lock:
             queue = self._queues.get(agent_id)
@@ -302,7 +310,7 @@ class MessageRouter:
             self._total_delivered_count += len(messages)
             return messages
 
-    def peek(self, agent_id: str, *, limit: int = 0) -> List[RoutedMessage]:
+    def peek(self, agent_id: str, *, limit: int = 0) -> list[RoutedMessage]:
         """Peek at pending messages without removing them."""
         queue = self._queues.get(agent_id)
         if queue is None:
@@ -316,7 +324,7 @@ class MessageRouter:
         queue = self._queues.get(agent_id)
         return len(queue) if queue else 0
 
-    def get_by_topic(self, agent_id: str, topic: str) -> List[RoutedMessage]:
+    def get_by_topic(self, agent_id: str, topic: str) -> list[RoutedMessage]:
         """Get pending messages for an agent filtered by topic."""
         queue = self._queues.get(agent_id)
         if queue is None:
@@ -327,7 +335,7 @@ class MessageRouter:
     # Dead Letters
     # =========================================================================
 
-    def get_dead_letters(self, *, limit: int = 0) -> List[DeadLetter]:
+    def get_dead_letters(self, *, limit: int = 0) -> list[DeadLetter]:
         """Get dead letters."""
         if limit == 0:
             return list(self._dead_letters)
@@ -344,7 +352,7 @@ class MessageRouter:
     # Queue Info
     # =========================================================================
 
-    def get_queue_info(self, agent_id: str) -> Optional[QueueInfo]:
+    def get_queue_info(self, agent_id: str) -> QueueInfo | None:
         """Get queue info for an agent."""
         if agent_id not in self._agents:
             return None
@@ -389,7 +397,7 @@ class MessageRouter:
             self._total_delivered_count = 0
             self._total_broadcasts = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "agent_count": self.agent_count,
             "stats": self.get_stats().to_dict(),
@@ -400,7 +408,7 @@ class MessageRouter:
 # Global Instance
 # =============================================================================
 
-_router: Optional[MessageRouter] = None
+_router: MessageRouter | None = None
 _router_lock = threading.Lock()
 
 

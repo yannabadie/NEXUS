@@ -8,14 +8,14 @@ Proves subprocess isolation at the OS level.
 Author: NEXUS PRIME (Obsidian Protocol)
 Date: 2025-12-13
 """
-import os
-import sys
-import subprocess
+
 import json
+import subprocess
+import sys
 import uuid
-from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+from pathlib import Path
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -57,7 +57,7 @@ class IsolationPhysicsProof:
                 isolated_env = isolator.get_isolated_env(session_id)
 
                 # Cross-platform HOME detection script
-                script = '''
+                script = """
 import os
 import sys
 import json
@@ -71,14 +71,14 @@ result = {
     "platform": sys.platform
 }
 print(json.dumps(result))
-'''
+"""
                 result = subprocess.run(
                     [sys.executable, "-c", script],
                     env=isolated_env,
                     capture_output=True,
                     text=True,
                     cwd=str(self.workspace),
-                    timeout=30
+                    timeout=30,
                 )
 
                 if result.returncode != 0:
@@ -127,7 +127,7 @@ print(json.dumps(result))
             "a_contains_session_id": a_contains_uuid,
             "b_contains_session_id": b_contains_uuid,
             "PASS": passed,
-            "verdict": "ISOLATED - Each agent has unique HOME" if passed else "CRITICAL: HOME NOT ISOLATED"
+            "verdict": "ISOLATED - Each agent has unique HOME" if passed else "CRITICAL: HOME NOT ISOLATED",
         }
 
     def test_cwd_preservation(self) -> dict:
@@ -146,14 +146,14 @@ print(json.dumps(result))
             isolator = HomeIsolator(self.workspace)
             isolated_env = isolator.get_isolated_env("cwd_proof_test")
 
-            script = 'import os; print(os.getcwd())'
+            script = "import os; print(os.getcwd())"
             result = subprocess.run(
                 [sys.executable, "-c", script],
                 env=isolated_env,
                 capture_output=True,
                 text=True,
                 cwd=str(self.workspace),
-                timeout=30
+                timeout=30,
             )
 
             subprocess_cwd = Path(result.stdout.strip()).resolve()
@@ -166,15 +166,11 @@ print(json.dumps(result))
                 "subprocess_cwd": str(subprocess_cwd),
                 "expected_cwd": str(expected_cwd),
                 "PASS": passed,
-                "verdict": "CWD PRESERVED at workspace root" if passed else "CRITICAL: CWD CHANGED (Ghost Files Risk!)"
+                "verdict": "CWD PRESERVED at workspace root" if passed else "CRITICAL: CWD CHANGED (Ghost Files Risk!)",
             }
 
         except Exception as e:
-            return {
-                "test": test_name,
-                "PASS": False,
-                "verdict": f"CRITICAL: Test failed - {e}"
-            }
+            return {"test": test_name, "PASS": False, "verdict": f"CRITICAL: Test failed - {e}"}
 
     def test_env_leak_prevention(self) -> dict:
         """
@@ -202,11 +198,7 @@ print(json.dumps(result))
             script = 'import os; print(os.environ.get("SECRET_AGENT_A", "NOT_FOUND"))'
 
             result_b = subprocess.run(
-                [sys.executable, "-c", script],
-                env=env_b,
-                capture_output=True,
-                text=True,
-                timeout=30
+                [sys.executable, "-c", script], env=env_b, capture_output=True, text=True, timeout=30
             )
 
             value_seen_by_b = result_b.stdout.strip()
@@ -220,15 +212,11 @@ print(json.dumps(result))
                 "value_seen_by_b": value_seen_by_b,
                 "leaked": leaked,
                 "PASS": not leaked,
-                "verdict": "CRITICAL: ENV LEAK DETECTED!" if leaked else "NO LEAK - Environments isolated"
+                "verdict": "CRITICAL: ENV LEAK DETECTED!" if leaked else "NO LEAK - Environments isolated",
             }
 
         except Exception as e:
-            return {
-                "test": test_name,
-                "PASS": False,
-                "verdict": f"CRITICAL: Test failed - {e}"
-            }
+            return {"test": test_name, "PASS": False, "verdict": f"CRITICAL: Test failed - {e}"}
 
     def test_concurrent_isolation(self) -> dict:
         """
@@ -245,18 +233,18 @@ print(json.dumps(result))
 
             def get_home_for_session(session_id: str) -> tuple:
                 env = isolator.get_isolated_env(session_id)
-                script = '''
+                script = """
 import os
 home = os.environ.get("HOME") or os.environ.get("USERPROFILE") or "UNKNOWN"
 print(home)
-'''
+"""
                 result = subprocess.run(
                     [sys.executable, "-c", script],
                     env=env,
                     capture_output=True,
                     text=True,
                     cwd=str(self.workspace),
-                    timeout=30
+                    timeout=30,
                 )
                 return (session_id, result.stdout.strip())
 
@@ -279,15 +267,13 @@ print(home)
                 "all_unique": all_unique,
                 "homes": dict(results),
                 "PASS": all_unique,
-                "verdict": f"All {len(session_ids)} agents isolated" if all_unique else "CRITICAL: HOME COLLISION DETECTED"
+                "verdict": f"All {len(session_ids)} agents isolated"
+                if all_unique
+                else "CRITICAL: HOME COLLISION DETECTED",
             }
 
         except Exception as e:
-            return {
-                "test": test_name,
-                "PASS": False,
-                "verdict": f"CRITICAL: Test failed - {e}"
-            }
+            return {"test": test_name, "PASS": False, "verdict": f"CRITICAL: Test failed - {e}"}
 
     def test_cleanup_works(self) -> dict:
         """
@@ -304,7 +290,7 @@ print(home)
 
             # Create a session
             session_id = f"cleanup_test_{uuid.uuid4().hex[:8]}"
-            env = isolator.get_isolated_env(session_id)
+            isolator.get_isolated_env(session_id)
 
             # Verify directory was created
             home_path = isolator.get_home_path(session_id)
@@ -323,15 +309,11 @@ print(home)
                 "cleanup_returned": cleanup_result,
                 "directory_removed": removed,
                 "PASS": created and cleanup_result and removed,
-                "verdict": "Cleanup working correctly" if (created and removed) else "CRITICAL: Cleanup failed"
+                "verdict": "Cleanup working correctly" if (created and removed) else "CRITICAL: Cleanup failed",
             }
 
         except Exception as e:
-            return {
-                "test": test_name,
-                "PASS": False,
-                "verdict": f"CRITICAL: Test failed - {e}"
-            }
+            return {"test": test_name, "PASS": False, "verdict": f"CRITICAL: Test failed - {e}"}
 
     def run_all(self) -> dict:
         """Run all isolation proofs and return comprehensive results."""
@@ -374,7 +356,9 @@ print(home)
         }
 
         print("\n" + "=" * 70)
-        print(f"OVERALL VERDICT: {'PASS - ALL ISOLATION PROOFS VERIFIED' if all_pass else 'FAIL - ISOLATION COMPROMISED'}")
+        print(
+            f"OVERALL VERDICT: {'PASS - ALL ISOLATION PROOFS VERIFIED' if all_pass else 'FAIL - ISOLATION COMPROMISED'}"
+        )
         print("=" * 70)
 
         return results
@@ -382,6 +366,7 @@ print(home)
     def cleanup(self):
         """Clean up proof directory."""
         import shutil
+
         if self.proof_dir.exists():
             shutil.rmtree(self.proof_dir, ignore_errors=True)
 

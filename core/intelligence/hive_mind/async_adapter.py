@@ -28,16 +28,16 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from pathlib import Path
-from typing import Optional, Dict, Any, TYPE_CHECKING
 from datetime import datetime
+from typing import TYPE_CHECKING, Any
 
-from core.foundation.async_primitives import CancellationToken, AsyncBlackboard
+from core.foundation.async_primitives import AsyncBlackboard, CancellationToken
 from core.foundation.async_primitives.process_handle import get_process_registry
 
 if TYPE_CHECKING:
-    from .orchestrator import TrueHiveMind, HiveMindResult
     from core.drivers.async_factory import AsyncDriverFactory
+
+    from .orchestrator import HiveMindResult, TrueHiveMind
 
 logger = logging.getLogger(__name__)
 
@@ -54,9 +54,9 @@ class AsyncHiveMindAdapter:
 
     def __init__(
         self,
-        hive_mind: "TrueHiveMind",
-        driver_factory: Optional["AsyncDriverFactory"] = None,
-        blackboard: Optional[AsyncBlackboard] = None,
+        hive_mind: TrueHiveMind,
+        driver_factory: AsyncDriverFactory | None = None,
+        blackboard: AsyncBlackboard | None = None,
     ):
         """
         Initialize adapter.
@@ -71,17 +71,17 @@ class AsyncHiveMindAdapter:
         self.blackboard = blackboard or AsyncBlackboard()
 
         # Track active tasks
-        self._active_tasks: Dict[str, CancellationToken] = {}
+        self._active_tasks: dict[str, CancellationToken] = {}
         self._registry = get_process_registry()
 
     async def process_task(
         self,
         task: str,
         *,
-        token: Optional[CancellationToken] = None,
-        session_uuid: Optional[str] = None,
-        complexity: Optional[Any] = None,
-    ) -> "HiveMindResult":
+        token: CancellationToken | None = None,
+        session_uuid: str | None = None,
+        complexity: Any | None = None,
+    ) -> HiveMindResult:
         """
         Process task with V9 async capabilities.
 
@@ -102,9 +102,7 @@ class AsyncHiveMindAdapter:
 
         # Store task info in blackboard
         await self.blackboard.set(
-            f"task_{session_uuid}_started",
-            datetime.now().isoformat(),
-            source="hive_mind_adapter"
+            f"task_{session_uuid}_started", datetime.now().isoformat(), source="hive_mind_adapter"
         )
 
         try:
@@ -128,7 +126,7 @@ class AsyncHiveMindAdapter:
                     "phases": result.phases_completed,
                     "duration": result.total_duration,
                 },
-                source="hive_mind_adapter"
+                source="hive_mind_adapter",
             )
 
             return result
@@ -175,7 +173,7 @@ class AsyncHiveMindAdapter:
             Number of tasks cancelled
         """
         count = 0
-        for session_uuid, token in list(self._active_tasks.items()):
+        for _session_uuid, token in list(self._active_tasks.items()):
             token.cancel(reason="All tasks cancelled")
             count += 1
 
@@ -190,7 +188,7 @@ class AsyncHiveMindAdapter:
         """Get number of active tasks."""
         return len(self._active_tasks)
 
-    async def get_task_status(self, session_uuid: str) -> Optional[Dict[str, Any]]:
+    async def get_task_status(self, session_uuid: str) -> dict[str, Any] | None:
         """
         Get status of a task from blackboard.
 
@@ -232,11 +230,7 @@ class DriverBridge:
     directly in phases.
     """
 
-    def __init__(
-        self,
-        async_driver,
-        loop: Optional[asyncio.AbstractEventLoop] = None
-    ):
+    def __init__(self, async_driver, loop: asyncio.AbstractEventLoop | None = None):
         """
         Initialize bridge.
 
@@ -248,18 +242,19 @@ class DriverBridge:
             Use `driver.invoke_sync()` instead of DriverBridge.
         """
         import warnings
+
         warnings.warn(
             "DriverBridge is deprecated since V8.4.4. "
             "Use async drivers directly with `await driver.invoke()` or "
             "`driver.invoke_sync()` for sync fallback. "
             "DriverBridge will be removed in V9.0.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         self.async_driver = async_driver
         self._loop = loop
 
-    def invoke(self, context: str, **kwargs) -> Dict[str, Any]:
+    def invoke(self, context: str, **kwargs) -> dict[str, Any]:
         """
         Synchronous invoke that wraps async driver.
 
@@ -274,16 +269,11 @@ class DriverBridge:
         try:
             loop = self._loop or asyncio.get_running_loop()
             # Loop is running - use run_coroutine_threadsafe
-            future = asyncio.run_coroutine_threadsafe(
-                self.async_driver.invoke(context, **kwargs),
-                loop
-            )
+            future = asyncio.run_coroutine_threadsafe(self.async_driver.invoke(context, **kwargs), loop)
             return future.result(timeout=300)
         except RuntimeError:
             # No running loop - create one and run
-            return asyncio.run(
-                self.async_driver.invoke(context, **kwargs)
-            )
+            return asyncio.run(self.async_driver.invoke(context, **kwargs))
 
 
 # ============================================================================

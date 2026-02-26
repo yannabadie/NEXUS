@@ -8,21 +8,22 @@ Verifies:
 4. Graceful handling of empty/missing telemetry files
 """
 
-import pytest
-import json
 import csv
-from pathlib import Path
-from datetime import datetime, timedelta, timezone
-
+import json
 import sys
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.observability.telemetry.exporter import TelemetryExporter, TelemetryEvent
-
+from core.observability.telemetry.exporter import TelemetryEvent, TelemetryExporter
 
 # =============================================================================
 # Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def workspace_path(tmp_path):
@@ -53,7 +54,7 @@ def populated_telemetry(workspace_path):
     """
     telemetry_file = workspace_path / "telemetry.jsonl"
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     events = [
         # API calls
@@ -67,8 +68,8 @@ def populated_telemetry(workspace_path):
                 "tokens_in": 500,
                 "tokens_out": 300,
                 "latency_seconds": 1.5,
-                "success": True
-            }
+                "success": True,
+            },
         },
         {
             "type": "api_call",
@@ -80,8 +81,8 @@ def populated_telemetry(workspace_path):
                 "tokens_in": 800,
                 "tokens_out": 500,
                 "latency_seconds": 2.0,
-                "success": True
-            }
+                "success": True,
+            },
         },
         {
             "type": "api_call",
@@ -94,40 +95,28 @@ def populated_telemetry(workspace_path):
                 "tokens_out": 0,
                 "latency_seconds": 0.5,
                 "success": False,
-                "error": "Rate limit exceeded"
-            }
+                "error": "Rate limit exceeded",
+            },
         },
         # Swarm tasks
         {
             "type": "swarm_task",
             "session_id": "test_session_1",
             "timestamp": (now - timedelta(hours=1, minutes=30)).isoformat(),
-            "data": {
-                "mode": "ping_pong",
-                "duration_seconds": 15.5,
-                "success": True
-            }
+            "data": {"mode": "ping_pong", "duration_seconds": 15.5, "success": True},
         },
         {
             "type": "swarm_task",
             "session_id": "test_session_2",
             "timestamp": (now - timedelta(minutes=30)).isoformat(),
-            "data": {
-                "mode": "specialist",
-                "duration_seconds": 8.2,
-                "success": True
-            }
+            "data": {"mode": "specialist", "duration_seconds": 8.2, "success": True},
         },
         # Tool execution
         {
             "type": "tool_execution",
             "session_id": "test_session_1",
             "timestamp": (now - timedelta(hours=1, minutes=45)).isoformat(),
-            "data": {
-                "tool_name": "read_file",
-                "duration_seconds": 0.1,
-                "success": True
-            }
+            "data": {"tool_name": "read_file", "duration_seconds": 0.1, "success": True},
         },
         {
             "type": "tool_execution",
@@ -137,19 +126,16 @@ def populated_telemetry(workspace_path):
                 "tool_name": "write_file",
                 "duration_seconds": 0.2,
                 "success": False,
-                "error": "Permission denied"
-            }
+                "error": "Permission denied",
+            },
         },
         # Error event
         {
             "type": "error",
             "session_id": "test_session_2",
             "timestamp": (now - timedelta(minutes=15)).isoformat(),
-            "data": {
-                "error_type": "ValidationError",
-                "message": "Invalid JSON response"
-            }
-        }
+            "data": {"error_type": "ValidationError", "message": "Invalid JSON response"},
+        },
     ]
 
     with open(telemetry_file, "w", encoding="utf-8") as f:
@@ -162,6 +148,7 @@ def populated_telemetry(workspace_path):
 # =============================================================================
 # TelemetryEvent Tests
 # =============================================================================
+
 
 class TestTelemetryEvent:
     """Tests for TelemetryEvent parsing."""
@@ -201,6 +188,7 @@ class TestTelemetryEvent:
 # TelemetryExporter Tests - Empty/Missing File
 # =============================================================================
 
+
 class TestEmptyTelemetry:
     """Tests for handling empty or missing telemetry files."""
 
@@ -229,7 +217,7 @@ class TestEmptyTelemetry:
         csv_path = exporter.export_to_csv()
 
         assert csv_path.exists()
-        with open(csv_path, "r", encoding="utf-8") as f:
+        with open(csv_path, encoding="utf-8") as f:
             reader = csv.reader(f)
             rows = list(reader)
             assert len(rows) == 1  # Header only
@@ -239,6 +227,7 @@ class TestEmptyTelemetry:
 # =============================================================================
 # TelemetryExporter Tests - Event Counting
 # =============================================================================
+
 
 class TestEventCounting:
     """Tests for event counting functionality."""
@@ -262,7 +251,7 @@ class TestEventCounting:
 
     def test_iter_events_filters_by_time(self, populated_telemetry):
         """_iter_events filters by timestamp."""
-        since = datetime.now(timezone.utc) - timedelta(hours=1)
+        since = datetime.now(UTC) - timedelta(hours=1)
         recent_events = list(populated_telemetry._iter_events(since=since))
 
         # Should include events from last hour only
@@ -272,6 +261,7 @@ class TestEventCounting:
 # =============================================================================
 # TelemetryExporter Tests - Report Generation
 # =============================================================================
+
 
 class TestReportGeneration:
     """Tests for report generation."""
@@ -344,6 +334,7 @@ class TestReportGeneration:
 # TelemetryExporter Tests - CSV Export
 # =============================================================================
 
+
 class TestCsvExport:
     """Tests for CSV export functionality."""
 
@@ -356,7 +347,7 @@ class TestCsvExport:
         """CSV has expected column headers."""
         csv_path = populated_telemetry.export_to_csv()
 
-        with open(csv_path, "r", encoding="utf-8") as f:
+        with open(csv_path, encoding="utf-8") as f:
             reader = csv.DictReader(f)
             headers = reader.fieldnames
 
@@ -370,7 +361,7 @@ class TestCsvExport:
         """CSV has correct number of data rows."""
         csv_path = populated_telemetry.export_to_csv()
 
-        with open(csv_path, "r", encoding="utf-8") as f:
+        with open(csv_path, encoding="utf-8") as f:
             reader = csv.reader(f)
             rows = list(reader)
             # 1 header + 8 events
@@ -381,7 +372,7 @@ class TestCsvExport:
         # Export only last 1 hour (should be less than all)
         csv_path = populated_telemetry.export_to_csv(days=0)  # 0 days = now only
 
-        with open(csv_path, "r", encoding="utf-8") as f:
+        with open(csv_path, encoding="utf-8") as f:
             reader = csv.reader(f)
             rows = list(reader)
             # Should have fewer rows than full export
@@ -398,6 +389,7 @@ class TestCsvExport:
 # =============================================================================
 # TelemetryExporter Tests - Console Formatting
 # =============================================================================
+
 
 class TestConsoleFormatting:
     """Tests for console output formatting."""
@@ -435,13 +427,14 @@ class TestConsoleFormatting:
 # Integration Tests
 # =============================================================================
 
+
 class TestIntegration:
     """Integration tests for telemetry export workflow."""
 
     def test_full_workflow(self, workspace_path):
         """Test full workflow: write events, generate report, export CSV."""
         telemetry_file = workspace_path / "telemetry.jsonl"
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Write some events
         events = [
@@ -449,24 +442,14 @@ class TestIntegration:
                 "type": "api_call",
                 "session_id": "integration_test",
                 "timestamp": now.isoformat(),
-                "data": {
-                    "provider": "gemini",
-                    "model": "test",
-                    "tokens_in": 100,
-                    "tokens_out": 50,
-                    "success": True
-                }
+                "data": {"provider": "gemini", "model": "test", "tokens_in": 100, "tokens_out": 50, "success": True},
             },
             {
                 "type": "swarm_task",
                 "session_id": "integration_test",
                 "timestamp": now.isoformat(),
-                "data": {
-                    "mode": "parallel",
-                    "duration_seconds": 5.0,
-                    "success": True
-                }
-            }
+                "data": {"mode": "parallel", "duration_seconds": 5.0, "success": True},
+            },
         ]
 
         with open(telemetry_file, "w", encoding="utf-8") as f:
@@ -488,7 +471,7 @@ class TestIntegration:
         csv_path = exporter.export_to_csv()
         assert csv_path.exists()
 
-        with open(csv_path, "r", encoding="utf-8") as f:
+        with open(csv_path, encoding="utf-8") as f:
             reader = csv.reader(f)
             rows = list(reader)
             assert len(rows) == 3  # header + 2 events

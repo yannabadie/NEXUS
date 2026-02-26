@@ -10,27 +10,16 @@ Author: Claude (NEXUS V7.5)
 Date: 2025-12-04
 """
 
-import tempfile
-import shutil
-from pathlib import Path
-from unittest import TestCase, main
-from datetime import datetime
-
-import pytest
-
 # Add parent to path for imports
 import sys
+from pathlib import Path
+from unittest import TestCase, main
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.intelligence.swarm.agent_metrics import (
-    AgentPool,
-    AgentProfile,
-    AgentInvocationResult,
-    create_default_pool
-)
-from core.intelligence.swarm.mode_selector import ModeSelector, AgentAssignment
+from core.intelligence.swarm.agent_metrics import AgentInvocationResult, AgentPool, AgentProfile
+from core.intelligence.swarm.mode_selector import ModeSelector
 from core.intelligence.swarm.task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
-from core.intelligence.swarm.collaboration_modes import CollaborationMode
 
 
 class TestAgentPoolCapabilitySelection(TestCase):
@@ -41,24 +30,27 @@ class TestAgentPoolCapabilitySelection(TestCase):
         pool = AgentPool()
 
         # Register agents with different capabilities
-        pool.register(AgentProfile(
-            agent_id="gemini_primary",
-            provider="gemini",
-            model="gemini-3-pro",
-            capabilities=["reasoning", "research"]
-        ))
-        pool.register(AgentProfile(
-            agent_id="claude_opus",
-            provider="claude",
-            model="claude-opus",
-            capabilities=["coding", "architecture"]
-        ))
-        pool.register(AgentProfile(
-            agent_id="sql_expert",
-            provider="spawned",
-            model="spawned_sql_expert",
-            capabilities=["database", "sql", "coding"]
-        ))
+        pool.register(
+            AgentProfile(
+                agent_id="gemini_primary",
+                provider="gemini",
+                model="gemini-3-pro",
+                capabilities=["reasoning", "research"],
+            )
+        )
+        pool.register(
+            AgentProfile(
+                agent_id="claude_opus", provider="claude", model="claude-opus", capabilities=["coding", "architecture"]
+            )
+        )
+        pool.register(
+            AgentProfile(
+                agent_id="sql_expert",
+                provider="spawned",
+                model="spawned_sql_expert",
+                capabilities=["database", "sql", "coding"],
+            )
+        )
 
         # Select for DATABASE domain
         selected = pool.select_agents_by_capability("database", count=2)
@@ -73,42 +65,38 @@ class TestAgentPoolCapabilitySelection(TestCase):
 
         # Two agents without explicit capability for "debugging"
         gemini = AgentProfile(
-            agent_id="gemini_primary",
-            provider="gemini",
-            model="gemini-3-pro",
-            capabilities=["reasoning"]
+            agent_id="gemini_primary", provider="gemini", model="gemini-3-pro", capabilities=["reasoning"]
         )
-        claude = AgentProfile(
-            agent_id="claude_opus",
-            provider="claude",
-            model="claude-opus",
-            capabilities=["coding"]
-        )
+        claude = AgentProfile(agent_id="claude_opus", provider="claude", model="claude-opus", capabilities=["coding"])
 
         pool.register(gemini)
         pool.register(claude)
 
         # Give Claude high DyLAN score for debugging
         for _ in range(5):
-            claude.record_invocation(AgentInvocationResult(
-                agent_id="claude_opus",
-                task_type="debugging",
-                success=True,
-                quality_score=0.95,
-                tokens_used=500,
-                time_seconds=5.0
-            ))
+            claude.record_invocation(
+                AgentInvocationResult(
+                    agent_id="claude_opus",
+                    task_type="debugging",
+                    success=True,
+                    quality_score=0.95,
+                    tokens_used=500,
+                    time_seconds=5.0,
+                )
+            )
 
         # Give Gemini lower DyLAN score
         for _ in range(5):
-            gemini.record_invocation(AgentInvocationResult(
-                agent_id="gemini_primary",
-                task_type="debugging",
-                success=True,
-                quality_score=0.5,
-                tokens_used=1000,
-                time_seconds=10.0
-            ))
+            gemini.record_invocation(
+                AgentInvocationResult(
+                    agent_id="gemini_primary",
+                    task_type="debugging",
+                    success=True,
+                    quality_score=0.5,
+                    tokens_used=1000,
+                    time_seconds=10.0,
+                )
+            )
 
         selected = pool.select_agents_by_capability("debugging", count=2)
 
@@ -120,18 +108,17 @@ class TestAgentPoolCapabilitySelection(TestCase):
         """Test that spawned agents are included by default."""
         pool = AgentPool()
 
-        pool.register(AgentProfile(
-            agent_id="gemini_primary",
-            provider="gemini",
-            model="gemini-3-pro",
-            capabilities=["reasoning"]
-        ))
-        pool.register(AgentProfile(
-            agent_id="security_expert",
-            provider="spawned",
-            model="spawned_security_expert",
-            capabilities=["security", "pentesting"]
-        ))
+        pool.register(
+            AgentProfile(agent_id="gemini_primary", provider="gemini", model="gemini-3-pro", capabilities=["reasoning"])
+        )
+        pool.register(
+            AgentProfile(
+                agent_id="security_expert",
+                provider="spawned",
+                model="spawned_security_expert",
+                capabilities=["security", "pentesting"],
+            )
+        )
 
         selected = pool.select_agents_by_capability("security", count=2)
 
@@ -143,22 +130,19 @@ class TestAgentPoolCapabilitySelection(TestCase):
         """Test that spawned agents can be excluded."""
         pool = AgentPool()
 
-        pool.register(AgentProfile(
-            agent_id="gemini_primary",
-            provider="gemini",
-            model="gemini-3-pro",
-            capabilities=["security"]
-        ))
-        pool.register(AgentProfile(
-            agent_id="security_expert",
-            provider="spawned",
-            model="spawned_security_expert",
-            capabilities=["security", "pentesting"]
-        ))
-
-        selected = pool.select_agents_by_capability(
-            "security", count=2, include_spawned=False
+        pool.register(
+            AgentProfile(agent_id="gemini_primary", provider="gemini", model="gemini-3-pro", capabilities=["security"])
         )
+        pool.register(
+            AgentProfile(
+                agent_id="security_expert",
+                provider="spawned",
+                model="spawned_security_expert",
+                capabilities=["security", "pentesting"],
+            )
+        )
+
+        selected = pool.select_agents_by_capability("security", count=2, include_spawned=False)
 
         # Only internal agent should be returned
         assert len(selected) == 1
@@ -169,22 +153,14 @@ class TestAgentPoolCapabilitySelection(TestCase):
         pool = AgentPool()
 
         gemini = AgentProfile(
-            agent_id="gemini_primary",
-            provider="gemini",
-            model="gemini-3-pro",
-            capabilities=["research"]
+            agent_id="gemini_primary", provider="gemini", model="gemini-3-pro", capabilities=["research"]
         )
-        claude = AgentProfile(
-            agent_id="claude_opus",
-            provider="claude",
-            model="claude-opus",
-            capabilities=["coding"]
-        )
+        claude = AgentProfile(agent_id="claude_opus", provider="claude", model="claude-opus", capabilities=["coding"])
         super_coder = AgentProfile(
             agent_id="super_coder",
             provider="spawned",
             model="spawned_super_coder",
-            capabilities=["coding", "python", "rust"]
+            capabilities=["coding", "python", "rust"],
         )
 
         pool.register(gemini)
@@ -193,21 +169,19 @@ class TestAgentPoolCapabilitySelection(TestCase):
 
         # Give super_coder higher DyLAN score for coding
         for _ in range(10):
-            super_coder.record_invocation(AgentInvocationResult(
-                agent_id="super_coder",
-                task_type="coding",
-                success=True,
-                quality_score=0.99,
-                tokens_used=100,
-                time_seconds=1.0
-            ))
+            super_coder.record_invocation(
+                AgentInvocationResult(
+                    agent_id="super_coder",
+                    task_type="coding",
+                    success=True,
+                    quality_score=0.99,
+                    tokens_used=100,
+                    time_seconds=1.0,
+                )
+            )
 
         # Get best for coding, excluding gemini
-        best = pool.get_best_for_role(
-            role="lead",
-            domain="coding",
-            exclude_agents=["gemini_primary"]
-        )
+        best = pool.get_best_for_role(role="lead", domain="coding", exclude_agents=["gemini_primary"])
 
         assert best is not None
         # super_coder should win due to capability + high DyLAN
@@ -222,18 +196,19 @@ class TestModeSelectorAgentAgnostic(TestCase):
         self.pool = AgentPool()
 
         # Register default agents
-        self.pool.register(AgentProfile(
-            agent_id="gemini_primary",
-            provider="gemini",
-            model="gemini-3-pro",
-            capabilities=["reasoning", "research"]
-        ))
-        self.pool.register(AgentProfile(
-            agent_id="claude_opus",
-            provider="claude",
-            model="claude-opus",
-            capabilities=["coding", "architecture"]
-        ))
+        self.pool.register(
+            AgentProfile(
+                agent_id="gemini_primary",
+                provider="gemini",
+                model="gemini-3-pro",
+                capabilities=["reasoning", "research"],
+            )
+        )
+        self.pool.register(
+            AgentProfile(
+                agent_id="claude_opus", provider="claude", model="claude-opus", capabilities=["coding", "architecture"]
+            )
+        )
 
     def test_spawned_agent_selected_as_lead_for_its_domain(self):
         """
@@ -245,7 +220,7 @@ class TestModeSelectorAgentAgnostic(TestCase):
             agent_id="super_coder",
             provider="spawned",
             model="spawned_super_coder",
-            capabilities=["coding", "python", "javascript"]
+            capabilities=["coding", "python", "javascript"],
         )
 
         # Give it very high DyLAN scores for coding
@@ -253,14 +228,16 @@ class TestModeSelectorAgentAgnostic(TestCase):
         # To beat default 0.5 for agents with no history, we need importance > 0.5
         # With quality=0.98, cost=0.6: importance = 0.98/0.6 = 1.63 >> 0.5
         for _ in range(10):
-            super_coder.record_invocation(AgentInvocationResult(
-                agent_id="super_coder",
-                task_type="coding",
-                success=True,
-                quality_score=0.98,  # Very high quality
-                tokens_used=100,     # Very low cost (0.1)
-                time_seconds=0.5     # Very fast (total cost = 0.6)
-            ))
+            super_coder.record_invocation(
+                AgentInvocationResult(
+                    agent_id="super_coder",
+                    task_type="coding",
+                    success=True,
+                    quality_score=0.98,  # Very high quality
+                    tokens_used=100,  # Very low cost (0.1)
+                    time_seconds=0.5,  # Very fast (total cost = 0.6)
+                )
+            )
 
         self.pool.register(super_coder)
 
@@ -271,7 +248,7 @@ class TestModeSelectorAgentAgnostic(TestCase):
             domains=[TaskDomain.CODING],
             gemini_fit_score=0.5,
             claude_fit_score=0.6,
-            raw_input="Refactor this Python class to use dataclasses"
+            raw_input="Refactor this Python class to use dataclasses",
         )
 
         # Create selector with pool
@@ -286,8 +263,7 @@ class TestModeSelectorAgentAgnostic(TestCase):
             # super_coder should be selected first due to:
             # 1. Direct "coding" capability match (+1.0)
             # 2. High DyLAN score for coding
-            assert first_agent == "super_coder", \
-                f"Expected super_coder as first agent, got {first_agent}"
+            assert first_agent == "super_coder", f"Expected super_coder as first agent, got {first_agent}"
 
     def test_spawned_agent_selected_as_specialist(self):
         """Test that spawned agent is selected for SPECIALIST mode."""
@@ -296,22 +272,22 @@ class TestModeSelectorAgentAgnostic(TestCase):
             agent_id="db_expert",
             provider="spawned",
             model="spawned_db_expert",
-            capabilities=["database", "sql", "postgresql"]
+            capabilities=["database", "sql", "postgresql"],
         )
         self.pool.register(db_expert)
 
         # Create DATABASE task (use DEBUGGING as closest domain for DB)
-        analysis = TaskAnalysis(
+        TaskAnalysis(
             complexity=TaskComplexity.SIMPLE,
             primary_domain=TaskDomain.DEBUGGING,  # Closest to DB optimization
             domains=[TaskDomain.DEBUGGING],
             gemini_fit_score=0.3,
             claude_fit_score=0.4,
-            raw_input="Optimize this SQL query"
+            raw_input="Optimize this SQL query",
         )
 
         # Force specialist mode evaluation
-        selector = ModeSelector(agent_pool=self.pool)
+        ModeSelector(agent_pool=self.pool)
 
         # Get ranked agents for database domain
         ranked = self.pool.select_agents_by_capability("database", count=3)
@@ -323,18 +299,16 @@ class TestModeSelectorAgentAgnostic(TestCase):
         """Test that assignment doesn't fail without gemini/claude."""
         # Create pool with only spawned agents
         spawned_only_pool = AgentPool()
-        spawned_only_pool.register(AgentProfile(
-            agent_id="agent_alpha",
-            provider="spawned",
-            model="spawned_alpha",
-            capabilities=["coding", "research"]
-        ))
-        spawned_only_pool.register(AgentProfile(
-            agent_id="agent_beta",
-            provider="spawned",
-            model="spawned_beta",
-            capabilities=["security", "testing"]
-        ))
+        spawned_only_pool.register(
+            AgentProfile(
+                agent_id="agent_alpha", provider="spawned", model="spawned_alpha", capabilities=["coding", "research"]
+            )
+        )
+        spawned_only_pool.register(
+            AgentProfile(
+                agent_id="agent_beta", provider="spawned", model="spawned_beta", capabilities=["security", "testing"]
+            )
+        )
 
         analysis = TaskAnalysis(
             complexity=TaskComplexity.MODERATE,
@@ -342,7 +316,7 @@ class TestModeSelectorAgentAgnostic(TestCase):
             domains=[TaskDomain.CODING],
             gemini_fit_score=0.0,
             claude_fit_score=0.0,
-            raw_input="Write a Python script"
+            raw_input="Write a Python script",
         )
 
         selector = ModeSelector(agent_pool=spawned_only_pool)
@@ -361,7 +335,7 @@ class TestModeSelectorAgentAgnostic(TestCase):
             agent_id="testing_specialist",
             provider="spawned",
             model="spawned_testing",
-            capabilities=["testing", "pytest", "unittest"]
+            capabilities=["testing", "pytest", "unittest"],
         )
         self.pool.register(testing_agent)
 
@@ -381,16 +355,10 @@ class TestAgentAgnosticIntegration(TestCase):
 
         # Standard agents with moderate scores
         gemini = AgentProfile(
-            agent_id="gemini_primary",
-            provider="gemini",
-            model="gemini-3-pro",
-            capabilities=["reasoning"]
+            agent_id="gemini_primary", provider="gemini", model="gemini-3-pro", capabilities=["reasoning"]
         )
         claude = AgentProfile(
-            agent_id="claude_opus",
-            provider="claude",
-            model="claude-opus",
-            capabilities=["architecture"]
+            agent_id="claude_opus", provider="claude", model="claude-opus", capabilities=["architecture"]
         )
 
         # Super coder with explicit coding capability
@@ -398,7 +366,7 @@ class TestAgentAgnosticIntegration(TestCase):
             agent_id="super_coder",
             provider="spawned",
             model="spawned_super_coder",
-            capabilities=["coding", "refactoring", "testing"]
+            capabilities=["coding", "refactoring", "testing"],
         )
 
         pool.register(gemini)
@@ -407,30 +375,36 @@ class TestAgentAgnosticIntegration(TestCase):
 
         # Build DyLAN history - super_coder is best at coding
         for _ in range(5):
-            super_coder.record_invocation(AgentInvocationResult(
-                agent_id="super_coder",
-                task_type="coding",
-                success=True,
-                quality_score=0.95,
-                tokens_used=300,
-                time_seconds=3.0
-            ))
-            gemini.record_invocation(AgentInvocationResult(
-                agent_id="gemini_primary",
-                task_type="coding",
-                success=True,
-                quality_score=0.6,
-                tokens_used=800,
-                time_seconds=8.0
-            ))
-            claude.record_invocation(AgentInvocationResult(
-                agent_id="claude_opus",
-                task_type="coding",
-                success=True,
-                quality_score=0.7,
-                tokens_used=600,
-                time_seconds=6.0
-            ))
+            super_coder.record_invocation(
+                AgentInvocationResult(
+                    agent_id="super_coder",
+                    task_type="coding",
+                    success=True,
+                    quality_score=0.95,
+                    tokens_used=300,
+                    time_seconds=3.0,
+                )
+            )
+            gemini.record_invocation(
+                AgentInvocationResult(
+                    agent_id="gemini_primary",
+                    task_type="coding",
+                    success=True,
+                    quality_score=0.6,
+                    tokens_used=800,
+                    time_seconds=8.0,
+                )
+            )
+            claude.record_invocation(
+                AgentInvocationResult(
+                    agent_id="claude_opus",
+                    task_type="coding",
+                    success=True,
+                    quality_score=0.7,
+                    tokens_used=600,
+                    time_seconds=6.0,
+                )
+            )
 
         # Create coding task
         analysis = TaskAnalysis(
@@ -439,7 +413,7 @@ class TestAgentAgnosticIntegration(TestCase):
             domains=[TaskDomain.CODING],
             gemini_fit_score=0.5,
             claude_fit_score=0.6,
-            raw_input="Refactor this code"
+            raw_input="Refactor this code",
         )
 
         selector = ModeSelector(agent_pool=pool)
@@ -450,26 +424,29 @@ class TestAgentAgnosticIntegration(TestCase):
         # 2. High DyLAN score for coding
         first_agent = proposal.agent_assignments[0].agent_id if proposal.agent_assignments else None
 
-        assert first_agent == "super_coder", \
-            f"Expected super_coder as first agent, got {first_agent}"
+        assert first_agent == "super_coder", f"Expected super_coder as first agent, got {first_agent}"
 
     def test_domain_fit_scoring_agnostic(self):
         """Test that domain fit scoring works without hardcoded names."""
         pool = AgentPool()
 
         # Only spawned agents
-        pool.register(AgentProfile(
-            agent_id="researcher",
-            provider="spawned",
-            model="spawned_researcher",
-            capabilities=["research", "analysis"]
-        ))
-        pool.register(AgentProfile(
-            agent_id="implementer",
-            provider="spawned",
-            model="spawned_implementer",
-            capabilities=["coding", "testing"]
-        ))
+        pool.register(
+            AgentProfile(
+                agent_id="researcher",
+                provider="spawned",
+                model="spawned_researcher",
+                capabilities=["research", "analysis"],
+            )
+        )
+        pool.register(
+            AgentProfile(
+                agent_id="implementer",
+                provider="spawned",
+                model="spawned_implementer",
+                capabilities=["coding", "testing"],
+            )
+        )
 
         analysis = TaskAnalysis(
             complexity=TaskComplexity.MODERATE,
@@ -479,7 +456,7 @@ class TestAgentAgnosticIntegration(TestCase):
             requires_deep_reasoning=True,
             gemini_fit_score=0.0,
             claude_fit_score=0.0,
-            raw_input="Research and implement"
+            raw_input="Research and implement",
         )
 
         selector = ModeSelector(agent_pool=pool)

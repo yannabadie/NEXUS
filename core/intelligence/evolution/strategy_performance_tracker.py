@@ -37,7 +37,7 @@ import logging
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -54,9 +54,11 @@ MIN_TRIALS_FOR_RECOMMENDATION = 3
 # Types
 # =============================================================================
 
+
 @dataclass
 class StrategyApplication:
     """A single recorded application of a mutation strategy."""
+
     strategy: str
     domain: str
     parent_id: str = ""
@@ -76,7 +78,7 @@ class StrategyApplication:
             return self.fitness_delta / self.fitness_before
         return 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "strategy": self.strategy,
             "domain": self.domain,
@@ -93,6 +95,7 @@ class StrategyApplication:
 @dataclass
 class StrategyMetrics:
     """Aggregated metrics for a mutation strategy across all domains."""
+
     strategy: str
     total_applications: int = 0
     successes: int = 0
@@ -106,7 +109,7 @@ class StrategyMetrics:
             return 0.0
         return self.successes / self.total_applications
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "strategy": self.strategy,
             "total_applications": self.total_applications,
@@ -121,12 +124,13 @@ class StrategyMetrics:
 @dataclass
 class StrategyRecommendation:
     """A recommendation for which strategy to use in a given domain."""
+
     strategy: str
     confidence: float
     expected_improvement: float
     based_on_trials: int
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "strategy": self.strategy,
             "confidence": round(self.confidence, 4),
@@ -138,12 +142,13 @@ class StrategyRecommendation:
 @dataclass
 class TrackerStats:
     """Summary statistics for the strategy performance tracker."""
+
     total_applications: int
     unique_strategies: int
     unique_domains: int
     overall_success_rate: float
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_applications": self.total_applications,
             "unique_strategies": self.unique_strategies,
@@ -155,6 +160,7 @@ class TrackerStats:
 # =============================================================================
 # Strategy Performance Tracker
 # =============================================================================
+
 
 class StrategyPerformanceTracker:
     """
@@ -170,9 +176,9 @@ class StrategyPerformanceTracker:
     """
 
     def __init__(self, *, max_applications: int = MAX_APPLICATIONS):
-        self._applications: List[StrategyApplication] = []
-        self._metrics: Dict[str, StrategyMetrics] = {}
-        self._domain_strategies: Dict[str, Dict[str, List[float]]] = {}
+        self._applications: list[StrategyApplication] = []
+        self._metrics: dict[str, StrategyMetrics] = {}
+        self._domain_strategies: dict[str, dict[str, list[float]]] = {}
         self._max_applications = max_applications
         self._lock = threading.Lock()
 
@@ -235,9 +241,7 @@ class StrategyPerformanceTracker:
 
             # Running average for fitness delta
             n = metrics.total_applications
-            metrics.avg_fitness_delta = (
-                metrics.avg_fitness_delta * (n - 1) + app.fitness_delta
-            ) / n
+            metrics.avg_fitness_delta = (metrics.avg_fitness_delta * (n - 1) + app.fitness_delta) / n
 
             # Update domain strategies
             if domain not in self._domain_strategies:
@@ -262,7 +266,7 @@ class StrategyPerformanceTracker:
         if metrics is None:
             return
 
-        domain_avgs: Dict[str, float] = {}
+        domain_avgs: dict[str, float] = {}
         for domain, strats in self._domain_strategies.items():
             deltas = strats.get(strategy)
             if deltas:
@@ -276,7 +280,7 @@ class StrategyPerformanceTracker:
     # Analysis
     # =========================================================================
 
-    def get_strategy_metrics(self, strategy: str) -> Optional[StrategyMetrics]:
+    def get_strategy_metrics(self, strategy: str) -> StrategyMetrics | None:
         """Get aggregated metrics for a specific strategy."""
         with self._lock:
             metrics = self._metrics.get(strategy)
@@ -292,7 +296,7 @@ class StrategyPerformanceTracker:
                 worst_domain=metrics.worst_domain,
             )
 
-    def get_all_metrics(self) -> List[StrategyMetrics]:
+    def get_all_metrics(self) -> list[StrategyMetrics]:
         """
         Get metrics for all strategies, sorted by success rate descending.
 
@@ -319,7 +323,7 @@ class StrategyPerformanceTracker:
         domain: str,
         *,
         min_trials: int = MIN_TRIALS_FOR_RECOMMENDATION,
-    ) -> Optional[StrategyRecommendation]:
+    ) -> StrategyRecommendation | None:
         """
         Recommend the best strategy for a given domain.
 
@@ -338,7 +342,7 @@ class StrategyPerformanceTracker:
             if not dom_strats:
                 return None
 
-            best_strategy: Optional[str] = None
+            best_strategy: str | None = None
             best_avg: float = float("-inf")
             best_trials: int = 0
 
@@ -363,7 +367,7 @@ class StrategyPerformanceTracker:
             based_on_trials=best_trials,
         )
 
-    def get_domain_ranking(self, domain: str) -> List[Tuple[str, float]]:
+    def get_domain_ranking(self, domain: str) -> list[tuple[str, float]]:
         """
         Rank strategies by average fitness delta for a domain.
 
@@ -378,21 +382,17 @@ class StrategyPerformanceTracker:
             if not dom_strats:
                 return []
 
-            ranking = [
-                (strategy, sum(deltas) / len(deltas))
-                for strategy, deltas in dom_strats.items()
-                if deltas
-            ]
+            ranking = [(strategy, sum(deltas) / len(deltas)) for strategy, deltas in dom_strats.items() if deltas]
 
         ranking.sort(key=lambda x: x[1], reverse=True)
         return ranking
 
-    def list_strategies(self) -> List[str]:
+    def list_strategies(self) -> list[str]:
         """List all recorded strategy names."""
         with self._lock:
             return sorted(self._metrics.keys())
 
-    def list_domains(self) -> List[str]:
+    def list_domains(self) -> list[str]:
         """List all recorded domain names."""
         with self._lock:
             return sorted(self._domain_strategies.keys())
@@ -430,7 +430,7 @@ class StrategyPerformanceTracker:
             self._metrics.clear()
             self._domain_strategies.clear()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         stats = self.get_stats()
         return {
             "application_count": self.application_count,
@@ -442,7 +442,7 @@ class StrategyPerformanceTracker:
 # Global Instance
 # =============================================================================
 
-_tracker: Optional[StrategyPerformanceTracker] = None
+_tracker: StrategyPerformanceTracker | None = None
 _tracker_lock = threading.Lock()
 
 

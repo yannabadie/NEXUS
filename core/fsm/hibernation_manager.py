@@ -21,7 +21,7 @@ Date: 2025-12-16
 import asyncio
 import json
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any, Optional
 from uuid import UUID, uuid4
 
@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # V12.3 SCALE-OUT: Redis Cache Layer (Optional)
 # =============================================================================
+
 
 class RedisHibernationCache:
     """
@@ -49,7 +50,7 @@ class RedisHibernationCache:
     DEFAULT_TTL = 86400  # 24 hours
 
     _instance: Optional["RedisHibernationCache"] = None
-    _redis: Optional[Any] = None
+    _redis: Any | None = None
     _enabled: bool = False
 
     @classmethod
@@ -64,6 +65,7 @@ class RedisHibernationCache:
         """Initialize Redis connection if configured."""
         try:
             from core.config import Config
+
             config = Config()
 
             if not getattr(config, "use_redis_hibernation", False):
@@ -73,6 +75,7 @@ class RedisHibernationCache:
             redis_url = getattr(config, "redis_url", "redis://localhost:6379")
 
             import redis.asyncio as redis_async
+
             self._redis = redis_async.from_url(
                 redis_url,
                 encoding="utf-8",
@@ -126,7 +129,7 @@ class RedisHibernationCache:
         self,
         tenant_id: UUID,
         workspace_id: str,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """Get hibernation state from Redis cache."""
         if not self._enabled or not self._redis:
             return None
@@ -165,6 +168,7 @@ class RedisHibernationCache:
 # Hibernation State Model
 # =============================================================================
 
+
 class HibernationState(SQLModel, table=True):
     """
     Persisted FSM state for HIBERNATE recovery.
@@ -174,6 +178,7 @@ class HibernationState(SQLModel, table=True):
     - Workflow context
     - Expiration time
     """
+
     __tablename__ = "hibernation_states"
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
@@ -182,37 +187,38 @@ class HibernationState(SQLModel, table=True):
 
     # FSM State
     previous_state: str  # OrchestratorState name
-    fsm_context: Optional[str] = Field(default=None, max_length=50000)  # JSON
+    fsm_context: str | None = Field(default=None, max_length=50000)  # JSON
 
     # Agent context
-    active_agent: Optional[str] = None  # "gemini" or "claude"
+    active_agent: str | None = None  # "gemini" or "claude"
     turn_count: int = 0
-    message_history: Optional[str] = Field(default=None, max_length=100000)  # JSON
+    message_history: str | None = Field(default=None, max_length=100000)  # JSON
 
     # Timestamps
-    entered_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
-    expires_at: datetime = Field(default_factory=lambda: (datetime.now(timezone.utc) + timedelta(hours=24)).replace(tzinfo=None))
+    entered_at: datetime = Field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
+    expires_at: datetime = Field(default_factory=lambda: (datetime.now(UTC) + timedelta(hours=24)).replace(tzinfo=None))
 
     # Status
     is_active: bool = Field(default=True, index=True)
 
     def is_expired(self) -> bool:
         """Check if hibernation has expired."""
-        return datetime.now(timezone.utc).replace(tzinfo=None) > self.expires_at
+        return datetime.now(UTC).replace(tzinfo=None) > self.expires_at
 
 
 # =============================================================================
 # Sync DB Operations (run in thread pool)
 # =============================================================================
 
+
 def _save_hibernation(
     tenant_id: UUID,
     workspace_id: str,
     previous_state: str,
-    fsm_context: Optional[dict] = None,
-    active_agent: Optional[str] = None,
+    fsm_context: dict | None = None,
+    active_agent: str | None = None,
     turn_count: int = 0,
-    message_history: Optional[list] = None,
+    message_history: list | None = None,
     ttl_hours: int = 24,
 ) -> dict:
     """Save hibernation state to database."""
@@ -223,7 +229,7 @@ def _save_hibernation(
         statement = select(HibernationState).where(
             HibernationState.tenant_id == tenant_id,
             HibernationState.workspace_id == workspace_id,
-            HibernationState.is_active == True,
+            HibernationState.is_active,
         )
         existing = session.exec(statement).first()
         if existing:
@@ -239,7 +245,7 @@ def _save_hibernation(
             active_agent=active_agent,
             turn_count=turn_count,
             message_history=json.dumps(message_history) if message_history else None,
-            expires_at=(datetime.now(timezone.utc) + timedelta(hours=ttl_hours)).replace(tzinfo=None),
+            expires_at=(datetime.now(UTC) + timedelta(hours=ttl_hours)).replace(tzinfo=None),
         )
 
         session.add(state)
@@ -256,7 +262,7 @@ def _save_hibernation(
         }
 
 
-def _get_active_hibernation(tenant_id: UUID, workspace_id: str) -> Optional[dict]:
+def _get_active_hibernation(tenant_id: UUID, workspace_id: str) -> dict | None:
     """Get active hibernation state for tenant/workspace."""
     from core.infrastructure.db import get_session
 
@@ -264,8 +270,8 @@ def _get_active_hibernation(tenant_id: UUID, workspace_id: str) -> Optional[dict
         statement = select(HibernationState).where(
             HibernationState.tenant_id == tenant_id,
             HibernationState.workspace_id == workspace_id,
-            HibernationState.is_active == True,
-            HibernationState.expires_at > datetime.now(timezone.utc).replace(tzinfo=None),
+            HibernationState.is_active,
+            HibernationState.expires_at > datetime.now(UTC).replace(tzinfo=None),
         )
         state = session.exec(statement).first()
 
@@ -286,7 +292,7 @@ def _get_active_hibernation(tenant_id: UUID, workspace_id: str) -> Optional[dict
         }
 
 
-def _exit_hibernation(tenant_id: UUID, workspace_id: str) -> Optional[dict]:
+def _exit_hibernation(tenant_id: UUID, workspace_id: str) -> dict | None:
     """Deactivate hibernation and return stored state."""
     from core.infrastructure.db import get_session
 
@@ -294,7 +300,7 @@ def _exit_hibernation(tenant_id: UUID, workspace_id: str) -> Optional[dict]:
         statement = select(HibernationState).where(
             HibernationState.tenant_id == tenant_id,
             HibernationState.workspace_id == workspace_id,
-            HibernationState.is_active == True,
+            HibernationState.is_active,
         )
         state = session.exec(statement).first()
 
@@ -327,6 +333,7 @@ def _exit_hibernation(tenant_id: UUID, workspace_id: str) -> Optional[dict]:
 def _cleanup_expired() -> int:
     """Mark expired hibernations as inactive."""
     from sqlalchemy import update
+
     from core.infrastructure.db import get_engine
 
     engine = get_engine()
@@ -334,8 +341,8 @@ def _cleanup_expired() -> int:
         result = conn.execute(
             update(HibernationState)
             .where(
-                HibernationState.is_active == True,
-                HibernationState.expires_at < datetime.now(timezone.utc).replace(tzinfo=None),
+                HibernationState.is_active,
+                HibernationState.expires_at < datetime.now(UTC).replace(tzinfo=None),
             )
             .values(is_active=False)
         )
@@ -346,6 +353,7 @@ def _cleanup_expired() -> int:
 # =============================================================================
 # Async Hibernation Manager
 # =============================================================================
+
 
 class HibernationManager:
     """
@@ -376,10 +384,10 @@ class HibernationManager:
         tenant_id: UUID,
         workspace_id: str,
         previous_state: str,
-        fsm_context: Optional[dict] = None,
-        active_agent: Optional[str] = None,
+        fsm_context: dict | None = None,
+        active_agent: str | None = None,
         turn_count: int = 0,
-        message_history: Optional[list] = None,
+        message_history: list | None = None,
         ttl_hours: int = 24,
     ) -> dict:
         """
@@ -429,7 +437,7 @@ class HibernationManager:
     async def get_hibernation(
         tenant_id: UUID,
         workspace_id: str,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """
         Check if there's an active hibernation for tenant/workspace.
 
@@ -458,7 +466,7 @@ class HibernationManager:
     async def exit_hibernate(
         tenant_id: UUID,
         workspace_id: str,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """
         Exit hibernation and restore state.
 
@@ -477,9 +485,7 @@ class HibernationManager:
                 f"workspace={workspace_id} previous_state={result['previous_state']}"
             )
         else:
-            logger.debug(
-                f"[HIBERNATE] No active hibernation: tenant={tenant_id} workspace={workspace_id}"
-            )
+            logger.debug(f"[HIBERNATE] No active hibernation: tenant={tenant_id} workspace={workspace_id}")
 
         return result
 

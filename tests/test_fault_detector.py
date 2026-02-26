@@ -20,8 +20,8 @@ Tests cover:
 - Edge cases: all correct, all wrong, perfect calibration
 """
 
-import time
 import threading
+import time
 
 import pytest
 
@@ -35,10 +35,10 @@ from core.intelligence.reasoning.fault_detector import (
     reset_fault_detector,
 )
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def detector():
@@ -58,17 +58,23 @@ def _reset_singleton():
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _record_n(detector: FaultDetector, agent_id: str, n: int,
-              confidence: float = 0.8, was_correct: bool = True) -> None:
+
+def _record_n(
+    detector: FaultDetector, agent_id: str, n: int, confidence: float = 0.8, was_correct: bool = True
+) -> None:
     """Record *n* identical outputs for an agent."""
     for _ in range(n):
         detector.record_output(agent_id, confidence, was_correct)
 
 
-def _record_mixed(detector: FaultDetector, agent_id: str,
-                  correct: int, incorrect: int,
-                  correct_conf: float = 0.8,
-                  incorrect_conf: float = 0.8) -> None:
+def _record_mixed(
+    detector: FaultDetector,
+    agent_id: str,
+    correct: int,
+    incorrect: int,
+    correct_conf: float = 0.8,
+    incorrect_conf: float = 0.8,
+) -> None:
     """Record a mix of correct and incorrect outputs."""
     for _ in range(correct):
         detector.record_output(agent_id, correct_conf, True)
@@ -79,6 +85,7 @@ def _record_mixed(detector: FaultDetector, agent_id: str,
 # ===========================================================================
 # 1. AgentStatus enum
 # ===========================================================================
+
 
 class TestAgentStatus:
     def test_trusted_value(self):
@@ -101,6 +108,7 @@ class TestAgentStatus:
 # 2. OutputRecord dataclass
 # ===========================================================================
 
+
 class TestOutputRecord:
     def test_fields(self):
         rec = OutputRecord(agent_id="a", confidence=0.9, was_correct=True)
@@ -122,6 +130,7 @@ class TestOutputRecord:
 # ===========================================================================
 # 3. FaultStatus fields and properties
 # ===========================================================================
+
 
 class TestFaultStatus:
     def test_fields(self):
@@ -178,6 +187,7 @@ class TestFaultStatus:
 # 4. DetectorStats dataclass
 # ===========================================================================
 
+
 class TestDetectorStats:
     def test_fields(self):
         ds = DetectorStats(
@@ -200,6 +210,7 @@ class TestDetectorStats:
 # ===========================================================================
 # 5. record_output: basic recording and confidence clamping
 # ===========================================================================
+
 
 class TestRecordOutput:
     def test_basic_recording(self, detector):
@@ -237,6 +248,7 @@ class TestRecordOutput:
 # 6. check_agent: insufficient data -> UNKNOWN
 # ===========================================================================
 
+
 class TestCheckAgentUnknown:
     def test_no_observations(self, detector):
         status = detector.check_agent("new_agent")
@@ -270,6 +282,7 @@ class TestCheckAgentUnknown:
 # ===========================================================================
 # 7. check_agent: reliable agent -> TRUSTED
 # ===========================================================================
+
 
 class TestCheckAgentTrusted:
     def test_all_correct(self, detector):
@@ -310,6 +323,7 @@ class TestCheckAgentTrusted:
 # 8. check_agent: unreliable -> FAULTY
 # ===========================================================================
 
+
 class TestCheckAgentFaulty:
     def test_all_wrong(self, detector):
         _record_n(detector, "bad", 10, confidence=0.8, was_correct=False)
@@ -347,12 +361,12 @@ class TestCheckAgentFaulty:
 # 9. check_agent: borderline -> SUSPECT
 # ===========================================================================
 
+
 class TestCheckAgentSuspect:
     def test_suspect_range(self, detector):
         # 30% fault rate: between 25% and 40%
         # 3 wrong out of 10, low confidence on wrong to avoid overconfidence escalation
-        _record_mixed(detector, "sus", correct=7, incorrect=3,
-                      correct_conf=0.8, incorrect_conf=0.5)
+        _record_mixed(detector, "sus", correct=7, incorrect=3, correct_conf=0.8, incorrect_conf=0.5)
         status = detector.check_agent("sus")
         assert status.status == AgentStatus.SUSPECT
         assert status.fault_rate == pytest.approx(0.3)
@@ -360,21 +374,18 @@ class TestCheckAgentSuspect:
     def test_exactly_at_suspect_threshold(self, detector):
         # 25% fault rate = SUSPECT_THRESHOLD exactly, >=
         # 5 wrong out of 20, low confidence on wrong to avoid overconfidence escalation
-        _record_mixed(detector, "edge", correct=15, incorrect=5,
-                      correct_conf=0.8, incorrect_conf=0.5)
+        _record_mixed(detector, "edge", correct=15, incorrect=5, correct_conf=0.8, incorrect_conf=0.5)
         status = detector.check_agent("edge")
         assert status.status == AgentStatus.SUSPECT
         assert status.fault_rate == pytest.approx(0.25)
 
     def test_suspect_reason_mentions_elevated(self, detector):
-        _record_mixed(detector, "sus", correct=7, incorrect=3,
-                      correct_conf=0.8, incorrect_conf=0.5)
+        _record_mixed(detector, "sus", correct=7, incorrect=3, correct_conf=0.8, incorrect_conf=0.5)
         status = detector.check_agent("sus")
         assert "elevated" in status.reason.lower()
 
     def test_suspect_trust_score_moderate(self, detector):
-        _record_mixed(detector, "sus", correct=7, incorrect=3,
-                      correct_conf=0.7, incorrect_conf=0.3)
+        _record_mixed(detector, "sus", correct=7, incorrect=3, correct_conf=0.7, incorrect_conf=0.3)
         status = detector.check_agent("sus")
         # Should be somewhere between faulty-low and trusted-high
         assert 0.2 < status.trust_score < 0.8
@@ -384,34 +395,31 @@ class TestCheckAgentSuspect:
 # 10. Overconfidence escalation: SUSPECT + overconfidence -> FAULTY
 # ===========================================================================
 
+
 class TestOverconfidenceEscalation:
     def test_suspect_with_high_overconfidence_becomes_faulty(self, detector):
         # 30% fault rate -> would be SUSPECT
         # But wrong outputs at confidence 1.0 -> overconfidence = (1.0-0.5)*2 = 1.0
-        _record_mixed(detector, "oc", correct=7, incorrect=3,
-                      correct_conf=0.8, incorrect_conf=1.0)
+        _record_mixed(detector, "oc", correct=7, incorrect=3, correct_conf=0.8, incorrect_conf=1.0)
         status = detector.check_agent("oc")
         assert status.status == AgentStatus.FAULTY
         assert status.overconfidence_score > 0.5
 
     def test_suspect_with_low_overconfidence_stays_suspect(self, detector):
         # 30% fault rate + low confidence on wrong outputs
-        _record_mixed(detector, "oc", correct=7, incorrect=3,
-                      correct_conf=0.8, incorrect_conf=0.5)
+        _record_mixed(detector, "oc", correct=7, incorrect=3, correct_conf=0.8, incorrect_conf=0.5)
         status = detector.check_agent("oc")
         # overconfidence = (0.5 - 0.5) * 2 = 0.0, not > 0.5
         assert status.status == AgentStatus.SUSPECT
 
     def test_escalation_reason_mentions_overconfidence(self, detector):
-        _record_mixed(detector, "oc", correct=7, incorrect=3,
-                      correct_conf=0.7, incorrect_conf=1.0)
+        _record_mixed(detector, "oc", correct=7, incorrect=3, correct_conf=0.7, incorrect_conf=1.0)
         status = detector.check_agent("oc")
         assert "overconfidence" in status.reason.lower()
 
     def test_faulty_agent_not_double_escalated(self, detector):
         # Already FAULTY from fault_rate alone -> overconfidence irrelevant
-        _record_mixed(detector, "f", correct=3, incorrect=7,
-                      correct_conf=0.5, incorrect_conf=1.0)
+        _record_mixed(detector, "f", correct=3, incorrect=7, correct_conf=0.5, incorrect_conf=1.0)
         status = detector.check_agent("f")
         assert status.status == AgentStatus.FAULTY
         # Reason should mention "exceeds", not "overconfidence" for the primary reason
@@ -421,8 +429,7 @@ class TestOverconfidenceEscalation:
         # Fault rate below SUSPECT_THRESHOLD so escalation condition never applies
         # Need some wrong outputs to generate overconfidence
         # 1 wrong out of 10 = 10% fault rate (TRUSTED) but that 1 output has conf=1.0
-        _record_mixed(detector, "t", correct=9, incorrect=1,
-                      correct_conf=0.8, incorrect_conf=1.0)
+        _record_mixed(detector, "t", correct=9, incorrect=1, correct_conf=0.8, incorrect_conf=1.0)
         status = detector.check_agent("t")
         # Status should be TRUSTED because escalation only triggers from SUSPECT
         assert status.status == AgentStatus.TRUSTED
@@ -431,6 +438,7 @@ class TestOverconfidenceEscalation:
 # ===========================================================================
 # 11. Overconfidence computation
 # ===========================================================================
+
 
 class TestOverconfidenceComputation:
     def test_no_wrong_outputs(self, detector):
@@ -478,6 +486,7 @@ class TestOverconfidenceComputation:
 # 12. Trust score computation
 # ===========================================================================
 
+
 class TestTrustScoreComputation:
     def test_perfect_agent_high_trust(self, detector):
         _record_n(detector, "a", 10, confidence=0.9, was_correct=True)
@@ -523,10 +532,8 @@ class TestTrustScoreComputation:
 
     def test_overconfidence_penalty_lowers_trust(self, detector):
         # Compare two agents with same fault rate but different wrong-confidence
-        _record_mixed(detector, "low_oc", correct=5, incorrect=5,
-                      correct_conf=0.8, incorrect_conf=0.3)
-        _record_mixed(detector, "high_oc", correct=5, incorrect=5,
-                      correct_conf=0.8, incorrect_conf=1.0)
+        _record_mixed(detector, "low_oc", correct=5, incorrect=5, correct_conf=0.8, incorrect_conf=0.3)
+        _record_mixed(detector, "high_oc", correct=5, incorrect=5, correct_conf=0.8, incorrect_conf=1.0)
         trust_low = detector.check_agent("low_oc").trust_score
         trust_high = detector.check_agent("high_oc").trust_score
         assert trust_low > trust_high
@@ -535,6 +542,7 @@ class TestTrustScoreComputation:
 # ===========================================================================
 # 13. get_trust_score shorthand
 # ===========================================================================
+
 
 class TestGetTrustScore:
     def test_returns_same_as_check_agent(self, detector):
@@ -552,6 +560,7 @@ class TestGetTrustScore:
 # ===========================================================================
 # 14. get_weighted_vote
 # ===========================================================================
+
 
 class TestGetWeightedVote:
     def test_basic_vote(self, detector):
@@ -591,6 +600,7 @@ class TestGetWeightedVote:
 # ===========================================================================
 # 15. get_stats
 # ===========================================================================
+
 
 class TestGetStats:
     def test_empty_detector(self, detector):
@@ -640,6 +650,7 @@ class TestGetStats:
 # 16. MAX_HISTORY: capped at 100
 # ===========================================================================
 
+
 class TestMaxHistory:
     def test_history_capped(self, detector):
         _record_n(detector, "a", 150)
@@ -655,8 +666,7 @@ class TestMaxHistory:
         _record_n(detector, "a", 5, confidence=0.8, was_correct=False)
         assert len(detector._history["a"]) == 100
         # The 5 newest should be wrong
-        wrong_count = sum(1 for r in list(detector._history["a"])[-5:]
-                         if not r.was_correct)
+        wrong_count = sum(1 for r in list(detector._history["a"])[-5:] if not r.was_correct)
         assert wrong_count == 5
 
     def test_check_agent_uses_capped_history(self, detector):
@@ -671,6 +681,7 @@ class TestMaxHistory:
 # ===========================================================================
 # 17. Multiple agents tracked independently
 # ===========================================================================
+
 
 class TestMultipleAgents:
     def test_independent_histories(self, detector):
@@ -687,8 +698,7 @@ class TestMultipleAgents:
 
     def test_three_agents_different_statuses(self, detector):
         _record_n(detector, "good", 10, confidence=0.8, was_correct=True)
-        _record_mixed(detector, "sus", correct=7, incorrect=3,
-                      correct_conf=0.8, incorrect_conf=0.4)
+        _record_mixed(detector, "sus", correct=7, incorrect=3, correct_conf=0.8, incorrect_conf=0.4)
         _record_n(detector, "bad", 10, confidence=0.9, was_correct=False)
 
         assert detector.check_agent("good").status == AgentStatus.TRUSTED
@@ -699,6 +709,7 @@ class TestMultipleAgents:
 # ===========================================================================
 # 18. Singleton pattern
 # ===========================================================================
+
 
 class TestSingleton:
     def test_get_returns_instance(self):
@@ -742,6 +753,7 @@ class TestSingleton:
 # 19. Edge cases
 # ===========================================================================
 
+
 class TestEdgeCases:
     def test_all_correct_outputs(self, detector):
         _record_n(detector, "perf", 20, confidence=0.9, was_correct=True)
@@ -758,20 +770,17 @@ class TestEdgeCases:
 
     def test_perfect_calibration_no_overconfidence(self, detector):
         # Agent says 0.5 confidence and is wrong 50% of time
-        _record_mixed(detector, "cal", correct=5, incorrect=5,
-                      correct_conf=0.5, incorrect_conf=0.5)
+        _record_mixed(detector, "cal", correct=5, incorrect=5, correct_conf=0.5, incorrect_conf=0.5)
         status = detector.check_agent("cal")
         assert status.overconfidence_score == pytest.approx(0.0)
 
     def test_zero_confidence_on_wrong(self, detector):
-        _record_mixed(detector, "humble", correct=5, incorrect=5,
-                      correct_conf=0.8, incorrect_conf=0.0)
+        _record_mixed(detector, "humble", correct=5, incorrect=5, correct_conf=0.8, incorrect_conf=0.0)
         status = detector.check_agent("humble")
         assert status.overconfidence_score == pytest.approx(0.0)
 
     def test_exactly_min_observations(self, detector):
-        _record_n(detector, "a", FaultDetector.MIN_OBSERVATIONS,
-                  confidence=0.8, was_correct=True)
+        _record_n(detector, "a", FaultDetector.MIN_OBSERVATIONS, confidence=0.8, was_correct=True)
         status = detector.check_agent("a")
         assert status.status != AgentStatus.UNKNOWN
 
@@ -806,6 +815,7 @@ class TestEdgeCases:
 
     def test_thread_safety_record_output(self, detector):
         """Concurrent record_output calls should not lose data."""
+
         def _record():
             for _ in range(50):
                 detector.record_output("shared", 0.8, True)
@@ -826,6 +836,7 @@ class TestEdgeCases:
 # ===========================================================================
 # 20. Constants verification
 # ===========================================================================
+
 
 class TestConstants:
     def test_min_observations(self):

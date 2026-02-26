@@ -5,11 +5,11 @@ Tests the complete Hive Mind pipeline with mocked drivers.
 Verifies all 7 phases work together correctly.
 """
 
-import pytest
 import sys
-import asyncio
 from pathlib import Path
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import MagicMock
+
+import pytest
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -53,13 +53,13 @@ class TestHiveMindOrchestrator:
             "sender": "Gemini",
             "action_type": "TALK",
             "content": "Analysis: This task requires reading auth.py and fixing the bug.",
-            "status": "CONTINUE"
+            "status": "CONTINUE",
         }
         claude.invoke.return_value = {
             "sender": "Claude",
             "action_type": "TALK",
             "content": "I agree. The bug is in the token validation function.",
-            "status": "CONTINUE"
+            "status": "CONTINUE",
         }
 
         return {"gemini": gemini, "claude": claude}
@@ -67,14 +67,10 @@ class TestHiveMindOrchestrator:
     def test_hive_mind_components_import(self):
         """Test all Hive Mind components can be imported."""
         from core.intelligence.hive_mind import (
-            TrueHiveMind,
-            HiveMindResult,
             AgentRegistry,
             CostEstimator,
-            HiveMindContextManager,
-            StrategyBlacklist,
-            UserInteractionHandler,
-            AdaptiveDebateConfig,
+            HiveMindResult,
+            TrueHiveMind,
         )
 
         # Verify classes exist
@@ -86,13 +82,13 @@ class TestHiveMindOrchestrator:
     def test_hive_mind_phases_import(self):
         """Test all 7 phases can be imported."""
         from core.intelligence.hive_mind.phases import (
-            IndependentAnalysisPhase,
-            StrategicDebatePhase,
-            ArchitectureGenerationPhase,
-            MonitoredExecutionPhase,
-            FailureDiagnosisPhase,
             AdaptiveRetryPhase,
+            ArchitectureGenerationPhase,
+            FailureDiagnosisPhase,
+            IndependentAnalysisPhase,
             KnowledgeConsolidationPhase,
+            MonitoredExecutionPhase,
+            StrategicDebatePhase,
         )
 
         # Verify all phases exist
@@ -109,9 +105,6 @@ class TestHiveMindOrchestrator:
         from core.intelligence.hive_mind.types import (
             HiveMindState,
             UserBreakpoint,
-            IndependentAnalysis,
-            DebateArgument,
-            AgentSpec,
         )
 
         # Verify enums and dataclasses
@@ -136,11 +129,7 @@ class TestHiveMindOrchestrator:
         estimator = CostEstimator(budget_limit=50000)
 
         # Estimate full run with typical parameters
-        estimate = estimator.estimate_full_hive_mind(
-            debate_turns=4,
-            spawns=1,
-            execution_steps=5
-        )
+        estimate = estimator.estimate_full_hive_mind(debate_turns=4, spawns=1, execution_steps=5)
 
         # Should be reasonable (not exceeding typical budget)
         assert estimate > 0
@@ -154,13 +143,13 @@ class TestHiveMindOrchestrator:
 
         assert registry.workspace_path == mock_workspace
         # Check registry has expected methods
-        assert hasattr(registry, 'find_similar')
-        assert hasattr(registry, 'register_spawn')
-        assert hasattr(registry, 'get_active_agents')
+        assert hasattr(registry, "find_similar")
+        assert hasattr(registry, "register_spawn")
+        assert hasattr(registry, "get_active_agents")
 
     def test_strategy_blacklist_operations(self, mock_workspace):
         """Test StrategyBlacklist basic operations."""
-        from core.intelligence.hive_mind.strategy_blacklist import StrategyBlacklist, FailureCategory
+        from core.intelligence.hive_mind.strategy_blacklist import FailureCategory, StrategyBlacklist
 
         blacklist = StrategyBlacklist(workspace_path=mock_workspace)
 
@@ -169,7 +158,7 @@ class TestHiveMindOrchestrator:
             strategy="Try reading non-existent file",
             failure_reason="File not found",
             diagnosis="The file does not exist in the workspace",
-            failure_category=FailureCategory.TOOL_ERROR
+            failure_category=FailureCategory.TOOL_ERROR,
         )
 
         # Check if blacklisted
@@ -219,9 +208,9 @@ class TestHiveMindIntegrationWithFSM:
         from core.execution_pkg.orchestration.fsm_handlers import FSMHandlers
 
         # Check methods exist
-        assert hasattr(FSMHandlers, '_should_use_hive_mind')
-        assert hasattr(FSMHandlers, '_route_to_hive_mind')
-        assert hasattr(FSMHandlers, '_fallback_to_swarm_or_brainstorm')
+        assert hasattr(FSMHandlers, "_should_use_hive_mind")
+        assert hasattr(FSMHandlers, "_route_to_hive_mind")
+        assert hasattr(FSMHandlers, "_fallback_to_swarm_or_brainstorm")
 
     def test_complexity_gating_logic(self):
         """Test complexity-based routing logic."""
@@ -232,7 +221,7 @@ class TestHiveMindIntegrationWithFSM:
             TaskComplexity.SIMPLE,
             TaskComplexity.MODERATE,
             TaskComplexity.COMPLEX,
-            TaskComplexity.EXPERT
+            TaskComplexity.EXPERT,
         ]
 
         # Verify all complexities are defined
@@ -270,7 +259,7 @@ class TestHiveMindWithMockedDrivers:
             "workspace": workspace,
             "config": config,
             "gemini_driver": gemini_driver,
-            "claude_driver": claude_driver
+            "claude_driver": claude_driver,
         }
 
     def test_true_hive_mind_initialization(self, hive_mind_setup):
@@ -281,7 +270,7 @@ class TestHiveMindWithMockedDrivers:
             workspace_path=hive_mind_setup["workspace"],
             config=hive_mind_setup["config"],
             gemini_driver=hive_mind_setup["gemini_driver"],
-            claude_driver=hive_mind_setup["claude_driver"]
+            claude_driver=hive_mind_setup["claude_driver"],
         )
 
         assert hive is not None
@@ -295,7 +284,7 @@ class TestHiveMindWithMockedDrivers:
             workspace_path=hive_mind_setup["workspace"],
             config=hive_mind_setup["config"],
             gemini_driver=hive_mind_setup["gemini_driver"],
-            claude_driver=hive_mind_setup["claude_driver"]
+            claude_driver=hive_mind_setup["claude_driver"],
         )
 
         # Check components are initialized
@@ -313,10 +302,7 @@ class TestBudgetChainIntegration:
         from core.observability.telemetry.budget_tracker import BudgetTracker
 
         # Create real BudgetTracker
-        tracker = BudgetTracker(
-            workspace_path=tmp_path,
-            config=MagicMock(budget_limit_usd=50.0)
-        )
+        tracker = BudgetTracker(workspace_path=tmp_path, config=MagicMock(budget_limit_usd=50.0))
 
         # Create CostEstimator and link
         estimator = CostEstimator(budget_limit=50000)

@@ -50,8 +50,10 @@ import asyncio
 import logging
 import os
 import time
-from datetime import datetime, timezone
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
+
+from core.observability.telemetry.otel_provider import trace_llm_call
 
 from .protocol import (
     BaseAsyncDriver,
@@ -60,7 +62,6 @@ from .protocol import (
     StreamChunk,
     ToolCall,
 )
-from core.observability.telemetry.otel_provider import trace_llm_call
 
 logger = logging.getLogger(__name__)
 
@@ -119,9 +120,7 @@ class DeepSeekSDKDriver(BaseAsyncDriver):
         try:
             from openai import AsyncOpenAI
         except ImportError:
-            raise ImportError(
-                "openai package required. Install with: pip install openai"
-            )
+            raise ImportError("openai package required. Install with: pip install openai") from None
 
         # Get API key from param or environment
         resolved_key = api_key or os.getenv("DEEPSEEK_API_KEY")
@@ -138,8 +137,7 @@ class DeepSeekSDKDriver(BaseAsyncDriver):
         )
 
         logger.info(
-            f"DeepSeek driver initialized: model={resolved_model}, "
-            f"caching={enable_caching}, max_tokens={max_tokens}"
+            f"DeepSeek driver initialized: model={resolved_model}, caching={enable_caching}, max_tokens={max_tokens}"
         )
 
     async def invoke(
@@ -174,7 +172,8 @@ class DeepSeekSDKDriver(BaseAsyncDriver):
         if self._response_cache and not tools:
             temperature = kwargs.get("temperature", 1.0)
             cached = self._response_cache.get(
-                self._model, prompt,
+                self._model,
+                prompt,
                 temperature=temperature,
                 system_prompt=system_prompt or "",
             )
@@ -259,11 +258,13 @@ class DeepSeekSDKDriver(BaseAsyncDriver):
             tool_calls = []
             if choice.message.tool_calls:
                 for tc in choice.message.tool_calls:
-                    tool_calls.append(ToolCall(
-                        id=tc.id,
-                        name=tc.function.name,
-                        arguments=tc.function.arguments,
-                    ))
+                    tool_calls.append(
+                        ToolCall(
+                            id=tc.id,
+                            name=tc.function.name,
+                            arguments=tc.function.arguments,
+                        )
+                    )
 
             # Build response
             driver_response = DriverResponse(
@@ -293,7 +294,9 @@ class DeepSeekSDKDriver(BaseAsyncDriver):
             # Cache successful response (if caching enabled and no tools)
             if self._response_cache and not tools and content:
                 self._response_cache.set(
-                    self._model, prompt, content,
+                    self._model,
+                    prompt,
+                    content,
                     temperature=kwargs.get("temperature", 1.0),
                     system_prompt=system_prompt or "",
                 )
@@ -306,14 +309,11 @@ class DeepSeekSDKDriver(BaseAsyncDriver):
                     tokens=total_tokens,
                 )
 
-            logger.info(
-                f"DeepSeek success: {output_tokens} tokens, "
-                f"${cost_total:.6f}, {latency_ms:.0f}ms"
-            )
+            logger.info(f"DeepSeek success: {output_tokens} tokens, ${cost_total:.6f}, {latency_ms:.0f}ms")
 
             return driver_response
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             latency_ms = (time.monotonic() - start_time) * 1000
             logger.error(f"DeepSeek timeout after {latency_ms:.0f}ms")
 

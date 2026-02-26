@@ -7,20 +7,21 @@ Extracted from repl.py:brainstorm_children_with_ais()
 This implements EVOLUTION_PROTOCOL.md Phase 1, Step 2:
 "Design Mutation - Brainstorm with collaborator (Gemini <-> Claude)"
 """
+
 import shutil
 import time
+from collections.abc import Callable
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Callable
+from typing import Any
 
-from core.intelligence.evolution.models import (
-    MutationProposal,
-    BrainstormResult,
-)
 from core.fsm.states import OrchestratorState
+from core.intelligence.evolution.models import (
+    BrainstormResult,
+    MutationProposal,
+)
+from core.intelligence.evolution.mutation_parser import MutationParser
 from core.memory_pkg.prompts import load_prompt
 from core.utils.json_extractor import extract_json_safe as robust_extract_json
-from core.intelligence.evolution.mutation_parser import MutationParser
-
 
 # Type alias for progress callback
 ProgressCallback = Callable[[str, float], None]
@@ -38,7 +39,7 @@ class BrainstormPhase:
         self,
         orchestrator: Any,
         workspace_path: Path,
-        progress_callback: Optional[ProgressCallback] = None,
+        progress_callback: ProgressCallback | None = None,
     ):
         """
         Initialize brainstorm phase.
@@ -70,7 +71,7 @@ class BrainstormPhase:
 
     def _cleanup_hallucinations(self):
         """Remove hallucinated directories from previous sessions"""
-        hallucination_dirs = ['_SHARED_CODE', '_temp']
+        hallucination_dirs = ["_SHARED_CODE", "_temp"]
         for dirname in hallucination_dirs:
             cleanup_path = self.workspace_path / dirname
             if cleanup_path.exists():
@@ -81,10 +82,10 @@ class BrainstormPhase:
         """Load lineage context for brainstorming"""
         lineage_path = parent_path.parent / "LINEAGE.json"
         if lineage_path.exists():
-            return lineage_path.read_text(encoding='utf-8')[:2000]
+            return lineage_path.read_text(encoding="utf-8")[:2000]
         return ""
 
-    def _extract_search_replace_blocks(self, text: str) -> List[Dict]:
+    def _extract_search_replace_blocks(self, text: str) -> list[dict]:
         """
         Extract mutations from SEARCH/REPLACE block format.
         This format preserves exact indentation (no \\n escaping issues).
@@ -98,7 +99,7 @@ class BrainstormPhase:
         # Convert to legacy dict format for compatibility
         return [m.to_dict() for m in mutations]
 
-    def _extract_generated_prompt(self, content: str, min_lines: int = 30) -> Optional[str]:
+    def _extract_generated_prompt(self, content: str, min_lines: int = 30) -> str | None:
         """
         Extract generated system prompt from brainstorm output.
 
@@ -114,29 +115,29 @@ class BrainstormPhase:
         import re
 
         # Strategy 1: Look for markdown code block with system prompt
-        code_block_pattern = r'```(?:markdown)?\s*\n(#[^`]+)```'
+        code_block_pattern = r"```(?:markdown)?\s*\n(#[^`]+)```"
         matches = re.findall(code_block_pattern, content, re.DOTALL)
 
         for match in matches:
-            lines = match.strip().split('\n')
+            lines = match.strip().split("\n")
             if len(lines) >= min_lines:
                 self._report_progress(f"Found prompt in code block ({len(lines)} lines)", 0.85)
                 return match.strip()
 
         # Strategy 2: Look for standalone markdown starting with #
         # Find last substantial markdown section starting with #
-        sections = re.split(r'\n(?=#\s+)', content)
+        sections = re.split(r"\n(?=#\s+)", content)
         for section in reversed(sections):
-            if section.startswith('#'):
-                lines = section.strip().split('\n')
+            if section.startswith("#"):
+                lines = section.strip().split("\n")
                 if len(lines) >= min_lines:
                     self._report_progress(f"Found standalone prompt ({len(lines)} lines)", 0.85)
                     return section.strip()
 
         # Strategy 3: If nothing found, try to extract any # section with >20 lines
         for section in reversed(sections):
-            if section.startswith('#'):
-                lines = section.strip().split('\n')
+            if section.startswith("#"):
+                lines = section.strip().split("\n")
                 if len(lines) >= 20:  # Lower threshold for fallback
                     self._report_progress(f"Found fallback prompt ({len(lines)} lines)", 0.85)
                     return section.strip()
@@ -144,7 +145,7 @@ class BrainstormPhase:
         self._report_progress("No valid prompt found in output", 0.85)
         return None
 
-    def _extract_mutations(self, final_content: str, child_count: int) -> Optional[List[Dict]]:
+    def _extract_mutations(self, final_content: str, child_count: int) -> list[dict] | None:
         """
         Extract mutations from brainstorming output.
 
@@ -157,7 +158,7 @@ class BrainstormPhase:
         Returns:
             List of mutation dicts or None if extraction failed
         """
-        required_keys = {'file', 'change', 'reason', 'expected_asi_impact'}
+        required_keys = {"file", "change", "reason", "expected_asi_impact"}
 
         for retry in range(3):
             # PRIORITY 1: Try SEARCH/REPLACE format first
@@ -169,20 +170,27 @@ class BrainstormPhase:
             # PRIORITY 2: Fallback to JSON format
             json_result, _ = robust_extract_json(final_content, verbose=False)
 
-            if json_result and isinstance(json_result, list):
-                if all(isinstance(p, dict) and required_keys.issubset(p.keys()) for p in json_result):
-                    self._report_progress(f"JSON format: {len(json_result)} mutations", 0.9)
-                    return json_result
+            if (
+                json_result
+                and isinstance(json_result, list)
+                and all(isinstance(p, dict) and required_keys.issubset(p.keys()) for p in json_result)
+            ):
+                self._report_progress(f"JSON format: {len(json_result)} mutations", 0.9)
+                return json_result
 
             # Check for wrapped format {"mutations": [...]}
-            if json_result and isinstance(json_result, dict):
-                if "mutations" in json_result and isinstance(json_result["mutations"], list):
-                    proposals = json_result["mutations"]
-                    if all(isinstance(p, dict) and required_keys.issubset(p.keys()) for p in proposals):
-                        self._report_progress(f"JSON format: {len(proposals)} mutations", 0.9)
-                        return proposals
+            if (
+                json_result
+                and isinstance(json_result, dict)
+                and "mutations" in json_result
+                and isinstance(json_result["mutations"], list)
+            ):
+                proposals = json_result["mutations"]
+                if all(isinstance(p, dict) and required_keys.issubset(p.keys()) for p in proposals):
+                    self._report_progress(f"JSON format: {len(proposals)} mutations", 0.9)
+                    return proposals
 
-            self._report_progress(f"Retry {retry+1}/3: extraction failed", 0.8)
+            self._report_progress(f"Retry {retry + 1}/3: extraction failed", 0.8)
 
             # Retry by continuing debate
             if retry < 2:
@@ -205,7 +213,7 @@ new code
 ```
 
 PRODUCE MUTATION BLOCKS NOW ({child_count} mutations required).""",
-                    "status": "CONTINUE"
+                    "status": "CONTINUE",
                 }
                 self.orchestrator.memory.add_to_history(reminder_msg)
 
@@ -215,8 +223,8 @@ PRODUCE MUTATION BLOCKS NOW ({child_count} mutations required).""",
 
                 # Continue debate
                 result = self.orchestrator.process_turn()
-                new_output = result.get('output') or ''
-                final_content = final_content + '\n' + new_output
+                new_output = result.get("output") or ""
+                final_content = final_content + "\n" + new_output
 
         return None
 
@@ -225,9 +233,9 @@ PRODUCE MUTATION BLOCKS NOW ({child_count} mutations required).""",
         parent_id: str,
         parent_path: Path,
         child_count: int = 3,
-        focus_areas: Optional[List[str]] = None,
+        focus_areas: list[str] | None = None,
         mode: str = "mutation",
-        custom_task: Optional[str] = None,
+        custom_task: str | None = None,
     ) -> BrainstormResult:
         """
         Run brainstorming phase.
@@ -274,11 +282,10 @@ PRODUCE MUTATION BLOCKS NOW ({child_count} mutations required).""",
             # Load lineage context for mutation mode
             lineage_context = self._load_lineage_context(parent_path)
             try:
-                brainstorm_task = load_prompt("evolution_brainstorm", {
-                    "child_count": child_count,
-                    "parent_id": parent_id,
-                    "lineage_context": lineage_context[:500]
-                })
+                brainstorm_task = load_prompt(
+                    "evolution_brainstorm",
+                    {"child_count": child_count, "parent_id": parent_id, "lineage_context": lineage_context[:500]},
+                )
             except FileNotFoundError as e:
                 return BrainstormResult(
                     mutations=[],
@@ -297,7 +304,7 @@ PRODUCE MUTATION BLOCKS NOW ({child_count} mutations required).""",
         result = self.orchestrator.process_turn(brainstorm_task)
 
         # Track outputs for extraction
-        all_outputs = [result.get('output') or '']
+        all_outputs = [result.get("output") or ""]
         iterations = 0
 
         # Continue until FINISHED, IDLE, or max turns
@@ -309,7 +316,7 @@ PRODUCE MUTATION BLOCKS NOW ({child_count} mutations required).""",
             result = self.orchestrator.process_turn()
             iterations += 1
 
-            output = result.get('output') or ''
+            output = result.get("output") or ""
             all_outputs.append(output)
 
             progress = 0.2 + (0.5 * (iterations / max_iterations))
@@ -321,10 +328,12 @@ PRODUCE MUTATION BLOCKS NOW ({child_count} mutations required).""",
 
             # Check for consensus signals
             output_lower = output.lower()
-            if ('"status": "FINISHED"' in output.upper() or
-                '"status":"FINISHED"' in output.upper() or
-                'consensus reached' in output_lower or
-                'accord mutuel' in output_lower):
+            if (
+                '"status": "FINISHED"' in output.upper()
+                or '"status":"FINISHED"' in output.upper()
+                or "consensus reached" in output_lower
+                or "accord mutuel" in output_lower
+            ):
                 self._report_progress("Consensus reached", 0.75)
                 break
 
@@ -332,20 +341,28 @@ PRODUCE MUTATION BLOCKS NOW ({child_count} mutations required).""",
             if is_prompt_mode:
                 # For prompt mode: detect when substantial markdown is generated
                 if iterations >= 3:
-                    combined = '\n'.join(all_outputs)
-                    if combined.count('\n#') >= 3 and len(combined) > 1500:
+                    combined = "\n".join(all_outputs)
+                    if combined.count("\n#") >= 3 and len(combined) > 1500:
                         self._report_progress("System prompt detected", 0.75)
                         break
             else:
                 # For mutation mode: detect SEARCH/REPLACE blocks
                 if iterations >= 4:
-                    if ('FILE:' in output and '<<<<<<< SEARCH' in output and
-                        '=======' in output and '>>>>>>> REPLACE' in output):
+                    if (
+                        "FILE:" in output
+                        and "<<<<<<< SEARCH" in output
+                        and "=======" in output
+                        and ">>>>>>> REPLACE" in output
+                    ):
                         self._report_progress("Mutations detected", 0.75)
                         break
 
-                    if ('"file"' in output and '"change"' in output and
-                        '"reason"' in output and '"expected_asi_impact"' in output):
+                    if (
+                        '"file"' in output
+                        and '"change"' in output
+                        and '"reason"' in output
+                        and '"expected_asi_impact"' in output
+                    ):
                         self._report_progress("JSON mutations detected", 0.75)
                         break
 
@@ -363,7 +380,7 @@ PRODUCE MUTATION BLOCKS NOW ({child_count} mutations required).""",
             )
 
         # V8.1.8: Mode-specific extraction
-        final_content = '\n'.join(all_outputs)
+        final_content = "\n".join(all_outputs)
 
         if is_prompt_mode:
             # Extract generated system prompt
@@ -378,7 +395,7 @@ PRODUCE MUTATION BLOCKS NOW ({child_count} mutations required).""",
                     errors=["Failed to extract valid system prompt (min 20 lines required)"],
                 )
 
-            self._report_progress(f"Prompt generation complete", 1.0)
+            self._report_progress("Prompt generation complete", 1.0)
 
             return BrainstormResult(
                 mutations=[],
@@ -404,20 +421,28 @@ PRODUCE MUTATION BLOCKS NOW ({child_count} mutations required).""",
         # Convert to MutationProposal objects
         mutations = []
         for i, p in enumerate(proposals):
-            mutations.append(MutationProposal(
-                id=f"mutation_{i+1}",
-                name=p.get('file', f'mutation_{i+1}'),
-                description=p.get('reason', ''),
-                files_to_modify=[p.get('file', '')],
-                patches=[{
-                    'search': p.get('change', {}).get('search', '') if isinstance(p.get('change'), dict) else '',
-                    'replace': p.get('change', {}).get('replace', '') if isinstance(p.get('change'), dict) else str(p.get('change', '')),
-                }],
-                rationale=p.get('reason', ''),
-                source_agent="consensus",
-                confidence=float(p.get('expected_asi_impact', 0.0)),
-                metadata=p,
-            ))
+            mutations.append(
+                MutationProposal(
+                    id=f"mutation_{i + 1}",
+                    name=p.get("file", f"mutation_{i + 1}"),
+                    description=p.get("reason", ""),
+                    files_to_modify=[p.get("file", "")],
+                    patches=[
+                        {
+                            "search": p.get("change", {}).get("search", "")
+                            if isinstance(p.get("change"), dict)
+                            else "",
+                            "replace": p.get("change", {}).get("replace", "")
+                            if isinstance(p.get("change"), dict)
+                            else str(p.get("change", "")),
+                        }
+                    ],
+                    rationale=p.get("reason", ""),
+                    source_agent="consensus",
+                    confidence=float(p.get("expected_asi_impact", 0.0)),
+                    metadata=p,
+                )
+            )
 
         self._report_progress(f"Brainstorming complete: {len(mutations)} mutations", 1.0)
 
@@ -436,7 +461,7 @@ def run_brainstorm(
     parent_id: str,
     parent_path: Path,
     child_count: int = 3,
-    progress_callback: Optional[ProgressCallback] = None,
+    progress_callback: ProgressCallback | None = None,
 ) -> BrainstormResult:
     """
     Convenience function to run brainstorming phase.

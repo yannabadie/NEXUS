@@ -5,24 +5,25 @@ Guide interactif pour les nouveaux utilisateurs.
 Présente les fonctionnalités clés de NEXUS en 6 étapes.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import List, Optional, Callable
 
 
 @dataclass
 class TutorialStep:
     """A single step in the tutorial."""
+
     title: str
     explanation: str
-    suggested_command: Optional[str] = None
-    tip: Optional[str] = None
+    suggested_command: str | None = None
+    tip: str | None = None
 
 
 # =============================================================================
 # TUTORIAL CONTENT (V8.3.x)
 # =============================================================================
 
-TUTORIAL_STEPS: List[TutorialStep] = [
+TUTORIAL_STEPS: list[TutorialStep] = [
     TutorialStep(
         title="Bienvenue dans NEXUS TRUE HIVE MIND",
         explanation="""
@@ -40,9 +41,8 @@ NEXUS est une plateforme de collaboration multi-agents.
 
 🆕 V8.3: Les agents peuvent maintenant déléguer au Swarm!
 """,
-        tip="NEXUS analyse automatiquement la complexité de vos tâches"
+        tip="NEXUS analyse automatiquement la complexité de vos tâches",
     ),
-
     TutorialStep(
         title="Mode Swarm - Collaboration Intelligente",
         explanation="""
@@ -62,9 +62,8 @@ Le Swarm Engine orchestre la collaboration entre agents.
 💡 NEXUS choisit automatiquement le mode optimal!
 """,
         suggested_command='/swarm "Analyse ce projet et suggère des améliorations"',
-        tip="Utilisez /swarm-status pour voir le mode actif"
+        tip="Utilisez /swarm-status pour voir le mode actif",
     ),
-
     TutorialStep(
         title="Agents Spécialisés - Génération Dynamique",
         explanation="""
@@ -88,9 +87,8 @@ NEXUS V8.1.8+ génère des agents vraiment spécialisés.
 ⚠️ Le spawn utilise le brainstorming - surveiller /budget!
 """,
         suggested_command='/spawn "Python testing expert"',
-        tip="Les agents spawnés persistent dans workspace/agents/"
+        tip="Les agents spawnés persistent dans workspace/agents/",
     ),
-
     TutorialStep(
         title="Mémoire & RAG - Intelligence Persistante",
         explanation="""
@@ -108,10 +106,9 @@ NEXUS apprend de vos succès et retient le contexte projet.
 
 💡 Plus vous utilisez NEXUS, plus il devient efficace!
 """,
-        suggested_command='/rag init',
-        tip="Utilisez /rag query 'auth' pour tester le retrieval"
+        suggested_command="/rag init",
+        tip="Utilisez /rag query 'auth' pour tester le retrieval",
     ),
-
     TutorialStep(
         title="Budget & Télémétrie - Contrôle des Coûts",
         explanation="""
@@ -132,10 +129,9 @@ NEXUS surveille vos dépenses API en temps réel.
    • PARALLEL → SEQUENTIAL si race condition
    • Hot-Swap du lead agent si stagnation (V8.0.1)
 """,
-        suggested_command='/budget',
-        tip="Utilisez /budget reset en cas d'urgence"
+        suggested_command="/budget",
+        tip="Utilisez /budget reset en cas d'urgence",
     ),
-
     TutorialStep(
         title="Architecture Avancée - Pour Aller Plus Loin",
         explanation="""
@@ -161,8 +157,8 @@ Fonctionnalités avancées pour utilisateurs expérimentés.
 
 📖 Voir ROADMAP.md pour la liste complète des features!
 """,
-        suggested_command='/status',
-        tip="Consultez docs/ pour la documentation technique"
+        suggested_command="/status",
+        tip="Consultez docs/ pour la documentation technique",
     ),
 ]
 
@@ -176,7 +172,7 @@ class InteractiveTutorial:
         tutorial.run(console.print)
     """
 
-    def __init__(self, steps: Optional[List[TutorialStep]] = None):
+    def __init__(self, steps: list[TutorialStep] | None = None):
         """
         Initialize tutorial with steps.
 
@@ -186,7 +182,7 @@ class InteractiveTutorial:
         self.steps = steps or TUTORIAL_STEPS
         self.current_step = 0
 
-    def get_step(self, index: int) -> Optional[TutorialStep]:
+    def get_step(self, index: int) -> TutorialStep | None:
         """Get step by index."""
         if 0 <= index < len(self.steps):
             return self.steps[index]
@@ -214,27 +210,33 @@ class InteractiveTutorial:
         ]
 
         if step.suggested_command:
-            lines.extend([
-                "",
-                "┌─ Essayez cette commande ─────────────────────────────────────┐",
-                f"│  {step.suggested_command:<60}│",
-                "└──────────────────────────────────────────────────────────────┘",
-            ])
+            lines.extend(
+                [
+                    "",
+                    "┌─ Essayez cette commande ─────────────────────────────────────┐",
+                    f"│  {step.suggested_command:<60}│",
+                    "└──────────────────────────────────────────────────────────────┘",
+                ]
+            )
 
         if step.tip:
-            lines.extend([
-                "",
-                f"💡 Tip: {step.tip}",
-            ])
+            lines.extend(
+                [
+                    "",
+                    f"💡 Tip: {step.tip}",
+                ]
+            )
 
-        lines.extend([
-            "",
-            "─" * 64,
-        ])
+        lines.extend(
+            [
+                "",
+                "─" * 64,
+            ]
+        )
 
         return "\n".join(lines)
 
-    def run(self, print_fn: Callable[[str], None], input_fn: Optional[Callable[[str], str]] = None) -> bool:
+    def run(self, print_fn: Callable[[str], None], input_fn: Callable[[str], str] | None = None) -> bool:
         """
         Run the interactive tutorial.
 
@@ -261,16 +263,16 @@ class InteractiveTutorial:
             # Wait for user input
             try:
                 if i < len(self.steps) - 1:
-                    prompt = f"[Entrée = suivant | s = sauter | q = quitter] "
+                    prompt = "[Entrée = suivant | s = sauter | q = quitter] "
                 else:
-                    prompt = f"[Entrée = terminer | q = quitter] "
+                    prompt = "[Entrée = terminer | q = quitter] "
 
                 user_input = input_fn(prompt).strip().lower()
 
-                if user_input == 'q':
+                if user_input == "q":
                     print_fn("\n👋 Tutoriel interrompu. Utilisez /tutorial pour reprendre.\n")
                     return False
-                elif user_input == 's':
+                elif user_input == "s":
                     print_fn("⏭️  Étape sautée\n")
                     continue
 

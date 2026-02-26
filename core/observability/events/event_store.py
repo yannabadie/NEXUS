@@ -9,9 +9,9 @@ For now, uses telemetry_bridge events or fallback to mock data.
 
 import json
 import logging
-from typing import List, Dict, Any
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -33,11 +33,7 @@ class EventStore:
         self.workspace_path = workspace_path or Path("workspace")
         self.events_dir = self.workspace_path / "logs"
 
-    async def get_events(
-        self,
-        task_id: str,
-        tenant_id: str = None
-    ) -> List[Dict[str, Any]]:
+    async def get_events(self, task_id: str, tenant_id: str = None) -> list[dict[str, Any]]:
         """
         Fetch events for a specific task.
 
@@ -64,7 +60,7 @@ class EventStore:
         logger.warning(f"No events found for task {task_id}, returning mock data")
         return self._generate_mock_events(task_id)
 
-    def _read_from_logs(self, task_id: str) -> List[Dict[str, Any]]:
+    def _read_from_logs(self, task_id: str) -> list[dict[str, Any]]:
         """
         Read events from JSONL event logs.
 
@@ -83,7 +79,7 @@ class EventStore:
             events = []
             latest_file = max(events_files, key=lambda p: p.stat().st_mtime)
 
-            with open(latest_file, 'r', encoding='utf-8') as f:
+            with open(latest_file, encoding="utf-8") as f:
                 for line in f:
                     try:
                         event = json.loads(line)
@@ -99,7 +95,7 @@ class EventStore:
             logger.error(f"Failed to read event logs: {e}")
             return []
 
-    def _generate_mock_events(self, task_id: str) -> List[Dict[str, Any]]:
+    def _generate_mock_events(self, task_id: str) -> list[dict[str, Any]]:
         """
         Generate mock timeline events for demonstration.
 
@@ -121,10 +117,10 @@ class EventStore:
                 "metadata": {
                     "model": "gemini-3-pro-preview",
                     "tokens": {"input": 2500, "output": 150},
-                    "latency_ms": 1200
+                    "latency_ms": 1200,
                 },
                 "result": "success",
-                "state_diff": {"complexity": "MODERATE", "domains": ["CODING"]}
+                "state_diff": {"complexity": "MODERATE", "domains": ["CODING"]},
             },
             {
                 "timestamp": (base_time + timedelta(seconds=2)).isoformat(),
@@ -135,10 +131,10 @@ class EventStore:
                 "metadata": {
                     "model": "claude-sonnet-4-5-20250929",
                     "tokens": {"input": 3000, "output": 200, "cache_read": 1500},
-                    "latency_ms": 800
+                    "latency_ms": 800,
                 },
                 "result": "success",
-                "state_diff": {"agreement": "tool_use", "tool": "grep"}
+                "state_diff": {"agreement": "tool_use", "tool": "grep"},
             },
             {
                 "timestamp": (base_time + timedelta(seconds=3)).isoformat(),
@@ -146,11 +142,9 @@ class EventStore:
                 "phase": "execution",
                 "agent_id": "system",
                 "action": "tool_exec",
-                "metadata": {
-                    "latency_ms": 50
-                },
+                "metadata": {"latency_ms": 50},
                 "result": "success",
-                "state_diff": {"files_found": 12}
+                "state_diff": {"files_found": 12},
             },
             {
                 "timestamp": (base_time + timedelta(seconds=4)).isoformat(),
@@ -161,9 +155,9 @@ class EventStore:
                 "metadata": {
                     "model": "gemini-3-pro-preview",
                     "tokens": {"input": 4000, "output": 500},
-                    "latency_ms": 1500
+                    "latency_ms": 1500,
                 },
                 "result": "success",
-                "state_diff": {"status": "completed"}
-            }
+                "state_diff": {"status": "completed"},
+            },
         ]

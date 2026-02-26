@@ -38,8 +38,8 @@ from __future__ import annotations
 import logging
 import threading
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -57,18 +57,21 @@ ROLES = {"lead", "support", "specialist", "proposer", "attacker", "defender"}
 # Helpers
 # =============================================================================
 
+
 def _utc_iso_now() -> str:
     """Return current UTC time as ISO 8601 string."""
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 # =============================================================================
 # Types
 # =============================================================================
 
+
 @dataclass
 class RoleAssignment:
     """Record of a single role assignment."""
+
     agent_id: str = ""
     role: str = ""
     mode: str = ""
@@ -82,7 +85,7 @@ class RoleAssignment:
         if not self.timestamp:
             self.timestamp = _utc_iso_now()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "agent_id": self.agent_id,
             "role": self.role,
@@ -98,6 +101,7 @@ class RoleAssignment:
 @dataclass
 class AgentRoleProfile:
     """Aggregated per-agent per-role performance."""
+
     agent_id: str = ""
     role: str = ""
     total_assignments: int = 0
@@ -116,7 +120,7 @@ class AgentRoleProfile:
             return self.total_quality / self.total_assignments
         return 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "agent_id": self.agent_id,
             "role": self.role,
@@ -131,6 +135,7 @@ class AgentRoleProfile:
 @dataclass
 class RoleTrackerStats:
     """Overall role tracker statistics."""
+
     total_assignments: int = 0
     unique_agents: int = 0
     unique_roles: int = 0
@@ -138,7 +143,7 @@ class RoleTrackerStats:
     overall_avg_quality: float = 0.0
     best_agent: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_assignments": self.total_assignments,
             "unique_agents": self.unique_agents,
@@ -153,6 +158,7 @@ class RoleTrackerStats:
 # Agent Role Tracker
 # =============================================================================
 
+
 class AgentRoleTracker:
     """
     Tracks agent performance per assigned role.
@@ -166,8 +172,8 @@ class AgentRoleTracker:
     """
 
     def __init__(self, max_assignments: int = MAX_ASSIGNMENTS) -> None:
-        self._assignments: List[RoleAssignment] = []
-        self._profiles: Dict[str, AgentRoleProfile] = {}
+        self._assignments: list[RoleAssignment] = []
+        self._profiles: dict[str, AgentRoleProfile] = {}
         self._max_assignments = max_assignments
         self._lock = threading.Lock()
 
@@ -236,9 +242,7 @@ class AgentRoleTracker:
     # Profile Queries
     # =========================================================================
 
-    def get_agent_role_profile(
-        self, agent_id: str, role: str
-    ) -> AgentRoleProfile | None:
+    def get_agent_role_profile(self, agent_id: str, role: str) -> AgentRoleProfile | None:
         """
         Get the performance profile for a specific agent-role combination.
 
@@ -254,7 +258,7 @@ class AgentRoleTracker:
             profile = self._profiles.get(key)
             return profile
 
-    def get_agent_profiles(self, agent_id: str) -> List[AgentRoleProfile]:
+    def get_agent_profiles(self, agent_id: str) -> list[AgentRoleProfile]:
         """
         Get all role profiles for a given agent, sorted by avg_quality desc.
 
@@ -265,14 +269,11 @@ class AgentRoleTracker:
             List of AgentRoleProfile sorted by average quality descending
         """
         with self._lock:
-            profiles = [
-                p for p in self._profiles.values()
-                if p.agent_id == agent_id
-            ]
+            profiles = [p for p in self._profiles.values() if p.agent_id == agent_id]
         profiles.sort(key=lambda p: p.avg_quality, reverse=True)
         return profiles
 
-    def get_role_profiles(self, role: str) -> List[AgentRoleProfile]:
+    def get_role_profiles(self, role: str) -> list[AgentRoleProfile]:
         """
         Get all agent profiles for a given role, sorted by avg_quality desc.
 
@@ -283,10 +284,7 @@ class AgentRoleTracker:
             List of AgentRoleProfile sorted by average quality descending
         """
         with self._lock:
-            profiles = [
-                p for p in self._profiles.values()
-                if p.role == role
-            ]
+            profiles = [p for p in self._profiles.values() if p.role == role]
         profiles.sort(key=lambda p: p.avg_quality, reverse=True)
         return profiles
 
@@ -328,7 +326,7 @@ class AgentRoleTracker:
     # Recent Assignments
     # =========================================================================
 
-    def get_recent_assignments(self, limit: int = 20) -> List[RoleAssignment]:
+    def get_recent_assignments(self, limit: int = 20) -> list[RoleAssignment]:
         """
         Get the most recent role assignments.
 
@@ -361,7 +359,7 @@ class AgentRoleTracker:
             roles = set(p.role for p in self._profiles.values())
 
             # Find best agent by overall avg_quality across all roles
-            agent_quality: Dict[str, List[float]] = {}
+            agent_quality: dict[str, list[float]] = {}
             for p in self._profiles.values():
                 if p.agent_id not in agent_quality:
                     agent_quality[p.agent_id] = []
@@ -391,13 +389,13 @@ class AgentRoleTracker:
     def assignment_count(self) -> int:
         return len(self._assignments)
 
-    def list_agents(self) -> List[str]:
+    def list_agents(self) -> list[str]:
         """Get sorted list of unique agent IDs."""
         with self._lock:
             agents = set(p.agent_id for p in self._profiles.values())
         return sorted(agents)
 
-    def list_roles(self) -> List[str]:
+    def list_roles(self) -> list[str]:
         """Get sorted list of unique role names used."""
         with self._lock:
             roles = set(p.role for p in self._profiles.values())
@@ -409,7 +407,7 @@ class AgentRoleTracker:
             self._assignments.clear()
             self._profiles.clear()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         # CRITICAL: call get_stats() BEFORE acquiring self._lock
         # to avoid deadlock (get_stats also acquires the lock).
         stats = self.get_stats()
@@ -424,7 +422,7 @@ class AgentRoleTracker:
 # Global Instance
 # =============================================================================
 
-_tracker: Optional[AgentRoleTracker] = None
+_tracker: AgentRoleTracker | None = None
 _tracker_lock = threading.Lock()
 
 

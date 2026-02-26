@@ -34,9 +34,9 @@ from __future__ import annotations
 
 import logging
 import threading
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -52,18 +52,21 @@ MAX_EVALUATIONS = 50000
 # Helpers
 # =============================================================================
 
+
 def _utc_iso_now() -> str:
     """Return current UTC time as ISO 8601 string."""
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 # =============================================================================
 # Types
 # =============================================================================
 
+
 @dataclass
 class ModeEvaluation:
     """Record of a swarm mode execution outcome."""
+
     mode: str = ""
     task_domain: str = ""
     complexity: str = ""
@@ -77,7 +80,7 @@ class ModeEvaluation:
         if not self.timestamp:
             self.timestamp = _utc_iso_now()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "mode": self.mode,
             "task_domain": self.task_domain,
@@ -93,6 +96,7 @@ class ModeEvaluation:
 @dataclass
 class ModeEffectivenessSummary:
     """Aggregated effectiveness per mode."""
+
     mode: str = ""
     total_evaluations: int = 0
     successes: int = 0
@@ -117,7 +121,7 @@ class ModeEffectivenessSummary:
             return self.total_duration_ms / self.total_evaluations
         return 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "mode": self.mode,
             "total_evaluations": self.total_evaluations,
@@ -133,6 +137,7 @@ class ModeEffectivenessSummary:
 @dataclass
 class EvaluatorStats:
     """Overall evaluator statistics."""
+
     total_evaluations: int = 0
     unique_modes: int = 0
     unique_domains: int = 0
@@ -140,7 +145,7 @@ class EvaluatorStats:
     overall_avg_quality: float = 0.0
     best_mode: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_evaluations": self.total_evaluations,
             "unique_modes": self.unique_modes,
@@ -154,6 +159,7 @@ class EvaluatorStats:
 # =============================================================================
 # Mode Effectiveness Evaluator
 # =============================================================================
+
 
 class ModeEffectivenessEvaluator:
     """
@@ -169,9 +175,9 @@ class ModeEffectivenessEvaluator:
     """
 
     def __init__(self, max_evaluations: int = MAX_EVALUATIONS) -> None:
-        self._evaluations: List[ModeEvaluation] = []
-        self._mode_summaries: Dict[str, ModeEffectivenessSummary] = {}
-        self._domain_modes: Dict[str, Dict[str, List[float]]] = {}
+        self._evaluations: list[ModeEvaluation] = []
+        self._mode_summaries: dict[str, ModeEffectivenessSummary] = {}
+        self._domain_modes: dict[str, dict[str, list[float]]] = {}
         self._max_evaluations = max_evaluations
         self._lock = threading.Lock()
 
@@ -247,7 +253,7 @@ class ModeEffectivenessEvaluator:
     # Summaries
     # =========================================================================
 
-    def get_mode_summary(self, mode: str) -> Optional[ModeEffectivenessSummary]:
+    def get_mode_summary(self, mode: str) -> ModeEffectivenessSummary | None:
         """
         Get the effectiveness summary for a specific mode.
 
@@ -270,7 +276,7 @@ class ModeEffectivenessEvaluator:
                 total_duration_ms=summary.total_duration_ms,
             )
 
-    def get_all_summaries(self) -> List[ModeEffectivenessSummary]:
+    def get_all_summaries(self) -> list[ModeEffectivenessSummary]:
         """
         Get effectiveness summaries for all modes, sorted by avg_quality descending.
 
@@ -295,7 +301,7 @@ class ModeEffectivenessEvaluator:
     # Domain Analysis
     # =========================================================================
 
-    def get_best_mode_for_domain(self, domain: str) -> Optional[str]:
+    def get_best_mode_for_domain(self, domain: str) -> str | None:
         """
         Find the mode with the highest average quality for a domain.
 
@@ -310,7 +316,7 @@ class ModeEffectivenessEvaluator:
             if not mode_scores:
                 return None
 
-            best_mode: Optional[str] = None
+            best_mode: str | None = None
             best_avg = -1.0
 
             for mode, scores in mode_scores.items():
@@ -322,7 +328,7 @@ class ModeEffectivenessEvaluator:
 
             return best_mode
 
-    def get_domain_mode_ranking(self, domain: str) -> List[Tuple[str, float]]:
+    def get_domain_mode_ranking(self, domain: str) -> list[tuple[str, float]]:
         """
         Get modes ranked by average quality for a domain.
 
@@ -337,7 +343,7 @@ class ModeEffectivenessEvaluator:
             if not mode_scores:
                 return []
 
-            ranking: List[Tuple[str, float]] = []
+            ranking: list[tuple[str, float]] = []
             for mode, scores in mode_scores.items():
                 if scores:
                     avg = sum(scores) / len(scores)
@@ -354,7 +360,7 @@ class ModeEffectivenessEvaluator:
         self,
         limit: int = 20,
         mode: str = "",
-    ) -> List[ModeEvaluation]:
+    ) -> list[ModeEvaluation]:
         """
         Get the most recent evaluations, optionally filtered by mode.
 
@@ -389,15 +395,9 @@ class ModeEffectivenessEvaluator:
             unique_modes = len(self._mode_summaries)
             unique_domains = len(self._domain_modes)
 
-            total_successes = sum(
-                s.successes for s in self._mode_summaries.values()
-            )
-            total_quality = sum(
-                s.total_quality for s in self._mode_summaries.values()
-            )
-            total_evals = sum(
-                s.total_evaluations for s in self._mode_summaries.values()
-            )
+            total_successes = sum(s.successes for s in self._mode_summaries.values())
+            total_quality = sum(s.total_quality for s in self._mode_summaries.values())
+            total_evals = sum(s.total_evaluations for s in self._mode_summaries.values())
 
             overall_success_rate = total_successes / total_evals if total_evals > 0 else 0.0
             overall_avg_quality = total_quality / total_evals if total_evals > 0 else 0.0
@@ -428,12 +428,12 @@ class ModeEffectivenessEvaluator:
     def evaluation_count(self) -> int:
         return len(self._evaluations)
 
-    def list_modes(self) -> List[str]:
+    def list_modes(self) -> list[str]:
         """List all recorded mode names, sorted."""
         with self._lock:
             return sorted(self._mode_summaries.keys())
 
-    def list_domains(self) -> List[str]:
+    def list_domains(self) -> list[str]:
         """List all recorded domain names, sorted."""
         with self._lock:
             return sorted(self._domain_modes.keys())
@@ -445,7 +445,7 @@ class ModeEffectivenessEvaluator:
             self._mode_summaries.clear()
             self._domain_modes.clear()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         # CRITICAL: call get_stats() BEFORE acquiring self._lock
         # to avoid deadlock (get_stats also acquires the lock).
         stats = self.get_stats()
@@ -461,7 +461,7 @@ class ModeEffectivenessEvaluator:
 # Global Instance
 # =============================================================================
 
-_evaluator: Optional[ModeEffectivenessEvaluator] = None
+_evaluator: ModeEffectivenessEvaluator | None = None
 _evaluator_lock = threading.Lock()
 
 

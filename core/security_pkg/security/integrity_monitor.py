@@ -25,9 +25,8 @@ Usage:
 
 import hashlib
 import json
-from pathlib import Path
 from datetime import datetime
-from typing import Dict, List, Tuple, Optional
+from pathlib import Path
 
 
 class IntegrityMonitor:
@@ -62,11 +61,11 @@ class IntegrityMonitor:
             project_root: Root directory of NEXUS project (e.g., NEXUS_V7_CHRYSALIS/)
         """
         self.project_root = Path(project_root)
-        self.hashes: Dict[str, str] = {}
-        self.baseline: Dict[str, str] = {}
+        self.hashes: dict[str, str] = {}
+        self.baseline: dict[str, str] = {}
         self.baseline_loaded = False
 
-    def compute_hash(self, file_path: Path) -> Optional[str]:
+    def compute_hash(self, file_path: Path) -> str | None:
         """
         Compute SHA-256 hash of a file.
 
@@ -81,15 +80,15 @@ class IntegrityMonitor:
 
         try:
             sha256 = hashlib.sha256()
-            with open(file_path, 'rb') as f:
-                for chunk in iter(lambda: f.read(8192), b''):
+            with open(file_path, "rb") as f:
+                for chunk in iter(lambda: f.read(8192), b""):
                     sha256.update(chunk)
             return sha256.hexdigest()
         except Exception as e:
             print(f"[IntegrityMonitor] Error hashing {file_path}: {e}")
             return None
 
-    def compute_all_hashes(self) -> Dict[str, str]:
+    def compute_all_hashes(self) -> dict[str, str]:
         """
         Compute hashes for all protected and watched files.
 
@@ -113,7 +112,7 @@ class IntegrityMonitor:
 
         return self.hashes
 
-    def verify_integrity(self) -> Tuple[bool, List[str]]:
+    def verify_integrity(self) -> tuple[bool, list[str]]:
         """
         Check if any protected file was modified since baseline.
 
@@ -153,7 +152,7 @@ class IntegrityMonitor:
         is_valid = len(modified_files) == 0
         return is_valid, modified_files
 
-    def check_watched_files(self) -> List[str]:
+    def check_watched_files(self) -> list[str]:
         """
         Check if any watched (non-blocking) files were modified.
 
@@ -190,15 +189,15 @@ class IntegrityMonitor:
             "project_root": str(self.project_root),
             "protected_files": self.PROTECTED_FILES,
             "watched_files": self.WATCHED_FILES,
-            "hashes": self.hashes
+            "hashes": self.hashes,
         }
 
-        with open(path, 'w', encoding='utf-8') as f:
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(baseline_data, f, indent=2)
 
         print(f"[IntegrityMonitor] Baseline saved to: {path}")
 
-    def load_baseline(self, path: Path) -> Dict[str, str]:
+    def load_baseline(self, path: Path) -> dict[str, str]:
         """
         Load baseline hashes from file.
 
@@ -209,7 +208,7 @@ class IntegrityMonitor:
             Dict of hashes from baseline
         """
         try:
-            with open(path, 'r', encoding='utf-8') as f:
+            with open(path, encoding="utf-8") as f:
                 data = json.load(f)
 
             self.baseline = data.get("hashes", {})
@@ -222,7 +221,7 @@ class IntegrityMonitor:
             print(f"[IntegrityMonitor] Error loading baseline: {e}")
             return {}
 
-    def get_status_report(self) -> Dict:
+    def get_status_report(self) -> dict:
         """
         Generate comprehensive status report.
 
@@ -243,7 +242,7 @@ class IntegrityMonitor:
             "modified_watched": modified_watched,
             "total_protected": len(self.PROTECTED_FILES),
             "total_watched": len(self.WATCHED_FILES),
-            "baseline_loaded": self.baseline_loaded
+            "baseline_loaded": self.baseline_loaded,
         }
 
         if not is_valid:
@@ -261,11 +260,11 @@ def main():
     """Command-line interface for IntegrityMonitor"""
     import argparse
 
-    parser = argparse.ArgumentParser(description='NEXUS Integrity Monitor')
-    parser.add_argument('--project-root', required=True, help='NEXUS project root directory')
-    parser.add_argument('--save-baseline', action='store_true', help='Save current state as baseline')
-    parser.add_argument('--verify', action='store_true', help='Verify integrity against baseline')
-    parser.add_argument('--output', default='INTEGRITY_BASELINE.json', help='Baseline file path')
+    parser = argparse.ArgumentParser(description="NEXUS Integrity Monitor")
+    parser.add_argument("--project-root", required=True, help="NEXUS project root directory")
+    parser.add_argument("--save-baseline", action="store_true", help="Save current state as baseline")
+    parser.add_argument("--verify", action="store_true", help="Verify integrity against baseline")
+    parser.add_argument("--output", default="INTEGRITY_BASELINE.json", help="Baseline file path")
 
     args = parser.parse_args()
 
@@ -283,27 +282,27 @@ def main():
 
         report = monitor.get_status_report()
 
-        print(f"\n{'='*60}")
-        print(f"NEXUS INTEGRITY REPORT")
-        print(f"{'='*60}")
+        print(f"\n{'=' * 60}")
+        print("NEXUS INTEGRITY REPORT")
+        print(f"{'=' * 60}")
         print(f"Status: {report['status']}")
         print(f"Integrity Valid: {'✓' if report['integrity_valid'] else '✗'}")
 
-        if report['modified_protected']:
-            print(f"\n⚠️  CRITICAL - Modified protected files:")
-            for f in report['modified_protected']:
+        if report["modified_protected"]:
+            print("\n⚠️  CRITICAL - Modified protected files:")
+            for f in report["modified_protected"]:
                 print(f"   - {f}")
 
-        if report['modified_watched']:
-            print(f"\n📝 Modified watched files:")
-            for f in report['modified_watched']:
+        if report["modified_watched"]:
+            print("\n📝 Modified watched files:")
+            for f in report["modified_watched"]:
                 print(f"   - {f}")
 
         print(f"\nRecommendation: {report['recommendation']}")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
 
         # Exit code based on status
-        if report['status'] == 'CRITICAL':
+        if report["status"] == "CRITICAL":
             return 1
         return 0
 
@@ -317,4 +316,5 @@ def main():
 
 if __name__ == "__main__":
     import sys
+
     sys.exit(main() or 0)

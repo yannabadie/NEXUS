@@ -18,55 +18,52 @@ Modules:
 """
 
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any
 
 # Base classes
 from .base import BaseHandler, ToolResult
 
 # Handler imports
 from .bash_handler import BashHandler, create_bash_handler
+from .dynamic_tools_handler import (
+    DYNAMIC_TOOLS_AVAILABLE,
+    CreateToolHandler,
+    DeleteToolHandler,
+    ListDynamicToolsHandler,
+    RunDynamicToolHandler,
+    create_dynamic_tool_handlers,
+)
 from .file_handlers import (
-    ReadHandler,
-    WriteHandler,
     EditHandler,
     ListDirHandler,
+    ReadHandler,
+    WriteHandler,
     create_file_handlers,
+)
+from .git_handler import GitHandler, create_git_handler
+from .mcp_handler import (
+    MCP_AVAILABLE,
+    MCPToolHandler,
+    create_mcp_tool_executor,
+    create_mcp_tool_handler,
 )
 from .search_handlers import (
     GlobHandler,
     GrepHandler,
     create_search_handlers,
 )
-from .git_handler import GitHandler, create_git_handler
+from .swarm_handler import SwarmDelegateHandler, create_swarm_handler
+from .todo_handler import TodoWriteHandler, create_todo_handler
 from .web_handlers import (
-    WebSearchHandler,
     WebFetchHandler,
+    WebSearchHandler,
     create_web_handlers,
 )
-from .todo_handler import TodoWriteHandler, create_todo_handler
-from .dynamic_tools_handler import (
-    CreateToolHandler,
-    DeleteToolHandler,
-    ListDynamicToolsHandler,
-    RunDynamicToolHandler,
-    create_dynamic_tool_handlers,
-    DYNAMIC_TOOLS_AVAILABLE,
-)
-from .mcp_handler import (
-    MCPToolHandler,
-    create_mcp_tool_handler,
-    create_mcp_tool_executor,
-    MCP_AVAILABLE,
-)
-from .swarm_handler import SwarmDelegateHandler, create_swarm_handler
 
 
 def create_all_handlers(
-    workspace_path: Path,
-    validation_service: Any = None,
-    dynamic_tool_manager: Any = None,
-    swarm_bridge: Any = None
-) -> Dict[str, BaseHandler]:
+    workspace_path: Path, validation_service: Any = None, dynamic_tool_manager: Any = None, swarm_bridge: Any = None
+) -> dict[str, BaseHandler]:
     """
     Factory function to create all standard tool handlers.
 
@@ -84,7 +81,7 @@ def create_all_handlers(
         registered based on server configuration. Use create_mcp_tool_handler()
         separately for MCP tools.
     """
-    handlers: Dict[str, BaseHandler] = {}
+    handlers: dict[str, BaseHandler] = {}
 
     # Bash handler
     handlers["bash"] = create_bash_handler(workspace_path, validation_service)
@@ -105,16 +102,10 @@ def create_all_handlers(
     handlers["todo_write"] = create_todo_handler(workspace_path, validation_service)
 
     # Dynamic tool handlers (create_tool, delete_tool, list_dynamic_tools, run_dynamic_tool)
-    handlers.update(
-        create_dynamic_tool_handlers(
-            workspace_path, validation_service, dynamic_tool_manager
-        )
-    )
+    handlers.update(create_dynamic_tool_handlers(workspace_path, validation_service, dynamic_tool_manager))
 
     # Swarm delegate handler
-    handlers["swarm_delegate"] = create_swarm_handler(
-        workspace_path, validation_service, swarm_bridge
-    )
+    handlers["swarm_delegate"] = create_swarm_handler(workspace_path, validation_service, swarm_bridge)
 
     return handlers
 

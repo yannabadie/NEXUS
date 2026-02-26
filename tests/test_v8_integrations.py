@@ -7,10 +7,11 @@ Tests the three key integration points:
 3. fsm_handlers -> TrueHiveMind (gating logic)
 """
 
-import pytest
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -86,11 +87,7 @@ class TestCostEstimatorBudgetTrackerIntegration:
 
         # With tracker
         mock_tracker = MagicMock()
-        mock_tracker.get_stats.return_value = {
-            "spent_today_usd": 5.0,
-            "remaining_usd": 45.0,
-            "warning_level": None
-        }
+        mock_tracker.get_stats.return_value = {"spent_today_usd": 5.0, "remaining_usd": 45.0, "warning_level": None}
         estimator.set_budget_tracker(mock_tracker)
         estimator.spent = 10000
 
@@ -193,14 +190,14 @@ class TestStagnationDetectorBlacklistIntegration:
 
     def test_stagnation_suggestions(self):
         """Test STAGNATION category has specific suggestions."""
-        from core.intelligence.hive_mind.strategy_blacklist import StrategyBlacklist, FailureCategory
+        from core.intelligence.hive_mind.strategy_blacklist import FailureCategory, StrategyBlacklist
 
         blacklist = StrategyBlacklist()
         blacklist.add_failed_strategy(
             strategy="discussing without action",
             failure_reason="circular discussion",
             diagnosis="agents keep talking",
-            failure_category=FailureCategory.STAGNATION
+            failure_category=FailureCategory.STAGNATION,
         )
 
         suggestions = blacklist.suggest_alternatives("discussing without action")
@@ -218,7 +215,7 @@ class TestFsmHandlersHiveMindIntegration:
         from core.intelligence.swarm.task_analyzer import TaskComplexity
 
         # Mock the fsm_handlers module
-        with patch('core.execution_pkg.orchestration.fsm_handlers.HIVE_MIND_AVAILABLE', True):
+        with patch("core.execution_pkg.orchestration.fsm_handlers.HIVE_MIND_AVAILABLE", True):
             # Create mock config
             mock_config = MagicMock()
             mock_config.hive_mind_enabled = True
@@ -244,7 +241,7 @@ class TestFsmHandlersHiveMindIntegration:
         """Test MODERATE routes to Hive Mind when setting enabled."""
         from core.intelligence.swarm.task_analyzer import TaskComplexity
 
-        with patch('core.execution_pkg.orchestration.fsm_handlers.HIVE_MIND_AVAILABLE', True):
+        with patch("core.execution_pkg.orchestration.fsm_handlers.HIVE_MIND_AVAILABLE", True):
             mock_config = MagicMock()
             mock_config.hive_mind_enabled = True
             mock_config.hive_mind_moderate = True  # Include MODERATE
@@ -263,7 +260,7 @@ class TestFsmHandlersHiveMindIntegration:
         """Test Hive Mind disabled falls back to Swarm."""
         from core.intelligence.swarm.task_analyzer import TaskComplexity
 
-        with patch('core.execution_pkg.orchestration.fsm_handlers.HIVE_MIND_AVAILABLE', True):
+        with patch("core.execution_pkg.orchestration.fsm_handlers.HIVE_MIND_AVAILABLE", True):
             mock_config = MagicMock()
             mock_config.hive_mind_enabled = False  # Disabled
 
@@ -282,7 +279,7 @@ class TestFsmHandlersHiveMindIntegration:
         """Test graceful handling when Hive Mind module not available."""
         from core.intelligence.swarm.task_analyzer import TaskComplexity
 
-        with patch('core.execution_pkg.orchestration.fsm_handlers.HIVE_MIND_AVAILABLE', False):
+        with patch("core.execution_pkg.orchestration.fsm_handlers.HIVE_MIND_AVAILABLE", False):
             mock_config = MagicMock()
             mock_config.hive_mind_enabled = True
 
@@ -307,14 +304,14 @@ class TestConfigHiveMindSettings:
         config = Config()
 
         # Check all expected settings exist
-        assert hasattr(config, 'hive_mind_enabled')
-        assert hasattr(config, 'hive_mind_moderate')
-        assert hasattr(config, 'hive_mind_budget_limit')
-        assert hasattr(config, 'hive_mind_max_debate_turns')
-        assert hasattr(config, 'hive_mind_min_debate_turns')
-        assert hasattr(config, 'hive_mind_breakpoints_enabled')
-        assert hasattr(config, 'hive_mind_max_retries')
-        assert hasattr(config, 'hive_mind_agreement_threshold')
+        assert hasattr(config, "hive_mind_enabled")
+        assert hasattr(config, "hive_mind_moderate")
+        assert hasattr(config, "hive_mind_budget_limit")
+        assert hasattr(config, "hive_mind_max_debate_turns")
+        assert hasattr(config, "hive_mind_min_debate_turns")
+        assert hasattr(config, "hive_mind_breakpoints_enabled")
+        assert hasattr(config, "hive_mind_max_retries")
+        assert hasattr(config, "hive_mind_agreement_threshold")
 
     def test_config_default_values(self):
         """Test default values for hive_mind settings."""
@@ -336,8 +333,8 @@ class TestConfigHiveMindSettings:
 
         config = MockConfig()
 
-        assert hasattr(config, 'hive_mind_enabled')
-        assert hasattr(config, 'hive_mind_moderate')
+        assert hasattr(config, "hive_mind_enabled")
+        assert hasattr(config, "hive_mind_moderate")
         assert config.hive_mind_breakpoints_enabled is False  # Disabled for tests
 
 

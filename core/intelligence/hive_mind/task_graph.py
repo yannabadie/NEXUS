@@ -34,11 +34,9 @@ Usage:
 
 import logging
 import threading
-import time
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, FrozenSet, List, Optional, Set, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -47,10 +45,12 @@ logger = logging.getLogger(__name__)
 # Data Structures
 # =============================================================================
 
+
 class NodeStatus(Enum):
     """Status of a task graph node."""
+
     PENDING = "pending"
-    READY = "ready"          # All dependencies satisfied
+    READY = "ready"  # All dependencies satisfied
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
     FAILED = "failed"
@@ -60,14 +60,15 @@ class NodeStatus(Enum):
 @dataclass
 class TaskNode:
     """A node in the task decomposition graph."""
+
     node_id: str
     description: str = ""
-    agent_id: str = ""           # Assigned agent
-    tool_name: str = ""          # Primary tool needed
+    agent_id: str = ""  # Assigned agent
+    tool_name: str = ""  # Primary tool needed
     estimated_duration: float = 0.0
     status: NodeStatus = NodeStatus.PENDING
-    priority: int = 0            # Higher = more important
-    metadata: Dict = field(default_factory=dict)
+    priority: int = 0  # Higher = more important
+    metadata: dict = field(default_factory=dict)
 
     @property
     def is_terminal(self) -> bool:
@@ -78,10 +79,11 @@ class TaskNode:
 @dataclass
 class GraphMetrics:
     """Evaluation metrics for task graph decomposition."""
-    node_f1: float               # Node-level F1 score
+
+    node_f1: float  # Node-level F1 score
     structural_similarity: float  # Topology similarity index
-    tool_f1: float               # Tool selection F1 score
-    composite: float             # Weighted combination
+    tool_f1: float  # Tool selection F1 score
+    composite: float  # Weighted combination
 
     @property
     def is_good(self) -> bool:
@@ -92,11 +94,12 @@ class GraphMetrics:
 @dataclass
 class GraphStats:
     """Statistics about a task graph."""
+
     total_nodes: int
     total_edges: int
     max_depth: int
-    max_parallelism: int         # Max nodes executable in parallel
-    critical_path_length: int    # Length of longest path
+    max_parallelism: int  # Max nodes executable in parallel
+    critical_path_length: int  # Length of longest path
     leaf_nodes: int
     root_nodes: int
 
@@ -104,6 +107,7 @@ class GraphStats:
 @dataclass
 class EvaluatorStats:
     """Statistics for the graph evaluator."""
+
     total_evaluations: int
     avg_node_f1: float
     avg_structural_similarity: float
@@ -113,6 +117,7 @@ class EvaluatorStats:
 # =============================================================================
 # Task Graph (DAG)
 # =============================================================================
+
 
 class TaskGraph:
     """
@@ -124,10 +129,10 @@ class TaskGraph:
     """
 
     def __init__(self):
-        self._nodes: Dict[str, TaskNode] = {}
-        self._edges: Set[Tuple[str, str]] = set()  # (from, to)
-        self._adjacency: Dict[str, Set[str]] = defaultdict(set)
-        self._reverse_adj: Dict[str, Set[str]] = defaultdict(set)
+        self._nodes: dict[str, TaskNode] = {}
+        self._edges: set[tuple[str, str]] = set()  # (from, to)
+        self._adjacency: dict[str, set[str]] = defaultdict(set)
+        self._reverse_adj: dict[str, set[str]] = defaultdict(set)
 
     # -------------------------------------------------------------------------
     # Graph Construction
@@ -184,9 +189,7 @@ class TaskGraph:
             return False
 
         # Remove edges
-        edges_to_remove = [
-            (f, t) for f, t in self._edges if f == node_id or t == node_id
-        ]
+        edges_to_remove = [(f, t) for f, t in self._edges if f == node_id or t == node_id]
         for f, t in edges_to_remove:
             self._edges.discard((f, t))
             self._adjacency[f].discard(t)
@@ -223,7 +226,7 @@ class TaskGraph:
 
         return visited == len(self._nodes)
 
-    def topological_sort(self) -> List[str]:
+    def topological_sort(self) -> list[str]:
         """Return nodes in topological order (dependency-respecting)."""
         in_degree = {nid: 0 for nid in self._nodes}
         for _, to_id in self._edges:
@@ -254,29 +257,25 @@ class TaskGraph:
 
         return result
 
-    def get_ready_nodes(self) -> List[str]:
+    def get_ready_nodes(self) -> list[str]:
         """Get nodes whose dependencies are all completed."""
         ready = []
         for nid, node in self._nodes.items():
             if node.status != NodeStatus.PENDING:
                 continue
             deps = self._reverse_adj.get(nid, set())
-            if all(
-                self._nodes[d].status == NodeStatus.COMPLETED
-                for d in deps
-                if d in self._nodes
-            ):
+            if all(self._nodes[d].status == NodeStatus.COMPLETED for d in deps if d in self._nodes):
                 ready.append(nid)
         return ready
 
-    def get_parallel_groups(self) -> List[List[str]]:
+    def get_parallel_groups(self) -> list[list[str]]:
         """Get groups of nodes that can execute in parallel (levels)."""
         order = self.topological_sort()
         if not order:
             return []
 
         # Assign levels: level of node = max(level of predecessors) + 1
-        levels: Dict[str, int] = {}
+        levels: dict[str, int] = {}
         for nid in order:
             deps = self._reverse_adj.get(nid, set())
             if not deps:
@@ -285,21 +284,21 @@ class TaskGraph:
                 levels[nid] = max(levels.get(d, 0) for d in deps) + 1
 
         # Group by level
-        groups: Dict[int, List[str]] = defaultdict(list)
+        groups: dict[int, list[str]] = defaultdict(list)
         for nid, level in levels.items():
             groups[level].append(nid)
 
         return [groups[i] for i in sorted(groups.keys())]
 
-    def get_critical_path(self) -> List[str]:
+    def get_critical_path(self) -> list[str]:
         """Get the longest path through the graph (critical path)."""
         order = self.topological_sort()
         if not order:
             return []
 
         # Longest path using topological order
-        dist: Dict[str, int] = {nid: 0 for nid in self._nodes}
-        parent: Dict[str, Optional[str]] = {nid: None for nid in self._nodes}
+        dist: dict[str, int] = {nid: 0 for nid in self._nodes}
+        parent: dict[str, str | None] = {nid: None for nid in self._nodes}
 
         for nid in order:
             for neighbor in self._adjacency.get(nid, set()):
@@ -310,7 +309,7 @@ class TaskGraph:
         # Find end of critical path
         end_node = max(dist, key=dist.get)
         path = []
-        current: Optional[str] = end_node
+        current: str | None = end_node
         while current is not None:
             path.append(current)
             current = parent[current]
@@ -320,14 +319,8 @@ class TaskGraph:
 
     def get_stats(self) -> GraphStats:
         """Get graph statistics."""
-        root_nodes = [
-            nid for nid in self._nodes
-            if not self._reverse_adj.get(nid)
-        ]
-        leaf_nodes = [
-            nid for nid in self._nodes
-            if not self._adjacency.get(nid)
-        ]
+        root_nodes = [nid for nid in self._nodes if not self._reverse_adj.get(nid)]
+        leaf_nodes = [nid for nid in self._nodes if not self._adjacency.get(nid)]
         groups = self.get_parallel_groups()
         max_parallel = max((len(g) for g in groups), default=0)
         critical = self.get_critical_path()
@@ -343,11 +336,11 @@ class TaskGraph:
         )
 
     @property
-    def nodes(self) -> Dict[str, TaskNode]:
+    def nodes(self) -> dict[str, TaskNode]:
         return dict(self._nodes)
 
     @property
-    def edges(self) -> Set[Tuple[str, str]]:
+    def edges(self) -> set[tuple[str, str]]:
         return set(self._edges)
 
     def __len__(self) -> int:
@@ -357,6 +350,7 @@ class TaskGraph:
 # =============================================================================
 # Graph Evaluator
 # =============================================================================
+
 
 class TaskGraphEvaluator:
     """
@@ -398,11 +392,7 @@ class TaskGraphEvaluator:
         structural = self._compute_structural_similarity(predicted, reference)
         tool_f1 = self._compute_tool_f1(predicted, reference)
 
-        composite = (
-            self.NODE_F1_WEIGHT * node_f1 +
-            self.STRUCTURAL_WEIGHT * structural +
-            self.TOOL_F1_WEIGHT * tool_f1
-        )
+        composite = self.NODE_F1_WEIGHT * node_f1 + self.STRUCTURAL_WEIGHT * structural + self.TOOL_F1_WEIGHT * tool_f1
 
         with self._lock:
             self._total_evaluations += 1
@@ -431,9 +421,7 @@ class TaskGraphEvaluator:
     # Metric Computation
     # -------------------------------------------------------------------------
 
-    def _compute_node_f1(
-        self, predicted: TaskGraph, reference: TaskGraph
-    ) -> float:
+    def _compute_node_f1(self, predicted: TaskGraph, reference: TaskGraph) -> float:
         """Compute Node F1 score (node-level accuracy)."""
         pred_ids = set(predicted.nodes.keys())
         ref_ids = set(reference.nodes.keys())
@@ -455,9 +443,7 @@ class TaskGraphEvaluator:
 
         return 2 * precision * recall / (precision + recall)
 
-    def _compute_structural_similarity(
-        self, predicted: TaskGraph, reference: TaskGraph
-    ) -> float:
+    def _compute_structural_similarity(self, predicted: TaskGraph, reference: TaskGraph) -> float:
         """Compute Structural Similarity Index (topology matching)."""
         pred_edges = predicted.edges
         ref_edges = reference.edges
@@ -483,15 +469,11 @@ class TaskGraphEvaluator:
         # Depth similarity
         pred_groups = predicted.get_parallel_groups()
         ref_groups = reference.get_parallel_groups()
-        depth_sim = 1.0 - abs(len(pred_groups) - len(ref_groups)) / max(
-            len(pred_groups), len(ref_groups), 1
-        )
+        depth_sim = 1.0 - abs(len(pred_groups) - len(ref_groups)) / max(len(pred_groups), len(ref_groups), 1)
 
         return edge_f1 * 0.7 + depth_sim * 0.3
 
-    def _compute_tool_f1(
-        self, predicted: TaskGraph, reference: TaskGraph
-    ) -> float:
+    def _compute_tool_f1(self, predicted: TaskGraph, reference: TaskGraph) -> float:
         """Compute Tool F1 score (tool selection accuracy)."""
         # Match tools for nodes that exist in both graphs
         common_nodes = set(predicted.nodes.keys()) & set(reference.nodes.keys())
@@ -517,7 +499,7 @@ class TaskGraphEvaluator:
 # Singleton
 # =============================================================================
 
-_evaluator_instance: Optional[TaskGraphEvaluator] = None
+_evaluator_instance: TaskGraphEvaluator | None = None
 _evaluator_lock = threading.Lock()
 
 

@@ -9,39 +9,29 @@ NEXUS V7.6 HIVE MIND - Test Coverage for core/evolution/
 Author: Claude (Phase 14b - 2025-12-05)
 """
 
-import pytest
-import tempfile
-import shutil
 import json
-from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch
-from datetime import datetime
 
 # Add parent to path for imports
 import sys
+from pathlib import Path
+from unittest.mock import Mock
+
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.intelligence.evolution.manager import EvolutionManager
-from core.intelligence.evolution.models import (
-    MutationProposal,
-    BrainstormResult,
-    ChildCreationResult,
-    ValidationResult,
-    EvaluationResult,
-    EvolutionResult,
-    EvolutionPhaseStatus,
-)
 from core.intelligence.evolution.evaluator import (
     calculate_fitness_score,
     compare_to_parent,
-    select_winner,
     get_baseline_fitness,
+    select_winner,
 )
-
+from core.intelligence.evolution.manager import EvolutionManager
 
 # =============================================================================
 # FIXTURES
 # =============================================================================
+
 
 class MockConfig:
     """Mock configuration for evolution tests."""
@@ -125,11 +115,7 @@ def temp_workspace(tmp_path):
     (workspace / "logs").mkdir()
 
     # Create LINEAGE.json in workspace root
-    lineage = {
-        "current_parent": "nexus_v7_test",
-        "generation": 1,
-        "history": []
-    }
+    lineage = {"current_parent": "nexus_v7_test", "generation": 1, "history": []}
     lineage_path = workspace / "LINEAGE.json"
     lineage_path.write_text(json.dumps(lineage), encoding="utf-8")
 
@@ -171,11 +157,7 @@ def evolution_manager(temp_workspace, mock_config, mock_orchestrator, mock_rate_
     # Ensure LINEAGE.json exists in workspace (belt and suspenders)
     lineage_path = temp_workspace / "LINEAGE.json"
     if not lineage_path.exists():
-        lineage = {
-            "current_parent": "nexus_v7_test",
-            "generation": 1,
-            "history": []
-        }
+        lineage = {"current_parent": "nexus_v7_test", "generation": 1, "history": []}
         lineage_path.write_text(json.dumps(lineage), encoding="utf-8")
 
     return EvolutionManager(
@@ -190,6 +172,7 @@ def evolution_manager(temp_workspace, mock_config, mock_orchestrator, mock_rate_
 # =============================================================================
 # TEST: EvolutionManager
 # =============================================================================
+
 
 class TestEvolutionManagerInit:
     """Tests for EvolutionManager initialization."""
@@ -234,9 +217,7 @@ class TestEvolutionManagerRateLimiting:
     def test_not_rate_limited_proceeds(self, evolution_manager, mock_orchestrator):
         """Test that non-rate-limited request proceeds past init phase."""
         # Configure mock to return empty mutations (brainstorm fails)
-        mock_orchestrator.set_mock_responses([
-            {"state": "IDLE", "output": "", "finished": True}
-        ])
+        mock_orchestrator.set_mock_responses([{"state": "IDLE", "output": "", "finished": True}])
 
         result = evolution_manager.run_evolution_cycle(child_count=1)
 
@@ -251,9 +232,7 @@ class TestEvolutionManagerCycle:
     def test_cycle_stops_on_brainstorm_failure(self, evolution_manager, mock_orchestrator):
         """Test that cycle eventually stops when no valid children are created."""
         # Mock brainstorm to return error state
-        mock_orchestrator.set_mock_responses([
-            {"state": "ERROR", "output": "Brainstorm failed", "finished": True}
-        ])
+        mock_orchestrator.set_mock_responses([{"state": "ERROR", "output": "Brainstorm failed", "finished": True}])
 
         result = evolution_manager.run_evolution_cycle(child_count=3)
 
@@ -265,11 +244,13 @@ class TestEvolutionManagerCycle:
     def test_cycle_tracks_phases(self, evolution_manager, mock_orchestrator):
         """Test that cycle correctly tracks phase progression."""
         # Start cycle - should fail at brainstorm due to no valid mutations
-        mock_orchestrator.set_mock_responses([
-            {"state": "EVOLUTION_BRAINSTORM", "output": "Debating...", "finished": False},
-            {"state": "EVOLUTION_BRAINSTORM", "output": "Still debating...", "finished": False},
-            {"state": "IDLE", "output": "No mutations found", "finished": True}
-        ])
+        mock_orchestrator.set_mock_responses(
+            [
+                {"state": "EVOLUTION_BRAINSTORM", "output": "Debating...", "finished": False},
+                {"state": "EVOLUTION_BRAINSTORM", "output": "Still debating...", "finished": False},
+                {"state": "IDLE", "output": "No mutations found", "finished": True},
+            ]
+        )
 
         result = evolution_manager.run_evolution_cycle(child_count=1)
 
@@ -280,14 +261,12 @@ class TestEvolutionManagerCycle:
     def test_cycle_no_infinite_loop(self, evolution_manager, mock_orchestrator):
         """Test that cycle doesn't run forever on brainstorm failure."""
         # Mock to never return valid mutations
-        responses = [
-            {"state": "EVOLUTION_BRAINSTORM", "output": "...", "finished": False}
-            for _ in range(50)
-        ]
+        responses = [{"state": "EVOLUTION_BRAINSTORM", "output": "...", "finished": False} for _ in range(50)]
         responses.append({"state": "IDLE", "output": "", "finished": True})
         mock_orchestrator.set_mock_responses(responses)
 
         import time
+
         start = time.time()
         result = evolution_manager.run_evolution_cycle(child_count=1)
         elapsed = time.time() - start
@@ -322,9 +301,7 @@ class TestEvolutionManagerCycle:
             progress_callback=track_progress,
         )
 
-        mock_orchestrator.set_mock_responses([
-            {"state": "IDLE", "output": "", "finished": True}
-        ])
+        mock_orchestrator.set_mock_responses([{"state": "IDLE", "output": "", "finished": True}])
 
         manager.run_evolution_cycle(child_count=1)
 
@@ -348,6 +325,7 @@ class TestEvolutionManagerStatus:
 # =============================================================================
 # TEST: Evaluator
 # =============================================================================
+
 
 class TestCalculateFitnessScore:
     """Tests for fitness score calculation."""
@@ -422,11 +400,11 @@ class TestCompareToParent:
         """Test detection of significant improvement (>=3%)."""
         child_results = {
             "nexus_id": "child_1",
-            "scores": {"coding": 0.85, "reasoning": 0.85, "creativity": 0.85, "scalability": 0.85}
+            "scores": {"coding": 0.85, "reasoning": 0.85, "creativity": 0.85, "scalability": 0.85},
         }
         parent_results = {
             "nexus_id": "parent",
-            "scores": {"coding": 0.80, "reasoning": 0.80, "creativity": 0.80, "scalability": 0.80}
+            "scores": {"coding": 0.80, "reasoning": 0.80, "creativity": 0.80, "scalability": 0.80},
         }
 
         comparison = compare_to_parent(child_results, parent_results)
@@ -438,11 +416,11 @@ class TestCompareToParent:
         """Test detection of minor improvement (1-3%)."""
         child_results = {
             "nexus_id": "child_1",
-            "scores": {"coding": 0.81, "reasoning": 0.81, "creativity": 0.81, "scalability": 0.81}
+            "scores": {"coding": 0.81, "reasoning": 0.81, "creativity": 0.81, "scalability": 0.81},
         }
         parent_results = {
             "nexus_id": "parent",
-            "scores": {"coding": 0.80, "reasoning": 0.80, "creativity": 0.80, "scalability": 0.80}
+            "scores": {"coding": 0.80, "reasoning": 0.80, "creativity": 0.80, "scalability": 0.80},
         }
 
         comparison = compare_to_parent(child_results, parent_results)
@@ -454,11 +432,11 @@ class TestCompareToParent:
         """Test detection of regression (negative improvement)."""
         child_results = {
             "nexus_id": "child_1",
-            "scores": {"coding": 0.70, "reasoning": 0.70, "creativity": 0.70, "scalability": 0.70}
+            "scores": {"coding": 0.70, "reasoning": 0.70, "creativity": 0.70, "scalability": 0.70},
         }
         parent_results = {
             "nexus_id": "parent",
-            "scores": {"coding": 0.80, "reasoning": 0.80, "creativity": 0.80, "scalability": 0.80}
+            "scores": {"coding": 0.80, "reasoning": 0.80, "creativity": 0.80, "scalability": 0.80},
         }
 
         comparison = compare_to_parent(child_results, parent_results)
@@ -470,11 +448,11 @@ class TestCompareToParent:
         """Test detection of negligible change (0-1%)."""
         child_results = {
             "nexus_id": "child_1",
-            "scores": {"coding": 0.805, "reasoning": 0.805, "creativity": 0.805, "scalability": 0.805}
+            "scores": {"coding": 0.805, "reasoning": 0.805, "creativity": 0.805, "scalability": 0.805},
         }
         parent_results = {
             "nexus_id": "parent",
-            "scores": {"coding": 0.80, "reasoning": 0.80, "creativity": 0.80, "scalability": 0.80}
+            "scores": {"coding": 0.80, "reasoning": 0.80, "creativity": 0.80, "scalability": 0.80},
         }
 
         comparison = compare_to_parent(child_results, parent_results)
@@ -486,11 +464,11 @@ class TestCompareToParent:
         """Test that comparison includes per-dimension breakdown."""
         child_results = {
             "nexus_id": "child_1",
-            "scores": {"coding": 0.90, "reasoning": 0.80, "creativity": 0.70, "scalability": 0.60}
+            "scores": {"coding": 0.90, "reasoning": 0.80, "creativity": 0.70, "scalability": 0.60},
         }
         parent_results = {
             "nexus_id": "parent",
-            "scores": {"coding": 0.80, "reasoning": 0.80, "creativity": 0.80, "scalability": 0.80}
+            "scores": {"coding": 0.80, "reasoning": 0.80, "creativity": 0.80, "scalability": 0.80},
         }
 
         comparison = compare_to_parent(child_results, parent_results)
@@ -506,9 +484,18 @@ class TestSelectWinner:
     def test_select_highest_score_wins(self):
         """Test that candidate with highest score wins."""
         candidates = [
-            {"nexus_id": "child_1", "scores": {"coding": 0.70, "reasoning": 0.70, "creativity": 0.70, "scalability": 0.70}},
-            {"nexus_id": "child_2", "scores": {"coding": 0.90, "reasoning": 0.90, "creativity": 0.90, "scalability": 0.90}},
-            {"nexus_id": "child_3", "scores": {"coding": 0.80, "reasoning": 0.80, "creativity": 0.80, "scalability": 0.80}},
+            {
+                "nexus_id": "child_1",
+                "scores": {"coding": 0.70, "reasoning": 0.70, "creativity": 0.70, "scalability": 0.70},
+            },
+            {
+                "nexus_id": "child_2",
+                "scores": {"coding": 0.90, "reasoning": 0.90, "creativity": 0.90, "scalability": 0.90},
+            },
+            {
+                "nexus_id": "child_3",
+                "scores": {"coding": 0.80, "reasoning": 0.80, "creativity": 0.80, "scalability": 0.80},
+            },
         ]
 
         winner, losers = select_winner(candidates)
@@ -519,8 +506,14 @@ class TestSelectWinner:
     def test_select_tie_parent_wins(self):
         """Test that parent wins in case of tie."""
         candidates = [
-            {"nexus_id": "child_1", "scores": {"coding": 0.80, "reasoning": 0.80, "creativity": 0.80, "scalability": 0.80}},
-            {"nexus_id": "parent", "scores": {"coding": 0.80, "reasoning": 0.80, "creativity": 0.80, "scalability": 0.80}},
+            {
+                "nexus_id": "child_1",
+                "scores": {"coding": 0.80, "reasoning": 0.80, "creativity": 0.80, "scalability": 0.80},
+            },
+            {
+                "nexus_id": "parent",
+                "scores": {"coding": 0.80, "reasoning": 0.80, "creativity": 0.80, "scalability": 0.80},
+            },
         ]
 
         winner, losers = select_winner(candidates, parent_id="parent")
@@ -530,7 +523,10 @@ class TestSelectWinner:
     def test_select_single_candidate(self):
         """Test winner selection with single candidate."""
         candidates = [
-            {"nexus_id": "only_child", "scores": {"coding": 0.75, "reasoning": 0.75, "creativity": 0.75, "scalability": 0.75}},
+            {
+                "nexus_id": "only_child",
+                "scores": {"coding": 0.75, "reasoning": 0.75, "creativity": 0.75, "scalability": 0.75},
+            },
         ]
 
         winner, losers = select_winner(candidates)
@@ -541,9 +537,18 @@ class TestSelectWinner:
     def test_losers_sorted_by_score(self):
         """Test that losers are sorted by score descending."""
         candidates = [
-            {"nexus_id": "child_1", "scores": {"coding": 0.70, "reasoning": 0.70, "creativity": 0.70, "scalability": 0.70}},
-            {"nexus_id": "child_2", "scores": {"coding": 0.90, "reasoning": 0.90, "creativity": 0.90, "scalability": 0.90}},
-            {"nexus_id": "child_3", "scores": {"coding": 0.80, "reasoning": 0.80, "creativity": 0.80, "scalability": 0.80}},
+            {
+                "nexus_id": "child_1",
+                "scores": {"coding": 0.70, "reasoning": 0.70, "creativity": 0.70, "scalability": 0.70},
+            },
+            {
+                "nexus_id": "child_2",
+                "scores": {"coding": 0.90, "reasoning": 0.90, "creativity": 0.90, "scalability": 0.90},
+            },
+            {
+                "nexus_id": "child_3",
+                "scores": {"coding": 0.80, "reasoning": 0.80, "creativity": 0.80, "scalability": 0.80},
+            },
         ]
 
         winner, losers = select_winner(candidates)
@@ -584,6 +589,7 @@ class TestGetBaselineFitness:
 # =============================================================================
 # TEST: Integration
 # =============================================================================
+
 
 class TestEvolutionIntegration:
     """Integration tests for evolution components."""

@@ -10,34 +10,26 @@ Verifies:
 6. ToolManager integration
 """
 
-import pytest
-import sys
 import json
-import time
+import sys
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any
+
+import pytest
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.interface_pkg.mcp.protocol import (
-    MCPRequest,
-    MCPResponse,
-    MCPError,
-    MCPTool,
-    MCPToolResult,
-    MCPContent,
-    MCPCapabilities,
-    MCPInitializeResult,
-    MCPMethod,
-    MCPErrorCode,
-)
 from core.interface_pkg.mcp.client import (
     MCPClient,
     MCPClientError,
     MCPConnectionError,
-    MCPTimeoutError,
-    MCPServerError,
+)
+from core.interface_pkg.mcp.protocol import (
+    MCPRequest,
+    MCPResponse,
+    MCPTool,
+    MCPToolResult,
 )
 from core.interface_pkg.mcp.registry import (
     MCPRegistry,
@@ -45,10 +37,10 @@ from core.interface_pkg.mcp.registry import (
     create_default_config,
 )
 
-
 # =============================================================================
 # Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def mock_server_command():
@@ -89,13 +81,9 @@ def registry_workspace(tmp_path):
             "mock": {
                 "command": [sys.executable, str(mock_server_path)],
                 "enabled": True,
-                "description": "Mock MCP server for testing"
+                "description": "Mock MCP server for testing",
             },
-            "disabled": {
-                "command": ["echo", "disabled"],
-                "enabled": False,
-                "description": "Disabled server"
-            }
+            "disabled": {"command": ["echo", "disabled"], "enabled": False, "description": "Disabled server"},
         }
     }
 
@@ -109,6 +97,7 @@ def registry_workspace(tmp_path):
 # Protocol Tests
 # =============================================================================
 
+
 class TestMCPRequest:
     """Tests for MCPRequest."""
 
@@ -121,11 +110,7 @@ class TestMCPRequest:
 
     def test_request_with_params(self):
         """Request with params."""
-        req = MCPRequest(
-            method="tools/call",
-            id=2,
-            params={"name": "echo", "arguments": {"message": "hello"}}
-        )
+        req = MCPRequest(method="tools/call", id=2, params={"name": "echo", "arguments": {"message": "hello"}})
         assert req.params["name"] == "echo"
 
     def test_to_json(self):
@@ -141,12 +126,7 @@ class TestMCPRequest:
 
     def test_from_dict(self):
         """Deserialize from dict."""
-        data = {
-            "jsonrpc": "2.0",
-            "method": "shutdown",
-            "id": 99,
-            "params": {}
-        }
+        data = {"jsonrpc": "2.0", "method": "shutdown", "id": 99, "params": {}}
         req = MCPRequest.from_dict(data)
         assert req.method == "shutdown"
         assert req.id == 99
@@ -157,11 +137,7 @@ class TestMCPResponse:
 
     def test_success_response(self):
         """Parse success response."""
-        data = {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "result": {"tools": []}
-        }
+        data = {"jsonrpc": "2.0", "id": 1, "result": {"tools": []}}
         resp = MCPResponse.from_dict(data)
 
         assert resp.is_success
@@ -170,14 +146,7 @@ class TestMCPResponse:
 
     def test_error_response(self):
         """Parse error response."""
-        data = {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "error": {
-                "code": -32601,
-                "message": "Method not found"
-            }
-        }
+        data = {"jsonrpc": "2.0", "id": 1, "error": {"code": -32601, "message": "Method not found"}}
         resp = MCPResponse.from_dict(data)
 
         assert resp.is_error
@@ -200,13 +169,7 @@ class TestMCPTool:
         data = {
             "name": "read_file",
             "description": "Read a file",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "path": {"type": "string"}
-                },
-                "required": ["path"]
-            }
+            "inputSchema": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]},
         }
         tool = MCPTool.from_dict(data)
 
@@ -218,13 +181,11 @@ class TestMCPTool:
     def test_to_dict(self):
         """Serialize tool definition."""
         from core.interface_pkg.mcp.protocol import MCPToolInputSchema
+
         tool = MCPTool(
             name="echo",
             description="Echo message",
-            inputSchema=MCPToolInputSchema(
-                properties={"message": {"type": "string"}},
-                required=["message"]
-            )
+            inputSchema=MCPToolInputSchema(properties={"message": {"type": "string"}}, required=["message"]),
         )
         data = tool.to_dict()
 
@@ -237,12 +198,7 @@ class TestMCPToolResult:
 
     def test_success_result(self):
         """Parse success result."""
-        data = {
-            "content": [
-                {"type": "text", "text": "Hello, world!"}
-            ],
-            "isError": False
-        }
+        data = {"content": [{"type": "text", "text": "Hello, world!"}], "isError": False}
         result = MCPToolResult.from_dict(data)
 
         assert not result.isError
@@ -250,12 +206,7 @@ class TestMCPToolResult:
 
     def test_error_result(self):
         """Parse error result."""
-        data = {
-            "content": [
-                {"type": "text", "text": "Something went wrong"}
-            ],
-            "isError": True
-        }
+        data = {"content": [{"type": "text", "text": "Something went wrong"}], "isError": True}
         result = MCPToolResult.from_dict(data)
 
         assert result.isError
@@ -263,13 +214,7 @@ class TestMCPToolResult:
 
     def test_multiple_content(self):
         """Multiple content items."""
-        data = {
-            "content": [
-                {"type": "text", "text": "Line 1"},
-                {"type": "text", "text": "Line 2"}
-            ],
-            "isError": False
-        }
+        data = {"content": [{"type": "text", "text": "Line 1"}, {"type": "text", "text": "Line 2"}], "isError": False}
         result = MCPToolResult.from_dict(data)
 
         assert result.text == "Line 1\nLine 2"
@@ -278,6 +223,7 @@ class TestMCPToolResult:
 # =============================================================================
 # Client Lifecycle Tests
 # =============================================================================
+
 
 class TestMCPClientLifecycle:
     """Tests for MCPClient lifecycle."""
@@ -318,6 +264,7 @@ class TestMCPClientLifecycle:
 # =============================================================================
 # Tool Operation Tests
 # =============================================================================
+
 
 class TestMCPClientTools:
     """Tests for MCPClient tool operations."""
@@ -368,6 +315,7 @@ class TestMCPClientTools:
 # =============================================================================
 # Registry Tests
 # =============================================================================
+
 
 class TestMCPRegistry:
     """Tests for MCPRegistry."""
@@ -447,7 +395,7 @@ class TestMCPServerConfig:
             "env": {"DEBUG": "1"},
             "enabled": True,
             "description": "Test server",
-            "args": ["--port", "8080"]
+            "args": ["--port", "8080"],
         }
         config = MCPServerConfig.from_dict(data)
 
@@ -458,11 +406,7 @@ class TestMCPServerConfig:
 
     def test_full_command(self):
         """full_command includes args."""
-        config = MCPServerConfig(
-            name="test",
-            command=["python", "server.py"],
-            args=["--verbose"]
-        )
+        config = MCPServerConfig(name="test", command=["python", "server.py"], args=["--verbose"])
 
         assert config.full_command == ["python", "server.py", "--verbose"]
 
@@ -470,6 +414,7 @@ class TestMCPServerConfig:
 # =============================================================================
 # Integration Tests
 # =============================================================================
+
 
 class TestToolManagerMCPIntegration:
     """Tests for ToolManager MCP integration."""
@@ -493,32 +438,27 @@ class TestToolManagerMCPIntegration:
 
     def test_execute_mcp_tool(self, registry_workspace):
         """Can execute MCP tool via ToolManager."""
-        from core.execution_pkg.execution.tool_manager import ToolManager
         from dataclasses import dataclass
+
+        from core.execution_pkg.execution.tool_manager import ToolManager
 
         @dataclass
         class MockToolRequest:
             tool_name: str
-            arguments: Dict[str, Any]
+            arguments: dict[str, Any]
 
         manager = ToolManager(workspace_path=registry_workspace)
 
         try:
             # Execute echo tool
-            request = MockToolRequest(
-                tool_name="mcp_mock_echo",
-                arguments={"message": "Integration test!"}
-            )
+            request = MockToolRequest(tool_name="mcp_mock_echo", arguments={"message": "Integration test!"})
             result = manager.execute(request)
 
             assert result.status == "SUCCESS"
             assert "Integration test!" in result.output
 
             # Execute add tool
-            request = MockToolRequest(
-                tool_name="mcp_mock_add",
-                arguments={"a": 10, "b": 20}
-            )
+            request = MockToolRequest(tool_name="mcp_mock_add", arguments={"a": 10, "b": 20})
             result = manager.execute(request)
 
             assert result.status == "SUCCESS"
@@ -548,6 +488,7 @@ class TestToolManagerMCPIntegration:
 # =============================================================================
 # Error Handling Tests
 # =============================================================================
+
 
 class TestMCPErrorHandling:
     """Tests for error handling."""

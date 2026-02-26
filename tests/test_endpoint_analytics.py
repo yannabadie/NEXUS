@@ -15,30 +15,26 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.api.cerebro.endpoint_analytics import (
     MAX_REQUESTS,
     EndpointAnalytics,
-    EndpointRequestRecord,
-    EndpointProfile,
     EndpointAnalyticsStats,
+    EndpointProfile,
+    EndpointRequestRecord,
     get_endpoint_analytics,
     reset_endpoint_analytics,
 )
-
 
 # =============================================================================
 # EndpointRequestRecord Tests
 # =============================================================================
 
+
 class TestEndpointRequestRecord:
     """Test EndpointRequestRecord dataclass."""
 
     def test_to_dict(self):
-        r = EndpointRequestRecord(
-            request_id="req_000001", endpoint="/api/health", method="GET"
-        )
+        r = EndpointRequestRecord(request_id="req_000001", endpoint="/api/health", method="GET")
         d = r.to_dict()
         assert d["endpoint"] == "/api/health"
         assert d["method"] == "GET"
@@ -48,13 +44,12 @@ class TestEndpointRequestRecord:
 # EndpointProfile Tests
 # =============================================================================
 
+
 class TestEndpointProfile:
     """Test EndpointProfile dataclass."""
 
     def test_error_rate(self):
-        p = EndpointProfile(
-            endpoint="/api/test", total_requests=10, error_count=3
-        )
+        p = EndpointProfile(endpoint="/api/test", total_requests=10, error_count=3)
         assert abs(p.error_rate - 0.3) < 0.01
 
     def test_error_rate_zero(self):
@@ -62,9 +57,7 @@ class TestEndpointProfile:
         assert p.error_rate == 0.0
 
     def test_avg_latency(self):
-        p = EndpointProfile(
-            endpoint="/api/test", total_requests=4, total_latency_ms=400.0
-        )
+        p = EndpointProfile(endpoint="/api/test", total_requests=4, total_latency_ms=400.0)
         assert abs(p.avg_latency_ms - 100.0) < 0.01
 
     def test_avg_latency_zero(self):
@@ -82,6 +75,7 @@ class TestEndpointProfile:
 # EndpointAnalyticsStats Tests
 # =============================================================================
 
+
 class TestEndpointAnalyticsStats:
     """Test EndpointAnalyticsStats dataclass."""
 
@@ -94,6 +88,7 @@ class TestEndpointAnalyticsStats:
 # =============================================================================
 # Recording Tests
 # =============================================================================
+
 
 class TestRecording:
     """Test request recording."""
@@ -125,6 +120,7 @@ class TestRecording:
 # =============================================================================
 # Query Tests
 # =============================================================================
+
 
 class TestQueries:
     """Test query methods."""
@@ -179,12 +175,13 @@ class TestQueries:
 # Bounded History Tests
 # =============================================================================
 
+
 class TestBoundedHistory:
     """Test bounded request history."""
 
     def test_eviction(self):
         a = EndpointAnalytics(max_requests=5)
-        for i in range(10):
+        for _i in range(10):
             a.record_request("/api/test")
         assert a.request_count == 5
 
@@ -192,6 +189,7 @@ class TestBoundedHistory:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test analytics statistics."""
@@ -219,6 +217,7 @@ class TestStatistics:
 # State Tests
 # =============================================================================
 
+
 class TestState:
     """Test state management."""
 
@@ -244,6 +243,7 @@ class TestState:
 # =============================================================================
 # Global Singleton Tests
 # =============================================================================
+
 
 class TestGlobalSingleton:
     """Test global endpoint analytics."""
@@ -271,21 +271,30 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_cerebro_package(self):
         from core.api.cerebro import (
-            EndpointAnalytics, EndpointRequestRecord,
-            EndpointProfile, EndpointAnalyticsStats,
-            get_endpoint_analytics, reset_endpoint_analytics,
+            EndpointAnalytics,
+            EndpointAnalyticsStats,
+            EndpointProfile,
+            EndpointRequestRecord,
+            get_endpoint_analytics,
+            reset_endpoint_analytics,
         )
-        assert all([
-            EndpointAnalytics, EndpointRequestRecord,
-            EndpointProfile, EndpointAnalyticsStats,
-            get_endpoint_analytics, reset_endpoint_analytics,
-        ])
+
+        assert all(
+            [
+                EndpointAnalytics,
+                EndpointRequestRecord,
+                EndpointProfile,
+                EndpointAnalyticsStats,
+                get_endpoint_analytics,
+                reset_endpoint_analytics,
+            ]
+        )
 
     def test_constants(self):
-        from core.api.cerebro.endpoint_analytics import MAX_REQUESTS
         assert MAX_REQUESTS == 50000

@@ -19,8 +19,6 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.security_pkg.governance.alignment_journal import (
     DEFAULT_TRUST_SCORE,
     MAX_ENTRIES,
@@ -35,10 +33,10 @@ from core.security_pkg.governance.alignment_journal import (
     reset_alignment_journal,
 )
 
-
 # =============================================================================
 # VerificationEntry Tests
 # =============================================================================
+
 
 class TestVerificationEntry:
     """Test VerificationEntry dataclass."""
@@ -50,8 +48,11 @@ class TestVerificationEntry:
 
     def test_to_dict(self):
         v = VerificationEntry(
-            agent_id="claude", principle="safety", passed=True,
-            score=0.95, details="All checks passed",
+            agent_id="claude",
+            principle="safety",
+            passed=True,
+            score=0.95,
+            details="All checks passed",
         )
         d = v.to_dict()
         assert d["score"] == 0.95
@@ -62,6 +63,7 @@ class TestVerificationEntry:
 # ViolationEntry Tests
 # =============================================================================
 
+
 class TestViolationEntry:
     """Test ViolationEntry dataclass."""
 
@@ -71,8 +73,10 @@ class TestViolationEntry:
 
     def test_to_dict(self):
         v = ViolationEntry(
-            agent_id="rogue", principle="transparency",
-            severity="high", remediation="Blocked output",
+            agent_id="rogue",
+            principle="transparency",
+            severity="high",
+            remediation="Blocked output",
         )
         d = v.to_dict()
         assert d["severity"] == "high"
@@ -83,14 +87,18 @@ class TestViolationEntry:
 # TrustScore Tests
 # =============================================================================
 
+
 class TestTrustScore:
     """Test TrustScore dataclass."""
 
     def test_to_dict(self):
         t = TrustScore(
-            agent_id="claude", score=0.95,
-            total_verifications=10, total_violations=1,
-            passes=9, fails=1,
+            agent_id="claude",
+            score=0.95,
+            total_verifications=10,
+            total_violations=1,
+            passes=9,
+            fails=1,
         )
         d = t.to_dict()
         assert d["score"] == 0.95
@@ -101,13 +109,17 @@ class TestTrustScore:
 # JournalStats Tests
 # =============================================================================
 
+
 class TestJournalStats:
     """Test JournalStats dataclass."""
 
     def test_to_dict(self):
         s = JournalStats(
-            total_verifications=20, total_violations=3,
-            unique_agents=5, unique_principles=4, average_trust=0.85,
+            total_verifications=20,
+            total_violations=3,
+            unique_agents=5,
+            unique_principles=4,
+            average_trust=0.85,
         )
         d = s.to_dict()
         assert d["total_verifications"] == 20
@@ -117,6 +129,7 @@ class TestJournalStats:
 # =============================================================================
 # Verification Recording Tests
 # =============================================================================
+
 
 class TestVerificationRecording:
     """Test verification recording and trust updates."""
@@ -181,6 +194,7 @@ class TestVerificationRecording:
 # Violation Recording Tests
 # =============================================================================
 
+
 class TestViolationRecording:
     """Test violation recording with severity-weighted trust decay."""
 
@@ -229,6 +243,7 @@ class TestViolationRecording:
 # =============================================================================
 # Trust Score Tests
 # =============================================================================
+
 
 class TestTrustScoreComputation:
     """Test trust score computation."""
@@ -280,6 +295,7 @@ class TestTrustScoreComputation:
 # Query Tests
 # =============================================================================
 
+
 class TestQueries:
     """Test query methods."""
 
@@ -307,7 +323,7 @@ class TestQueries:
 
     def test_get_verifications_with_limit(self):
         j = AlignmentJournal()
-        for i in range(10):
+        for _i in range(10):
             j.record_verification("claude", principle="safety", passed=True)
         results = j.get_verifications(limit=3)
         assert len(results) == 3
@@ -345,6 +361,7 @@ class TestQueries:
 # Agent History Tests
 # =============================================================================
 
+
 class TestAgentHistory:
     """Test agent history."""
 
@@ -372,6 +389,7 @@ class TestAgentHistory:
 # Bounded History Tests
 # =============================================================================
 
+
 class TestBoundedHistory:
     """Test bounded history with eviction."""
 
@@ -391,6 +409,7 @@ class TestBoundedHistory:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test journal statistics."""
@@ -424,6 +443,7 @@ class TestStatistics:
 # State Tests
 # =============================================================================
 
+
 class TestState:
     """Test state management."""
 
@@ -455,6 +475,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global alignment journal."""
 
@@ -481,26 +502,40 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_governance_package(self):
         from core.security_pkg.governance import (
-            AlignmentJournal, VerificationEntry, ViolationEntry,
-            TrustScore, JournalStats,
-            get_alignment_journal, reset_alignment_journal,
+            AlignmentJournal,
+            JournalStats,
+            TrustScore,
+            VerificationEntry,
+            ViolationEntry,
+            get_alignment_journal,
+            reset_alignment_journal,
         )
-        assert all([
-            AlignmentJournal, VerificationEntry, ViolationEntry,
-            TrustScore, JournalStats,
-            get_alignment_journal, reset_alignment_journal,
-        ])
+
+        assert all(
+            [
+                AlignmentJournal,
+                VerificationEntry,
+                ViolationEntry,
+                TrustScore,
+                JournalStats,
+                get_alignment_journal,
+                reset_alignment_journal,
+            ]
+        )
 
     def test_constants(self):
         from core.security_pkg.governance.alignment_journal import (
-            MAX_ENTRIES, DEFAULT_TRUST_SCORE,
-            TRUST_DECAY_PER_VIOLATION, TRUST_RECOVERY_PER_PASS,
+            DEFAULT_TRUST_SCORE,
+            TRUST_DECAY_PER_VIOLATION,
+            TRUST_RECOVERY_PER_PASS,
         )
+
         assert MAX_ENTRIES == 50000
         assert DEFAULT_TRUST_SCORE == 1.0
         assert TRUST_DECAY_PER_VIOLATION == 0.1

@@ -5,10 +5,11 @@ These tests verify the SpinoffService extracted from repl.py works correctly.
 """
 
 import json
-import pytest
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 
 class TestSpinoffService:
@@ -33,11 +34,13 @@ class TestSpinoffService:
         orchestrator.memory = MagicMock()
         orchestrator.memory.save_to_disk = MagicMock()
         orchestrator._transition_to = MagicMock()
-        orchestrator.process_turn = MagicMock(return_value={
-            "state": "IDLE",
-            "output": '```json\n[{"file": "test.py", "change": "# new code"}]\n```',
-            "finished": True
-        })
+        orchestrator.process_turn = MagicMock(
+            return_value={
+                "state": "IDLE",
+                "output": '```json\n[{"file": "test.py", "change": "# new code"}]\n```',
+                "finished": True,
+            }
+        )
         return orchestrator
 
     @pytest.fixture
@@ -50,12 +53,7 @@ class TestSpinoffService:
             nexus_dir.mkdir()
 
             # Create lineage file
-            lineage = {
-                "parent_id": "NEXUS_ROOT",
-                "generations": [
-                    {"id": "NEXUS_ROOT", "created": "2024-01-01"}
-                ]
-            }
+            lineage = {"parent_id": "NEXUS_ROOT", "generations": [{"id": "NEXUS_ROOT", "created": "2024-01-01"}]}
             (nexus_dir / "lineage.json").write_text(json.dumps(lineage))
 
             yield workspace
@@ -81,11 +79,12 @@ class TestSpinoffService:
     def spinoff_service(self, mock_orchestrator, mock_console, temp_workspace, temp_nexus_root):
         """Create a SpinoffService instance."""
         from core.infrastructure.bootstrap.service import SpinoffService
+
         return SpinoffService(
             orchestrator=mock_orchestrator,
             console=mock_console,
             workspace_path=temp_workspace,
-            nexus_root=temp_nexus_root
+            nexus_root=temp_nexus_root,
         )
 
     # ==================== specialize() tests ====================
@@ -95,13 +94,15 @@ class TestSpinoffService:
         # Mock brainstorming result
         mutations = [{"file": "prompts/test.md", "change": "# New prompt"}]
 
-        with patch.object(spinoff_service, '_brainstorm_spinoff', return_value=mutations):
-            with patch('core.evolution.lineage.load_lineage') as mock_lineage:
-                with patch('core.evolution.lineage.get_current_parent') as mock_parent:
-                    mock_lineage.return_value = {"generations": []}
-                    mock_parent.return_value = {"id": "NEXUS_ROOT"}
+        with (
+            patch.object(spinoff_service, "_brainstorm_spinoff", return_value=mutations),
+            patch("core.evolution.lineage.load_lineage") as mock_lineage,
+            patch("core.evolution.lineage.get_current_parent") as mock_parent,
+        ):
+            mock_lineage.return_value = {"generations": []}
+            mock_parent.return_value = {"id": "NEXUS_ROOT"}
 
-                    result = spinoff_service.specialize("Test API Expert")
+            result = spinoff_service.specialize("Test API Expert")
 
         assert result.success is True
         assert result.data is not None
@@ -110,20 +111,22 @@ class TestSpinoffService:
 
     def test_specialize_no_mutations(self, spinoff_service, mock_console):
         """Test specialization fails when no mutations generated."""
-        with patch.object(spinoff_service, '_brainstorm_spinoff', return_value=[]):
-            with patch('core.evolution.lineage.load_lineage') as mock_lineage:
-                with patch('core.evolution.lineage.get_current_parent') as mock_parent:
-                    mock_lineage.return_value = {"generations": []}
-                    mock_parent.return_value = {"id": "NEXUS_ROOT"}
+        with (
+            patch.object(spinoff_service, "_brainstorm_spinoff", return_value=[]),
+            patch("core.evolution.lineage.load_lineage") as mock_lineage,
+            patch("core.evolution.lineage.get_current_parent") as mock_parent,
+        ):
+            mock_lineage.return_value = {"generations": []}
+            mock_parent.return_value = {"id": "NEXUS_ROOT"}
 
-                    result = spinoff_service.specialize("Test Mission")
+            result = spinoff_service.specialize("Test Mission")
 
         assert result.success is False
         assert "mutations" in result.error.lower()
 
     def test_specialize_exception_handling(self, spinoff_service, mock_console):
         """Test specialization handles exceptions gracefully."""
-        with patch('core.evolution.lineage.load_lineage') as mock_lineage:
+        with patch("core.evolution.lineage.load_lineage") as mock_lineage:
             mock_lineage.side_effect = Exception("Lineage file not found")
 
             result = spinoff_service.specialize("Test Mission")
@@ -135,14 +138,16 @@ class TestSpinoffService:
         """Test mission string is properly sanitized for folder name."""
         mutations = [{"file": "test.py", "change": "# code"}]
 
-        with patch.object(spinoff_service, '_brainstorm_spinoff', return_value=mutations):
-            with patch('core.evolution.lineage.load_lineage') as mock_lineage:
-                with patch('core.evolution.lineage.get_current_parent') as mock_parent:
-                    mock_lineage.return_value = {"generations": []}
-                    mock_parent.return_value = {"id": "NEXUS_ROOT"}
+        with (
+            patch.object(spinoff_service, "_brainstorm_spinoff", return_value=mutations),
+            patch("core.evolution.lineage.load_lineage") as mock_lineage,
+            patch("core.evolution.lineage.get_current_parent") as mock_parent,
+        ):
+            mock_lineage.return_value = {"generations": []}
+            mock_parent.return_value = {"id": "NEXUS_ROOT"}
 
-                    # Use mission with special characters
-                    result = spinoff_service.specialize("Test: API/Expert!")
+            # Use mission with special characters
+            result = spinoff_service.specialize("Test: API/Expert!")
 
         assert result.success is True
         # Special chars should be replaced with underscores
@@ -155,17 +160,15 @@ class TestSpinoffService:
     def test_brainstorm_spinoff_success(self, spinoff_service, mock_orchestrator, mock_console, temp_nexus_root):
         """Test successful brainstorming."""
         # Mock prompt loading
-        with patch('core.prompts.load_prompt') as mock_load:
+        with patch("core.prompts.load_prompt") as mock_load:
             mock_load.return_value = "Brainstorm prompt"
 
             # Mock JSON extraction
-            with patch('core.utils.json_extractor.extract_json_safe') as mock_extract:
+            with patch("core.utils.json_extractor.extract_json_safe") as mock_extract:
                 mock_extract.return_value = ([{"file": "test.py", "change": "code"}], None)
 
                 result = spinoff_service._brainstorm_spinoff(
-                    parent_id="NEXUS_ROOT",
-                    parent_path=temp_nexus_root,
-                    mission="Test Mission"
+                    parent_id="NEXUS_ROOT", parent_path=temp_nexus_root, mission="Test Mission"
                 )
 
         assert len(result) == 1
@@ -174,31 +177,29 @@ class TestSpinoffService:
 
     def test_brainstorm_spinoff_prompt_not_found(self, spinoff_service, mock_console, temp_nexus_root):
         """Test brainstorming fails when prompt file missing."""
-        with patch('core.prompts.load_prompt') as mock_load:
+        with patch("core.prompts.load_prompt") as mock_load:
             mock_load.side_effect = FileNotFoundError("Prompt not found")
 
             result = spinoff_service._brainstorm_spinoff(
-                parent_id="NEXUS_ROOT",
-                parent_path=temp_nexus_root,
-                mission="Test Mission"
+                parent_id="NEXUS_ROOT", parent_path=temp_nexus_root, mission="Test Mission"
             )
 
         assert result == []
         mock_console.print_error.assert_called()
 
-    def test_brainstorm_spinoff_json_extraction_fails(self, spinoff_service, mock_orchestrator, mock_console, temp_nexus_root):
+    def test_brainstorm_spinoff_json_extraction_fails(
+        self, spinoff_service, mock_orchestrator, mock_console, temp_nexus_root
+    ):
         """Test brainstorming raises when JSON extraction fails."""
-        with patch('core.prompts.load_prompt') as mock_load:
+        with patch("core.prompts.load_prompt") as mock_load:
             mock_load.return_value = "Brainstorm prompt"
 
-            with patch('core.utils.json_extractor.extract_json_safe') as mock_extract:
+            with patch("core.utils.json_extractor.extract_json_safe") as mock_extract:
                 mock_extract.return_value = ([], None)  # No proposals
 
                 with pytest.raises(ValueError) as exc_info:
                     spinoff_service._brainstorm_spinoff(
-                        parent_id="NEXUS_ROOT",
-                        parent_path=temp_nexus_root,
-                        mission="Test Mission"
+                        parent_id="NEXUS_ROOT", parent_path=temp_nexus_root, mission="Test Mission"
                     )
 
         assert "Failed to extract" in str(exc_info.value)
@@ -232,7 +233,7 @@ class TestGetSpinoffService:
 
     def test_get_service_creates_from_repl(self):
         """Test creating service from REPL in context."""
-        from core.infrastructure.bootstrap.service import _get_spinoff_service, SpinoffService
+        from core.infrastructure.bootstrap.service import SpinoffService, _get_spinoff_service
 
         mock_repl = MagicMock()
         mock_repl.workspace_path = Path("/tmp/workspace")

@@ -7,10 +7,10 @@ Zero external dependencies - uses only standard library.
 This is the fallback backend when BM25S is not installed.
 """
 
-import math
 import logging
+import math
 from collections import defaultdict
-from typing import List, Dict, Set, Any, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from .base import MemoryBackend
 
@@ -34,7 +34,7 @@ class TfidfBackend(MemoryBackend):
     def __init__(self):
         """Initialize the TF-IDF backend."""
         self._logger = logging.getLogger("nexus.memory.tfidf")
-        self._idf: Dict[str, float] = {}
+        self._idf: dict[str, float] = {}
         self._index_built = False
 
     @property
@@ -45,7 +45,7 @@ class TfidfBackend(MemoryBackend):
     def is_ready(self) -> bool:
         return self._index_built
 
-    def build_index(self, chunks: List['Chunk']) -> None:
+    def build_index(self, chunks: list["Chunk"]) -> None:
         """
         Build IDF scores from chunks.
 
@@ -58,29 +58,26 @@ class TfidfBackend(MemoryBackend):
             return
 
         # Count document frequency for each term
-        df: Dict[str, int] = defaultdict(int)
+        df: dict[str, int] = defaultdict(int)
         for chunk in chunks:
             for term in chunk.terms:
                 df[term] += 1
 
         # Calculate IDF: log(N / (1 + df))
         n = len(chunks)
-        self._idf = {
-            term: math.log(n / (1 + count))
-            for term, count in df.items()
-        }
+        self._idf = {term: math.log(n / (1 + count)) for term, count in df.items()}
 
         self._index_built = True
         self._logger.debug(f"TF-IDF index built: {len(self._idf)} terms from {n} chunks")
 
     def retrieve(
         self,
-        query_terms: List[str],
-        chunks: List['Chunk'],
+        query_terms: list[str],
+        chunks: list["Chunk"],
         limit: int,
         min_score: float,
-        raw_query: Optional[str] = None  # V7.9 Phase 10g: Ignored by sparse backends
-    ) -> List['Chunk']:
+        raw_query: str | None = None,  # V7.9 Phase 10g: Ignored by sparse backends
+    ) -> list["Chunk"]:
         """
         Retrieve chunks using TF-IDF weighted Jaccard similarity.
 
@@ -117,7 +114,7 @@ class TfidfBackend(MemoryBackend):
         # Return top chunks
         return [chunk for _, chunk in scored_chunks[:limit]]
 
-    def _score_chunk(self, query_terms: Set[str], chunk_terms: Set[str]) -> float:
+    def _score_chunk(self, query_terms: set[str], chunk_terms: set[str]) -> float:
         """
         Calculate TF-IDF weighted Jaccard similarity.
 
@@ -141,11 +138,11 @@ class TfidfBackend(MemoryBackend):
         self._idf = {}
         self._index_built = False
 
-    def get_info(self) -> Dict[str, Any]:
+    def get_info(self) -> dict[str, Any]:
         """Get TF-IDF backend information."""
         return {
             "backend": self.name,
             "terms_indexed": len(self._idf),
             "index_built": self._index_built,
-            "dependencies": "none (stdlib only)"
+            "dependencies": "none (stdlib only)",
         }

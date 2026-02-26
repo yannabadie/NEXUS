@@ -20,8 +20,10 @@ Usage:
         async_claude.invoke_async(context2, session_uuid="uuid2")
     )
 """
+
 import asyncio
-from typing import Dict, Optional, Callable, Any
+from collections.abc import Callable
+from typing import Any
 
 
 class AsyncDriverAdapter:
@@ -51,11 +53,7 @@ class AsyncDriverAdapter:
         """
         self.driver = sync_driver
 
-    async def invoke_async(
-        self,
-        context: str,
-        session_uuid: Optional[str] = None
-    ) -> Dict:
+    async def invoke_async(self, context: str, session_uuid: str | None = None) -> dict:
         """
         Async wrapper for driver.invoke().
 
@@ -69,18 +67,11 @@ class AsyncDriverAdapter:
         Returns:
             Dict response from the driver
         """
-        return await asyncio.to_thread(
-            self.driver.invoke,
-            context,
-            session_uuid=session_uuid
-        )
+        return await asyncio.to_thread(self.driver.invoke, context, session_uuid=session_uuid)
 
     async def invoke_stream_async(
-        self,
-        context: str,
-        on_token: Callable[[str], None],
-        session_uuid: Optional[str] = None
-    ) -> Dict:
+        self, context: str, on_token: Callable[[str], None], session_uuid: str | None = None
+    ) -> dict:
         """
         Async wrapper for driver.invoke_stream().
 
@@ -95,19 +86,10 @@ class AsyncDriverAdapter:
         Returns:
             Dict response from the driver
         """
-        return await asyncio.to_thread(
-            self.driver.invoke_stream,
-            context,
-            on_token,
-            session_uuid=session_uuid
-        )
+        return await asyncio.to_thread(self.driver.invoke_stream, context, on_token, session_uuid=session_uuid)
 
 
-async def invoke_parallel(
-    drivers: list,
-    contexts: list,
-    session_uuids: Optional[list] = None
-) -> list:
+async def invoke_parallel(drivers: list, contexts: list, session_uuids: list | None = None) -> list:
     """
     Convenience function to invoke multiple drivers in parallel.
 
@@ -133,7 +115,7 @@ async def invoke_parallel(
         raise ValueError("drivers, contexts, and session_uuids must have same length")
 
     tasks = []
-    for driver, context, uuid in zip(drivers, contexts, session_uuids):
+    for driver, context, uuid in zip(drivers, contexts, session_uuids, strict=False):
         if isinstance(driver, AsyncDriverAdapter):
             tasks.append(driver.invoke_async(context, session_uuid=uuid))
         else:

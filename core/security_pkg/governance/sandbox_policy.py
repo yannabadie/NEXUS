@@ -25,48 +25,46 @@ Tools that may be allowed in certain contexts:
 - git (read-only operations like status, log, diff)
 """
 
-from typing import Set, Dict, Any
-
-
 # ============================================================================
 # SAFE TOOLS - Can be executed in any state
 # ============================================================================
-SAFE_TOOLS: Set[str] = {
-    'read', 'read_file',           # File reading
-    'glob', 'grep',                # Search operations
-    'list_dir',                    # Directory listing
-    'web_search', 'web_fetch'      # Web access
+SAFE_TOOLS: set[str] = {
+    "read",
+    "read_file",  # File reading
+    "glob",
+    "grep",  # Search operations
+    "list_dir",  # Directory listing
+    "web_search",
+    "web_fetch",  # Web access
 }
 
 
 # ============================================================================
 # BLOCKED TOOLS - Never allowed during brainstorming
 # ============================================================================
-BLOCKED_TOOLS: Set[str] = {
-    'write', 'write_file',         # File creation/modification
-    'edit',                        # File editing
-    'bash', 'run_shell_command',   # Shell execution
-    'git',                         # Git operations (write)
-    'todo_write'                   # Task management
+BLOCKED_TOOLS: set[str] = {
+    "write",
+    "write_file",  # File creation/modification
+    "edit",  # File editing
+    "bash",
+    "run_shell_command",  # Shell execution
+    "git",  # Git operations (write)
+    "todo_write",  # Task management
 }
 
 
 # ============================================================================
 # CONDITIONAL TOOLS - Allowed in some contexts
 # ============================================================================
-CONDITIONAL_TOOLS: Set[str] = {
-    'git'  # Read-only git operations (status, log, diff)
+CONDITIONAL_TOOLS: set[str] = {
+    "git"  # Read-only git operations (status, log, diff)
 }
 
 
 # ============================================================================
 # TOOL ALIASES - Name normalization
 # ============================================================================
-TOOL_ALIASES: Dict[str, str] = {
-    'read_file': 'read',
-    'write_file': 'write',
-    'run_shell_command': 'bash'
-}
+TOOL_ALIASES: dict[str, str] = {"read_file": "read", "write_file": "write", "run_shell_command": "bash"}
 
 
 class SandboxPolicy:
@@ -132,8 +130,7 @@ class SandboxPolicy:
             return SandboxPolicy.is_tool_safe(tool_name)
         else:
             # In execution context, allow safe + conditional tools
-            return (SandboxPolicy.is_tool_safe(tool_name) or
-                    SandboxPolicy.is_tool_conditional(tool_name))
+            return SandboxPolicy.is_tool_safe(tool_name) or SandboxPolicy.is_tool_conditional(tool_name)
 
     @staticmethod
     def get_blocked_reason(tool_name: str) -> str:
@@ -147,13 +144,13 @@ class SandboxPolicy:
             Human-readable reason for blocking
         """
         reasons = {
-            'write': 'File modification blocked during brainstorming',
-            'write_file': 'File creation blocked during brainstorming',
-            'edit': 'File editing blocked during brainstorming',
-            'bash': 'Shell execution blocked during brainstorming',
-            'run_shell_command': 'Shell execution blocked during brainstorming',
-            'git': 'Git write operations blocked during brainstorming',
-            'todo_write': 'Task management blocked during brainstorming'
+            "write": "File modification blocked during brainstorming",
+            "write_file": "File creation blocked during brainstorming",
+            "edit": "File editing blocked during brainstorming",
+            "bash": "Shell execution blocked during brainstorming",
+            "run_shell_command": "Shell execution blocked during brainstorming",
+            "git": "Git write operations blocked during brainstorming",
+            "todo_write": "Task management blocked during brainstorming",
         }
         normalized_name = TOOL_ALIASES.get(tool_name, tool_name)
         return reasons.get(normalized_name, f"Tool '{tool_name}' blocked by sandbox policy")

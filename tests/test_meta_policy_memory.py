@@ -18,8 +18,6 @@ Validates:
 import json
 import time
 from dataclasses import dataclass
-from pathlib import Path
-from typing import List, Optional
 
 import pytest
 
@@ -34,19 +32,20 @@ from core.intelligence.reasoning.meta_policy_memory import (
     reset_meta_policy_memory,
 )
 
-
 # =============================================================================
 # Mock for TriplePathwayResult
 # =============================================================================
 
+
 @dataclass
 class MockTriplePathwayResult:
     """Mock TriplePathwayResult for testing without importing the real one."""
+
     principle: str = "Always set timeout on external API calls"
     procedure: str = "Use requests.get(url, timeout=10)"
     synthesis: str = "Set timeout=10s with exponential backoff for all HTTP calls"
     failure_type: str = "timeout"
-    mast_codes: List[str] = None
+    mast_codes: list[str] = None
 
     def __post_init__(self):
         if self.mast_codes is None:
@@ -57,12 +56,12 @@ class MockTriplePathwayResult:
 # RuleCategory Tests
 # =============================================================================
 
+
 class TestRuleCategory:
     """Tests for RuleCategory enum."""
 
     def test_all_values_present(self):
-        expected = {"timeout", "validation", "communication", "resource",
-                    "retry", "safety", "general"}
+        expected = {"timeout", "validation", "communication", "resource", "retry", "safety", "general"}
         actual = {c.value for c in RuleCategory}
         assert actual == expected
 
@@ -81,6 +80,7 @@ class TestRuleCategory:
 # =============================================================================
 # PolicyRule Tests
 # =============================================================================
+
 
 class TestPolicyRule:
     """Tests for PolicyRule dataclass and score computation."""
@@ -180,6 +180,7 @@ class TestPolicyRule:
 # AdmissibilityResult Tests
 # =============================================================================
 
+
 class TestAdmissibilityResult:
     """Tests for AdmissibilityResult dataclass."""
 
@@ -192,8 +193,14 @@ class TestAdmissibilityResult:
 
     def test_blocked(self):
         rule = PolicyRule(
-            id="r1", predicate="p", action="a", category="timeout",
-            source_task="t", failure_type="f", mast_codes=[], tags=[],
+            id="r1",
+            predicate="p",
+            action="a",
+            category="timeout",
+            source_task="t",
+            failure_type="f",
+            mast_codes=[],
+            tags=[],
             created_at=time.time(),
         )
         result = AdmissibilityResult(
@@ -212,6 +219,7 @@ class TestAdmissibilityResult:
 # RetrievalResult Tests
 # =============================================================================
 
+
 class TestRetrievalResult:
     """Tests for RetrievalResult dataclass."""
 
@@ -222,8 +230,14 @@ class TestRetrievalResult:
 
     def test_with_rules(self):
         rule = PolicyRule(
-            id="r1", predicate="p", action="a", category="timeout",
-            source_task="t", failure_type="f", mast_codes=[], tags=[],
+            id="r1",
+            predicate="p",
+            action="a",
+            category="timeout",
+            source_task="t",
+            failure_type="f",
+            mast_codes=[],
+            tags=[],
             created_at=time.time(),
         )
         result = RetrievalResult(rules=[rule], prompt_injection="text")
@@ -234,6 +248,7 @@ class TestRetrievalResult:
 # =============================================================================
 # MetaPolicyMemory Tests
 # =============================================================================
+
 
 class TestMetaPolicyMemoryConsolidate:
     """Tests for MetaPolicyMemory.consolidate()."""
@@ -368,7 +383,7 @@ class TestMetaPolicyMemoryConsolidate:
 class TestMetaPolicyMemoryRetrieve:
     """Tests for MetaPolicyMemory.retrieve_applicable()."""
 
-    def _populate(self, mpm: MetaPolicyMemory) -> List[PolicyRule]:
+    def _populate(self, mpm: MetaPolicyMemory) -> list[PolicyRule]:
         """Add several rules for retrieval tests."""
         rules = []
         configs = [
@@ -389,8 +404,7 @@ class TestMetaPolicyMemoryRetrieve:
             ),
         ]
         for i, mars in enumerate(configs):
-            rule = mpm.consolidate(mars, mast_codes=[f"CODE_{i:03d}"],
-                                   source_task=f"Task {i}")
+            rule = mpm.consolidate(mars, mast_codes=[f"CODE_{i:03d}"], source_task=f"Task {i}")
             rules.append(rule)
         return rules
 
@@ -541,9 +555,7 @@ class TestMetaPolicyMemoryAdmissibility:
         assert rule.confidence >= 0.6
 
         # Proposed action overlaps >= 3 words with predicate
-        result = mpm.check_admissibility(
-            "make external API call without proper error handling"
-        )
+        result = mpm.check_admissibility("make external API call without proper error handling")
         assert result.is_blocked is True
         assert len(result.blocking_rules) > 0
         assert result.suggested_alternative != ""
@@ -559,9 +571,7 @@ class TestMetaPolicyMemoryAdmissibility:
             rule.record_usage(success=False)
         assert rule.confidence < 0.6
 
-        result = mpm.check_admissibility(
-            "make external API call without proper error handling"
-        )
+        result = mpm.check_admissibility("make external API call without proper error handling")
         # Should not be blocked by learned rule (low confidence),
         # but default HAC might still flag it -- check only blocking_rules
         assert len(result.blocking_rules) == 0
@@ -581,9 +591,7 @@ class TestMetaPolicyMemoryAdmissibility:
         for _ in range(5):
             rule.record_usage(success=True)
 
-        result = mpm.check_admissibility(
-            "make external API call without proper error handling"
-        )
+        result = mpm.check_admissibility("make external API call without proper error handling")
         if result.is_blocked:
             assert "timeout" in result.suggested_alternative.lower()
 
@@ -931,11 +939,13 @@ class TestMetaPolicyMemoryFormatForPrompt:
 # Singleton Tests
 # =============================================================================
 
+
 class TestSingleton:
     """Tests for get_meta_policy_memory and reset_meta_policy_memory."""
 
     def test_get_returns_instance(self):
         import core.intelligence.reasoning.meta_policy_memory as mpm_mod
+
         mpm_mod._instance = None
 
         instance = get_meta_policy_memory()
@@ -947,6 +957,7 @@ class TestSingleton:
 
     def test_get_returns_same_instance(self):
         import core.intelligence.reasoning.meta_policy_memory as mpm_mod
+
         mpm_mod._instance = None
 
         inst1 = get_meta_policy_memory()
@@ -958,6 +969,7 @@ class TestSingleton:
 
     def test_reset_clears_instance(self):
         import core.intelligence.reasoning.meta_policy_memory as mpm_mod
+
         mpm_mod._instance = None
 
         inst1 = get_meta_policy_memory()
@@ -972,6 +984,7 @@ class TestSingleton:
 
     def test_reset_then_get_creates_new(self):
         import core.intelligence.reasoning.meta_policy_memory as mpm_mod
+
         mpm_mod._instance = None
 
         get_meta_policy_memory()
@@ -986,6 +999,7 @@ class TestSingleton:
 # =============================================================================
 # Edge Cases
 # =============================================================================
+
 
 class TestEdgeCases:
     """Edge cases and boundary conditions."""
@@ -1055,7 +1069,7 @@ class TestEdgeCases:
     def test_find_duplicate_prefix_match(self, tmp_path):
         mpm = MetaPolicyMemory(storage_path=tmp_path / "rules.jsonl")
         # Build a prefix that is exactly 80+ chars so both share the same first 80
-        prefix_80 = "always validate input data before processing it in the pipeline and ensure safe" # 80 chars
+        prefix_80 = "always validate input data before processing it in the pipeline and ensure safe"  # 80 chars
         mars1 = MockTriplePathwayResult(
             principle=prefix_80 + " handling of edge cases",
         )

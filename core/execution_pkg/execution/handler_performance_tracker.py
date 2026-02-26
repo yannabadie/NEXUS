@@ -47,9 +47,9 @@ from __future__ import annotations
 import dataclasses
 import threading
 from collections import deque
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any
 
 # Constants
 MAX_EXECUTIONS: int = 50000  # FIFO eviction beyond this
@@ -62,6 +62,7 @@ class HandlerExecution:
 
     Captures all metadata for one tool execution through a handler.
     """
+
     execution_id: str = ""
     handler_type: str = ""  # e.g. "bash", "file_read", "web_fetch", "mcp"
     tool_name: str = ""
@@ -70,7 +71,7 @@ class HandlerExecution:
     error_category: str = ""  # e.g. "timeout", "permission", "validation"
     timestamp: str = ""  # ISO format
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return dataclasses.asdict(self)
 
@@ -82,6 +83,7 @@ class HandlerTypeMetrics:
 
     Computed from all executions of this handler type.
     """
+
     handler_type: str = ""
     total_executions: int = 0
     successes: int = 0
@@ -102,7 +104,7 @@ class HandlerTypeMetrics:
             return 0.0
         return self.total_duration_ms / self.total_executions
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary with computed properties."""
         base = dataclasses.asdict(self)
         base["success_rate"] = round(self.success_rate, 4)
@@ -117,12 +119,13 @@ class TrackerStats:
 
     Provides high-level summary of all tracked executions.
     """
+
     total_executions: int = 0
     unique_handler_types: int = 0
     unique_tools: int = 0
     overall_success_rate: float = 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return dataclasses.asdict(self)
 
@@ -161,7 +164,7 @@ class HandlerPerformanceTracker:
 
         # Storage
         self._executions: deque[HandlerExecution] = deque(maxlen=max_executions)
-        self._metrics_by_type: Dict[str, HandlerTypeMetrics] = {}
+        self._metrics_by_type: dict[str, HandlerTypeMetrics] = {}
 
         # Fast lookup indices
         self._tools_seen: set[str] = set()
@@ -172,7 +175,7 @@ class HandlerPerformanceTracker:
         tool_name: str = "",
         duration_ms: float = 0.0,
         success: bool = True,
-        error_category: str = ""
+        error_category: str = "",
     ) -> HandlerExecution:
         """
         Record a handler execution.
@@ -202,7 +205,7 @@ class HandlerPerformanceTracker:
                 duration_ms=duration_ms,
                 success=success,
                 error_category=error_category,
-                timestamp=datetime.now(timezone.utc).isoformat()
+                timestamp=datetime.now(UTC).isoformat(),
             )
 
             # Add to history (deque handles FIFO eviction automatically)
@@ -210,9 +213,7 @@ class HandlerPerformanceTracker:
 
             # Update metrics for this handler type
             if handler_type not in self._metrics_by_type:
-                self._metrics_by_type[handler_type] = HandlerTypeMetrics(
-                    handler_type=handler_type
-                )
+                self._metrics_by_type[handler_type] = HandlerTypeMetrics(handler_type=handler_type)
 
             metrics = self._metrics_by_type[handler_type]
             metrics.total_executions += 1
@@ -229,7 +230,7 @@ class HandlerPerformanceTracker:
 
             return execution
 
-    def get_handler_metrics(self, handler_type: str) -> Optional[HandlerTypeMetrics]:
+    def get_handler_metrics(self, handler_type: str) -> HandlerTypeMetrics | None:
         """
         Get metrics for a specific handler type.
 
@@ -242,7 +243,7 @@ class HandlerPerformanceTracker:
         with self._lock:
             return self._metrics_by_type.get(handler_type)
 
-    def get_all_metrics(self) -> List[HandlerTypeMetrics]:
+    def get_all_metrics(self) -> list[HandlerTypeMetrics]:
         """
         Get metrics for all handler types.
 
@@ -253,7 +254,7 @@ class HandlerPerformanceTracker:
             metrics = list(self._metrics_by_type.values())
             return sorted(metrics, key=lambda m: m.total_executions, reverse=True)
 
-    def get_slowest_handlers(self, limit: int = 5) -> List[HandlerTypeMetrics]:
+    def get_slowest_handlers(self, limit: int = 5) -> list[HandlerTypeMetrics]:
         """
         Get slowest handler types by average duration.
 
@@ -267,7 +268,7 @@ class HandlerPerformanceTracker:
             metrics = list(self._metrics_by_type.values())
             return sorted(metrics, key=lambda m: m.avg_duration_ms, reverse=True)[:limit]
 
-    def get_failing_handlers(self, min_executions: int = 3) -> List[HandlerTypeMetrics]:
+    def get_failing_handlers(self, min_executions: int = 3) -> list[HandlerTypeMetrics]:
         """
         Get handler types with high failure rates.
 
@@ -281,16 +282,13 @@ class HandlerPerformanceTracker:
         """
         with self._lock:
             metrics = [
-                m for m in self._metrics_by_type.values()
+                m
+                for m in self._metrics_by_type.values()
                 if m.total_executions >= min_executions and m.success_rate < 0.8
             ]
             return sorted(metrics, key=lambda m: m.success_rate)
 
-    def get_recent_executions(
-        self,
-        limit: int = 10,
-        handler_type: Optional[str] = None
-    ) -> List[HandlerExecution]:
+    def get_recent_executions(self, limit: int = 10, handler_type: str | None = None) -> list[HandlerExecution]:
         """
         Get recent executions, optionally filtered by handler type.
 
@@ -311,7 +309,7 @@ class HandlerPerformanceTracker:
             executions.reverse()
             return executions[:limit]
 
-    def list_handler_types(self) -> List[str]:
+    def list_handler_types(self) -> list[str]:
         """
         Get list of all tracked handler types.
 
@@ -340,7 +338,7 @@ class HandlerPerformanceTracker:
                 total_executions=total_executions,
                 unique_handler_types=len(self._metrics_by_type),
                 unique_tools=len(self._tools_seen),
-                overall_success_rate=overall_success_rate
+                overall_success_rate=overall_success_rate,
             )
 
     @property
@@ -361,7 +359,7 @@ class HandlerPerformanceTracker:
             self._tools_seen.clear()
             self._counter = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         Convert tracker to dictionary representation.
 
@@ -377,26 +375,20 @@ class HandlerPerformanceTracker:
         with self._lock:
             # Extract data directly (don't call methods that acquire lock)
             handler_types = sorted(self._metrics_by_type.keys())
-            metrics = sorted(
-                self._metrics_by_type.values(),
-                key=lambda m: m.total_executions,
-                reverse=True
-            )
+            metrics = sorted(self._metrics_by_type.values(), key=lambda m: m.total_executions, reverse=True)
 
             return {
                 "stats": stats.to_dict(),
                 "handler_types": handler_types,
                 "metrics": [m.to_dict() for m in metrics],
-                "recent_executions": [
-                    e.to_dict() for e in list(self._executions)[-10:]
-                ],
+                "recent_executions": [e.to_dict() for e in list(self._executions)[-10:]],
                 "execution_count": len(self._executions),
-                "max_executions": self._max_executions
+                "max_executions": self._max_executions,
             }
 
 
 # Global singleton instance
-_instance: Optional[HandlerPerformanceTracker] = None
+_instance: HandlerPerformanceTracker | None = None
 _lock = threading.Lock()
 
 
@@ -442,5 +434,5 @@ __all__ = [
     "HandlerPerformanceTracker",
     "get_handler_tracker",
     "reset_handler_tracker",
-    "MAX_EXECUTIONS"
+    "MAX_EXECUTIONS",
 ]

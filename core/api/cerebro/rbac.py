@@ -24,12 +24,11 @@ Date: 2025-12-16
 
 import logging
 from enum import Enum
-from typing import Set
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, Request, status
 
-from .deps import require_auth, AuthenticatedUser
+from .deps import AuthenticatedUser, require_auth
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +36,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # Permissions
 # =============================================================================
+
 
 class Permission(str, Enum):
     """Granular permissions for NEXUS operations."""
@@ -69,10 +69,9 @@ class Permission(str, Enum):
 # Role → Permission Mapping
 # =============================================================================
 
-ROLE_PERMISSIONS: dict[str, Set[Permission]] = {
+ROLE_PERMISSIONS: dict[str, set[Permission]] = {
     # OWNER: Full control
     "owner": set(Permission),
-
     # ADMIN: Everything except billing/ownership
     "admin": {
         Permission.FILE_READ,
@@ -88,7 +87,6 @@ ROLE_PERMISSIONS: dict[str, Set[Permission]] = {
         Permission.AUDIT_VIEW,
         Permission.SETTINGS_MANAGE,
     },
-
     # MEMBER: Standard access
     "member": {
         Permission.FILE_READ,
@@ -96,7 +94,6 @@ ROLE_PERMISSIONS: dict[str, Set[Permission]] = {
         Permission.WORKFLOW_START,
         Permission.WORKFLOW_STOP,
     },
-
     # VIEWER: Read-only
     "viewer": {
         Permission.FILE_READ,
@@ -107,6 +104,7 @@ ROLE_PERMISSIONS: dict[str, Set[Permission]] = {
 # =============================================================================
 # Permission Checking
 # =============================================================================
+
 
 def get_user_role(user_id: UUID, tenant_id: UUID) -> str | None:
     """
@@ -121,18 +119,15 @@ def get_user_role(user_id: UUID, tenant_id: UUID) -> str | None:
     """
     try:
         from sqlmodel import select
-        from core.infrastructure.db import get_session, User
+
+        from core.infrastructure.db import User, get_session
 
         with get_session() as session:
-            statement = select(User).where(
-                User.id == user_id,
-                User.tenant_id == tenant_id,
-                User.is_active == True
-            )
+            statement = select(User).where(User.id == user_id, User.tenant_id == tenant_id, User.is_active)
             user = session.exec(statement).first()
 
             if user:
-                return user.role.value if hasattr(user.role, 'value') else str(user.role)
+                return user.role.value if hasattr(user.role, "value") else str(user.role)
 
         return None
 
@@ -192,6 +187,7 @@ async def log_permission_denial(
 # FastAPI Dependencies
 # =============================================================================
 
+
 def require_permission(permission: Permission, resource_type: str = "api"):
     """
     FastAPI dependency for permission checking.
@@ -210,6 +206,7 @@ def require_permission(permission: Permission, resource_type: str = "api"):
     Returns:
         Dependency function
     """
+
     async def check_permission(
         request: Request,
         user: AuthenticatedUser = Depends(require_auth),
@@ -228,7 +225,7 @@ def require_permission(permission: Permission, resource_type: str = "api"):
             HTTPException 403 if permission denied
         """
         # Get role from JWT token (set during login)
-        role = getattr(user, 'role', None)
+        role = getattr(user, "role", None)
 
         # If role not in token, try to get from database
         if not role:
@@ -245,10 +242,7 @@ def require_permission(permission: Permission, resource_type: str = "api"):
 
         # Check permission
         if not has_permission(role, permission):
-            logger.warning(
-                f"[RBAC] Permission denied: user={user.user_id} "
-                f"role={role} permission={permission.value}"
-            )
+            logger.warning(f"[RBAC] Permission denied: user={user.user_id} role={role} permission={permission.value}")
 
             # Log to audit
             await log_permission_denial(
@@ -296,7 +290,7 @@ def require_role(role: str):
         user: AuthenticatedUser = Depends(require_auth),
     ) -> AuthenticatedUser:
         """Check if user has at least the required role."""
-        user_role = getattr(user, 'role', None)
+        user_role = getattr(user, "role", None)
 
         if not user_role:
             try:
@@ -320,10 +314,10 @@ def require_role(role: str):
 
             return user
 
-        except ValueError:
+        except ValueError as err:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Invalid role: {user_role}",
-            )
+            ) from err
 
     return check_role

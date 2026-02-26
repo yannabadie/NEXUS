@@ -3,19 +3,21 @@ Tests for V8.8 Adaptive Fallback Selector (GROK-004)
 
 Tests the context-aware fallback selection that replaces static chains.
 """
-import pytest
+
 import sys
 from pathlib import Path
+
+import pytest
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.intelligence.swarm.adaptive_fallback import (
+    DOMAIN_FALLBACK_PREFERENCES,
+    STAGNATION_SHORTCUTS,
     AdaptiveFallbackSelector,
     FallbackContext,
     FallbackDecision,
-    DOMAIN_FALLBACK_PREFERENCES,
-    STAGNATION_SHORTCUTS,
     get_adaptive_fallback_selector,
 )
 from core.intelligence.swarm.collaboration_modes import CollaborationMode
@@ -34,10 +36,7 @@ class TestFallbackContext:
 
     def test_context_with_domains(self):
         """Test context with domain information."""
-        ctx = FallbackContext(
-            domains=["coding", "security"],
-            complexity="complex"
-        )
+        ctx = FallbackContext(domains=["coding", "security"], complexity="complex")
         assert "coding" in ctx.domains
         assert ctx.complexity == "complex"
 
@@ -55,9 +54,7 @@ class TestAdaptiveFallbackSelector:
         selector = AdaptiveFallbackSelector()
         ctx = FallbackContext()
 
-        decision = selector.get_adaptive_fallback(
-            CollaborationMode.SPECIALIST, ctx
-        )
+        decision = selector.get_adaptive_fallback(CollaborationMode.SPECIALIST, ctx)
 
         assert decision.fallback_mode is None
         assert "terminal" in decision.reason.lower()
@@ -68,9 +65,7 @@ class TestAdaptiveFallbackSelector:
         selector = AdaptiveFallbackSelector()
         ctx = FallbackContext(domains=["coding"])
 
-        decision = selector.get_adaptive_fallback(
-            CollaborationMode.PARALLEL, ctx
-        )
+        decision = selector.get_adaptive_fallback(CollaborationMode.PARALLEL, ctx)
 
         assert decision.fallback_mode == CollaborationMode.LEAD_SUPPORT
         assert "coding" in decision.reason.lower()
@@ -80,9 +75,7 @@ class TestAdaptiveFallbackSelector:
         selector = AdaptiveFallbackSelector()
         ctx = FallbackContext(domains=["research"])
 
-        decision = selector.get_adaptive_fallback(
-            CollaborationMode.PARALLEL, ctx
-        )
+        decision = selector.get_adaptive_fallback(CollaborationMode.PARALLEL, ctx)
 
         assert decision.fallback_mode == CollaborationMode.SEQUENTIAL
         assert "research" in decision.reason.lower()
@@ -90,14 +83,9 @@ class TestAdaptiveFallbackSelector:
     def test_high_stagnation_uses_shortcut(self):
         """Test that high stagnation skips intermediate modes."""
         selector = AdaptiveFallbackSelector()
-        ctx = FallbackContext(
-            stagnation_level="high",
-            messages_since_progress=5
-        )
+        ctx = FallbackContext(stagnation_level="high", messages_since_progress=5)
 
-        decision = selector.get_adaptive_fallback(
-            CollaborationMode.PARALLEL, ctx
-        )
+        decision = selector.get_adaptive_fallback(CollaborationMode.PARALLEL, ctx)
 
         assert decision.fallback_mode == CollaborationMode.SPECIALIST
         assert decision.skip_intermediate is True
@@ -108,9 +96,7 @@ class TestAdaptiveFallbackSelector:
         selector = AdaptiveFallbackSelector()
         ctx = FallbackContext(stagnation_level="critical")
 
-        decision = selector.get_adaptive_fallback(
-            CollaborationMode.RED_BLUE, ctx
-        )
+        decision = selector.get_adaptive_fallback(CollaborationMode.RED_BLUE, ctx)
 
         assert decision.fallback_mode == CollaborationMode.SPECIALIST
         assert decision.skip_intermediate is True
@@ -120,9 +106,7 @@ class TestAdaptiveFallbackSelector:
         selector = AdaptiveFallbackSelector()
         ctx = FallbackContext()  # Empty context
 
-        decision = selector.get_adaptive_fallback(
-            CollaborationMode.LEAD_SUPPORT, ctx
-        )
+        decision = selector.get_adaptive_fallback(CollaborationMode.LEAD_SUPPORT, ctx)
 
         # Should use static chain
         assert decision.fallback_mode == CollaborationMode.SPECIALIST
@@ -131,13 +115,9 @@ class TestAdaptiveFallbackSelector:
     def test_modes_tried_tracked(self):
         """Test that previously tried modes are in context."""
         selector = AdaptiveFallbackSelector()
-        ctx = FallbackContext(
-            modes_tried=["parallel", "sequential"]
-        )
+        ctx = FallbackContext(modes_tried=["parallel", "sequential"])
 
-        decision = selector.get_adaptive_fallback(
-            CollaborationMode.SEQUENTIAL, ctx
-        )
+        decision = selector.get_adaptive_fallback(CollaborationMode.SEQUENTIAL, ctx)
 
         # Should still work with modes_tried
         assert decision.fallback_mode is not None or decision.reason
@@ -145,10 +125,7 @@ class TestAdaptiveFallbackSelector:
     def test_decision_to_dict(self):
         """Test FallbackDecision serialization."""
         decision = FallbackDecision(
-            fallback_mode=CollaborationMode.SPECIALIST,
-            reason="Test reason",
-            confidence=0.8,
-            skip_intermediate=True
+            fallback_mode=CollaborationMode.SPECIALIST, reason="Test reason", confidence=0.8, skip_intermediate=True
         )
 
         d = decision.to_dict()
@@ -211,9 +188,7 @@ class TestSingleton:
         selector = get_adaptive_fallback_selector()
         ctx = FallbackContext(domains=["coding"])
 
-        decision = selector.get_adaptive_fallback(
-            CollaborationMode.PARALLEL, ctx
-        )
+        decision = selector.get_adaptive_fallback(CollaborationMode.PARALLEL, ctx)
 
         assert decision is not None
         assert decision.fallback_mode is not None
@@ -227,9 +202,7 @@ class TestEdgeCases:
         selector = AdaptiveFallbackSelector()
         ctx = FallbackContext(domains=[])
 
-        decision = selector.get_adaptive_fallback(
-            CollaborationMode.PARALLEL, ctx
-        )
+        decision = selector.get_adaptive_fallback(CollaborationMode.PARALLEL, ctx)
 
         # Should fall back to static chain
         assert decision.fallback_mode is not None
@@ -239,9 +212,7 @@ class TestEdgeCases:
         selector = AdaptiveFallbackSelector()
         ctx = FallbackContext(domains=["quantum_computing"])
 
-        decision = selector.get_adaptive_fallback(
-            CollaborationMode.PARALLEL, ctx
-        )
+        decision = selector.get_adaptive_fallback(CollaborationMode.PARALLEL, ctx)
 
         # Should fall back to default or static chain
         assert decision.fallback_mode is not None
@@ -252,12 +223,10 @@ class TestEdgeCases:
         ctx = FallbackContext(
             errors_encountered=["Error 1", "Error 2", "Error 3"],
             messages_since_progress=6,
-            stagnation_level="high"  # Need stagnation for shortcut
+            stagnation_level="high",  # Need stagnation for shortcut
         )
 
-        decision = selector.get_adaptive_fallback(
-            CollaborationMode.PARALLEL, ctx
-        )
+        decision = selector.get_adaptive_fallback(CollaborationMode.PARALLEL, ctx)
 
         # Multiple errors + stagnation should trigger shortcut
         assert decision.skip_intermediate is True
@@ -267,13 +236,11 @@ class TestEdgeCases:
         selector = AdaptiveFallbackSelector()
         ctx = FallbackContext(
             errors_encountered=["Error 1", "Error 2"],
-            messages_since_progress=6
+            messages_since_progress=6,
             # No stagnation_level = no shortcut
         )
 
-        decision = selector.get_adaptive_fallback(
-            CollaborationMode.PARALLEL, ctx
-        )
+        decision = selector.get_adaptive_fallback(CollaborationMode.PARALLEL, ctx)
 
         # Without stagnation, should use static fallback
         assert decision.fallback_mode is not None

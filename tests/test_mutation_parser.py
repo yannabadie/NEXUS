@@ -12,26 +12,26 @@ NEXUS V7.6 HIVE MIND - Test Coverage for core/evolution/mutation_parser.py
 Author: Claude (Phase 14b - 2025-12-05)
 """
 
-import pytest
-import tempfile
 import json
-from pathlib import Path
-from unittest.mock import patch
 
 # Add parent to path for imports
 import sys
+from pathlib import Path
+
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.intelligence.evolution.mutation_parser import (
-    MutationParser,
     Mutation,
+    MutationParser,
     apply_mutation,
 )
-
 
 # =============================================================================
 # FIXTURES
 # =============================================================================
+
 
 @pytest.fixture
 def parser():
@@ -43,12 +43,15 @@ def parser():
 def temp_file(tmp_path):
     """Create a temporary Python file for mutation testing."""
     test_file = tmp_path / "test_module.py"
-    test_file.write_text('''def old_function():
+    test_file.write_text(
+        """def old_function():
     return 42
 
 def another_function():
     return "hello"
-''', encoding='utf-8')
+""",
+        encoding="utf-8",
+    )
     return test_file
 
 
@@ -56,12 +59,13 @@ def another_function():
 # TEST: Basic SEARCH/REPLACE Parsing
 # =============================================================================
 
+
 class TestSearchReplaceParsing:
     """Tests for SEARCH/REPLACE block parsing."""
 
     def test_parse_single_replace_block(self, parser):
         """Test parsing a single SEARCH/REPLACE block."""
-        text = '''FILE: core/utils.py
+        text = """FILE: core/utils.py
 REASON: Optimize calculation
 IMPACT: 0.03
 
@@ -71,7 +75,7 @@ def calculate_score(x):
 =======
 def calculate_score(x):
     return x * 2.5
->>>>>>> REPLACE'''
+>>>>>>> REPLACE"""
 
         mutations = parser.parse(text)
 
@@ -85,7 +89,7 @@ def calculate_score(x):
 
     def test_parse_multiple_mutations(self, parser):
         """Test parsing multiple mutation blocks."""
-        text = '''FILE: core/module_a.py
+        text = """FILE: core/module_a.py
 <<<<<<< SEARCH
 old_code_a
 =======
@@ -97,7 +101,7 @@ FILE: core/module_b.py
 old_code_b
 =======
 new_code_b
->>>>>>> REPLACE'''
+>>>>>>> REPLACE"""
 
         mutations = parser.parse(text)
 
@@ -107,14 +111,14 @@ new_code_b
 
     def test_parse_append_block(self, parser):
         """Test parsing an APPEND block."""
-        text = '''FILE: core/helpers.py
+        text = """FILE: core/helpers.py
 REASON: Add new helper
 IMPACT: 0.02
 
 <<<<<<< APPEND
 def new_helper():
     return 123
->>>>>>> END'''
+>>>>>>> END"""
 
         mutations = parser.parse(text)
 
@@ -125,7 +129,7 @@ def new_helper():
 
     def test_preserve_indentation(self, parser):
         """Test that indentation is preserved in mutations."""
-        text = '''FILE: core/test.py
+        text = """FILE: core/test.py
 <<<<<<< SEARCH
 class MyClass:
     def method(self):
@@ -135,7 +139,7 @@ class MyClass:
     def method(self):
         # Optimized
         return 42 * 2
->>>>>>> REPLACE'''
+>>>>>>> REPLACE"""
 
         mutations = parser.parse(text)
 
@@ -150,32 +154,33 @@ class MyClass:
 # TEST: JSON Extraction
 # =============================================================================
 
+
 class TestJsonExtraction:
     """Tests for JSON extraction from various formats."""
 
     def test_extract_from_clean_json(self, parser):
         """Test extraction from clean JSON content."""
         # When direct FILE: markers exist, parser returns them
-        text = '''FILE: core/test.py
+        text = """FILE: core/test.py
 <<<<<<< SEARCH
 old
 =======
 new
->>>>>>> REPLACE'''
+>>>>>>> REPLACE"""
 
         mutations = parser.parse(text)
         assert len(mutations) == 1
 
     def test_extract_from_markdown_code_block(self, parser):
         """Test extraction from markdown code block."""
-        text = '''```
+        text = """```
 FILE: core/test.py
 <<<<<<< SEARCH
 old_code
 =======
 new_code
 >>>>>>> REPLACE
-```'''
+```"""
 
         mutations = parser.parse(text)
 
@@ -185,22 +190,18 @@ new_code
     def test_extract_from_gemini_wrapper(self, parser):
         """Test extraction from Gemini JSON wrapper."""
         # Simulate Gemini's nested JSON structure
-        inner_content = '''FILE: core/example.py
+        inner_content = """FILE: core/example.py
 <<<<<<< SEARCH
 def old():
     pass
 =======
 def new():
     pass
->>>>>>> REPLACE'''
+>>>>>>> REPLACE"""
 
-        text = json.dumps({
-            "response": json.dumps({
-                "sender": "Gemini",
-                "content": inner_content,
-                "status": "FINISHED"
-            })
-        })
+        text = json.dumps(
+            {"response": json.dumps({"sender": "Gemini", "content": inner_content, "status": "FINISHED"})}
+        )
 
         mutations = parser.parse(text)
 
@@ -212,15 +213,16 @@ def new():
 # TEST: Resilience to Malformed Input
 # =============================================================================
 
+
 class TestMalformedInputResilience:
     """Tests for resilience to malformed input."""
 
     def test_missing_separator_returns_none(self, parser):
         """Test that missing separator returns no mutation."""
-        text = '''FILE: core/test.py
+        text = """FILE: core/test.py
 <<<<<<< SEARCH
 old_code
->>>>>>> REPLACE'''  # Missing =======
+>>>>>>> REPLACE"""  # Missing =======
 
         mutations = parser.parse(text)
 
@@ -229,11 +231,11 @@ old_code
 
     def test_missing_end_marker(self, parser):
         """Test handling of missing end marker."""
-        text = '''FILE: core/test.py
+        text = """FILE: core/test.py
 <<<<<<< SEARCH
 old_code
 =======
-new_code'''  # Missing >>>>>>> REPLACE
+new_code"""  # Missing >>>>>>> REPLACE
 
         mutations = parser.parse(text)
 
@@ -253,11 +255,11 @@ new_code'''  # Missing >>>>>>> REPLACE
 
     def test_no_file_marker(self, parser):
         """Test handling of content without FILE: marker."""
-        text = '''<<<<<<< SEARCH
+        text = """<<<<<<< SEARCH
 old_code
 =======
 new_code
->>>>>>> REPLACE'''
+>>>>>>> REPLACE"""
 
         mutations = parser.parse(text)
 
@@ -266,14 +268,14 @@ new_code
 
     def test_invalid_json_fallback(self, parser):
         """Test fallback when JSON is invalid."""
-        text = '''{"broken": "json", no_quotes: invalid}
+        text = """{"broken": "json", no_quotes: invalid}
 
 FILE: core/test.py
 <<<<<<< SEARCH
 old
 =======
 new
->>>>>>> REPLACE'''
+>>>>>>> REPLACE"""
 
         mutations = parser.parse(text)
 
@@ -283,7 +285,7 @@ new
 
     def test_extra_whitespace_handling(self, parser):
         """Test handling of extra whitespace in blocks."""
-        text = '''FILE:   core/test.py
+        text = """FILE:   core/test.py
 
 
 <<<<<<< SEARCH
@@ -294,7 +296,7 @@ old_code
 
 new_code
 
->>>>>>> REPLACE'''
+>>>>>>> REPLACE"""
 
         mutations = parser.parse(text)
 
@@ -307,17 +309,18 @@ new_code
 # TEST: KERNEL.py IMMUTABILITY (CRITICAL)
 # =============================================================================
 
+
 class TestKernelImmutability:
     """CRITICAL: Tests that KERNEL.py cannot be mutated."""
 
     def test_kernel_mutation_rejected_in_parser(self, parser):
         """Test that KERNEL.py mutations are identified but can be filtered."""
-        text = '''FILE: KERNEL.py
+        text = """FILE: KERNEL.py
 <<<<<<< SEARCH
 OBJECTIVE = "Old objective"
 =======
 OBJECTIVE = "Malicious objective"
->>>>>>> REPLACE'''
+>>>>>>> REPLACE"""
 
         mutations = parser.parse(text)
 
@@ -339,12 +342,12 @@ OBJECTIVE = "Malicious objective"
         ]
 
         for kernel_path in kernel_paths:
-            text = f'''FILE: {kernel_path}
+            text = f"""FILE: {kernel_path}
 <<<<<<< SEARCH
 old
 =======
 new
->>>>>>> REPLACE'''
+>>>>>>> REPLACE"""
 
             mutations = parser.parse(text)
 
@@ -362,26 +365,16 @@ new
             return "kernel.py" in file_lower
 
         # Create test mutations
-        safe_mutation = Mutation(
-            file="core/utils.py",
-            operation="REPLACE",
-            search="old",
-            replace="new"
-        )
+        safe_mutation = Mutation(file="core/utils.py", operation="REPLACE", search="old", replace="new")
 
-        kernel_mutation = Mutation(
-            file="KERNEL.py",
-            operation="REPLACE",
-            search="old",
-            replace="new"
-        )
+        kernel_mutation = Mutation(file="KERNEL.py", operation="REPLACE", search="old", replace="new")
 
         assert is_kernel_mutation(kernel_mutation) is True
         assert is_kernel_mutation(safe_mutation) is False
 
     def test_integration_kernel_filter(self, parser):
         """Integration test: Filter out KERNEL.py mutations from batch."""
-        text = '''FILE: core/safe.py
+        text = """FILE: core/safe.py
 <<<<<<< SEARCH
 safe_old
 =======
@@ -400,15 +393,12 @@ FILE: core/another_safe.py
 another_old
 =======
 another_new
->>>>>>> REPLACE'''
+>>>>>>> REPLACE"""
 
         mutations = parser.parse(text)
 
         # Filter out KERNEL.py mutations
-        safe_mutations = [
-            m for m in mutations
-            if "kernel.py" not in m.file.lower()
-        ]
+        safe_mutations = [m for m in mutations if "kernel.py" not in m.file.lower()]
 
         assert len(mutations) == 3  # All parsed
         assert len(safe_mutations) == 2  # KERNEL.py filtered out
@@ -419,17 +409,18 @@ another_new
 # TEST: Path Validation
 # =============================================================================
 
+
 class TestPathValidation:
     """Tests for path validation (restrict to core/ or workspace/)."""
 
     def test_core_path_allowed(self, parser):
         """Test that core/ paths are allowed."""
-        text = '''FILE: core/module.py
+        text = """FILE: core/module.py
 <<<<<<< SEARCH
 old
 =======
 new
->>>>>>> REPLACE'''
+>>>>>>> REPLACE"""
 
         mutations = parser.parse(text)
 
@@ -438,12 +429,12 @@ new
 
     def test_workspace_path_allowed(self, parser):
         """Test that workspace/ paths are allowed."""
-        text = '''FILE: workspace/agents/test.py
+        text = """FILE: workspace/agents/test.py
 <<<<<<< SEARCH
 old
 =======
 new
->>>>>>> REPLACE'''
+>>>>>>> REPLACE"""
 
         mutations = parser.parse(text)
 
@@ -466,11 +457,7 @@ new
                     return False
 
             # Check allowed prefixes
-            for prefix in allowed_prefixes:
-                if file_path.startswith(prefix):
-                    return True
-
-            return False
+            return any(file_path.startswith(prefix) for prefix in allowed_prefixes)
 
         # Test allowed paths
         assert is_allowed_path("core/utils.py") is True
@@ -507,6 +494,7 @@ new
 # TEST: apply_mutation Function
 # =============================================================================
 
+
 class TestApplyMutation:
     """Tests for apply_mutation function."""
 
@@ -516,7 +504,7 @@ class TestApplyMutation:
             file=str(temp_file),
             operation="REPLACE",
             search="def old_function():\n    return 42",
-            replace="def old_function():\n    return 100"
+            replace="def old_function():\n    return 100",
         )
 
         success, message = apply_mutation(temp_file, mutation)
@@ -529,10 +517,7 @@ class TestApplyMutation:
     def test_apply_append_mutation(self, temp_file):
         """Test applying an APPEND mutation."""
         mutation = Mutation(
-            file=str(temp_file),
-            operation="APPEND",
-            search=None,
-            replace="def new_function():\n    return 999"
+            file=str(temp_file), operation="APPEND", search=None, replace="def new_function():\n    return 999"
         )
 
         success, message = apply_mutation(temp_file, mutation)
@@ -545,12 +530,7 @@ class TestApplyMutation:
         """Test applying mutation to non-existent file."""
         non_existent = tmp_path / "does_not_exist.py"
 
-        mutation = Mutation(
-            file=str(non_existent),
-            operation="REPLACE",
-            search="old",
-            replace="new"
-        )
+        mutation = Mutation(file=str(non_existent), operation="REPLACE", search="old", replace="new")
 
         success, message = apply_mutation(non_existent, mutation)
 
@@ -560,10 +540,7 @@ class TestApplyMutation:
     def test_apply_mutation_search_not_found(self, temp_file):
         """Test applying mutation when search content not found."""
         mutation = Mutation(
-            file=str(temp_file),
-            operation="REPLACE",
-            search="this_does_not_exist_in_file",
-            replace="new_content"
+            file=str(temp_file), operation="REPLACE", search="this_does_not_exist_in_file", replace="new_content"
         )
 
         success, message = apply_mutation(temp_file, mutation)
@@ -577,7 +554,7 @@ class TestApplyMutation:
             file=str(temp_file),
             operation="REPLACE",
             search="def old_function():\n    return 42",
-            replace="def old_function(\n    return 42"  # Invalid syntax
+            replace="def old_function(\n    return 42",  # Invalid syntax
         )
 
         success, message = apply_mutation(temp_file, mutation)
@@ -590,6 +567,7 @@ class TestApplyMutation:
 # TEST: Mutation.to_dict Compatibility
 # =============================================================================
 
+
 class TestMutationToDict:
     """Tests for Mutation.to_dict() legacy compatibility."""
 
@@ -601,7 +579,7 @@ class TestMutationToDict:
             search="old_code",
             replace="new_code",
             reason="Test mutation",
-            expected_asi_impact=0.05
+            expected_asi_impact=0.05,
         )
 
         result = mutation.to_dict()
@@ -617,11 +595,7 @@ class TestMutationToDict:
     def test_to_dict_append_operation(self):
         """Test to_dict for APPEND operation."""
         mutation = Mutation(
-            file="core/test.py",
-            operation="APPEND",
-            search=None,
-            replace="new_code",
-            reason="Add feature"
+            file="core/test.py", operation="APPEND", search=None, replace="new_code", reason="Add feature"
         )
 
         result = mutation.to_dict()
@@ -636,6 +610,7 @@ class TestMutationToDict:
 # TEST: format_mutation (Roundtrip)
 # =============================================================================
 
+
 class TestFormatMutation:
     """Tests for format_mutation reverse operation."""
 
@@ -647,7 +622,7 @@ class TestFormatMutation:
             search="old_code",
             replace="new_code",
             reason="Test",
-            expected_asi_impact=0.02
+            expected_asi_impact=0.02,
         )
 
         formatted = parser.format_mutation(mutation)
@@ -667,7 +642,7 @@ class TestFormatMutation:
             search=None,
             replace="new_code",
             reason="Test",
-            expected_asi_impact=0.02
+            expected_asi_impact=0.02,
         )
 
         formatted = parser.format_mutation(mutation)
@@ -685,7 +660,7 @@ class TestFormatMutation:
             search="def old():\n    pass",
             replace="def new():\n    return 42",
             reason="Improve function",
-            expected_asi_impact=0.03
+            expected_asi_impact=0.03,
         )
 
         # Format to text

@@ -14,13 +14,13 @@ Date: 2025-12-13
 """
 
 from abc import ABC, abstractmethod
-from enum import Enum
-from typing import Optional, List, Any
 from dataclasses import dataclass
+from enum import Enum
 
 
 class InteractionLevel(Enum):
     """Log levels for announcements."""
+
     DEBUG = "debug"
     INFO = "info"
     WARNING = "warning"
@@ -35,7 +35,8 @@ class InteractionRequiredError(Exception):
     This exception should be caught at the API boundary and
     converted to an appropriate HTTP response (e.g., 422 Unprocessable).
     """
-    def __init__(self, prompt: str, context: Optional[str] = None):
+
+    def __init__(self, prompt: str, context: str | None = None):
         self.prompt = prompt
         self.context = context
         message = f"User interaction required: {prompt}"
@@ -47,9 +48,10 @@ class InteractionRequiredError(Exception):
 @dataclass
 class Choice:
     """A choice option for multiple-choice prompts."""
+
     key: str
     label: str
-    description: Optional[str] = None
+    description: str | None = None
 
 
 class InteractionProvider(ABC):
@@ -65,11 +67,7 @@ class InteractionProvider(ABC):
 
     @abstractmethod
     async def ask(
-        self,
-        prompt: str,
-        default: Optional[str] = None,
-        timeout: Optional[float] = None,
-        required: bool = False
+        self, prompt: str, default: str | None = None, timeout: float | None = None, required: bool = False
     ) -> str:
         """
         Ask user for text input.
@@ -90,12 +88,7 @@ class InteractionProvider(ABC):
         pass
 
     @abstractmethod
-    async def confirm(
-        self,
-        prompt: str,
-        default: bool = False,
-        timeout: Optional[float] = None
-    ) -> bool:
+    async def confirm(self, prompt: str, default: bool = False, timeout: float | None = None) -> bool:
         """
         Ask for yes/no confirmation.
 
@@ -111,11 +104,7 @@ class InteractionProvider(ABC):
 
     @abstractmethod
     async def choose(
-        self,
-        prompt: str,
-        choices: List[Choice],
-        default: Optional[str] = None,
-        timeout: Optional[float] = None
+        self, prompt: str, choices: list[Choice], default: str | None = None, timeout: float | None = None
     ) -> str:
         """
         Present multiple choices to user.
@@ -132,11 +121,7 @@ class InteractionProvider(ABC):
         pass
 
     @abstractmethod
-    async def announce(
-        self,
-        message: str,
-        level: InteractionLevel = InteractionLevel.INFO
-    ) -> None:
+    async def announce(self, message: str, level: InteractionLevel = InteractionLevel.INFO) -> None:
         """
         Announce a message to the user.
 
@@ -147,12 +132,7 @@ class InteractionProvider(ABC):
         pass
 
     @abstractmethod
-    async def progress(
-        self,
-        message: str,
-        current: int,
-        total: int
-    ) -> None:
+    async def progress(self, message: str, current: int, total: int) -> None:
         """
         Report progress to user.
 

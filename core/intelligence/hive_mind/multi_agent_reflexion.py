@@ -26,7 +26,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -35,29 +35,32 @@ logger = logging.getLogger(__name__)
 # Data types
 # ---------------------------------------------------------------------------
 
+
 class ReflexionMode(str, Enum):
     """Mode of cross-agent reflection."""
-    INDEPENDENT = "independent"    # Agents reflect separately
-    ADVERSARIAL = "adversarial"    # Agents challenge each other
+
+    INDEPENDENT = "independent"  # Agents reflect separately
+    ADVERSARIAL = "adversarial"  # Agents challenge each other
     CONSTRUCTIVE = "constructive"  # Agents build on each other
 
 
 @dataclass
 class AgentReflection:
     """Single agent's reflection on a failure."""
+
     agent_id: str
     root_cause: str
-    evidence: List[str] = field(default_factory=list)
+    evidence: list[str] = field(default_factory=list)
     proposed_fix: str = ""
     confidence: float = 0.5
-    novel_insight: bool = False      # Whether this adds new info
+    novel_insight: bool = False  # Whether this adds new info
     timestamp: float = 0.0
 
     def __post_init__(self) -> None:
         if self.timestamp == 0.0:
             self.timestamp = time.time()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "agent_id": self.agent_id,
             "root_cause": self.root_cause[:200],
@@ -71,16 +74,17 @@ class AgentReflection:
 @dataclass
 class ReflexionSynthesis:
     """Synthesized multi-agent reflection."""
+
     consensus_cause: str
-    consensus_evidence: List[str]
-    diverse_insights: List[str]        # Unique insights from different agents
+    consensus_evidence: list[str]
+    diverse_insights: list[str]  # Unique insights from different agents
     proposed_strategy: str
-    agreement_level: float             # 0-1: how much agents agreed
+    agreement_level: float  # 0-1: how much agents agreed
     degeneration_detected: bool = False  # True if repeated failure pattern
     mode_used: ReflexionMode = ReflexionMode.INDEPENDENT
     reflection_count: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "consensus_cause": self.consensus_cause[:200],
             "evidence_count": len(self.consensus_evidence),
@@ -94,13 +98,14 @@ class ReflexionSynthesis:
 @dataclass
 class ReflexionStats:
     """Aggregate statistics."""
+
     total_reflexions: int = 0
     degeneration_detections: int = 0
     avg_agreement: float = 0.0
-    mode_counts: Dict[str, int] = field(default_factory=dict)
-    insight_counts: Dict[str, int] = field(default_factory=dict)  # agent → novel insights
+    mode_counts: dict[str, int] = field(default_factory=dict)
+    insight_counts: dict[str, int] = field(default_factory=dict)  # agent → novel insights
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_reflexions": self.total_reflexions,
             "degeneration_detections": self.degeneration_detections,
@@ -136,6 +141,7 @@ DIVERSITY_WEIGHT: float = 0.4
 # Core: MultiAgentReflexion
 # ---------------------------------------------------------------------------
 
+
 class MultiAgentReflexion:
     """
     MAR-inspired cross-agent reflection system.
@@ -162,17 +168,17 @@ class MultiAgentReflexion:
         self._max_history = max_history
         self._lock = threading.Lock()
         self._stats = ReflexionStats()
-        self._failure_history: List[str] = []  # Fingerprints of past failure causes
-        self._cause_history: List[Tuple[str, str]] = []  # (task_fingerprint, cause)
+        self._failure_history: list[str] = []  # Fingerprints of past failure causes
+        self._cause_history: list[tuple[str, str]] = []  # (task_fingerprint, cause)
 
     # -- public API --
 
     def synthesize(
         self,
-        reflections: List[AgentReflection],
+        reflections: list[AgentReflection],
         failure_context: str = "",
         attempt_number: int = 1,
-        force_mode: Optional[ReflexionMode] = None,
+        force_mode: ReflexionMode | None = None,
     ) -> ReflexionSynthesis:
         """
         Synthesize multi-agent reflections into actionable insight.
@@ -231,18 +237,16 @@ class MultiAgentReflexion:
             mode_key = mode.value
             self._stats.mode_counts[mode_key] = self._stats.mode_counts.get(mode_key, 0) + 1
             n = self._stats.total_reflexions
-            self._stats.avg_agreement = (
-                (self._stats.avg_agreement * (n - 1) + synthesis.agreement_level) / n
-            )
+            self._stats.avg_agreement = (self._stats.avg_agreement * (n - 1) + synthesis.agreement_level) / n
             for r in reflections:
                 if r.novel_insight:
-                    self._stats.insight_counts[r.agent_id] = (
-                        self._stats.insight_counts.get(r.agent_id, 0) + 1
-                    )
+                    self._stats.insight_counts[r.agent_id] = self._stats.insight_counts.get(r.agent_id, 0) + 1
 
         logger.debug(
             "MAR synthesis: mode=%s, agreement=%.2f, degeneration=%s, insights=%d",
-            mode.value, synthesis.agreement_level, degeneration,
+            mode.value,
+            synthesis.agreement_level,
+            degeneration,
             len(synthesis.diverse_insights),
         )
 
@@ -260,21 +264,15 @@ class MultiAgentReflexion:
         Parses natural language diagnosis into structured fields.
         """
         # Extract root cause (first sentence or line)
-        lines = [l.strip() for l in diagnosis_text.strip().split("\n") if l.strip()]
+        lines = [ln.strip() for ln in diagnosis_text.strip().split("\n") if ln.strip()]
         root_cause = lines[0] if lines else "Unknown"
 
         # Extract evidence (lines that look like bullet points or data)
-        evidence = [
-            l for l in lines[1:]
-            if l.startswith(("-", "*", ">>", "Error:", "File:", "Line:"))
-        ]
+        evidence = [ln for ln in lines[1:] if ln.startswith(("-", "*", ">>", "Error:", "File:", "Line:"))]
 
         # Extract fix (lines with "fix", "should", "need to", "try")
         fix_keywords = {"fix", "should", "need", "try", "instead", "correct", "change"}
-        fix_lines = [
-            l for l in lines
-            if any(kw in l.lower() for kw in fix_keywords)
-        ]
+        fix_lines = [ln for ln in lines if any(kw in ln.lower() for kw in fix_keywords)]
         proposed_fix = fix_lines[0] if fix_lines else ""
 
         # Estimate confidence from language certainty
@@ -339,7 +337,7 @@ class MultiAgentReflexion:
 
     def _detect_degeneration(
         self,
-        reflections: List[AgentReflection],
+        reflections: list[AgentReflection],
         failure_context: str,
     ) -> bool:
         """
@@ -361,10 +359,7 @@ class MultiAgentReflexion:
         if len(unique_causes) <= 1:
             # ...and we've seen this cause before for this context
             fp = self._fingerprint(failure_context)
-            past_causes = [
-                cause for past_fp, cause in self._cause_history
-                if past_fp == fp
-            ]
+            past_causes = [cause for past_fp, cause in self._cause_history if past_fp == fp]
             if past_causes:
                 # Check if new cause matches past causes
                 current = list(unique_causes)[0] if unique_causes else ""
@@ -376,7 +371,7 @@ class MultiAgentReflexion:
 
     def _independent_synthesis(
         self,
-        reflections: List[AgentReflection],
+        reflections: list[AgentReflection],
     ) -> ReflexionSynthesis:
         """Synthesize independent reflections by finding consensus and diversity."""
         if len(reflections) == 1:
@@ -400,8 +395,8 @@ class MultiAgentReflexion:
         consensus_cause = best_reflection.root_cause
 
         # Merge evidence
-        all_evidence: List[str] = []
-        seen_evidence: Set[str] = set()
+        all_evidence: list[str] = []
+        seen_evidence: set[str] = set()
         for r in reflections:
             for e in r.evidence:
                 normalized = e.lower().strip()
@@ -410,7 +405,7 @@ class MultiAgentReflexion:
                     all_evidence.append(e)
 
         # Find diverse insights (unique to each agent)
-        diverse: List[str] = []
+        diverse: list[str] = []
         for i, r in enumerate(reflections):
             other_words = set()
             for j, r2 in enumerate(reflections):
@@ -419,9 +414,7 @@ class MultiAgentReflexion:
 
             unique_words = set(r.root_cause.lower().split()) - other_words
             if unique_words and len(unique_words) > 2:
-                diverse.append(
-                    f"[{r.agent_id}] {r.root_cause}"
-                )
+                diverse.append(f"[{r.agent_id}] {r.root_cause}")
 
         # Agreement level
         if not all_cause_words[0]:
@@ -451,7 +444,7 @@ class MultiAgentReflexion:
 
     def _adversarial_synthesis(
         self,
-        reflections: List[AgentReflection],
+        reflections: list[AgentReflection],
         degeneration: bool,
     ) -> ReflexionSynthesis:
         """
@@ -468,9 +461,7 @@ class MultiAgentReflexion:
             # Prefer the minority opinion if any
             for r in reflections:
                 if r.novel_insight:
-                    synthesis.consensus_cause = (
-                        f"ALTERNATIVE: {r.root_cause} (novel insight from {r.agent_id})"
-                    )
+                    synthesis.consensus_cause = f"ALTERNATIVE: {r.root_cause} (novel insight from {r.agent_id})"
                     break
 
         # Lower agreement to signal challenge needed
@@ -480,7 +471,7 @@ class MultiAgentReflexion:
 
     def _constructive_synthesis(
         self,
-        reflections: List[AgentReflection],
+        reflections: list[AgentReflection],
     ) -> ReflexionSynthesis:
         """
         Constructive synthesis: agents build on each other's insights.
@@ -501,7 +492,7 @@ class MultiAgentReflexion:
 
     def _generate_anti_degeneration_strategy(
         self,
-        reflections: List[AgentReflection],
+        reflections: list[AgentReflection],
         failure_context: str,
         attempt_number: int,
     ) -> str:
@@ -532,9 +523,9 @@ class MultiAgentReflexion:
             self._failure_history.append(fp)
             self._cause_history.append((fp, cause.lower()[:100]))
             if len(self._failure_history) > self._max_history:
-                self._failure_history = self._failure_history[-self._max_history:]
+                self._failure_history = self._failure_history[-self._max_history :]
             if len(self._cause_history) > self._max_history:
-                self._cause_history = self._cause_history[-self._max_history:]
+                self._cause_history = self._cause_history[-self._max_history :]
 
     def _is_novel_insight(self, root_cause: str) -> bool:
         """Check if this root cause is novel compared to history."""
@@ -565,7 +556,7 @@ class MultiAgentReflexion:
 # Singleton
 # ---------------------------------------------------------------------------
 
-_instance: Optional[MultiAgentReflexion] = None
+_instance: MultiAgentReflexion | None = None
 _instance_lock = threading.Lock()
 
 

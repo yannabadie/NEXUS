@@ -16,8 +16,6 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.utils.config_manager import (
     ConfigEntry,
     ConfigManager,
@@ -26,10 +24,10 @@ from core.utils.config_manager import (
     reset_config_manager,
 )
 
-
 # =============================================================================
 # ConfigEntry Tests
 # =============================================================================
+
 
 class TestConfigEntry:
     """Test ConfigEntry dataclass."""
@@ -57,6 +55,7 @@ class TestConfigEntry:
 # ConfigValidation Tests
 # =============================================================================
 
+
 class TestConfigValidation:
     """Test ConfigValidation."""
 
@@ -74,6 +73,7 @@ class TestConfigValidation:
 # =============================================================================
 # Set Tests
 # =============================================================================
+
 
 class TestSet:
     """Test set operations."""
@@ -103,10 +103,12 @@ class TestSet:
 
     def test_load_dict(self):
         cfg = ConfigManager()
-        count = cfg.load_dict({
-            "swarm": {"mode": "parallel", "depth": 3},
-            "models": {"provider": "claude"},
-        })
+        count = cfg.load_dict(
+            {
+                "swarm": {"mode": "parallel", "depth": 3},
+                "models": {"provider": "claude"},
+            }
+        )
         assert count == 3
         assert cfg.get("swarm", "mode") == "parallel"
         assert cfg.get("models", "provider") == "claude"
@@ -115,6 +117,7 @@ class TestSet:
 # =============================================================================
 # Get Tests
 # =============================================================================
+
 
 class TestGet:
     """Test get operations."""
@@ -211,6 +214,7 @@ class TestGet:
 # Delete Tests
 # =============================================================================
 
+
 class TestDelete:
     """Test delete operations."""
 
@@ -246,6 +250,7 @@ class TestDelete:
 # Validation Tests
 # =============================================================================
 
+
 class TestValidation:
     """Test validation."""
 
@@ -276,6 +281,7 @@ class TestValidation:
 # =============================================================================
 # Listing Tests
 # =============================================================================
+
 
 class TestListing:
     """Test listing operations."""
@@ -316,6 +322,7 @@ class TestListing:
 # State Tests
 # =============================================================================
 
+
 class TestState:
     """Test state management."""
 
@@ -353,6 +360,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global config manager."""
 
@@ -379,21 +387,32 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_utils_package(self):
         from core.utils import (
-            ConfigManager, ConfigEntry,
-            get_config_manager, reset_config_manager,
+            ConfigEntry,
+            ConfigManager,
+            get_config_manager,
+            reset_config_manager,
         )
-        assert all([
-            ConfigManager, ConfigEntry,
-            get_config_manager, reset_config_manager,
-        ])
+
+        assert all(
+            [
+                ConfigManager,
+                ConfigEntry,
+                get_config_manager,
+                reset_config_manager,
+            ]
+        )
 
     def test_from_module(self):
         from core.utils.config_manager import (
-            ConfigManager, ConfigEntry, ConfigValidation,
+            ConfigEntry,
+            ConfigManager,
+            ConfigValidation,
         )
+
         assert all([ConfigManager, ConfigEntry, ConfigValidation])

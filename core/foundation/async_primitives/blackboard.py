@@ -36,13 +36,14 @@ Usage:
 from __future__ import annotations
 
 import copy
-from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar, Union
+from collections.abc import Callable
 from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any, TypeVar
 
 from .rwlock import AsyncRWLock, InstrumentedAsyncRWLock
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 @dataclass
@@ -58,11 +59,12 @@ class BlackboardEntry:
         ttl_seconds: Optional time-to-live
         version: Monotonic version number for CAS operations (GROK-001 fix)
     """
+
     value: Any
     created_at: datetime = field(default_factory=datetime.now)
     updated_at: datetime = field(default_factory=datetime.now)
-    source: Optional[str] = None
-    ttl_seconds: Optional[float] = None
+    source: str | None = None
+    ttl_seconds: float | None = None
     version: int = 1  # V8.4.7: CAS support for PARALLEL mode race conditions
 
     @property
@@ -82,11 +84,7 @@ class AsyncBlackboard:
     proper locking for concurrent access.
     """
 
-    def __init__(
-        self,
-        initial_data: Optional[Dict[str, Any]] = None,
-        instrumented: bool = False
-    ):
+    def __init__(self, initial_data: dict[str, Any] | None = None, instrumented: bool = False):
         """
         Initialize the blackboard.
 
@@ -94,19 +92,14 @@ class AsyncBlackboard:
             initial_data: Optional initial data to populate
             instrumented: If True, use instrumented lock for stats
         """
-        self._data: Dict[str, BlackboardEntry] = {}
+        self._data: dict[str, BlackboardEntry] = {}
         self._lock = InstrumentedAsyncRWLock() if instrumented else AsyncRWLock()
 
         if initial_data:
             for key, value in initial_data.items():
                 self._data[key] = BlackboardEntry(value=value)
 
-    async def get(
-        self,
-        key: str,
-        default: T = None,
-        include_expired: bool = False
-    ) -> Union[Any, T]:
+    async def get(self, key: str, default: T = None, include_expired: bool = False) -> Any | T:
         """
         Get a value from the blackboard.
 
@@ -126,13 +119,7 @@ class AsyncBlackboard:
                 return default
             return entry.value
 
-    async def set(
-        self,
-        key: str,
-        value: Any,
-        source: Optional[str] = None,
-        ttl_seconds: Optional[float] = None
-    ) -> int:
+    async def set(self, key: str, value: Any, source: str | None = None, ttl_seconds: float | None = None) -> int:
         """
         Set a value in the blackboard.
 
@@ -161,12 +148,7 @@ class AsyncBlackboard:
             else:
                 # Create new with version 1
                 self._data[key] = BlackboardEntry(
-                    value=value,
-                    created_at=now,
-                    updated_at=now,
-                    source=source,
-                    ttl_seconds=ttl_seconds,
-                    version=1
+                    value=value, created_at=now, updated_at=now, source=source, ttl_seconds=ttl_seconds, version=1
                 )
                 return 1
 
@@ -186,11 +168,7 @@ class AsyncBlackboard:
                 return True
             return False
 
-    async def update(
-        self,
-        updates: Dict[str, Any],
-        source: Optional[str] = None
-    ) -> None:
+    async def update(self, updates: dict[str, Any], source: str | None = None) -> None:
         """
         Update multiple values atomically.
 
@@ -208,19 +186,10 @@ class AsyncBlackboard:
                     if source:
                         entry.source = source
                 else:
-                    self._data[key] = BlackboardEntry(
-                        value=value,
-                        created_at=now,
-                        updated_at=now,
-                        source=source
-                    )
+                    self._data[key] = BlackboardEntry(value=value, created_at=now, updated_at=now, source=source)
 
     async def get_or_set(
-        self,
-        key: str,
-        default_factory: Callable[[], T],
-        source: Optional[str] = None,
-        ttl_seconds: Optional[float] = None
+        self, key: str, default_factory: Callable[[], T], source: str | None = None, ttl_seconds: float | None = None
     ) -> T:
         """
         Get a value, or set it if not present (atomic operation).
@@ -251,15 +220,11 @@ class AsyncBlackboard:
             value = default_factory()
             now = datetime.now()
             self._data[key] = BlackboardEntry(
-                value=value,
-                created_at=now,
-                updated_at=now,
-                source=source,
-                ttl_seconds=ttl_seconds
+                value=value, created_at=now, updated_at=now, source=source, ttl_seconds=ttl_seconds
             )
             return value
 
-    async def snapshot(self, deep_copy: bool = True) -> Dict[str, Any]:
+    async def snapshot(self, deep_copy: bool = True) -> dict[str, Any]:
         """
         Get a snapshot of all current values.
 
@@ -273,19 +238,11 @@ class AsyncBlackboard:
         """
         async with self._lock.read():
             if deep_copy:
-                return {
-                    k: copy.deepcopy(v.value)
-                    for k, v in self._data.items()
-                    if not v.is_expired
-                }
+                return {k: copy.deepcopy(v.value) for k, v in self._data.items() if not v.is_expired}
             else:
-                return {
-                    k: v.value
-                    for k, v in self._data.items()
-                    if not v.is_expired
-                }
+                return {k: v.value for k, v in self._data.items() if not v.is_expired}
 
-    async def keys(self, include_expired: bool = False) -> List[str]:
+    async def keys(self, include_expired: bool = False) -> list[str]:
         """Get all keys in the blackboard."""
         async with self._lock.read():
             if include_expired:
@@ -323,7 +280,7 @@ class AsyncBlackboard:
                 del self._data[key]
             return len(expired_keys)
 
-    async def get_metadata(self, key: str) -> Optional[Dict[str, Any]]:
+    async def get_metadata(self, key: str) -> dict[str, Any] | None:
         """
         Get metadata for an entry.
 
@@ -343,7 +300,7 @@ class AsyncBlackboard:
                 "version": entry.version,  # V8.4.7: CAS support
             }
 
-    async def namespaced_keys(self, namespace: str) -> List[str]:
+    async def namespaced_keys(self, namespace: str) -> list[str]:
         """
         Get all keys with a given namespace prefix.
 
@@ -354,10 +311,7 @@ class AsyncBlackboard:
             List of matching keys
         """
         async with self._lock.read():
-            return [
-                k for k, v in self._data.items()
-                if k.startswith(namespace) and not v.is_expired
-            ]
+            return [k for k, v in self._data.items() if k.startswith(namespace) and not v.is_expired]
 
     async def size(self) -> int:
         """Get the number of entries (excluding expired)."""
@@ -369,12 +323,7 @@ class AsyncBlackboard:
     # Compare-And-Swap for atomic operations in PARALLEL swarm mode
     # =========================================================================
 
-    async def get_with_version(
-        self,
-        key: str,
-        default: T = None,
-        include_expired: bool = False
-    ) -> Tuple[Union[Any, T], int]:
+    async def get_with_version(self, key: str, default: T = None, include_expired: bool = False) -> tuple[Any | T, int]:
         """
         Get a value along with its version number.
 
@@ -402,9 +351,9 @@ class AsyncBlackboard:
         key: str,
         expected_version: int,
         new_value: Any,
-        source: Optional[str] = None,
-        ttl_seconds: Optional[float] = None
-    ) -> Tuple[bool, int]:
+        source: str | None = None,
+        ttl_seconds: float | None = None,
+    ) -> tuple[bool, int]:
         """
         Atomic Compare-And-Set (CAS) operation.
 
@@ -446,7 +395,7 @@ class AsyncBlackboard:
                         updated_at=now,
                         source=source,
                         ttl_seconds=ttl_seconds,
-                        version=1
+                        version=1,
                     )
                     return True, 1
                 else:
@@ -469,11 +418,7 @@ class AsyncBlackboard:
 
             return True, entry.version
 
-    async def expire_if_version(
-        self,
-        key: str,
-        expected_version: int
-    ) -> Tuple[bool, int]:
+    async def expire_if_version(self, key: str, expected_version: int) -> tuple[bool, int]:
         """
         Atomically expire (delete) a key only if version matches.
 
@@ -504,12 +449,8 @@ class AsyncBlackboard:
             return True, 0
 
     async def update_if_fresh(
-        self,
-        key: str,
-        new_value: Any,
-        max_age_seconds: float,
-        source: Optional[str] = None
-    ) -> Tuple[bool, int]:
+        self, key: str, new_value: Any, max_age_seconds: float, source: str | None = None
+    ) -> tuple[bool, int]:
         """
         Update a value only if the existing entry is still fresh (not stale).
 
@@ -554,9 +495,6 @@ class AsyncBlackboard:
 
 
 # Convenience function for creating a blackboard
-def create_blackboard(
-    initial_data: Optional[Dict[str, Any]] = None,
-    instrumented: bool = False
-) -> AsyncBlackboard:
+def create_blackboard(initial_data: dict[str, Any] | None = None, instrumented: bool = False) -> AsyncBlackboard:
     """Create a new AsyncBlackboard instance."""
     return AsyncBlackboard(initial_data, instrumented)

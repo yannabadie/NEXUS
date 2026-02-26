@@ -53,48 +53,47 @@ Date: 2025-02-18 (POC), 2025-02-20 (Auto-Integration)
 """
 
 # Core structures
-from .code_graph import CodeGraph, Symbol, Dependency, DependencyType, SymbolType
-
 # Parsing
-from .ast_parser import parse_python_file, extract_symbols
-
-# Scanning
-from .scanner import scan_codebase, ScanStats
-
-# Queries
-from .query_engine import (
-    query_dependencies,
-    analyze_impact,
-    semantic_search,
-    DependencyResult,
-    ImpactResult,
-    SearchResult,
-)
+from .ast_parser import extract_symbols, parse_python_file
 
 # Self-auditing
 from .auditor import (
+    AuditStats,
+    GraphFreshnessMetrics,
     MetagraphAuditor,
+    QueryMetrics,
     get_auditor,
     reset_auditor,
     track_query,
-    AuditStats,
-    QueryMetrics,
-    GraphFreshnessMetrics,
 )
 
 # Auto-integration
 from .auto_manager import (
     AutoManager,
-    get_manager,
-    reset_manager,
-    get_graph,
     auto_refresh,
-    get_impact_before_edit,
-    find_experts_for_file,
     check_dependency_safety,
-    is_graph_available,
+    find_experts_for_file,
+    get_graph,
+    get_impact_before_edit,
+    get_manager,
     get_metagraph_stats,
+    is_graph_available,
+    reset_manager,
 )
+from .code_graph import CodeGraph, Dependency, DependencyType, Symbol, SymbolType
+
+# Queries
+from .query_engine import (
+    DependencyResult,
+    ImpactResult,
+    SearchResult,
+    analyze_impact,
+    query_dependencies,
+    semantic_search,
+)
+
+# Scanning
+from .scanner import ScanStats, scan_codebase
 
 __all__ = [
     # Core structures

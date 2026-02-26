@@ -4,14 +4,14 @@ Tests for Phase 9: Fast Path UX
 Fast Path bypasses FSM for trivial conversational inputs to achieve <2s response time.
 """
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
-from pathlib import Path
 import time
+from pathlib import Path
+from unittest.mock import Mock
+
+import pytest
 
 from core.config import Config
 from core.intelligence.swarm.task_analyzer import TaskAnalyzer, TaskComplexity
-from core.fsm.states import OrchestratorState
 
 
 class TestFastPathConfig:
@@ -20,7 +20,7 @@ class TestFastPathConfig:
     def test_fast_path_enabled_default(self):
         """Fast path should be enabled by default."""
         config = Config()
-        assert hasattr(config, 'fast_path_enabled')
+        assert hasattr(config, "fast_path_enabled")
         assert config.fast_path_enabled is True
 
     def test_fast_path_can_be_disabled(self, monkeypatch):
@@ -38,65 +38,93 @@ class TestConversationalTrivialDetection:
         return TaskAnalyzer()
 
     # Greetings
-    @pytest.mark.parametrize("input_text", [
-        "hello", "Hello", "HELLO",
-        "hi", "Hi!", "hey",
-        "bonjour", "Bonjour!", "salut", "Salut",
-        "coucou", "hola", "hallo",
-        "good morning", "good evening", "bonsoir"
-    ])
+    @pytest.mark.parametrize(
+        "input_text",
+        [
+            "hello",
+            "Hello",
+            "HELLO",
+            "hi",
+            "Hi!",
+            "hey",
+            "bonjour",
+            "Bonjour!",
+            "salut",
+            "Salut",
+            "coucou",
+            "hola",
+            "hallo",
+            "good morning",
+            "good evening",
+            "bonsoir",
+        ],
+    )
     def test_greetings_are_trivial(self, analyzer, input_text):
         """Greetings should be detected as trivial."""
         assert analyzer.is_conversational_trivial(input_text) is True
 
     # Farewells
-    @pytest.mark.parametrize("input_text", [
-        "bye", "goodbye", "au revoir",
-        "ciao", "adieu", "a+"
-    ])
+    @pytest.mark.parametrize("input_text", ["bye", "goodbye", "au revoir", "ciao", "adieu", "a+"])
     def test_farewells_are_trivial(self, analyzer, input_text):
         """Farewells should be detected as trivial."""
         assert analyzer.is_conversational_trivial(input_text) is True
 
     # Acknowledgments
-    @pytest.mark.parametrize("input_text", [
-        "ok", "OK", "okay",
-        "oui", "yes", "non", "no",
-        "merci", "Merci!", "thanks", "thank you", "thx",
-        "parfait", "perfect", "great", "cool", "super",
-        "compris", "understood", "got it"
-    ])
+    @pytest.mark.parametrize(
+        "input_text",
+        [
+            "ok",
+            "OK",
+            "okay",
+            "oui",
+            "yes",
+            "non",
+            "no",
+            "merci",
+            "Merci!",
+            "thanks",
+            "thank you",
+            "thx",
+            "parfait",
+            "perfect",
+            "great",
+            "cool",
+            "super",
+            "compris",
+            "understood",
+            "got it",
+        ],
+    )
     def test_acknowledgments_are_trivial(self, analyzer, input_text):
         """Acknowledgments should be detected as trivial."""
         assert analyzer.is_conversational_trivial(input_text) is True
 
     # Testing/probing
-    @pytest.mark.parametrize("input_text", [
-        "test", "testing", "ping", "pong", "123"
-    ])
+    @pytest.mark.parametrize("input_text", ["test", "testing", "ping", "pong", "123"])
     def test_testing_inputs_are_trivial(self, analyzer, input_text):
         """Testing inputs should be detected as trivial."""
         assert analyzer.is_conversational_trivial(input_text) is True
 
     # Continuation prompts
-    @pytest.mark.parametrize("input_text", [
-        "continue", "continues", "go on", "vas-y", "go ahead"
-    ])
+    @pytest.mark.parametrize("input_text", ["continue", "continues", "go on", "vas-y", "go ahead"])
     def test_continuation_prompts_are_trivial(self, analyzer, input_text):
         """Continuation prompts should be detected as trivial."""
         assert analyzer.is_conversational_trivial(input_text) is True
 
     # Non-trivial inputs that should NOT match
-    @pytest.mark.parametrize("input_text", [
-        "Analyse ce code",
-        "Implement a function to calculate fibonacci",
-        "Debug this error",
-        "What is the architecture of this project?",
-        "Help me refactor the authentication module",
-        "Create a new REST API endpoint",
-        "hello world program in python",  # Contains code intent
-        "test the authentication module",  # Contains code intent
-    ])
+    @pytest.mark.parametrize(
+        "input_text",
+        [
+            "Analyse ce code",
+            "Implement a function to calculate fibonacci",
+            "Debug this error",
+            "What is the architecture of this project?",
+            "Help me refactor the authentication module",
+            "Create a new REST API endpoint",
+            "hello world program in python",  # Contains code intent
+            "test the authentication module",  # Contains code intent
+        ],
+    )
     def test_code_requests_are_not_trivial(self, analyzer, input_text):
         """Code-related requests should NOT be detected as trivial."""
         assert analyzer.is_conversational_trivial(input_text) is False
@@ -130,10 +158,7 @@ class TestFastPathIntegration:
     def mock_gemini_driver(self):
         """Create mock Gemini driver."""
         driver = Mock()
-        driver.invoke.return_value = {
-            "content": "Bonjour ! Comment puis-je vous aider ?",
-            "status": "success"
-        }
+        driver.invoke.return_value = {"content": "Bonjour ! Comment puis-je vous aider ?", "status": "success"}
         return driver
 
     def test_fast_path_returns_immediately(self, mock_gemini_driver):
@@ -150,10 +175,9 @@ class TestFastPathIntegration:
         # Simulate fast path response
         start_time = time.time()
         mock_gemini_driver.invoke.return_value = {"content": "Hello!"}
-        response = mock_gemini_driver.invoke({
-            "prompt": f"Tu es NEXUS. Réponds brièvement à: {user_input}",
-            "task_type": "simple"
-        })
+        response = mock_gemini_driver.invoke(
+            {"prompt": f"Tu es NEXUS. Réponds brièvement à: {user_input}", "task_type": "simple"}
+        )
         elapsed = time.time() - start_time
 
         # Should be very fast (mock doesn't actually call API)
@@ -201,7 +225,7 @@ class TestFastPathResponse:
             "status": "FINISHED",
             "state": "IDLE",
             "finished": True,
-            "fast_path": True
+            "fast_path": True,
         }
 
         for key in expected_keys:
@@ -220,7 +244,7 @@ class TestFastPathResponse:
             "status": "FINISHED",
             "state": "IDLE",
             "finished": True,
-            "fast_path": True
+            "fast_path": True,
         }
 
         assert response["state"] == "IDLE"

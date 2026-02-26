@@ -13,12 +13,12 @@ Date: 2025-12-16
 """
 
 import asyncio
-import pytest
-from datetime import datetime
-from uuid import uuid4
-
 import sys
 from pathlib import Path
+from uuid import uuid4
+
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.workflow import (
@@ -66,13 +66,13 @@ class TestRedisWorkflowRegistryUnit:
             workflow_ttl_hours=48,
         )
         assert registry._redis_url == "redis://test:6379"
-        assert registry._use_redis == False
+        assert not registry._use_redis
         assert registry._workflow_ttl == 48 * 3600
 
     def test_initial_state(self):
         """Test registry initial state."""
         registry = RedisWorkflowRegistry()
-        assert registry._connected == False
+        assert not registry._connected
         assert registry._memory_store == {}
         assert registry._tenant_index == {}
 
@@ -238,14 +238,10 @@ class TestRedisWorkflowRegistryInMemory:
             tenant_id=tenant_id,
             task="Running task",
         )
-        await self.registry.update_status(
-            "running-1", tenant_id, WorkflowStatus.RUNNING.value
-        )
+        await self.registry.update_status("running-1", tenant_id, WorkflowStatus.RUNNING.value)
 
         # Filter by running
-        running = await self.registry.list_workflows(
-            tenant_id, status=WorkflowStatus.RUNNING.value
-        )
+        running = await self.registry.list_workflows(tenant_id, status=WorkflowStatus.RUNNING.value)
         assert len(running) == 1
         assert running[0]["workflow_id"] == "running-1"
 
@@ -287,7 +283,7 @@ class TestRedisWorkflowRegistryInMemory:
         )
 
         deleted = await self.registry.delete_workflow(workflow_id, tenant_id)
-        assert deleted == True
+        assert deleted
 
         result = await self.registry.get_workflow(workflow_id, tenant_id)
         assert result is None
@@ -307,9 +303,7 @@ class TestRedisWorkflowRegistryInMemory:
             tenant_id=tenant_id,
             task="Stats test 2",
         )
-        await self.registry.update_status(
-            "stats-2", tenant_id, WorkflowStatus.COMPLETED.value
-        )
+        await self.registry.update_status("stats-2", tenant_id, WorkflowStatus.COMPLETED.value)
 
         stats = self.registry.get_stats()
         assert stats["backend"] == "memory"
@@ -345,9 +339,7 @@ class TestWorkflowLifecycle:
         assert created["status"] == WorkflowStatus.PENDING.value
 
         # Start running
-        running = await self.registry.update_status(
-            workflow_id, tenant_id, WorkflowStatus.RUNNING.value
-        )
+        running = await self.registry.update_status(workflow_id, tenant_id, WorkflowStatus.RUNNING.value)
         assert running["status"] == WorkflowStatus.RUNNING.value
 
         # Complete
@@ -372,9 +364,7 @@ class TestWorkflowLifecycle:
             task="Failure lifecycle test",
         )
 
-        await self.registry.update_status(
-            workflow_id, tenant_id, WorkflowStatus.RUNNING.value
-        )
+        await self.registry.update_status(workflow_id, tenant_id, WorkflowStatus.RUNNING.value)
 
         failed = await self.registry.update_status(
             workflow_id,
@@ -398,13 +388,9 @@ class TestWorkflowLifecycle:
             task="Cancel lifecycle test",
         )
 
-        await self.registry.update_status(
-            workflow_id, tenant_id, WorkflowStatus.RUNNING.value
-        )
+        await self.registry.update_status(workflow_id, tenant_id, WorkflowStatus.RUNNING.value)
 
-        cancelled = await self.registry.update_status(
-            workflow_id, tenant_id, WorkflowStatus.CANCELLED.value
-        )
+        cancelled = await self.registry.update_status(workflow_id, tenant_id, WorkflowStatus.CANCELLED.value)
 
         assert cancelled["status"] == WorkflowStatus.CANCELLED.value
 
@@ -453,9 +439,7 @@ class TestConcurrentOperations:
             )
 
         async def update_workflow(i: int):
-            return await self.registry.update_status(
-                f"update-{i}", tenant_id, WorkflowStatus.COMPLETED.value
-            )
+            return await self.registry.update_status(f"update-{i}", tenant_id, WorkflowStatus.COMPLETED.value)
 
         results = await asyncio.gather(*[update_workflow(i) for i in range(5)])
 

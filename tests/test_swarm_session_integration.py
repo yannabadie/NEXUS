@@ -10,33 +10,29 @@ Author: Claude (NEXUS V7.5)
 Date: 2025-12-04
 """
 
-import tempfile
 import shutil
-from pathlib import Path
-from unittest import TestCase, main
-from unittest.mock import MagicMock, patch, PropertyMock
-from dataclasses import dataclass
-
-import pytest
 
 # Add parent to path for imports
 import sys
+import tempfile
+from pathlib import Path
+from unittest import TestCase, main
+from unittest.mock import MagicMock
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.intelligence.swarm.session_manager import SwarmSessionManager, generate_task_id
 from core.intelligence.swarm.mode_executors import (
-    ExecutionContext,
-    ParallelExecutor,
-    SequentialExecutor,
-    LeadSupportExecutor,
-    PingPongExecutor,
-    SpecialistExecutor,
-    RedBlueExecutor,
     AgentResponse,
+    ExecutionContext,
     ExecutionStatus,
+    LeadSupportExecutor,
+    ParallelExecutor,
+    RedBlueExecutor,
+    SequentialExecutor,
+    SpecialistExecutor,
 )
 from core.intelligence.swarm.mode_selector import AgentAssignment
-from core.intelligence.swarm.collaboration_modes import CollaborationMode
+from core.intelligence.swarm.session_manager import SwarmSessionManager, generate_task_id
 
 
 class TestExecutionContextSessionIntegration(TestCase):
@@ -63,7 +59,7 @@ class TestExecutionContextSessionIntegration(TestCase):
             agent_assignments=[AgentAssignment(agent_id="gemini", role="worker_0")],
             blackboard={},
             task_id=task_id,
-            session_manager=self.session_manager
+            session_manager=self.session_manager,
         )
 
         uuid = context.get_session_uuid("worker_0", "gemini")
@@ -79,7 +75,7 @@ class TestExecutionContextSessionIntegration(TestCase):
             agent_assignments=[AgentAssignment(agent_id="gemini", role="worker_0")],
             blackboard={},
             task_id=None,
-            session_manager=None
+            session_manager=None,
         )
 
         uuid = context.get_session_uuid("worker_0", "gemini")
@@ -93,7 +89,7 @@ class TestExecutionContextSessionIntegration(TestCase):
             agent_assignments=[AgentAssignment(agent_id="gemini", role="worker_0")],
             blackboard={},
             task_id=None,
-            session_manager=self.session_manager
+            session_manager=self.session_manager,
         )
 
         uuid = context.get_session_uuid("worker_0", "gemini")
@@ -110,7 +106,7 @@ class TestExecutionContextSessionIntegration(TestCase):
             agent_assignments=[],
             blackboard={},
             task_id=task_id,
-            session_manager=self.session_manager
+            session_manager=self.session_manager,
         )
 
         uuid1 = context.get_session_uuid("first", "claude")
@@ -128,7 +124,7 @@ class TestExecutionContextSessionIntegration(TestCase):
             agent_assignments=[],
             blackboard={},
             task_id=task_id,
-            session_manager=self.session_manager
+            session_manager=self.session_manager,
         )
 
         lead_uuid = context.get_session_uuid("lead", "claude")
@@ -161,28 +157,24 @@ class TestModeExecutorSessionIsolation(TestCase):
             blackboard={"workspace_path": self.workspace},
             task_id=task_id,
             session_manager=self.session_manager,
-            invoke_agent=self._mock_invoke_agent
+            invoke_agent=self._mock_invoke_agent,
         )
 
     def _mock_invoke_agent(self, agent_id: str, task_type: str, context: str) -> AgentResponse:
         """Mock invoke_agent for testing."""
-        return AgentResponse(
-            agent_id=agent_id,
-            content=f"Mock response from {agent_id}",
-            status="success"
-        )
+        return AgentResponse(agent_id=agent_id, content=f"Mock response from {agent_id}", status="success")
 
     def test_parallel_executor_creates_worker_sessions(self):
         """Test that ParallelExecutor creates worker_X sessions."""
         task_id = generate_task_id()
         agents = [
             AgentAssignment(agent_id="gemini", role="worker_0"),
-            AgentAssignment(agent_id="claude", role="worker_1")
+            AgentAssignment(agent_id="claude", role="worker_1"),
         ]
         context = self._create_context(task_id, agents, "PARALLEL")
 
         executor = ParallelExecutor()
-        result = executor.execute(context)
+        executor.execute(context)
 
         # Verify task was created
         task = self.session_manager.get_task(task_id)
@@ -194,10 +186,7 @@ class TestModeExecutorSessionIsolation(TestCase):
     def test_sequential_executor_creates_first_second_sessions(self):
         """Test that SequentialExecutor creates first/second sessions."""
         task_id = generate_task_id()
-        agents = [
-            AgentAssignment(agent_id="gemini", role="first"),
-            AgentAssignment(agent_id="claude", role="second")
-        ]
+        agents = [AgentAssignment(agent_id="gemini", role="first"), AgentAssignment(agent_id="claude", role="second")]
         context = self._create_context(task_id, agents, "SEQUENTIAL")
 
         executor = SequentialExecutor()
@@ -209,10 +198,7 @@ class TestModeExecutorSessionIsolation(TestCase):
     def test_lead_support_executor_creates_role_sessions(self):
         """Test that LeadSupportExecutor creates lead/support sessions."""
         task_id = generate_task_id()
-        agents = [
-            AgentAssignment(agent_id="claude", role="lead"),
-            AgentAssignment(agent_id="gemini", role="support")
-        ]
+        agents = [AgentAssignment(agent_id="claude", role="lead"), AgentAssignment(agent_id="gemini", role="support")]
         context = self._create_context(task_id, agents, "LEAD_SUPPORT")
 
         executor = LeadSupportExecutor()
@@ -224,10 +210,7 @@ class TestModeExecutorSessionIsolation(TestCase):
     def test_red_blue_executor_creates_adversarial_sessions(self):
         """Test that RedBlueExecutor creates blue/red sessions."""
         task_id = generate_task_id()
-        agents = [
-            AgentAssignment(agent_id="claude", role="blue"),
-            AgentAssignment(agent_id="gemini", role="red")
-        ]
+        agents = [AgentAssignment(agent_id="claude", role="blue"), AgentAssignment(agent_id="gemini", role="red")]
         context = self._create_context(task_id, agents, "RED_BLUE")
 
         executor = RedBlueExecutor()
@@ -247,11 +230,7 @@ class TestModeExecutorSessionIsolation(TestCase):
         def capture_invoke(agent_id: str, task_type: str, context: str) -> AgentResponse:
             # Capture blackboard state during invoke
             captured_blackboard.update(blackboard)
-            return AgentResponse(
-                agent_id=agent_id,
-                content=f"Response from {agent_id}",
-                status="success"
-            )
+            return AgentResponse(agent_id=agent_id, content=f"Response from {agent_id}", status="success")
 
         context = ExecutionContext(
             task_input="Test task",
@@ -259,11 +238,11 @@ class TestModeExecutorSessionIsolation(TestCase):
             blackboard=blackboard,
             task_id=task_id,
             session_manager=self.session_manager,
-            invoke_agent=capture_invoke
+            invoke_agent=capture_invoke,
         )
 
         executor = SpecialistExecutor()
-        result = executor.execute(context)
+        executor.execute(context)
 
         # The blackboard should have had the session UUID during invoke
         # (it's cleaned up after, so we captured it)
@@ -334,8 +313,8 @@ class TestSessionLifecycleIntegration(TestCase):
         self.session_manager.create_task(task_id, "SEQUENTIAL")
 
         # Create sessions for different roles
-        first_uuid = self.session_manager.get_or_create_session(task_id, "first", "gemini")
-        second_uuid = self.session_manager.get_or_create_session(task_id, "second", "claude")
+        self.session_manager.get_or_create_session(task_id, "first", "gemini")
+        self.session_manager.get_or_create_session(task_id, "second", "claude")
 
         # Verify sessions exist (stored in task.roles)
         task = self.session_manager.get_task(task_id)

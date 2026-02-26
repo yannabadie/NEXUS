@@ -29,13 +29,10 @@ Usage:
 """
 
 import logging
-import math
 import re
 import threading
-import time
 from collections import Counter, defaultdict
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
@@ -44,40 +41,44 @@ logger = logging.getLogger(__name__)
 # Data Structures
 # =============================================================================
 
+
 @dataclass
 class AgentTrajectory:
     """Trajectory analysis for a single agent through a debate."""
+
     agent_id: str
     total_turns: int
-    evidence_score: float        # Quality of evidence provided (0-1)
-    coherence_score: float       # Consistency of reasoning (0-1)
-    independence_score: float    # Resistance to conformity pressure (0-1)
-    depth_score: float           # Depth of analysis (0-1)
-    trajectory_score: float      # Weighted composite (0-1)
-    position_changes: int        # Number of position changes
+    evidence_score: float  # Quality of evidence provided (0-1)
+    coherence_score: float  # Consistency of reasoning (0-1)
+    independence_score: float  # Resistance to conformity pressure (0-1)
+    depth_score: float  # Depth of analysis (0-1)
+    trajectory_score: float  # Weighted composite (0-1)
+    position_changes: int  # Number of position changes
     concessions_made: int
-    evidence_items: int          # Total evidence items across turns
+    evidence_items: int  # Total evidence items across turns
 
 
 @dataclass
 class ConformityAnalysis:
     """Analysis of conformity pressure in the debate."""
+
     conformity_detected: bool
-    conformity_agent: str        # Agent that conformed
-    conformity_turn: int         # Turn where conformity occurred
-    evidence_at_flip: int        # Evidence provided when position changed
-    penalty_applied: float       # Score reduction applied
+    conformity_agent: str  # Agent that conformed
+    conformity_turn: int  # Turn where conformity occurred
+    evidence_at_flip: int  # Evidence provided when position changed
+    penalty_applied: float  # Score reduction applied
 
 
 @dataclass
 class TrajectoryResult:
     """Result of trajectory-based debate evaluation."""
-    best_agent: str              # Agent with highest trajectory score
-    trajectory_scores: Dict[str, float]  # agent_id → score
-    agent_trajectories: Dict[str, AgentTrajectory]
-    conformity_analysis: List[ConformityAnalysis]
-    debate_quality: float        # Overall debate quality (0-1)
-    recommendation: str          # "accept_best", "re-debate", "escalate"
+
+    best_agent: str  # Agent with highest trajectory score
+    trajectory_scores: dict[str, float]  # agent_id → score
+    agent_trajectories: dict[str, AgentTrajectory]
+    conformity_analysis: list[ConformityAnalysis]
+    debate_quality: float  # Overall debate quality (0-1)
+    recommendation: str  # "accept_best", "re-debate", "escalate"
 
     @property
     def winning_margin(self) -> float:
@@ -91,10 +92,11 @@ class TrajectoryResult:
 @dataclass
 class ScorerStats:
     """Statistics for the trajectory scorer."""
+
     total_debates_scored: int
     avg_debate_quality: float
     conformity_detections: int
-    agent_win_rates: Dict[str, float]
+    agent_win_rates: dict[str, float]
 
 
 # =============================================================================
@@ -137,6 +139,7 @@ _WEAK_RE = [re.compile(p, re.IGNORECASE) for p in WEAK_EVIDENCE_PATTERNS]
 # Trajectory Scorer
 # =============================================================================
 
+
 class TrajectoryScorer:
     """
     Evaluates debate trajectories to select the best reasoning path.
@@ -155,9 +158,9 @@ class TrajectoryScorer:
     DEPTH_WEIGHT = 0.20
 
     # Anti-conformity parameters
-    MIN_EVIDENCE_FOR_FLIP = 2     # Minimum evidence items to justify position change
-    CONFORMITY_PENALTY = 0.15     # Score reduction for conformity without evidence
-    MIN_DEBATE_QUALITY = 0.4      # Below this → recommend re-debate
+    MIN_EVIDENCE_FOR_FLIP = 2  # Minimum evidence items to justify position change
+    CONFORMITY_PENALTY = 0.15  # Score reduction for conformity without evidence
+    MIN_DEBATE_QUALITY = 0.4  # Below this → recommend re-debate
 
     def __init__(self):
         self._total_scored = 0
@@ -173,8 +176,8 @@ class TrajectoryScorer:
 
     def score_debate(
         self,
-        debate_history: List[dict],
-        agents: Optional[List[str]] = None,
+        debate_history: list[dict],
+        agents: list[str] | None = None,
     ) -> TrajectoryResult:
         """
         Score a debate trajectory and select the best agent position.
@@ -207,13 +210,13 @@ class TrajectoryScorer:
             agents = list({t.get("agent_id", "unknown") for t in debate_history})
 
         # Build per-agent trajectories
-        agent_turns: Dict[str, List[dict]] = defaultdict(list)
+        agent_turns: dict[str, list[dict]] = defaultdict(list)
         for turn in debate_history:
             aid = turn.get("agent_id", "unknown")
             agent_turns[aid].append(turn)
 
         # Score each agent's trajectory
-        trajectories: Dict[str, AgentTrajectory] = {}
+        trajectories: dict[str, AgentTrajectory] = {}
         for aid in agents:
             turns = agent_turns.get(aid, [])
             trajectories[aid] = self._score_agent_trajectory(aid, turns)
@@ -281,10 +284,7 @@ class TrajectoryScorer:
         """Get trajectory scorer statistics."""
         with self._lock:
             avg_quality = self._quality_sum / max(self._total_scored, 1)
-            win_rates = {
-                aid: self._agent_wins[aid] / max(self._agent_debates[aid], 1)
-                for aid in self._agent_debates
-            }
+            win_rates = {aid: self._agent_wins[aid] / max(self._agent_debates[aid], 1) for aid in self._agent_debates}
 
         return ScorerStats(
             total_debates_scored=self._total_scored,
@@ -297,9 +297,7 @@ class TrajectoryScorer:
     # Internal: Agent Trajectory Scoring
     # -------------------------------------------------------------------------
 
-    def _score_agent_trajectory(
-        self, agent_id: str, turns: List[dict]
-    ) -> AgentTrajectory:
+    def _score_agent_trajectory(self, agent_id: str, turns: list[dict]) -> AgentTrajectory:
         """Score a single agent's trajectory through the debate."""
         if not turns:
             return AgentTrajectory(
@@ -321,10 +319,10 @@ class TrajectoryScorer:
         depth_score = self._score_depth(turns)
 
         trajectory_score = (
-            self.EVIDENCE_WEIGHT * evidence_score +
-            self.COHERENCE_WEIGHT * coherence_score +
-            self.INDEPENDENCE_WEIGHT * independence_score +
-            self.DEPTH_WEIGHT * depth_score
+            self.EVIDENCE_WEIGHT * evidence_score
+            + self.COHERENCE_WEIGHT * coherence_score
+            + self.INDEPENDENCE_WEIGHT * independence_score
+            + self.DEPTH_WEIGHT * depth_score
         )
 
         position_changes = self._count_position_changes(turns)
@@ -344,7 +342,7 @@ class TrajectoryScorer:
             evidence_items=total_evidence,
         )
 
-    def _score_evidence(self, turns: List[dict]) -> float:
+    def _score_evidence(self, turns: list[dict]) -> float:
         """Score the quality and quantity of evidence provided."""
         if not turns:
             return 0.0
@@ -371,14 +369,14 @@ class TrajectoryScorer:
 
         return evidence_density * 0.6 + signal_ratio * 0.4
 
-    def _score_coherence(self, turns: List[dict]) -> float:
+    def _score_coherence(self, turns: list[dict]) -> float:
         """Score reasoning consistency across turns."""
         if len(turns) < 2:
             return 1.0  # Single turn is trivially coherent
 
         # Check for position consistency
         positions = [t.get("position", "UNKNOWN") for t in turns]
-        unique_positions = len(set(positions))
+        len(set(positions))
 
         # More position changes = lower coherence
         changes = self._count_position_changes(turns)
@@ -391,13 +389,16 @@ class TrajectoryScorer:
             curr_pos = turns[i].get("position", "")
             curr_evidence = turns[i].get("evidence", [])
 
-            if prev_pos == "OPPOSE" and curr_pos in ("SUPPORT", "CONCEDE"):
-                if len(curr_evidence) < self.MIN_EVIDENCE_FOR_FLIP:
-                    contradiction_penalty += 0.2
+            if (
+                prev_pos == "OPPOSE"
+                and curr_pos in ("SUPPORT", "CONCEDE")
+                and len(curr_evidence) < self.MIN_EVIDENCE_FOR_FLIP
+            ):
+                contradiction_penalty += 0.2
 
         return max(0.0, stability - contradiction_penalty)
 
-    def _score_independence(self, turns: List[dict]) -> float:
+    def _score_independence(self, turns: list[dict]) -> float:
         """Score resistance to conformity pressure."""
         if not turns:
             return 1.0
@@ -421,7 +422,7 @@ class TrajectoryScorer:
 
         return 1.0 - (flip_without_evidence / max(total_flips, 1))
 
-    def _score_depth(self, turns: List[dict]) -> float:
+    def _score_depth(self, turns: list[dict]) -> float:
         """Score analytical depth from argument length and structure."""
         if not turns:
             return 0.0
@@ -451,13 +452,13 @@ class TrajectoryScorer:
 
     def _detect_conformity(
         self,
-        debate_history: List[dict],
-        agents: List[str],
-    ) -> List[ConformityAnalysis]:
+        debate_history: list[dict],
+        agents: list[str],
+    ) -> list[ConformityAnalysis]:
         """Detect conformity pressure in the debate."""
         results = []
 
-        agent_turns: Dict[str, List[dict]] = defaultdict(list)
+        agent_turns: dict[str, list[dict]] = defaultdict(list)
         for turn in debate_history:
             agent_turns[turn.get("agent_id", "unknown")].append(turn)
 
@@ -474,20 +475,24 @@ class TrajectoryScorer:
 
                 # Conformity: changed from OPPOSE to SUPPORT/CONCEDE
                 # with insufficient evidence
-                if (prev_pos == "OPPOSE"
-                        and curr_pos in ("SUPPORT", "CONCEDE")
-                        and len(evidence) < self.MIN_EVIDENCE_FOR_FLIP):
-                    results.append(ConformityAnalysis(
-                        conformity_detected=True,
-                        conformity_agent=agent_id,
-                        conformity_turn=turn_num,
-                        evidence_at_flip=len(evidence),
-                        penalty_applied=self.CONFORMITY_PENALTY,
-                    ))
+                if (
+                    prev_pos == "OPPOSE"
+                    and curr_pos in ("SUPPORT", "CONCEDE")
+                    and len(evidence) < self.MIN_EVIDENCE_FOR_FLIP
+                ):
+                    results.append(
+                        ConformityAnalysis(
+                            conformity_detected=True,
+                            conformity_agent=agent_id,
+                            conformity_turn=turn_num,
+                            evidence_at_flip=len(evidence),
+                            penalty_applied=self.CONFORMITY_PENALTY,
+                        )
+                    )
 
         return results
 
-    def _count_position_changes(self, turns: List[dict]) -> int:
+    def _count_position_changes(self, turns: list[dict]) -> int:
         """Count the number of position changes in a trajectory."""
         changes = 0
         for i in range(1, len(turns)):
@@ -500,7 +505,7 @@ class TrajectoryScorer:
 # Singleton
 # =============================================================================
 
-_instance: Optional[TrajectoryScorer] = None
+_instance: TrajectoryScorer | None = None
 _instance_lock = threading.Lock()
 
 

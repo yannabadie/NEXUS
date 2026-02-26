@@ -13,19 +13,12 @@ Security Properties:
 """
 
 from pathlib import Path
-from typing import Tuple, Optional, List
-import os
 
 
 class PathGuardian:
     """Guardian of paths - validates all file operations."""
 
-    def __init__(
-        self,
-        workspace_path: Path,
-        parent_path: Path,
-        generation_active: Optional[Path] = None
-    ):
+    def __init__(self, workspace_path: Path, parent_path: Path, generation_active: Path | None = None):
         """
         Initialize PathGuardian with zone boundaries.
 
@@ -39,13 +32,13 @@ class PathGuardian:
         self.generation_active = generation_active.resolve() if generation_active else None
 
         # Zones autorisées en LECTURE
-        self.read_zones: List[Path] = [
+        self.read_zones: list[Path] = [
             self.workspace,
             self.parent,  # Lecture parent autorisée
         ]
 
         # Zones autorisées en ÉCRITURE (base)
-        self.write_zones: List[Path] = [
+        self.write_zones: list[Path] = [
             self.workspace,
         ]
 
@@ -55,19 +48,19 @@ class PathGuardian:
 
         # Fichiers JAMAIS modifiables (même dans write_zones)
         self.sacred_files = {
-            'KERNEL.py',
-            'MISSION.md',
-            '.env',
-            '.env.local',
-            'credentials.json',
+            "KERNEL.py",
+            "MISSION.md",
+            ".env",
+            ".env.local",
+            "credentials.json",
         }
 
         # Patterns de fichiers sacrés (regex-like)
         self.sacred_patterns = [
-            '.env',  # Tout fichier commençant par .env
+            ".env",  # Tout fichier commençant par .env
         ]
 
-    def validate_read(self, file_path: str) -> Tuple[bool, Path, str]:
+    def validate_read(self, file_path: str) -> tuple[bool, Path, str]:
         """
         Validate a path for read operation.
 
@@ -95,9 +88,7 @@ class PathGuardian:
                 resolved = resolved.readlink().resolve()
 
             # Vérifier dans zones autorisées
-            in_allowed_zone = any(
-                self._is_under(resolved, zone) for zone in self.read_zones
-            )
+            in_allowed_zone = any(self._is_under(resolved, zone) for zone in self.read_zones)
 
             if not in_allowed_zone:
                 return False, resolved, f"[SECURITY] Read outside allowed zones: {resolved}"
@@ -112,11 +103,7 @@ class PathGuardian:
         except Exception as e:
             return False, Path(file_path), f"[SECURITY] Path validation error: {e}"
 
-    def validate_write(
-        self,
-        file_path: str,
-        is_evolution_mode: bool = False
-    ) -> Tuple[bool, Path, str]:
+    def validate_write(self, file_path: str, is_evolution_mode: bool = False) -> tuple[bool, Path, str]:
         """
         Validate a path for write operation.
 
@@ -151,9 +138,7 @@ class PathGuardian:
                 allowed_zones.append(self.generation_active)
 
             # 5. Vérifier que le chemin est dans une zone autorisée
-            in_allowed_zone = any(
-                self._is_under(resolved, zone) for zone in allowed_zones
-            )
+            in_allowed_zone = any(self._is_under(resolved, zone) for zone in allowed_zones)
 
             if not in_allowed_zone:
                 return False, resolved, f"[SACRED] Write outside allowed zones: {resolved}"
@@ -163,10 +148,7 @@ class PathGuardian:
             if self._is_under(resolved, self.parent):
                 # Est-ce aussi sous workspace ou generation_active?
                 under_workspace = self._is_under(resolved, self.workspace)
-                under_generation = (
-                    self.generation_active and
-                    self._is_under(resolved, self.generation_active)
-                )
+                under_generation = self.generation_active and self._is_under(resolved, self.generation_active)
 
                 if not under_workspace and not under_generation:
                     return False, resolved, "[SACRED] WRITE TO PARENT CODE BLOCKED - Parent is READ-ONLY"
@@ -196,11 +178,7 @@ class PathGuardian:
             return True
 
         # Pattern match (e.g., .env.*)
-        for pattern in self.sacred_patterns:
-            if path.name.startswith(pattern):
-                return True
-
-        return False
+        return any(path.name.startswith(pattern) for pattern in self.sacred_patterns)
 
     def get_zone_info(self) -> dict:
         """Return information about configured zones (for debugging)."""

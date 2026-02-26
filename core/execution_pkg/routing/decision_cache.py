@@ -28,7 +28,7 @@ import threading
 import time
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -47,9 +47,11 @@ MAX_CACHE_SIZE = 10000
 # Types
 # =============================================================================
 
+
 @dataclass
 class CachedDecision:
     """A cached routing decision."""
+
     task_fingerprint: str
     model_id: str
     cost: float = 0.0
@@ -72,7 +74,7 @@ class CachedDecision:
             return 0.0
         return self.success_count / self.total_outcomes
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "task_fingerprint": self.task_fingerprint,
             "model_id": self.model_id,
@@ -89,13 +91,14 @@ class CachedDecision:
 @dataclass
 class DecisionOutcome:
     """Outcome of a routing decision for learning."""
+
     task_fingerprint: str
     success: bool
     quality: float = 0.0
     latency: float = 0.0
     timestamp: float = field(default_factory=time.monotonic)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "task_fingerprint": self.task_fingerprint,
             "success": self.success,
@@ -108,6 +111,7 @@ class DecisionOutcome:
 @dataclass
 class DecisionCacheStats:
     """Cache statistics."""
+
     size: int
     max_size: int
     hits: int
@@ -117,7 +121,7 @@ class DecisionCacheStats:
     total_outcomes: int
     evictions: int
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "size": self.size,
             "max_size": self.max_size,
@@ -133,6 +137,7 @@ class DecisionCacheStats:
 # =============================================================================
 # Decision Cache
 # =============================================================================
+
 
 class RoutingDecisionCache:
     """
@@ -167,7 +172,7 @@ class RoutingDecisionCache:
         *,
         model_id: str,
         cost: float = 0.0,
-        ttl: Optional[float] = None,
+        ttl: float | None = None,
     ) -> CachedDecision:
         """Record a routing decision in the cache."""
         now = time.monotonic()
@@ -199,7 +204,7 @@ class RoutingDecisionCache:
             self._total_decisions += 1
             return decision
 
-    def get_decision(self, task_fingerprint: str) -> Optional[CachedDecision]:
+    def get_decision(self, task_fingerprint: str) -> CachedDecision | None:
         """Look up a cached routing decision."""
         with self._lock:
             decision = self._cache.get(task_fingerprint)
@@ -220,9 +225,7 @@ class RoutingDecisionCache:
         decision = self._cache.get(task_fingerprint)
         if decision is None:
             return False
-        if decision.is_expired:
-            return False
-        return True
+        return not decision.is_expired
 
     def delete_decision(self, task_fingerprint: str) -> bool:
         """Remove a cached decision."""
@@ -272,7 +275,7 @@ class RoutingDecisionCache:
 
             return True
 
-    def get_best_model(self, task_fingerprint: str) -> Optional[str]:
+    def get_best_model(self, task_fingerprint: str) -> str | None:
         """
         Get the cached model for a task fingerprint, or None.
         Only returns models with positive success rates.
@@ -305,13 +308,10 @@ class RoutingDecisionCache:
                 del self._cache[key]
             return len(keys)
 
-    def list_fingerprints(self, *, prefix: str = "") -> List[str]:
+    def list_fingerprints(self, *, prefix: str = "") -> list[str]:
         """List all non-expired fingerprints."""
         now = time.monotonic()
-        return [
-            k for k, v in self._cache.items()
-            if v.expires_at > now and (not prefix or k.startswith(prefix))
-        ]
+        return [k for k, v in self._cache.items() if v.expires_at > now and (not prefix or k.startswith(prefix))]
 
     # =========================================================================
     # Statistics
@@ -353,7 +353,7 @@ class RoutingDecisionCache:
             self._total_decisions = 0
             self._total_outcomes = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "size": self.size,
             "max_size": self._max_size,
@@ -365,7 +365,7 @@ class RoutingDecisionCache:
 # Global Instance
 # =============================================================================
 
-_cache: Optional[RoutingDecisionCache] = None
+_cache: RoutingDecisionCache | None = None
 _cache_lock = threading.Lock()
 
 

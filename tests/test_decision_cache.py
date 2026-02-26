@@ -18,13 +18,10 @@ Validates:
 """
 
 import time
-import pytest
 
 from core.execution_pkg.routing.decision_cache import (
     DEFAULT_MAX_SIZE,
     DEFAULT_TTL,
-    LEARNING_RATE,
-    MAX_CACHE_SIZE,
     CachedDecision,
     DecisionCacheStats,
     DecisionOutcome,
@@ -33,24 +30,26 @@ from core.execution_pkg.routing.decision_cache import (
     reset_decision_cache,
 )
 
-
 # =============================================================================
 # CachedDecision Tests
 # =============================================================================
+
 
 class TestCachedDecision:
     """Test CachedDecision dataclass."""
 
     def test_not_expired(self):
         d = CachedDecision(
-            task_fingerprint="fp1", model_id="sonnet",
+            task_fingerprint="fp1",
+            model_id="sonnet",
             expires_at=time.monotonic() + 100,
         )
         assert d.is_expired is False
 
     def test_expired(self):
         d = CachedDecision(
-            task_fingerprint="fp1", model_id="sonnet",
+            task_fingerprint="fp1",
+            model_id="sonnet",
             expires_at=time.monotonic() - 1,
         )
         assert d.is_expired is True
@@ -61,8 +60,10 @@ class TestCachedDecision:
 
     def test_success_rate(self):
         d = CachedDecision(
-            task_fingerprint="fp1", model_id="sonnet",
-            total_outcomes=10, success_count=8,
+            task_fingerprint="fp1",
+            model_id="sonnet",
+            total_outcomes=10,
+            success_count=8,
         )
         assert d.success_rate == 0.8
 
@@ -76,6 +77,7 @@ class TestCachedDecision:
 # =============================================================================
 # DecisionOutcome Tests
 # =============================================================================
+
 
 class TestDecisionOutcome:
     """Test DecisionOutcome dataclass."""
@@ -91,13 +93,20 @@ class TestDecisionOutcome:
 # DecisionCacheStats Tests
 # =============================================================================
 
+
 class TestDecisionCacheStats:
     """Test DecisionCacheStats dataclass."""
 
     def test_to_dict(self):
         s = DecisionCacheStats(
-            size=10, max_size=500, hits=80, misses=20,
-            hit_rate=0.8, total_decisions=100, total_outcomes=50, evictions=5,
+            size=10,
+            max_size=500,
+            hits=80,
+            misses=20,
+            hit_rate=0.8,
+            total_decisions=100,
+            total_outcomes=50,
+            evictions=5,
         )
         d = s.to_dict()
         assert d["hit_rate"] == 0.8
@@ -107,6 +116,7 @@ class TestDecisionCacheStats:
 # =============================================================================
 # Core Operations Tests
 # =============================================================================
+
 
 class TestCoreOperations:
     """Test record, get, has, delete."""
@@ -165,6 +175,7 @@ class TestCoreOperations:
 # LRU Eviction Tests
 # =============================================================================
 
+
 class TestLRUEviction:
     """Test LRU eviction behavior."""
 
@@ -200,6 +211,7 @@ class TestLRUEviction:
 # TTL Expiration Tests
 # =============================================================================
 
+
 class TestTTLExpiration:
     """Test TTL-based expiration."""
 
@@ -232,6 +244,7 @@ class TestTTLExpiration:
 # =============================================================================
 # Learning / Feedback Tests
 # =============================================================================
+
 
 class TestLearning:
     """Test outcome recording and learning."""
@@ -280,6 +293,7 @@ class TestLearning:
 # Best Model Tests
 # =============================================================================
 
+
 class TestBestModel:
     """Test best model recommendation."""
 
@@ -310,6 +324,7 @@ class TestBestModel:
 # =============================================================================
 # Maintenance Tests
 # =============================================================================
+
 
 class TestMaintenance:
     """Test maintenance operations."""
@@ -351,6 +366,7 @@ class TestMaintenance:
 # Statistics Tests
 # =============================================================================
 
+
 class TestStatistics:
     """Test cache statistics."""
 
@@ -390,6 +406,7 @@ class TestStatistics:
 # State Tests
 # =============================================================================
 
+
 class TestState:
     """Test state management."""
 
@@ -423,6 +440,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global decision cache."""
 
@@ -449,24 +467,31 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_routing_package(self):
         from core.execution_pkg.routing import (
-            RoutingDecisionCache, CachedDecision,
-            DecisionOutcome, DecisionCacheStats,
-            get_decision_cache, reset_decision_cache,
+            CachedDecision,
+            DecisionCacheStats,
+            DecisionOutcome,
+            RoutingDecisionCache,
+            get_decision_cache,
+            reset_decision_cache,
         )
-        assert all([
-            RoutingDecisionCache, CachedDecision,
-            DecisionOutcome, DecisionCacheStats,
-            get_decision_cache, reset_decision_cache,
-        ])
+
+        assert all(
+            [
+                RoutingDecisionCache,
+                CachedDecision,
+                DecisionOutcome,
+                DecisionCacheStats,
+                get_decision_cache,
+                reset_decision_cache,
+            ]
+        )
 
     def test_constants(self):
-        from core.execution_pkg.routing.decision_cache import (
-            DEFAULT_MAX_SIZE, DEFAULT_TTL, LEARNING_RATE, MAX_CACHE_SIZE,
-        )
         assert DEFAULT_MAX_SIZE == 500
         assert DEFAULT_TTL == 3600.0

@@ -17,6 +17,6 @@ Routes:
 - timeline: Causality timeline (V12.4) (/api/timeline/{task_id})
 """
 
-from . import health, stream, state, interactions, workflow, files, auth, memory, timeline
+from . import auth, files, health, interactions, memory, state, stream, timeline, workflow
 
 __all__ = ["health", "stream", "state", "interactions", "workflow", "files", "auth", "memory", "timeline"]

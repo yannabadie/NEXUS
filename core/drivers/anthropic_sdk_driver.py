@@ -41,8 +41,11 @@ import asyncio
 import logging
 import os
 import time
-from datetime import datetime, timezone
-from typing import Any, AsyncIterator, Dict, List, Optional
+from collections.abc import AsyncIterator
+from datetime import UTC, datetime
+from typing import Any
+
+from core.observability.telemetry.otel_provider import trace_llm_call
 
 from .protocol import (
     BaseAsyncDriver,
@@ -51,7 +54,6 @@ from .protocol import (
     StreamChunk,
     ToolCall,
 )
-from core.observability.telemetry.otel_provider import trace_llm_call
 
 logger = logging.getLogger(__name__)
 
@@ -67,11 +69,11 @@ class AnthropicSDKDriver(BaseAsyncDriver):
     def __init__(
         self,
         model: str = "claude-sonnet-4-5-20250929",
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         max_tokens: int = 8192,
         timeout: float = 300.0,
         enable_caching: bool = True,
-        response_cache: Optional[Any] = None,
+        response_cache: Any | None = None,
     ):
         super().__init__(provider="claude", model=model, timeout=timeout)
         self._max_tokens = max_tokens
@@ -84,15 +86,11 @@ class AnthropicSDKDriver(BaseAsyncDriver):
         try:
             import anthropic
         except ImportError:
-            raise ImportError(
-                "anthropic package required. Install with: pip install anthropic"
-            )
+            raise ImportError("anthropic package required. Install with: pip install anthropic") from None
 
         resolved_key = api_key or os.getenv("ANTHROPIC_API_KEY")
         if not resolved_key:
-            raise ValueError(
-                "ANTHROPIC_API_KEY not found. Set it in environment or pass api_key."
-            )
+            raise ValueError("ANTHROPIC_API_KEY not found. Set it in environment or pass api_key.")
 
         self._client = anthropic.AsyncAnthropic(api_key=resolved_key)
         self._sync_client = anthropic.Anthropic(api_key=resolved_key)
@@ -101,11 +99,11 @@ class AnthropicSDKDriver(BaseAsyncDriver):
         self,
         prompt: str,
         *,
-        session_id: Optional[str] = None,
-        system_prompt: Optional[str] = None,
-        tools: Optional[List[Dict[str, Any]]] = None,
-        isolated_env: Optional[Dict[str, str]] = None,
-        timeout: Optional[float] = None,
+        session_id: str | None = None,
+        system_prompt: str | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        isolated_env: dict[str, str] | None = None,
+        timeout: float | None = None,
         **kwargs: Any,
     ) -> DriverResponse:
         """
@@ -126,7 +124,8 @@ class AnthropicSDKDriver(BaseAsyncDriver):
         if self._response_cache and not tools:
             temperature = kwargs.get("temperature", 0.7)
             cached = self._response_cache.get(
-                self._model, prompt,
+                self._model,
+                prompt,
                 temperature=temperature,
                 system_prompt=system_prompt or "",
             )
@@ -144,16 +143,17 @@ class AnthropicSDKDriver(BaseAsyncDriver):
 
         try:
             # Build request parameters
-            request_params = self._build_request(
-                prompt, system_prompt, tools, **kwargs
-            )
+            request_params = self._build_request(prompt, system_prompt, tools, **kwargs)
 
             # OTel span wraps the API call
             agent_name = kwargs.pop("agent_name", "")
             agent_id = kwargs.pop("agent_id", "")
             with trace_llm_call(
-                self._provider, self._model, "chat",
-                agent_name=agent_name, agent_id=agent_id,
+                self._provider,
+                self._model,
+                "chat",
+                agent_name=agent_name,
+                agent_id=agent_id,
             ) as span:
                 # Make the API call with timeout
                 response = await asyncio.wait_for(
@@ -189,11 +189,14 @@ class AnthropicSDKDriver(BaseAsyncDriver):
                 total_tokens = (result.input_tokens or 0) + (result.output_tokens or 0)
                 if result.is_success:
                     self._health_monitor.record_success(
-                        driver_id, latency_ms=latency_ms, tokens=total_tokens,
+                        driver_id,
+                        latency_ms=latency_ms,
+                        tokens=total_tokens,
                     )
                 else:
                     self._health_monitor.record_failure(
-                        driver_id, error=result.error_message or "unknown",
+                        driver_id,
+                        error=result.error_message or "unknown",
                         latency_ms=latency_ms,
                     )
 
@@ -207,7 +210,9 @@ class AnthropicSDKDriver(BaseAsyncDriver):
             ):
                 total_tokens = (result.input_tokens or 0) + (result.output_tokens or 0)
                 self._response_cache.put(
-                    self._model, prompt, result.content,
+                    self._model,
+                    prompt,
+                    result.content,
                     temperature=kwargs.get("temperature", 0.7),
                     system_prompt=system_prompt or "",
                     tokens_used=total_tokens,
@@ -215,12 +220,13 @@ class AnthropicSDKDriver(BaseAsyncDriver):
 
             return result
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             latency_ms = (time.monotonic() - start_time) * 1000
             if self._health_monitor:
                 self._health_monitor.record_failure(
                     f"{self._provider}/{self._model}",
-                    error="TIMEOUT", latency_ms=latency_ms,
+                    error="TIMEOUT",
+                    latency_ms=latency_ms,
                 )
             return DriverResponse(
                 content="",
@@ -239,7 +245,8 @@ class AnthropicSDKDriver(BaseAsyncDriver):
             if self._health_monitor:
                 self._health_monitor.record_failure(
                     f"{self._provider}/{self._model}",
-                    error=error_code, latency_ms=latency_ms,
+                    error=error_code,
+                    latency_ms=latency_ms,
                 )
             return DriverResponse(
                 content="",
@@ -256,8 +263,8 @@ class AnthropicSDKDriver(BaseAsyncDriver):
         prompt: str,
         output_type: type,
         *,
-        system_prompt: Optional[str] = None,
-        timeout: Optional[float] = None,
+        system_prompt: str | None = None,
+        timeout: float | None = None,
         **kwargs: Any,
     ) -> DriverResponse:
         """
@@ -285,7 +292,7 @@ class AnthropicSDKDriver(BaseAsyncDriver):
 
         try:
             # Build params for messages.parse()
-            params: Dict[str, Any] = {
+            params: dict[str, Any] = {
                 "model": self._model,
                 "max_tokens": kwargs.pop("max_tokens", self._max_tokens),
                 "messages": [{"role": "user", "content": prompt}],
@@ -343,10 +350,10 @@ class AnthropicSDKDriver(BaseAsyncDriver):
                     "parsed": parsed,
                     "output_type": output_type.__name__,
                 },
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
             )
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             latency_ms = (time.monotonic() - start_time) * 1000
             return DriverResponse(
                 content="",
@@ -375,10 +382,10 @@ class AnthropicSDKDriver(BaseAsyncDriver):
     async def invoke_json_schema(
         self,
         prompt: str,
-        json_schema: Dict[str, Any],
+        json_schema: dict[str, Any],
         *,
-        system_prompt: Optional[str] = None,
-        timeout: Optional[float] = None,
+        system_prompt: str | None = None,
+        timeout: float | None = None,
         **kwargs: Any,
     ) -> DriverResponse:
         """
@@ -402,9 +409,7 @@ class AnthropicSDKDriver(BaseAsyncDriver):
         effective_timeout = timeout or self._timeout
 
         try:
-            request_params = self._build_request(
-                prompt, system_prompt, None, **kwargs
-            )
+            request_params = self._build_request(prompt, system_prompt, None, **kwargs)
 
             # Add structured output config
             request_params["output_config"] = {
@@ -422,7 +427,7 @@ class AnthropicSDKDriver(BaseAsyncDriver):
             latency_ms = (time.monotonic() - start_time) * 1000
             return self._parse_response(response, latency_ms)
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             latency_ms = (time.monotonic() - start_time) * 1000
             return DriverResponse(
                 content="",
@@ -452,11 +457,11 @@ class AnthropicSDKDriver(BaseAsyncDriver):
         self,
         prompt: str,
         *,
-        session_id: Optional[str] = None,
-        system_prompt: Optional[str] = None,
-        tools: Optional[List[Dict[str, Any]]] = None,
-        isolated_env: Optional[Dict[str, str]] = None,
-        timeout: Optional[float] = None,
+        session_id: str | None = None,
+        system_prompt: str | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        isolated_env: dict[str, str] | None = None,
+        timeout: float | None = None,
         **kwargs: Any,
     ) -> AsyncIterator[StreamChunk]:
         """
@@ -467,9 +472,7 @@ class AnthropicSDKDriver(BaseAsyncDriver):
         """
         start_time = time.monotonic()
 
-        request_params = self._build_request(
-            prompt, system_prompt, tools, **kwargs
-        )
+        request_params = self._build_request(prompt, system_prompt, tools, **kwargs)
 
         try:
             async with self._client.messages.stream(**request_params) as stream:
@@ -503,7 +506,7 @@ class AnthropicSDKDriver(BaseAsyncDriver):
                 latency_ms=latency_ms,
             )
 
-    async def cancel(self, session_id: Optional[str] = None) -> bool:
+    async def cancel(self, session_id: str | None = None) -> bool:
         """Cancel is a no-op for API drivers (use asyncio cancellation)."""
         return True
 
@@ -531,12 +534,12 @@ class AnthropicSDKDriver(BaseAsyncDriver):
     def _build_request(
         self,
         prompt: str,
-        system_prompt: Optional[str],
-        tools: Optional[List[Dict[str, Any]]],
+        system_prompt: str | None,
+        tools: list[dict[str, Any]] | None,
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Build the messages.create() request parameters."""
-        params: Dict[str, Any] = {
+        params: dict[str, Any] = {
             "model": self._model,
             "max_tokens": kwargs.pop("max_tokens", self._max_tokens),
             "messages": [{"role": "user", "content": prompt}],
@@ -566,7 +569,7 @@ class AnthropicSDKDriver(BaseAsyncDriver):
 
         return params
 
-    def _format_tools(self, tools: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _format_tools(self, tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Format tools to Anthropic's expected schema.
 
         When caching is enabled, marks the LAST tool with cache_control
@@ -638,10 +641,10 @@ class AnthropicSDKDriver(BaseAsyncDriver):
                 "cache_creation_input_tokens": cache_creation,
                 "cache_read_input_tokens": cache_read,
             },
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
 
-    def _extract_tool_calls(self, response: Any) -> List[ToolCall]:
+    def _extract_tool_calls(self, response: Any) -> list[ToolCall]:
         """Extract tool calls from an Anthropic response."""
         tool_calls = []
         for block in response.content:

@@ -5,11 +5,12 @@ These tests verify the TelemetryService extracted from repl.py works correctly.
 """
 
 import json
-import pytest
 import tempfile
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
+
+import pytest
 
 
 class TestTelemetryService:
@@ -36,10 +37,8 @@ class TestTelemetryService:
     def telemetry_service(self, temp_workspace, mock_console):
         """Create a TelemetryService instance."""
         from core.observability.telemetry.service import TelemetryService
-        return TelemetryService(
-            workspace_path=temp_workspace,
-            console=mock_console
-        )
+
+        return TelemetryService(workspace_path=temp_workspace, console=mock_console)
 
     @pytest.fixture
     def workspace_with_telemetry(self, temp_workspace):
@@ -51,25 +50,21 @@ class TestTelemetryService:
             {
                 "type": "api_call",
                 "session_id": "test-session",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "data": {
                     "provider": "anthropic",
                     "model": "claude-3",
                     "tokens_in": 100,
                     "tokens_out": 200,
-                    "success": True
-                }
+                    "success": True,
+                },
             },
             {
                 "type": "swarm_task",
                 "session_id": "test-session",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "data": {
-                    "mode": "parallel",
-                    "duration_seconds": 5.5,
-                    "success": True
-                }
-            }
+                "timestamp": datetime.now(UTC).isoformat(),
+                "data": {"mode": "parallel", "duration_seconds": 5.5, "success": True},
+            },
         ]
 
         with open(telemetry_file, "w", encoding="utf-8") as f:
@@ -91,10 +86,8 @@ class TestTelemetryService:
     def test_report_with_data(self, workspace_with_telemetry, mock_console):
         """Test report with telemetry data."""
         from core.observability.telemetry.service import TelemetryService
-        service = TelemetryService(
-            workspace_path=workspace_with_telemetry,
-            console=mock_console
-        )
+
+        service = TelemetryService(workspace_path=workspace_with_telemetry, console=mock_console)
 
         result = service.report(days=7)
 
@@ -115,10 +108,8 @@ class TestTelemetryService:
     def test_status_with_data(self, workspace_with_telemetry, mock_console):
         """Test status with telemetry data."""
         from core.observability.telemetry.service import TelemetryService
-        service = TelemetryService(
-            workspace_path=workspace_with_telemetry,
-            console=mock_console
-        )
+
+        service = TelemetryService(workspace_path=workspace_with_telemetry, console=mock_console)
 
         result = service.status()
 
@@ -140,10 +131,8 @@ class TestTelemetryService:
     def test_export_success(self, workspace_with_telemetry, mock_console):
         """Test successful export to CSV."""
         from core.observability.telemetry.service import TelemetryService
-        service = TelemetryService(
-            workspace_path=workspace_with_telemetry,
-            console=mock_console
-        )
+
+        service = TelemetryService(workspace_path=workspace_with_telemetry, console=mock_console)
 
         result = service.export()
 
@@ -158,10 +147,8 @@ class TestTelemetryService:
     def test_export_with_days_filter(self, workspace_with_telemetry, mock_console):
         """Test export with days filter."""
         from core.observability.telemetry.service import TelemetryService
-        service = TelemetryService(
-            workspace_path=workspace_with_telemetry,
-            console=mock_console
-        )
+
+        service = TelemetryService(workspace_path=workspace_with_telemetry, console=mock_console)
 
         result = service.export(days=1)
 
@@ -193,10 +180,7 @@ class TestServiceResult:
         """Test ServiceResult with data."""
         from core.observability.telemetry.service import ServiceResult
 
-        result = ServiceResult(
-            success=True,
-            data={"key": "value", "count": 42}
-        )
+        result = ServiceResult(success=True, data={"key": "value", "count": 42})
         assert result.data["key"] == "value"
         assert result.data["count"] == 42
 
@@ -217,7 +201,7 @@ class TestGetTelemetryService:
 
     def test_get_service_creates_new(self):
         """Test creating new service when not in extras."""
-        from core.observability.telemetry.service import _get_telemetry_service, TelemetryService
+        from core.observability.telemetry.service import TelemetryService, _get_telemetry_service
 
         with tempfile.TemporaryDirectory() as tmpdir:
             mock_context = MagicMock()

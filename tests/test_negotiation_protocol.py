@@ -21,11 +21,9 @@ Tests the full negotiation lifecycle:
 
 import json
 import sys
-import time
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -33,25 +31,25 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.intelligence.swarm.collaboration_modes import CollaborationMode
-from core.intelligence.swarm.task_analyzer import TaskComplexity, TaskDomain, TaskAnalysis
 from core.intelligence.swarm.mode_selector import AgentAssignment, ModeProposal
 from core.intelligence.swarm.negotiation_protocol import (
-    NegotiationStatus,
-    NegotiationProposal,
     HybridNegotiationMessage,
-    NegotiationResult,
+    NegotiationProposal,
     NegotiationProtocol,
+    NegotiationResult,
+    NegotiationStatus,
     extract_negotiate_json,
 )
-
+from core.intelligence.swarm.task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
 
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 def _make_task_analysis(
     complexity: TaskComplexity = TaskComplexity.MODERATE,
-    domains: Optional[List[TaskDomain]] = None,
+    domains: list[TaskDomain] | None = None,
     primary_domain: TaskDomain = TaskDomain.CODING,
     gemini_fit: float = 0.7,
     claude_fit: float = 0.8,
@@ -89,7 +87,7 @@ def _make_mode_proposal(
 
 def _make_consensus_response(
     mode: str = "parallel",
-    lead: Optional[str] = None,
+    lead: str | None = None,
     conf: float = 0.9,
 ) -> str:
     """Build a mock agent response that signals consensus."""
@@ -106,7 +104,7 @@ def _make_consensus_response(
 
 def _make_counter_response(
     mode: str = "lead_support",
-    lead: Optional[str] = "claude",
+    lead: str | None = "claude",
     conf: float = 0.7,
 ) -> str:
     """Build a mock agent response with a counter-proposal (no consensus)."""
@@ -130,8 +128,8 @@ def _make_no_tag_response() -> str:
 # 1. NegotiationStatus enum
 # ===================================================================
 
-class TestNegotiationStatus:
 
+class TestNegotiationStatus:
     def test_all_status_values_exist(self):
         statuses = list(NegotiationStatus)
         assert len(statuses) == 5
@@ -156,8 +154,8 @@ class TestNegotiationStatus:
 # 2. NegotiationProposal dataclass
 # ===================================================================
 
-class TestNegotiationProposal:
 
+class TestNegotiationProposal:
     def test_defaults(self):
         p = NegotiationProposal()
         assert p.proposed_mode is None
@@ -246,9 +244,15 @@ class TestNegotiationProposal:
     def test_to_dict_keys(self):
         d = NegotiationProposal().to_dict()
         expected_keys = {
-            "proposed_mode", "proposed_lead", "confidence", "my_role",
-            "justification", "agrees_with_partner", "consensus_reached",
-            "subtasks", "counter_proposal",
+            "proposed_mode",
+            "proposed_lead",
+            "confidence",
+            "my_role",
+            "justification",
+            "agrees_with_partner",
+            "consensus_reached",
+            "subtasks",
+            "counter_proposal",
         }
         assert set(d.keys()) == expected_keys
 
@@ -257,8 +261,8 @@ class TestNegotiationProposal:
 # 3. HybridNegotiationMessage dataclass and to_dict
 # ===================================================================
 
-class TestHybridNegotiationMessage:
 
+class TestHybridNegotiationMessage:
     def test_basic_construction(self):
         msg = HybridNegotiationMessage(
             sender="gemini",
@@ -277,7 +281,8 @@ class TestHybridNegotiationMessage:
     def test_agrees_with_partner_with_proposal(self):
         proposal = NegotiationProposal(agrees_with_partner=True)
         msg = HybridNegotiationMessage(
-            sender="claude", natural_content="ok",
+            sender="claude",
+            natural_content="ok",
             structured_proposal=proposal,
         )
         assert msg.agrees_with_partner is True
@@ -289,7 +294,8 @@ class TestHybridNegotiationMessage:
     def test_consensus_reached_with_proposal(self):
         proposal = NegotiationProposal(consensus_reached=True)
         msg = HybridNegotiationMessage(
-            sender="gemini", natural_content="agreed",
+            sender="gemini",
+            natural_content="agreed",
             structured_proposal=proposal,
         )
         assert msg.consensus_reached is True
@@ -301,7 +307,8 @@ class TestHybridNegotiationMessage:
     def test_proposed_mode_valid(self):
         proposal = NegotiationProposal(proposed_mode="lead_support")
         msg = HybridNegotiationMessage(
-            sender="claude", natural_content="x",
+            sender="claude",
+            natural_content="x",
             structured_proposal=proposal,
         )
         assert msg.proposed_mode == CollaborationMode.LEAD_SUPPORT
@@ -309,7 +316,8 @@ class TestHybridNegotiationMessage:
     def test_proposed_mode_invalid_returns_none(self):
         proposal = NegotiationProposal(proposed_mode="nonexistent_mode")
         msg = HybridNegotiationMessage(
-            sender="claude", natural_content="x",
+            sender="claude",
+            natural_content="x",
             structured_proposal=proposal,
         )
         assert msg.proposed_mode is None
@@ -317,14 +325,17 @@ class TestHybridNegotiationMessage:
     def test_proposed_mode_none_string(self):
         proposal = NegotiationProposal(proposed_mode=None)
         msg = HybridNegotiationMessage(
-            sender="gemini", natural_content="x",
+            sender="gemini",
+            natural_content="x",
             structured_proposal=proposal,
         )
         assert msg.proposed_mode is None
 
     def test_to_dict_without_proposal(self):
         msg = HybridNegotiationMessage(
-            sender="claude", natural_content="test", turn_number=2,
+            sender="claude",
+            natural_content="test",
+            turn_number=2,
         )
         d = msg.to_dict()
         assert d["sender"] == "claude"
@@ -336,8 +347,10 @@ class TestHybridNegotiationMessage:
     def test_to_dict_with_proposal(self):
         proposal = NegotiationProposal(proposed_mode="parallel", confidence=0.9)
         msg = HybridNegotiationMessage(
-            sender="gemini", natural_content="Agreed",
-            structured_proposal=proposal, turn_number=1,
+            sender="gemini",
+            natural_content="Agreed",
+            structured_proposal=proposal,
+            turn_number=1,
         )
         d = msg.to_dict()
         assert d["structured_proposal"] is not None
@@ -349,8 +362,8 @@ class TestHybridNegotiationMessage:
 # 4. NegotiationResult dataclass
 # ===================================================================
 
-class TestNegotiationResult:
 
+class TestNegotiationResult:
     def test_basic_construction(self):
         result = NegotiationResult(
             status=NegotiationStatus.CONSENSUS,
@@ -386,7 +399,9 @@ class TestNegotiationResult:
 
     def test_to_dict_with_history(self):
         msg = HybridNegotiationMessage(
-            sender="claude", natural_content="ok", turn_number=0,
+            sender="claude",
+            natural_content="ok",
+            turn_number=0,
         )
         result = NegotiationResult(
             status=NegotiationStatus.CONSENSUS,
@@ -423,8 +438,8 @@ class TestNegotiationResult:
 # 5. NegotiationProtocol constructor and configuration
 # ===================================================================
 
-class TestNegotiationProtocolInit:
 
+class TestNegotiationProtocolInit:
     def test_default_constructor(self):
         proto = NegotiationProtocol()
         assert proto.base_max_turns == 4
@@ -464,15 +479,15 @@ class TestNegotiationProtocolInit:
 
     def test_adaptive_max_turns_map(self):
         expected = {1: 2, 2: 3, 3: 4, 4: 6, 5: 8}
-        assert NegotiationProtocol.ADAPTIVE_MAX_TURNS == expected
+        assert expected == NegotiationProtocol.ADAPTIVE_MAX_TURNS
 
 
 # ===================================================================
 # 6. extract_negotiate_json() utility function
 # ===================================================================
 
-class TestExtractNegotiateJson:
 
+class TestExtractNegotiateJson:
     def test_valid_json(self):
         text = 'Some text.\n<negotiate>\n{"mode": "parallel"}\n</negotiate>\nMore text.'
         result = extract_negotiate_json(text)
@@ -508,14 +523,7 @@ class TestExtractNegotiateJson:
         assert result == {"ok": True}
 
     def test_multiline_json(self):
-        text = (
-            "<negotiate>\n"
-            "{\n"
-            '  "proposed_mode": "sequential",\n'
-            '  "confidence": 0.8\n'
-            "}\n"
-            "</negotiate>"
-        )
+        text = '<negotiate>\n{\n  "proposed_mode": "sequential",\n  "confidence": 0.8\n}\n</negotiate>'
         result = extract_negotiate_json(text)
         assert result["proposed_mode"] == "sequential"
 
@@ -529,8 +537,8 @@ class TestExtractNegotiateJson:
 # 7. skip_trivial logic
 # ===================================================================
 
-class TestSkipTrivial:
 
+class TestSkipTrivial:
     @patch("core.swarm.negotiation_protocol.emit_agent_exchange")
     @patch("core.swarm.negotiation_protocol.emit_agent_speak")
     def test_trivial_task_skips_negotiation(self, mock_speak, mock_exchange):
@@ -569,7 +577,7 @@ class TestSkipTrivial:
         proposal = _make_mode_proposal()
         invoke = MagicMock(return_value=_make_consensus_response())
 
-        result = proto.run_negotiation(analysis, proposal, invoke)
+        proto.run_negotiation(analysis, proposal, invoke)
         invoke.assert_called()
 
     @patch("core.swarm.negotiation_protocol.emit_agent_exchange")
@@ -589,8 +597,8 @@ class TestSkipTrivial:
 # 8. Single-turn negotiation (immediate agreement)
 # ===================================================================
 
-class TestSingleTurnNegotiation:
 
+class TestSingleTurnNegotiation:
     @patch("core.swarm.negotiation_protocol.emit_agent_exchange")
     @patch("core.swarm.negotiation_protocol.emit_agent_speak")
     def test_immediate_consensus_on_first_turn(self, mock_speak, mock_exchange):
@@ -637,8 +645,8 @@ class TestSingleTurnNegotiation:
 # 9. Multi-turn negotiation with disagreement
 # ===================================================================
 
-class TestMultiTurnNegotiation:
 
+class TestMultiTurnNegotiation:
     @patch("core.swarm.negotiation_protocol.emit_agent_exchange")
     @patch("core.swarm.negotiation_protocol.emit_agent_speak")
     def test_two_turn_negotiation(self, mock_speak, mock_exchange):
@@ -706,8 +714,8 @@ class TestMultiTurnNegotiation:
 # 10. Max turns enforcement
 # ===================================================================
 
-class TestMaxTurnsEnforcement:
 
+class TestMaxTurnsEnforcement:
     @patch("core.swarm.negotiation_protocol.emit_agent_exchange")
     @patch("core.swarm.negotiation_protocol.emit_agent_speak")
     def test_max_turns_timeout(self, mock_speak, mock_exchange):
@@ -802,15 +810,17 @@ class TestMaxTurnsEnforcement:
 # 11. Timeout handling
 # ===================================================================
 
-class TestTimeoutHandling:
 
+class TestTimeoutHandling:
     @patch("core.swarm.negotiation_protocol.emit_agent_exchange")
     @patch("core.swarm.negotiation_protocol.emit_agent_speak")
     @patch("core.swarm.negotiation_protocol.time")
     def test_time_based_timeout(self, mock_time, mock_speak, mock_exchange):
         """Simulate time exceeding timeout_seconds mid-negotiation."""
         proto = NegotiationProtocol(
-            max_turns=10, timeout_seconds=5.0, adaptive_turns=False,
+            max_turns=10,
+            timeout_seconds=5.0,
+            adaptive_turns=False,
         )
         analysis = _make_task_analysis()
         proposal = _make_mode_proposal()
@@ -831,7 +841,9 @@ class TestTimeoutHandling:
     def test_no_timeout_when_none(self, mock_time, mock_speak, mock_exchange):
         """timeout_seconds=None means no time limit."""
         proto = NegotiationProtocol(
-            max_turns=2, timeout_seconds=None, adaptive_turns=False,
+            max_turns=2,
+            timeout_seconds=None,
+            adaptive_turns=False,
         )
         analysis = _make_task_analysis()
         proposal = _make_mode_proposal()
@@ -847,7 +859,9 @@ class TestTimeoutHandling:
     @patch("core.swarm.negotiation_protocol.time")
     def test_timeout_returns_current_proposal(self, mock_time, mock_speak, mock_exchange):
         proto = NegotiationProtocol(
-            max_turns=10, timeout_seconds=1.0, adaptive_turns=False,
+            max_turns=10,
+            timeout_seconds=1.0,
+            adaptive_turns=False,
         )
         analysis = _make_task_analysis()
         proposal = _make_mode_proposal(mode=CollaborationMode.RED_BLUE)
@@ -865,8 +879,8 @@ class TestTimeoutHandling:
 # 12. Negotiation message parsing (_parse_response)
 # ===================================================================
 
-class TestParseResponse:
 
+class TestParseResponse:
     def test_response_with_negotiate_tag(self):
         proto = NegotiationProtocol()
         response = (
@@ -893,7 +907,7 @@ class TestParseResponse:
 
     def test_response_with_malformed_json(self):
         proto = NegotiationProtocol()
-        response = '<negotiate>\n{broken json here}\n</negotiate>'
+        response = "<negotiate>\n{broken json here}\n</negotiate>"
         msg = proto._parse_response(response, "gemini", 1)
         assert msg.structured_proposal is None
         assert msg.natural_content == ""
@@ -921,8 +935,8 @@ class TestParseResponse:
 # 13. Agent role assignment from negotiation
 # ===================================================================
 
-class TestFinalizeAssignments:
 
+class TestFinalizeAssignments:
     @patch("core.swarm.negotiation_protocol.get_registry")
     def test_assignments_from_subtasks(self, mock_get_registry):
         mock_registry = MagicMock()
@@ -945,7 +959,9 @@ class TestFinalizeAssignments:
         ]
 
         assignments = proto._finalize_assignments(
-            CollaborationMode.LEAD_SUPPORT, msg, defaults,
+            CollaborationMode.LEAD_SUPPORT,
+            msg,
+            defaults,
         )
         assert len(assignments) == 2
         # gemini should be lead, claude support
@@ -958,7 +974,8 @@ class TestFinalizeAssignments:
         proto = NegotiationProtocol()
         proposal = NegotiationProposal()
         msg = HybridNegotiationMessage(
-            sender="claude", natural_content="agreed",
+            sender="claude",
+            natural_content="agreed",
             structured_proposal=proposal,
         )
         defaults = [
@@ -966,14 +983,17 @@ class TestFinalizeAssignments:
         ]
 
         assignments = proto._finalize_assignments(
-            CollaborationMode.PARALLEL, msg, defaults,
+            CollaborationMode.PARALLEL,
+            msg,
+            defaults,
         )
         assert assignments == defaults
 
     def test_fallback_when_no_proposal(self):
         proto = NegotiationProtocol()
         msg = HybridNegotiationMessage(
-            sender="gemini", natural_content="ok",
+            sender="gemini",
+            natural_content="ok",
             structured_proposal=None,
         )
         defaults = [
@@ -981,7 +1001,9 @@ class TestFinalizeAssignments:
         ]
 
         assignments = proto._finalize_assignments(
-            CollaborationMode.SPECIALIST, msg, defaults,
+            CollaborationMode.SPECIALIST,
+            msg,
+            defaults,
         )
         assert assignments == defaults
 
@@ -997,13 +1019,16 @@ class TestFinalizeAssignments:
             subtasks={"gemini": "part A"},
         )
         msg = HybridNegotiationMessage(
-            sender="claude", natural_content="ok",
+            sender="claude",
+            natural_content="ok",
             structured_proposal=proposal,
         )
         defaults = []
 
         assignments = proto._finalize_assignments(
-            CollaborationMode.PARALLEL, msg, defaults,
+            CollaborationMode.PARALLEL,
+            msg,
+            defaults,
         )
         assert len(assignments) == 1
         assert assignments[0].role == "equal"
@@ -1013,12 +1038,15 @@ class TestFinalizeAssignments:
         proto = NegotiationProtocol()
         proposal = NegotiationProposal(subtasks=None)
         msg = HybridNegotiationMessage(
-            sender="gemini", natural_content="ok",
+            sender="gemini",
+            natural_content="ok",
             structured_proposal=proposal,
         )
         defaults = [AgentAssignment(agent_id="claude_opus", role="equal")]
         assignments = proto._finalize_assignments(
-            CollaborationMode.PARALLEL, msg, defaults,
+            CollaborationMode.PARALLEL,
+            msg,
+            defaults,
         )
         assert assignments == defaults
 
@@ -1027,8 +1055,8 @@ class TestFinalizeAssignments:
 # 14. Mode selection from negotiation outcome (_update_proposal)
 # ===================================================================
 
-class TestUpdateProposal:
 
+class TestUpdateProposal:
     def test_counter_proposal_updates_mode(self):
         proto = NegotiationProtocol()
         current = _make_mode_proposal(mode=CollaborationMode.PARALLEL)
@@ -1038,7 +1066,8 @@ class TestUpdateProposal:
             confidence=0.85,
         )
         msg = HybridNegotiationMessage(
-            sender="gemini", natural_content="I suggest lead_support",
+            sender="gemini",
+            natural_content="I suggest lead_support",
             structured_proposal=proposal,
         )
 
@@ -1051,7 +1080,8 @@ class TestUpdateProposal:
         proto = NegotiationProtocol()
         current = _make_mode_proposal(mode=CollaborationMode.PARALLEL)
         msg = HybridNegotiationMessage(
-            sender="claude", natural_content="unsure",
+            sender="claude",
+            natural_content="unsure",
             structured_proposal=None,
         )
 
@@ -1068,7 +1098,8 @@ class TestUpdateProposal:
             confidence=0.75,
         )
         msg = HybridNegotiationMessage(
-            sender="gemini", natural_content="you lead",
+            sender="gemini",
+            natural_content="you lead",
             structured_proposal=proposal,
         )
 
@@ -1097,7 +1128,8 @@ class TestUpdateProposal:
             confidence=0.7,
         )
         msg = HybridNegotiationMessage(
-            sender="claude", natural_content="specialist better",
+            sender="claude",
+            natural_content="specialist better",
             structured_proposal=proposal,
         )
 
@@ -1111,7 +1143,8 @@ class TestUpdateProposal:
 
         # Create a message where proposed_mode returns None
         msg = HybridNegotiationMessage(
-            sender="gemini", natural_content="hmm",
+            sender="gemini",
+            natural_content="hmm",
             structured_proposal=NegotiationProposal(proposed_mode=None),
         )
         updated = proto._update_proposal(current, msg)
@@ -1123,8 +1156,8 @@ class TestUpdateProposal:
 # 15. Edge cases
 # ===================================================================
 
-class TestEdgeCases:
 
+class TestEdgeCases:
     @patch("core.swarm.negotiation_protocol.emit_agent_exchange")
     @patch("core.swarm.negotiation_protocol.emit_agent_speak")
     def test_invoke_returns_empty_string(self, mock_speak, mock_exchange):
@@ -1171,15 +1204,19 @@ class TestEdgeCases:
         proto = NegotiationProtocol()
         msgs = [
             HybridNegotiationMessage(
-                sender="gemini", natural_content="ok",
+                sender="gemini",
+                natural_content="ok",
                 structured_proposal=NegotiationProposal(
-                    agrees_with_partner=True, confidence=0.9,
+                    agrees_with_partner=True,
+                    confidence=0.9,
                 ),
             ),
             HybridNegotiationMessage(
-                sender="claude", natural_content="agreed",
+                sender="claude",
+                natural_content="agreed",
                 structured_proposal=NegotiationProposal(
-                    agrees_with_partner=True, confidence=0.95,
+                    agrees_with_partner=True,
+                    confidence=0.95,
                 ),
             ),
         ]
@@ -1192,9 +1229,11 @@ class TestEdgeCases:
         proto = NegotiationProtocol()
         msgs = [
             HybridNegotiationMessage(
-                sender="gemini", natural_content="disagree",
+                sender="gemini",
+                natural_content="disagree",
                 structured_proposal=NegotiationProposal(
-                    agrees_with_partner=False, confidence=0.4,
+                    agrees_with_partner=False,
+                    confidence=0.4,
                 ),
             ),
         ]
@@ -1207,7 +1246,8 @@ class TestEdgeCases:
         proto = NegotiationProtocol()
         msgs = [
             HybridNegotiationMessage(
-                sender="gemini", natural_content="hmm",
+                sender="gemini",
+                natural_content="hmm",
             ),
         ]
         conf = proto._calculate_consensus_confidence(msgs)
@@ -1220,8 +1260,8 @@ class TestEdgeCases:
 # Additional: build context, create prompt, force mode
 # ===================================================================
 
-class TestBuildNegotiationContext:
 
+class TestBuildNegotiationContext:
     def test_context_contains_task_info(self):
         proto = NegotiationProtocol()
         analysis = _make_task_analysis(
@@ -1242,7 +1282,9 @@ class TestBuildNegotiationContext:
         proposal = _make_mode_proposal()
         history = [
             HybridNegotiationMessage(
-                sender="gemini", natural_content=f"Turn {i}", turn_number=i,
+                sender="gemini",
+                natural_content=f"Turn {i}",
+                turn_number=i,
             )
             for i in range(6)
         ]
@@ -1278,11 +1320,12 @@ class TestBuildNegotiationContext:
 
 
 class TestCreateNegotiationPrompt:
-
     def test_prompt_contains_agent_and_mode(self):
         proto = NegotiationProtocol()
         prompt = proto.create_negotiation_prompt(
-            "claude", "Fix the auth bug", CollaborationMode.LEAD_SUPPORT,
+            "claude",
+            "Fix the auth bug",
+            CollaborationMode.LEAD_SUPPORT,
         )
         assert "claude" in prompt
         assert "lead_support" in prompt
@@ -1291,7 +1334,9 @@ class TestCreateNegotiationPrompt:
     def test_prompt_includes_negotiate_block_example(self):
         proto = NegotiationProtocol()
         prompt = proto.create_negotiation_prompt(
-            "gemini", "Research task", CollaborationMode.PARALLEL,
+            "gemini",
+            "Research task",
+            CollaborationMode.PARALLEL,
         )
         assert "<negotiate>" in prompt
         assert "proposed_mode" in prompt
@@ -1299,7 +1344,6 @@ class TestCreateNegotiationPrompt:
 
 
 class TestForceMode:
-
     @patch("core.swarm.mode_selector.ModeSelector.select_mode")
     def test_force_mode_returns_forced_status(self, mock_select_mode):
         mock_select_mode.return_value = _make_mode_proposal(
@@ -1339,8 +1383,8 @@ class TestForceMode:
 # Negotiation with final_subtasks
 # ===================================================================
 
-class TestNegotiationSubtasks:
 
+class TestNegotiationSubtasks:
     @patch("core.swarm.negotiation_protocol.get_registry")
     @patch("core.swarm.negotiation_protocol.emit_agent_exchange")
     @patch("core.swarm.negotiation_protocol.emit_agent_speak")
@@ -1372,8 +1416,8 @@ class TestNegotiationSubtasks:
 # Telemetry emission verification
 # ===================================================================
 
-class TestTelemetryEmission:
 
+class TestTelemetryEmission:
     @patch("core.swarm.negotiation_protocol.emit_agent_exchange")
     @patch("core.swarm.negotiation_protocol.emit_agent_speak")
     def test_telemetry_emitted_each_turn(self, mock_speak, mock_exchange):
@@ -1420,8 +1464,8 @@ class TestTelemetryEmission:
 # Regex pattern tests
 # ===================================================================
 
-class TestNegotiatePattern:
 
+class TestNegotiatePattern:
     def test_matches_standard_format(self):
         text = '<negotiate>\n{"key": "value"}\n</negotiate>'
         match = NegotiationProtocol.NEGOTIATE_PATTERN.search(text)

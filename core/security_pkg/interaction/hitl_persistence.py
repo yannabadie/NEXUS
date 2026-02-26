@@ -32,8 +32,7 @@ Date: 2025-12-16
 import asyncio
 import json
 import logging
-from datetime import datetime, timedelta, timezone
-from typing import List, Optional
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from sqlmodel import select
@@ -45,13 +44,14 @@ logger = logging.getLogger(__name__)
 # Sync DB Operations (run in thread pool)
 # =============================================================================
 
+
 def _insert_hitl_request(
     tenant_id: UUID,
     workspace_id: str,
     request_type: str,
     prompt: str,
-    options: Optional[list] = None,
-    context_data: Optional[dict] = None,
+    options: list | None = None,
+    context_data: dict | None = None,
     ttl_hours: int = 24,
 ) -> dict:
     """
@@ -69,7 +69,7 @@ def _insert_hitl_request(
         prompt=prompt,
         options=json.dumps(options) if options else None,
         context_data=json.dumps(context_data) if context_data else None,
-        expires_at=(datetime.now(timezone.utc) + timedelta(hours=ttl_hours)).replace(tzinfo=None),
+        expires_at=(datetime.now(UTC) + timedelta(hours=ttl_hours)).replace(tzinfo=None),
     )
 
     with get_session() as session:
@@ -90,7 +90,7 @@ def _insert_hitl_request(
         }
 
 
-def _get_pending_requests(tenant_id: UUID, workspace_id: Optional[str] = None) -> List[dict]:
+def _get_pending_requests(tenant_id: UUID, workspace_id: str | None = None) -> list[dict]:
     """
     Get all pending requests for a tenant/workspace.
 
@@ -103,7 +103,7 @@ def _get_pending_requests(tenant_id: UUID, workspace_id: Optional[str] = None) -
         statement = select(HITLRequest).where(
             HITLRequest.tenant_id == tenant_id,
             HITLRequest.status == HITLRequestStatus.PENDING.value,
-            HITLRequest.expires_at > datetime.now(timezone.utc).replace(tzinfo=None),
+            HITLRequest.expires_at > datetime.now(UTC).replace(tzinfo=None),
         )
 
         if workspace_id:
@@ -113,23 +113,25 @@ def _get_pending_requests(tenant_id: UUID, workspace_id: Optional[str] = None) -
 
         results = []
         for req in session.exec(statement).all():
-            results.append({
-                "id": req.id,
-                "request_id": str(req.id),  # Alias for frontend compatibility
-                "tenant_id": req.tenant_id,
-                "workspace_id": req.workspace_id,
-                "request_type": req.request_type,
-                "prompt": req.prompt,
-                "options": json.loads(req.options) if req.options else None,
-                "status": req.status,
-                "created_at": req.created_at,
-                "expires_at": req.expires_at,
-            })
+            results.append(
+                {
+                    "id": req.id,
+                    "request_id": str(req.id),  # Alias for frontend compatibility
+                    "tenant_id": req.tenant_id,
+                    "workspace_id": req.workspace_id,
+                    "request_type": req.request_type,
+                    "prompt": req.prompt,
+                    "options": json.loads(req.options) if req.options else None,
+                    "status": req.status,
+                    "created_at": req.created_at,
+                    "expires_at": req.expires_at,
+                }
+            )
 
         return results
 
 
-def _answer_request(request_id: UUID, answer: str) -> Optional[dict]:
+def _answer_request(request_id: UUID, answer: str) -> dict | None:
     """
     Answer a pending request.
 
@@ -150,7 +152,7 @@ def _answer_request(request_id: UUID, answer: str) -> Optional[dict]:
 
         request.status = HITLRequestStatus.ANSWERED.value
         request.answer = answer
-        request.answered_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        request.answered_at = datetime.now(UTC).replace(tzinfo=None)
 
         session.add(request)
         session.commit()
@@ -200,6 +202,7 @@ def _cleanup_expired() -> int:
     Called from thread pool via asyncio.to_thread().
     """
     from sqlalchemy import update
+
     from core.infrastructure.db import get_engine
     from core.observability.audit.models import HITLRequest, HITLRequestStatus
 
@@ -209,7 +212,7 @@ def _cleanup_expired() -> int:
             update(HITLRequest)
             .where(
                 HITLRequest.status == HITLRequestStatus.PENDING.value,
-                HITLRequest.expires_at < datetime.now(timezone.utc).replace(tzinfo=None),
+                HITLRequest.expires_at < datetime.now(UTC).replace(tzinfo=None),
             )
             .values(status=HITLRequestStatus.EXPIRED.value)
         )
@@ -217,7 +220,7 @@ def _cleanup_expired() -> int:
         return result.rowcount
 
 
-def _get_request_by_id(request_id: UUID) -> Optional[dict]:
+def _get_request_by_id(request_id: UUID) -> dict | None:
     """
     Get a single request by ID.
 
@@ -254,6 +257,7 @@ def _get_request_by_id(request_id: UUID) -> Optional[dict]:
 # Async HITL Persistence Service
 # =============================================================================
 
+
 class HITLPersistence:
     """
     HITL Persistence Service for async database operations.
@@ -269,8 +273,8 @@ class HITLPersistence:
         workspace_id: str,
         request_type: str,
         prompt: str,
-        options: Optional[list] = None,
-        context_data: Optional[dict] = None,
+        options: list | None = None,
+        context_data: dict | None = None,
         ttl_hours: int = 24,
     ) -> dict:
         """
@@ -305,8 +309,8 @@ class HITLPersistence:
     @staticmethod
     async def get_pending(
         tenant_id: UUID,
-        workspace_id: Optional[str] = None,
-    ) -> List[dict]:
+        workspace_id: str | None = None,
+    ) -> list[dict]:
         """
         Get all pending requests for a tenant/workspace.
 
@@ -323,7 +327,7 @@ class HITLPersistence:
     async def answer_request(
         request_id: UUID,
         answer: str,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """
         Answer a pending request.
 
@@ -362,7 +366,7 @@ class HITLPersistence:
         return result
 
     @staticmethod
-    async def get_request(request_id: UUID) -> Optional[dict]:
+    async def get_request(request_id: UUID) -> dict | None:
         """
         Get a single request by ID.
 

@@ -11,8 +11,9 @@ Date: 2025-12-15
 """
 
 import os
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 
 class TestJWTSecurity:
@@ -25,10 +26,12 @@ class TestJWTSecurity:
         with patch.dict(os.environ, {"NEXUS_JWT_SECRET": test_secret}):
             # Need to reload module to pick up new env
             import importlib
+
             from core.api.cerebro import middleware
+
             importlib.reload(middleware)
 
-            assert middleware.JWT_SECRET == test_secret
+            assert test_secret == middleware.JWT_SECRET
 
     def test_jwt_secret_fallback_warning(self):
         """Verify fallback secret is used with warning when env not set."""
@@ -38,7 +41,9 @@ class TestJWTSecurity:
 
         with patch.dict(os.environ, env, clear=True):
             import importlib
+
             from core.api.cerebro import middleware
+
             importlib.reload(middleware)
 
             # Should have fallback secret
@@ -47,11 +52,11 @@ class TestJWTSecurity:
 
     def test_jwt_secret_not_hardcoded(self):
         """Verify no hardcoded production secrets in code."""
-        import importlib
-        from core.api.cerebro import middleware
-
         # Read the source file
         import inspect
+
+        from core.api.cerebro import middleware
+
         source = inspect.getsource(middleware)
 
         # Should not contain the old hardcoded secret
@@ -67,7 +72,9 @@ class TestCORSSecurity:
 
         with patch.dict(os.environ, {"NEXUS_CORS_ORIGINS": test_origins}):
             import importlib
+
             from core.api.cerebro import app
+
             importlib.reload(app)
 
             assert "http://localhost:3000" in app.CORS_ORIGINS
@@ -80,7 +87,9 @@ class TestCORSSecurity:
 
         with patch.dict(os.environ, env, clear=True):
             import importlib
+
             from core.api.cerebro import app
+
             importlib.reload(app)
 
             # Should default to localhost
@@ -89,7 +98,9 @@ class TestCORSSecurity:
     def test_cors_not_wildcard(self):
         """Verify CORS does not use wildcard origin."""
         import importlib
+
         from core.api.cerebro import app
+
         importlib.reload(app)
 
         # Should not contain wildcard

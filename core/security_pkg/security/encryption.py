@@ -23,15 +23,14 @@ Usage:
 
 from __future__ import annotations
 
-import base64
 import hashlib
 import json
 import logging
 import os
 import secrets
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -62,6 +61,7 @@ class EncryptionConfig:
         encrypted_extension: File extension for encrypted files
         remove_original: Whether to remove plaintext after encryption
     """
+
     kdf_iterations: int = DEFAULT_KDF_ITERATIONS
     salt_length: int = DEFAULT_SALT_LENGTH
     encrypted_extension: str = ENCRYPTED_EXTENSION
@@ -72,8 +72,9 @@ class EncryptionConfig:
 # Encryption Primitives
 # =============================================================================
 
+
 def derive_key(
-    password: Union[str, bytes],
+    password: str | bytes,
     salt: bytes,
     iterations: int = DEFAULT_KDF_ITERATIONS,
 ) -> bytes:
@@ -156,6 +157,7 @@ def decrypt_bytes(encrypted: bytes, key: bytes) -> bytes:
 # File Encryptor
 # =============================================================================
 
+
 class FileEncryptor:
     """
     Encrypts and decrypts workspace files using AES-256-GCM.
@@ -170,8 +172,8 @@ class FileEncryptor:
 
     def __init__(
         self,
-        key: Optional[str] = None,
-        config: Optional[EncryptionConfig] = None,
+        key: str | None = None,
+        config: EncryptionConfig | None = None,
     ):
         """
         Initialize file encryptor.
@@ -188,8 +190,7 @@ class FileEncryptor:
         resolved_key = key or os.getenv(ENV_KEY_NAME)
         if not resolved_key:
             raise ValueError(
-                f"No encryption key provided. Set {ENV_KEY_NAME} environment "
-                f"variable or pass key parameter."
+                f"No encryption key provided. Set {ENV_KEY_NAME} environment variable or pass key parameter."
             )
 
         self._password = resolved_key
@@ -234,8 +235,8 @@ class FileEncryptor:
         if header != MAGIC_HEADER:
             raise ValueError("Invalid encryption header (not a NEXUS encrypted file)")
 
-        salt = data[header_len:header_len + self.config.salt_length]
-        encrypted = data[header_len + self.config.salt_length:]
+        salt = data[header_len : header_len + self.config.salt_length]
+        encrypted = data[header_len + self.config.salt_length :]
 
         key = derive_key(self._password, salt, self.config.kdf_iterations)
         return decrypt_bytes(encrypted, key)
@@ -292,7 +293,7 @@ class FileEncryptor:
 
         # Remove .enc extension
         if filepath.name.endswith(self.config.encrypted_extension):
-            original_name = filepath.name[:-len(self.config.encrypted_extension)]
+            original_name = filepath.name[: -len(self.config.encrypted_extension)]
         else:
             original_name = filepath.name + ".dec"
 
@@ -346,7 +347,7 @@ class FileEncryptor:
             with open(filepath, "rb") as f:
                 header = f.read(len(MAGIC_HEADER))
                 return header == MAGIC_HEADER
-        except (IOError, OSError):
+        except OSError:
             return False
 
     @staticmethod
@@ -354,7 +355,7 @@ class FileEncryptor:
         """Check if encryption key is configured."""
         return bool(os.getenv(ENV_KEY_NAME))
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Export encryptor state (without key)."""
         return {
             "key_configured": True,

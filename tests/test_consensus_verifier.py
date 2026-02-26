@@ -1,26 +1,26 @@
 """Tests for ConsensusVerifier - Six Sigma-inspired multi-sampling verification."""
 
 import pytest
+
 from core.intelligence.reasoning.consensus_verifier import (
-    ConsensusVerifier,
-    VerificationOutcome,
-    VerificationResult,
-    QualityGate,
-    Sample,
-    Cluster,
-    VerifierStats,
+    CPK_ACCEPT_THRESHOLD,
     DEFAULT_N_SAMPLES,
     MIN_CONSENSUS_THRESHOLD,
-    CPK_ACCEPT_THRESHOLD,
     SIMILARITY_THRESHOLD,
+    Cluster,
+    ConsensusVerifier,
+    QualityGate,
+    Sample,
+    VerificationOutcome,
+    VerificationResult,
     get_consensus_verifier,
     reset_consensus_verifier,
 )
 
-
 # =============================================================================
 # Constants
 # =============================================================================
+
 
 class TestConstants:
     def test_default_n_samples(self):
@@ -40,6 +40,7 @@ class TestConstants:
 # VerificationOutcome Enum
 # =============================================================================
 
+
 class TestVerificationOutcome:
     def test_four_outcomes(self):
         assert len(VerificationOutcome) == 4
@@ -55,6 +56,7 @@ class TestVerificationOutcome:
 # QualityGate Enum
 # =============================================================================
 
+
 class TestQualityGate:
     def test_three_gates(self):
         assert len(QualityGate) == 3
@@ -68,6 +70,7 @@ class TestQualityGate:
 # =============================================================================
 # Sample
 # =============================================================================
+
 
 class TestSample:
     def test_basic_creation(self):
@@ -94,6 +97,7 @@ class TestSample:
 # Cluster
 # =============================================================================
 
+
 class TestCluster:
     def test_empty_cluster(self):
         c = Cluster(cluster_id=0)
@@ -108,20 +112,26 @@ class TestCluster:
         assert c.variance == 0.0  # Single sample, no variance
 
     def test_multiple_samples(self):
-        c = Cluster(cluster_id=0, samples=[
-            Sample(sample_id=0, score=0.8),
-            Sample(sample_id=1, score=0.9),
-            Sample(sample_id=2, score=0.7),
-        ])
+        c = Cluster(
+            cluster_id=0,
+            samples=[
+                Sample(sample_id=0, score=0.8),
+                Sample(sample_id=1, score=0.9),
+                Sample(sample_id=2, score=0.7),
+            ],
+        )
         assert c.size == 3
         assert c.mean_score == pytest.approx(0.8, abs=0.01)
         assert c.variance > 0
 
     def test_to_dict(self):
-        c = Cluster(cluster_id=1, samples=[
-            Sample(sample_id=0, score=0.8),
-            Sample(sample_id=1, score=0.9),
-        ])
+        c = Cluster(
+            cluster_id=1,
+            samples=[
+                Sample(sample_id=0, score=0.8),
+                Sample(sample_id=1, score=0.9),
+            ],
+        )
         d = c.to_dict()
         assert d["cluster_id"] == 1
         assert d["size"] == 2
@@ -132,6 +142,7 @@ class TestCluster:
 # =============================================================================
 # Cpk Calculation
 # =============================================================================
+
 
 class TestCpkCalculation:
     def setup_method(self):
@@ -173,6 +184,7 @@ class TestCpkCalculation:
 # Quality Gates
 # =============================================================================
 
+
 class TestQualityGates:
     def setup_method(self):
         self.verifier = ConsensusVerifier()
@@ -196,6 +208,7 @@ class TestQualityGates:
 # =============================================================================
 # Clustering
 # =============================================================================
+
 
 class TestClustering:
     def setup_method(self):
@@ -235,7 +248,7 @@ class TestClustering:
             Sample(sample_id=0, score=0.8),
             Sample(sample_id=1, score=0.81),
         ]
-        clusters = self.verifier._cluster_samples(samples)
+        self.verifier._cluster_samples(samples)
         for sample in samples:
             assert sample.cluster_id >= 0
 
@@ -244,39 +257,33 @@ class TestClustering:
 # Outcome Determination
 # =============================================================================
 
+
 class TestOutcomeDetermination:
     def setup_method(self):
         self.verifier = ConsensusVerifier()
 
     def test_high_consensus_high_cpk_accepted(self):
-        outcome = self.verifier._determine_outcome(
-            consensus=0.9, cpk=1.5, score=0.8
-        )
+        outcome = self.verifier._determine_outcome(consensus=0.9, cpk=1.5, score=0.8)
         assert outcome == VerificationOutcome.ACCEPTED
 
     def test_moderate_consensus_weak_accept(self):
-        outcome = self.verifier._determine_outcome(
-            consensus=0.5, cpk=1.5, score=0.8
-        )
+        outcome = self.verifier._determine_outcome(consensus=0.5, cpk=1.5, score=0.8)
         assert outcome == VerificationOutcome.WEAK_ACCEPT
 
     def test_low_consensus_rejected(self):
-        outcome = self.verifier._determine_outcome(
-            consensus=0.3, cpk=0.5, score=0.5
-        )
+        outcome = self.verifier._determine_outcome(consensus=0.3, cpk=0.5, score=0.5)
         assert outcome == VerificationOutcome.REJECTED
 
     def test_high_consensus_low_cpk_weak_accept(self):
         """Good consensus but low Cpk → weak accept."""
-        outcome = self.verifier._determine_outcome(
-            consensus=0.8, cpk=0.5, score=0.8
-        )
+        outcome = self.verifier._determine_outcome(consensus=0.8, cpk=0.5, score=0.8)
         assert outcome == VerificationOutcome.WEAK_ACCEPT
 
 
 # =============================================================================
 # verify() Integration
 # =============================================================================
+
 
 class TestVerifyIntegration:
     def test_verify_returns_result(self):
@@ -303,6 +310,7 @@ class TestVerifyIntegration:
 
     def test_verify_consistent_output_high_cpk(self):
         """Consistent evaluator output → high Cpk."""
+
         # Use a custom evaluator that returns consistent scores
         def consistent_eval(output, context=""):
             return 0.8, ["consistent"]
@@ -314,6 +322,7 @@ class TestVerifyIntegration:
 
     def test_verify_all_same_score_accepted(self):
         """All identical scores → strong consensus."""
+
         def fixed_eval(output, context=""):
             return 0.75, ["fixed"]
 
@@ -339,6 +348,7 @@ class TestVerifyIntegration:
 # =============================================================================
 # verify_scores() - Pre-computed Scores
 # =============================================================================
+
 
 class TestVerifyScores:
     def test_uniform_scores_accepted(self):
@@ -385,6 +395,7 @@ class TestVerifyScores:
 # VerificationResult
 # =============================================================================
 
+
 class TestVerificationResult:
     def test_to_dict(self):
         result = VerificationResult(
@@ -412,6 +423,7 @@ class TestVerificationResult:
 # Custom Configuration
 # =============================================================================
 
+
 class TestCustomConfig:
     def test_custom_n_samples(self):
         v = ConsensusVerifier(n_samples=7)
@@ -437,8 +449,10 @@ class TestCustomConfig:
 
     def test_custom_consensus_threshold(self):
         """Stricter threshold makes acceptance harder."""
+
         def varied_eval(output, context=""):
             import random
+
             return 0.5 + random.uniform(-0.2, 0.2), []
 
         strict = ConsensusVerifier(n_samples=5, consensus_threshold=0.95, evaluator=varied_eval)
@@ -454,6 +468,7 @@ class TestCustomConfig:
 # =============================================================================
 # Statistics
 # =============================================================================
+
 
 class TestVerifierStats:
     def test_empty_stats(self):
@@ -497,6 +512,7 @@ class TestVerifierStats:
 # =============================================================================
 # Singleton
 # =============================================================================
+
 
 class TestSingleton:
     def test_get_returns_same(self):

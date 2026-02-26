@@ -37,9 +37,10 @@ from __future__ import annotations
 import logging
 import time
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Set
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -56,8 +57,10 @@ MAX_RETRIES = 3
 # Types
 # =============================================================================
 
+
 class StepStatus(Enum):
     """Status of a workflow step."""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -67,6 +70,7 @@ class StepStatus(Enum):
 
 class WorkflowStatus(Enum):
     """Status of an entire workflow."""
+
     CREATED = "created"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -77,12 +81,13 @@ class WorkflowStatus(Enum):
 @dataclass
 class WorkflowStep:
     """A single step in a workflow."""
+
     name: str
     handler: str  # handler function key
-    depends_on: List[str] = field(default_factory=list)
-    config: Dict[str, Any] = field(default_factory=dict)
-    skip_if: Optional[str] = None  # context key: skip if truthy
-    run_if: Optional[str] = None   # context key: run only if truthy
+    depends_on: list[str] = field(default_factory=list)
+    config: dict[str, Any] = field(default_factory=dict)
+    skip_if: str | None = None  # context key: skip if truthy
+    run_if: str | None = None  # context key: run only if truthy
     retries: int = 0
     timeout_seconds: float = 0  # 0 = no timeout
     description: str = ""
@@ -90,11 +95,11 @@ class WorkflowStep:
     # Runtime state (set during execution)
     status: StepStatus = StepStatus.PENDING
     result: Any = None
-    error: Optional[str] = None
+    error: str | None = None
     duration_seconds: float = 0.0
     attempts: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "handler": self.handler,
@@ -110,14 +115,15 @@ class WorkflowStep:
 @dataclass
 class Workflow:
     """A complete workflow definition with steps."""
+
     workflow_id: str = ""
     name: str = ""
     description: str = ""
-    steps: List[WorkflowStep] = field(default_factory=list)
+    steps: list[WorkflowStep] = field(default_factory=list)
     status: WorkflowStatus = WorkflowStatus.CREATED
     created_at: float = 0.0
     completed_at: float = 0.0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         if not self.workflow_id:
@@ -129,7 +135,7 @@ class Workflow:
         """Add a step to the workflow."""
         self.steps.append(step)
 
-    def get_step(self, name: str) -> Optional[WorkflowStep]:
+    def get_step(self, name: str) -> WorkflowStep | None:
         """Get a step by name."""
         for s in self.steps:
             if s.name == name:
@@ -141,7 +147,7 @@ class Workflow:
         return len(self.steps)
 
     @property
-    def step_names(self) -> List[str]:
+    def step_names(self) -> list[str]:
         return [s.name for s in self.steps]
 
     @property
@@ -161,13 +167,10 @@ class Workflow:
         """Workflow progress (0.0 to 1.0)."""
         if not self.steps:
             return 1.0
-        done = sum(
-            1 for s in self.steps
-            if s.status in (StepStatus.COMPLETED, StepStatus.SKIPPED, StepStatus.FAILED)
-        )
+        done = sum(1 for s in self.steps if s.status in (StepStatus.COMPLETED, StepStatus.SKIPPED, StepStatus.FAILED))
         return done / len(self.steps)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "workflow_id": self.workflow_id,
             "name": self.name,
@@ -185,6 +188,7 @@ class Workflow:
 @dataclass
 class ExecutionResult:
     """Result of executing a workflow."""
+
     workflow_id: str
     workflow_name: str
     status: WorkflowStatus
@@ -193,14 +197,14 @@ class ExecutionResult:
     failed_steps: int
     skipped_steps: int
     total_duration: float
-    context: Dict[str, Any]  # shared execution context
-    errors: List[str] = field(default_factory=list)
+    context: dict[str, Any]  # shared execution context
+    errors: list[str] = field(default_factory=list)
 
     @property
     def success(self) -> bool:
         return self.status == WorkflowStatus.COMPLETED
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "workflow_id": self.workflow_id,
             "workflow_name": self.workflow_name,
@@ -219,6 +223,7 @@ class ExecutionResult:
 # Workflow Engine
 # =============================================================================
 
+
 class WorkflowEngine:
     """
     Executes multi-step workflows with dependency tracking.
@@ -229,8 +234,8 @@ class WorkflowEngine:
     """
 
     def __init__(self):
-        self._templates: Dict[str, Workflow] = {}
-        self._history: List[ExecutionResult] = []
+        self._templates: dict[str, Workflow] = {}
+        self._history: list[ExecutionResult] = []
 
     # =========================================================================
     # Template Management
@@ -241,7 +246,7 @@ class WorkflowEngine:
         name: str,
         *,
         description: str = "",
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> Workflow:
         """Create a new workflow."""
         wf = Workflow(
@@ -255,11 +260,11 @@ class WorkflowEngine:
         """Register a workflow as a reusable template."""
         self._templates[workflow.name] = workflow
 
-    def get_template(self, name: str) -> Optional[Workflow]:
+    def get_template(self, name: str) -> Workflow | None:
         """Get a registered template."""
         return self._templates.get(name)
 
-    def list_templates(self) -> List[str]:
+    def list_templates(self) -> list[str]:
         """List registered template names."""
         return sorted(self._templates.keys())
 
@@ -270,9 +275,9 @@ class WorkflowEngine:
     def execute(
         self,
         workflow: Workflow,
-        handlers: Dict[str, Callable],
+        handlers: dict[str, Callable],
         *,
-        initial_context: Optional[Dict[str, Any]] = None,
+        initial_context: dict[str, Any] | None = None,
         stop_on_failure: bool = True,
     ) -> ExecutionResult:
         """
@@ -290,7 +295,7 @@ class WorkflowEngine:
         context = dict(initial_context or {})
         start_time = time.monotonic()
         workflow.status = WorkflowStatus.RUNNING
-        errors: List[str] = []
+        errors: list[str] = []
 
         # Topological order
         order = self._topological_sort(workflow)
@@ -357,7 +362,7 @@ class WorkflowEngine:
         self,
         step: WorkflowStep,
         handler: Callable,
-        context: Dict[str, Any],
+        context: dict[str, Any],
     ) -> bool:
         """Execute a single step with retries."""
         max_attempts = max(1, step.retries + 1)
@@ -386,14 +391,12 @@ class WorkflowEngine:
     def _should_skip(
         self,
         step: WorkflowStep,
-        context: Dict[str, Any],
+        context: dict[str, Any],
     ) -> bool:
         """Check if step should be skipped based on conditions."""
         if step.skip_if and context.get(step.skip_if):
             return True
-        if step.run_if and not context.get(step.run_if):
-            return True
-        return False
+        return bool(step.run_if and not context.get(step.run_if))
 
     def _deps_satisfied(
         self,
@@ -409,15 +412,15 @@ class WorkflowEngine:
                 return False
         return True
 
-    def _topological_sort(self, workflow: Workflow) -> List[str]:
+    def _topological_sort(self, workflow: Workflow) -> list[str]:
         """Sort steps in dependency order (Kahn's algorithm)."""
         if not workflow.steps:
             return []
 
         # Build adjacency info
-        in_degree: Dict[str, int] = {}
-        dependents: Dict[str, List[str]] = {}
-        all_names: Set[str] = set()
+        in_degree: dict[str, int] = {}
+        dependents: dict[str, list[str]] = {}
+        all_names: set[str] = set()
 
         for step in workflow.steps:
             all_names.add(step.name)
@@ -455,7 +458,7 @@ class WorkflowEngine:
     def execution_count(self) -> int:
         return len(self._history)
 
-    def get_history(self, limit: int = 10) -> List[ExecutionResult]:
+    def get_history(self, limit: int = 10) -> list[ExecutionResult]:
         """Get execution history (most recent first)."""
         return list(reversed(self._history[-limit:]))
 
@@ -465,7 +468,7 @@ class WorkflowEngine:
         self._history.clear()
         return count
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "template_count": self.template_count,
             "execution_count": self.execution_count,

@@ -8,11 +8,10 @@ JSON-RPC 2.0 Reference: https://www.jsonrpc.org/specification
 MCP Reference: https://modelcontextprotocol.io/
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, Any, List, Optional, Union
-from enum import Enum
 import json
-
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any
 
 # =============================================================================
 # JSON-RPC 2.0 Base Types
@@ -34,9 +33,10 @@ class MCPRequest:
             "params": {}
         }
     """
+
     method: str
     id: int
-    params: Optional[Dict[str, Any]] = None
+    params: dict[str, Any] | None = None
     jsonrpc: str = JSONRPC_VERSION
 
     def to_json(self) -> str:
@@ -51,7 +51,7 @@ class MCPRequest:
         return json.dumps(data)
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "MCPRequest":
+    def from_dict(cls, data: dict) -> "MCPRequest":
         """Deserialize from dict."""
         return cls(
             method=data.get("method", ""),
@@ -73,11 +73,12 @@ class MCPError:
         -32602: Invalid params
         -32603: Internal error
     """
+
     code: int
     message: str
-    data: Optional[Any] = None
+    data: Any | None = None
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Serialize to dict."""
         result = {
             "code": self.code,
@@ -88,7 +89,7 @@ class MCPError:
         return result
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "MCPError":
+    def from_dict(cls, data: dict) -> "MCPError":
         """Deserialize from dict."""
         return cls(
             code=data.get("code", -32603),
@@ -116,9 +117,10 @@ class MCPResponse:
             "error": {"code": -32601, "message": "Method not found"}
         }
     """
+
     id: int
-    result: Optional[Any] = None
-    error: Optional[MCPError] = None
+    result: Any | None = None
+    error: MCPError | None = None
     jsonrpc: str = JSONRPC_VERSION
 
     @property
@@ -144,7 +146,7 @@ class MCPResponse:
         return json.dumps(data)
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "MCPResponse":
+    def from_dict(cls, data: dict) -> "MCPResponse":
         """Deserialize from dict."""
         error = None
         if "error" in data:
@@ -167,6 +169,7 @@ class MCPResponse:
 # MCP-Specific Types
 # =============================================================================
 
+
 @dataclass
 class MCPToolInputSchema:
     """
@@ -181,11 +184,12 @@ class MCPToolInputSchema:
             "required": ["path"]
         }
     """
-    type: str = "object"
-    properties: Dict[str, Any] = field(default_factory=dict)
-    required: List[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict:
+    type: str = "object"
+    properties: dict[str, Any] = field(default_factory=dict)
+    required: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict:
         """Serialize to dict."""
         return {
             "type": self.type,
@@ -194,7 +198,7 @@ class MCPToolInputSchema:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "MCPToolInputSchema":
+    def from_dict(cls, data: dict) -> "MCPToolInputSchema":
         """Deserialize from dict."""
         return cls(
             type=data.get("type", "object"),
@@ -221,11 +225,12 @@ class MCPTool:
             }
         }
     """
+
     name: str
     description: str = ""
-    inputSchema: Optional[MCPToolInputSchema] = None
+    inputSchema: MCPToolInputSchema | None = None
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Serialize to dict."""
         result = {
             "name": self.name,
@@ -236,7 +241,7 @@ class MCPTool:
         return result
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "MCPTool":
+    def from_dict(cls, data: dict) -> "MCPTool":
         """Deserialize from dict."""
         input_schema = None
         if "inputSchema" in data:
@@ -251,6 +256,7 @@ class MCPTool:
 
 class MCPContentType(Enum):
     """Content types for tool results."""
+
     TEXT = "text"
     IMAGE = "image"
     RESOURCE = "resource"
@@ -267,13 +273,14 @@ class MCPContent:
             "text": "File contents here..."
         }
     """
-    type: str  # "text", "image", "resource"
-    text: Optional[str] = None
-    data: Optional[str] = None  # Base64 for images
-    mimeType: Optional[str] = None
-    uri: Optional[str] = None  # For resources
 
-    def to_dict(self) -> Dict:
+    type: str  # "text", "image", "resource"
+    text: str | None = None
+    data: str | None = None  # Base64 for images
+    mimeType: str | None = None
+    uri: str | None = None  # For resources
+
+    def to_dict(self) -> dict:
         """Serialize to dict."""
         result = {"type": self.type}
         if self.text is not None:
@@ -287,7 +294,7 @@ class MCPContent:
         return result
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "MCPContent":
+    def from_dict(cls, data: dict) -> "MCPContent":
         """Deserialize from dict."""
         return cls(
             type=data.get("type", "text"),
@@ -311,7 +318,8 @@ class MCPToolResult:
             "isError": false
         }
     """
-    content: List[MCPContent] = field(default_factory=list)
+
+    content: list[MCPContent] = field(default_factory=list)
     isError: bool = False
 
     @property
@@ -323,7 +331,7 @@ class MCPToolResult:
                 texts.append(item.text)
         return "\n".join(texts)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Serialize to dict."""
         return {
             "content": [c.to_dict() for c in self.content],
@@ -331,7 +339,7 @@ class MCPToolResult:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "MCPToolResult":
+    def from_dict(cls, data: dict) -> "MCPToolResult":
         """Deserialize from dict."""
         content = []
         for item in data.get("content", []):
@@ -357,13 +365,14 @@ class MCPCapabilities:
             }
         }
     """
+
     tools: bool = False
     resources: bool = False
     prompts: bool = False
     logging: bool = False
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "MCPCapabilities":
+    def from_dict(cls, data: dict) -> "MCPCapabilities":
         """Deserialize from dict (handles nested 'capabilities' key)."""
         caps = data.get("capabilities", data)
         return cls(
@@ -385,11 +394,12 @@ class MCPServerInfo:
             "version": "1.0.0"
         }
     """
+
     name: str = "unknown"
     version: str = "0.0.0"
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "MCPServerInfo":
+    def from_dict(cls, data: dict) -> "MCPServerInfo":
         """Deserialize from dict."""
         return cls(
             name=data.get("name", "unknown"),
@@ -409,12 +419,13 @@ class MCPInitializeResult:
             "serverInfo": {...}
         }
     """
+
     protocolVersion: str = "2024-11-05"
-    capabilities: Optional[MCPCapabilities] = None
-    serverInfo: Optional[MCPServerInfo] = None
+    capabilities: MCPCapabilities | None = None
+    serverInfo: MCPServerInfo | None = None
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "MCPInitializeResult":
+    def from_dict(cls, data: dict) -> "MCPInitializeResult":
         """Deserialize from dict."""
         caps = None
         if "capabilities" in data:
@@ -435,8 +446,10 @@ class MCPInitializeResult:
 # MCP Method Constants
 # =============================================================================
 
+
 class MCPMethod:
     """MCP protocol method names."""
+
     # Lifecycle
     INITIALIZE = "initialize"
     INITIALIZED = "notifications/initialized"
@@ -459,8 +472,10 @@ class MCPMethod:
 # Error Codes
 # =============================================================================
 
+
 class MCPErrorCode:
     """JSON-RPC 2.0 and MCP error codes."""
+
     # JSON-RPC 2.0 standard
     PARSE_ERROR = -32700
     INVALID_REQUEST = -32600

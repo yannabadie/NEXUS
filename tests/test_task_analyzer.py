@@ -19,13 +19,10 @@ Tests cover:
 Target: 80+ tests, all passing.
 """
 
-import asyncio
 import re
 import sys
 from pathlib import Path
-from dataclasses import fields as dataclass_fields
-from typing import List
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -33,25 +30,25 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.intelligence.swarm.task_analyzer import (
-    TaskComplexity,
-    TaskDomain,
+    AGENT_DOMAIN_STRENGTHS,
+    COMPLEXITY_INDICATORS,
+    CONTEXT_CLUE_PATTERNS,
+    CONVERSATIONAL_TRIVIAL_PATTERNS,
+    DOMAIN_KEYWORDS,
+    STAGE1_INSTANT_COMMANDS,
+    STAGE2_CONFIDENCE_THRESHOLD,
+    TASK_STRUCTURE_PATTERNS,
     AnalysisStage,
     TaskAnalysis,
     TaskAnalyzer,
-    DOMAIN_KEYWORDS,
-    AGENT_DOMAIN_STRENGTHS,
-    COMPLEXITY_INDICATORS,
-    STAGE1_INSTANT_COMMANDS,
-    CONVERSATIONAL_TRIVIAL_PATTERNS,
-    STAGE2_CONFIDENCE_THRESHOLD,
-    TASK_STRUCTURE_PATTERNS,
-    CONTEXT_CLUE_PATTERNS,
+    TaskComplexity,
+    TaskDomain,
 )
-
 
 # =============================================================================
 # Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def analyzer():
@@ -70,6 +67,7 @@ def analyzer_with_memory():
 # =============================================================================
 # 1. TaskComplexity enum tests
 # =============================================================================
+
 
 class TestTaskComplexity:
     """Tests for TaskComplexity IntEnum."""
@@ -133,6 +131,7 @@ class TestTaskComplexity:
 # 2. TaskDomain enum tests
 # =============================================================================
 
+
 class TestTaskDomain:
     """Tests for TaskDomain Enum."""
 
@@ -175,17 +174,14 @@ class TestTaskDomain:
     def test_all_domains_in_agent_strengths(self):
         """Every TaskDomain has agent strength scores."""
         for domain in TaskDomain:
-            assert domain in AGENT_DOMAIN_STRENGTHS["gemini"], (
-                f"{domain} missing from gemini strengths"
-            )
-            assert domain in AGENT_DOMAIN_STRENGTHS["claude"], (
-                f"{domain} missing from claude strengths"
-            )
+            assert domain in AGENT_DOMAIN_STRENGTHS["gemini"], f"{domain} missing from gemini strengths"
+            assert domain in AGENT_DOMAIN_STRENGTHS["claude"], f"{domain} missing from claude strengths"
 
 
 # =============================================================================
 # 3. AnalysisStage enum tests
 # =============================================================================
+
 
 class TestAnalysisStage:
     """Tests for AnalysisStage IntEnum."""
@@ -213,6 +209,7 @@ class TestAnalysisStage:
 # =============================================================================
 # 4. TaskAnalysis dataclass tests
 # =============================================================================
+
 
 class TestTaskAnalysis:
     """Tests for TaskAnalysis dataclass."""
@@ -304,8 +301,7 @@ class TestTaskAnalysis:
 
     def test_should_skip_negotiation_non_trivial(self):
         """Non-TRIVIAL tasks do NOT skip negotiation."""
-        for level in [TaskComplexity.SIMPLE, TaskComplexity.MODERATE,
-                      TaskComplexity.COMPLEX, TaskComplexity.EXPERT]:
+        for level in [TaskComplexity.SIMPLE, TaskComplexity.MODERATE, TaskComplexity.COMPLEX, TaskComplexity.EXPERT]:
             analysis = self._make_analysis(complexity=level)
             assert analysis.should_skip_negotiation is False, f"Failed for {level}"
 
@@ -337,11 +333,23 @@ class TestTaskAnalysis:
         analysis = self._make_analysis()
         d = analysis.to_dict()
         expected_keys = {
-            "complexity", "complexity_value", "domains", "primary_domain",
-            "requires_web", "requires_code_execution", "requires_deep_reasoning",
-            "requires_iteration", "gemini_fit_score", "claude_fit_score",
-            "recommended_lead", "should_skip_negotiation", "needs_adversarial_mode",
-            "confidence", "detected_keywords", "analysis_stage", "analysis_cost",
+            "complexity",
+            "complexity_value",
+            "domains",
+            "primary_domain",
+            "requires_web",
+            "requires_code_execution",
+            "requires_deep_reasoning",
+            "requires_iteration",
+            "gemini_fit_score",
+            "claude_fit_score",
+            "recommended_lead",
+            "should_skip_negotiation",
+            "needs_adversarial_mode",
+            "confidence",
+            "detected_keywords",
+            "analysis_stage",
+            "analysis_cost",
             "instant_command",
         }
         assert set(d.keys()) == expected_keys
@@ -444,30 +452,65 @@ class TestTaskAnalysis:
 # 5. Instant command detection (Stage 1)
 # =============================================================================
 
+
 class TestInstantCommandDetection:
     """Tests for Stage 1 instant command regex matching."""
 
-    @pytest.mark.parametrize("cmd", [
-        "status", "state", "info",
-        "clear", "cls", "reset",
-        "exit", "quit", "bye", "q",
-        "help", "?",
-        "version", "ver", "v",
-        "config", "settings", "prefs",
-        "history", "hist", "log", "logs",
-        "cancel", "stop", "abort",
-        "save", "load", "restore",
-        "undo", "redo",
-    ])
+    @pytest.mark.parametrize(
+        "cmd",
+        [
+            "status",
+            "state",
+            "info",
+            "clear",
+            "cls",
+            "reset",
+            "exit",
+            "quit",
+            "bye",
+            "q",
+            "help",
+            "?",
+            "version",
+            "ver",
+            "v",
+            "config",
+            "settings",
+            "prefs",
+            "history",
+            "hist",
+            "log",
+            "logs",
+            "cancel",
+            "stop",
+            "abort",
+            "save",
+            "load",
+            "restore",
+            "undo",
+            "redo",
+        ],
+    )
     def test_bare_commands_detected(self, analyzer, cmd):
         """Bare command words are detected as instant commands."""
         result = analyzer.is_instant_command(cmd)
         assert result is not None, f"'{cmd}' should be detected as instant command"
 
-    @pytest.mark.parametrize("cmd", [
-        "/status", "/clear", "/exit", "/help", "/version",
-        "/config", "/history", "/cancel", "/save", "/undo",
-    ])
+    @pytest.mark.parametrize(
+        "cmd",
+        [
+            "/status",
+            "/clear",
+            "/exit",
+            "/help",
+            "/version",
+            "/config",
+            "/history",
+            "/cancel",
+            "/save",
+            "/undo",
+        ],
+    )
     def test_slash_prefixed_commands_detected(self, analyzer, cmd):
         """Slash-prefixed commands are also detected."""
         result = analyzer.is_instant_command(cmd)
@@ -500,45 +543,99 @@ class TestInstantCommandDetection:
 # 6. Conversational trivial detection
 # =============================================================================
 
+
 class TestConversationalTrivialDetection:
     """Tests for trivial conversational input detection."""
 
-    @pytest.mark.parametrize("text", [
-        "hello", "hi", "hey", "bonjour", "salut", "coucou",
-        "hola", "hallo", "guten tag",
-        "Hello!", "Hi?", "Hey!",
-        "HELLO", "HI", "BONJOUR",
-    ])
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "hello",
+            "hi",
+            "hey",
+            "bonjour",
+            "salut",
+            "coucou",
+            "hola",
+            "hallo",
+            "guten tag",
+            "Hello!",
+            "Hi?",
+            "Hey!",
+            "HELLO",
+            "HI",
+            "BONJOUR",
+        ],
+    )
     def test_greetings_detected(self, analyzer, text):
         """Greetings in multiple languages are detected as trivial."""
-        assert analyzer.is_conversational_trivial(text) is True, (
-            f"'{text}' should be trivial"
-        )
+        assert analyzer.is_conversational_trivial(text) is True, f"'{text}' should be trivial"
 
-    @pytest.mark.parametrize("text", [
-        "bye", "goodbye", "au revoir", "ciao", "adieu",
-    ])
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "bye",
+            "goodbye",
+            "au revoir",
+            "ciao",
+            "adieu",
+        ],
+    )
     def test_farewells_detected(self, analyzer, text):
         assert analyzer.is_conversational_trivial(text) is True
 
-    @pytest.mark.parametrize("text", [
-        "ok", "okay", "oui", "yes", "non", "no",
-        "merci", "thanks", "thank you", "thx", "ty",
-        "parfait", "perfect", "great", "cool", "nice", "super",
-        "compris", "understood", "got it", "roger",
-    ])
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "ok",
+            "okay",
+            "oui",
+            "yes",
+            "non",
+            "no",
+            "merci",
+            "thanks",
+            "thank you",
+            "thx",
+            "ty",
+            "parfait",
+            "perfect",
+            "great",
+            "cool",
+            "nice",
+            "super",
+            "compris",
+            "understood",
+            "got it",
+            "roger",
+        ],
+    )
     def test_acknowledgments_detected(self, analyzer, text):
         assert analyzer.is_conversational_trivial(text) is True
 
-    @pytest.mark.parametrize("text", [
-        "test", "testing", "1234", "ping", "pong",
-    ])
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "test",
+            "testing",
+            "1234",
+            "ping",
+            "pong",
+        ],
+    )
     def test_probing_detected(self, analyzer, text):
         assert analyzer.is_conversational_trivial(text) is True
 
-    @pytest.mark.parametrize("text", [
-        "continue", "continues", "go on", "vas-y", "go ahead",
-    ])
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "continue",
+            "continues",
+            "go on",
+            "vas-y",
+            "go ahead",
+        ],
+    )
     def test_continuation_prompts_detected(self, analyzer, text):
         assert analyzer.is_conversational_trivial(text) is True
 
@@ -557,6 +654,7 @@ class TestConversationalTrivialDetection:
 # =============================================================================
 # 7. Full analyze() flow - Stage 1 results
 # =============================================================================
+
 
 class TestAnalyzeStage1:
     """Tests for analyze() returning Stage 1 (instant command / trivial) results."""
@@ -602,6 +700,7 @@ class TestAnalyzeStage1:
 # =============================================================================
 # 8. Full analyze() flow - Stage 2 (Heuristic) results
 # =============================================================================
+
 
 class TestAnalyzeStage2:
     """Tests for analyze() returning Stage 2 heuristic results."""
@@ -662,6 +761,7 @@ class TestAnalyzeStage2:
 # 9. Multi-domain classification
 # =============================================================================
 
+
 class TestMultiDomainClassification:
     """Tests for tasks that span multiple domains."""
 
@@ -673,17 +773,13 @@ class TestMultiDomainClassification:
 
     def test_security_and_debugging(self, analyzer):
         """Task mentioning security and debugging gets both."""
-        result = analyzer.analyze(
-            "debug the authentication vulnerability and fix the exploit"
-        )
+        result = analyzer.analyze("debug the authentication vulnerability and fix the exploit")
         assert TaskDomain.SECURITY in result.domains
         assert TaskDomain.DEBUGGING in result.domains
 
     def test_primary_domain_is_most_mentioned(self, analyzer):
         """Primary domain is the one with the most keyword matches."""
-        result = analyzer.analyze(
-            "write code, implement the function, create a python class method"
-        )
+        result = analyzer.analyze("write code, implement the function, create a python class method")
         # CODING has multiple hits; it should be primary
         assert result.primary_domain == TaskDomain.CODING
 
@@ -691,8 +787,7 @@ class TestMultiDomainClassification:
         """Having 3+ domains increases complexity."""
         # This task mentions coding, testing, and security keywords
         result = analyzer.analyze(
-            "implement a secure authentication module, write pytest tests, "
-            "and check for injection vulnerabilities"
+            "implement a secure authentication module, write pytest tests, and check for injection vulnerabilities"
         )
         assert len(result.domains) >= 3
         # With 3+ domains the base score gets +1 from the domain count
@@ -703,14 +798,13 @@ class TestMultiDomainClassification:
 # 10. Complexity scoring
 # =============================================================================
 
+
 class TestComplexityScoring:
     """Tests for complexity calculation via COMPLEXITY_INDICATORS."""
 
     def test_high_complexity_keywords_boost(self, analyzer):
         """High-complexity keywords (+2) push toward EXPERT."""
-        result = analyzer.analyze(
-            "redesign the critical production architecture for security and scalability"
-        )
+        result = analyzer.analyze("redesign the critical production architecture for security and scalability")
         assert result.complexity >= TaskComplexity.COMPLEX
 
     def test_low_complexity_keywords_reduce(self, analyzer):
@@ -722,7 +816,7 @@ class TestComplexityScoring:
     def test_short_text_reduces_complexity(self, analyzer):
         """Text under 50 chars gets -1 complexity."""
         # Use a non-trivial but short input (< 50 chars)
-        result = analyzer.analyze("implement a sort function")
+        analyzer.analyze("implement a sort function")
         text_len = len("implement a sort function")
         assert text_len < 50
         # Exact level depends on keywords, but short text contributes -1
@@ -744,9 +838,7 @@ class TestComplexityScoring:
 
     def test_architecture_domain_adds_complexity(self, analyzer):
         """ARCHITECTURE domain adds +1 to complexity."""
-        result = analyzer.analyze(
-            "refactor the entire system architecture into modular design patterns"
-        )
+        result = analyzer.analyze("refactor the entire system architecture into modular design patterns")
         assert TaskDomain.ARCHITECTURE in result.domains
         assert result.complexity >= TaskComplexity.COMPLEX
 
@@ -767,6 +859,7 @@ class TestComplexityScoring:
 # =============================================================================
 # 11. Requirement detection
 # =============================================================================
+
 
 class TestRequirementDetection:
     """Tests for web, code, reasoning, and iteration requirement detection."""
@@ -798,9 +891,7 @@ class TestRequirementDetection:
 
     def test_requires_deep_reasoning_from_complexity(self, analyzer):
         """COMPLEX+ tasks trigger requires_deep_reasoning."""
-        result = analyzer.analyze(
-            "redesign the critical production architecture for security and scalability"
-        )
+        result = analyzer.analyze("redesign the critical production architecture for security and scalability")
         assert result.complexity >= TaskComplexity.COMPLEX
         assert result.requires_deep_reasoning is True
 
@@ -819,6 +910,7 @@ class TestRequirementDetection:
 # =============================================================================
 # 12. Agent fit scores
 # =============================================================================
+
 
 class TestAgentFitScores:
     """Tests for gemini_fit_score and claude_fit_score calculation."""
@@ -849,12 +941,8 @@ class TestAgentFitScores:
         ]
         for text in test_inputs:
             result = analyzer.analyze(text)
-            assert 0.0 <= result.gemini_fit_score <= 1.0, (
-                f"Gemini score out of range for '{text}'"
-            )
-            assert 0.0 <= result.claude_fit_score <= 1.0, (
-                f"Claude score out of range for '{text}'"
-            )
+            assert 0.0 <= result.gemini_fit_score <= 1.0, f"Gemini score out of range for '{text}'"
+            assert 0.0 <= result.claude_fit_score <= 1.0, f"Claude score out of range for '{text}'"
 
     def test_web_requirement_boosts_gemini(self, analyzer):
         """requires_web boosts Gemini and reduces Claude scores."""
@@ -868,14 +956,14 @@ class TestAgentFitScores:
         """When no domains are detected, default scores (0.5) are returned."""
         # Force a non-trivial input that matches no domain keywords
         # This is tricky since many words match; use something obscure
-        result = analyzer.analyze("xyzzy plugh plover")
+        analyzer.analyze("xyzzy plugh plover")
         # If no domains, fallback to [CODING] with scores based on that
         # The actual scores depend on the CODING domain lookup
 
     def test_first_domain_weighted_most(self, analyzer):
         """First domain in list has highest weight in score calculation."""
         # RESEARCH-first task should favor Gemini
-        result = analyzer.analyze("research and search about code")
+        analyzer.analyze("research and search about code")
         # Research gets weight 1.0, Coding gets weight 0.5
         # So research-dominant scoring should lean toward gemini
 
@@ -883,6 +971,7 @@ class TestAgentFitScores:
 # =============================================================================
 # 13. Context-aware classification (V10 FIX F1)
 # =============================================================================
+
 
 class TestContextAwareClassification:
     """Tests for context clue detection and structure analysis."""
@@ -905,9 +994,7 @@ class TestContextAwareClassification:
     def test_multi_step_increases_complexity(self, analyzer):
         """Multi-step structure (first...then...) increases complexity."""
         simple_result = analyzer.analyze("implement a function")
-        multi_result = analyzer.analyze(
-            "first implement a function then add logging after that write docs"
-        )
+        multi_result = analyzer.analyze("first implement a function then add logging after that write docs")
         # Multi-step structure should bump complexity
         assert multi_result.complexity >= simple_result.complexity
 
@@ -919,24 +1006,21 @@ class TestContextAwareClassification:
 
     def test_conditional_increases_complexity(self, analyzer):
         """Conditional structure increases complexity."""
-        result = analyzer.analyze(
-            "if the user is authenticated then create a session unless blocked"
-        )
+        result = analyzer.analyze("if the user is authenticated then create a session unless blocked")
         # Conditional adds +1
         assert result.complexity >= TaskComplexity.MODERATE
 
     def test_context_clues_boost_confidence(self, analyzer):
         """Context clues increase analysis confidence."""
         # With file reference and error pattern
-        result = analyzer.analyze(
-            "fix the TypeError in auth.py at line 42, check https://docs.python.org"
-        )
+        result = analyzer.analyze("fix the TypeError in auth.py at line 42, check https://docs.python.org")
         assert result.confidence > 0.5  # Base is 0.5, clues add more
 
 
 # =============================================================================
 # 14. Confidence estimation
 # =============================================================================
+
 
 class TestConfidenceEstimation:
     """Tests for the confidence scoring heuristic."""
@@ -950,9 +1034,7 @@ class TestConfidenceEstimation:
     def test_more_keywords_higher_confidence(self, analyzer):
         """More detected keywords increase confidence."""
         few = analyzer.analyze("code")
-        many = analyzer.analyze(
-            "implement a python function class method with debugging and testing"
-        )
+        many = analyzer.analyze("implement a python function class method with debugging and testing")
         assert many.confidence >= few.confidence
 
     def test_confidence_capped_at_one(self, analyzer):
@@ -967,10 +1049,9 @@ class TestConfidenceEstimation:
 
     def test_medium_length_boosts_confidence(self, analyzer):
         """Text between 50-1000 chars gets +0.1 confidence."""
-        short = analyzer.analyze("code it")
+        analyzer.analyze("code it")
         medium = analyzer.analyze(
-            "implement a python function that takes a list of integers and "
-            "returns the sorted unique values"
+            "implement a python function that takes a list of integers and returns the sorted unique values"
         )
         assert len(medium.raw_input) > 50
         assert len(medium.raw_input) < 1000
@@ -980,6 +1061,7 @@ class TestConfidenceEstimation:
 # =============================================================================
 # 15. Stage 3 escalation logic
 # =============================================================================
+
 
 class TestStage3Escalation:
     """Tests for needs_stage3_escalation() method."""
@@ -1038,6 +1120,7 @@ class TestStage3Escalation:
 # =============================================================================
 # 16. RAG enrichment (V11.2 MEMORIA)
 # =============================================================================
+
 
 class TestRAGEnrichment:
     """Tests for RAG-enriched classification with mocked ProjectMemory."""
@@ -1114,12 +1197,7 @@ class TestRAGEnrichment:
         """Complexity boost is capped at 0.3."""
         chunk = MagicMock()
         chunk.file_path = "src/complex.py"
-        chunk.content = (
-            "async def secure(): await auth(); "
-            "class Foo: pass; "
-            "try: x except: pass; "
-            "security auth check"
-        )
+        chunk.content = "async def secure(): await auth(); class Foo: pass; try: x except: pass; security auth check"
         analyzer_with_memory.project_memory.retrieve.return_value = [chunk, chunk]
 
         domains, boost = analyzer_with_memory._enrich_with_rag_context("some input")
@@ -1160,6 +1238,7 @@ class TestRAGEnrichment:
 # 17. Async analyze
 # =============================================================================
 
+
 class TestAsyncAnalyze:
     """Tests for analyze_async() method."""
 
@@ -1185,6 +1264,7 @@ class TestAsyncAnalyze:
 # =============================================================================
 # 18. Edge cases
 # =============================================================================
+
 
 class TestEdgeCases:
     """Tests for edge cases and unusual inputs."""
@@ -1256,6 +1336,7 @@ class TestEdgeCases:
 # 19. Constants validation
 # =============================================================================
 
+
 class TestConstantsValidation:
     """Tests that module-level constants are well-formed."""
 
@@ -1278,9 +1359,7 @@ class TestConstantsValidation:
         """All agent strength values are between 0.0 and 1.0."""
         for agent, strengths in AGENT_DOMAIN_STRENGTHS.items():
             for domain, score in strengths.items():
-                assert 0.0 <= score <= 1.0, (
-                    f"{agent}/{domain} score {score} out of range"
-                )
+                assert 0.0 <= score <= 1.0, f"{agent}/{domain} score {score} out of range"
 
     def test_stage1_patterns_are_valid_regex(self):
         """All Stage 1 patterns compile as valid regex."""
@@ -1330,6 +1409,7 @@ class TestConstantsValidation:
 # 20. TaskAnalyzer initialization
 # =============================================================================
 
+
 class TestTaskAnalyzerInit:
     """Tests for TaskAnalyzer construction."""
 
@@ -1360,6 +1440,7 @@ class TestTaskAnalyzerInit:
 # =============================================================================
 # 21. to_dict / from_dict additional edge cases
 # =============================================================================
+
 
 class TestSerialization:
     """Additional serialization/deserialization tests."""
@@ -1426,6 +1507,7 @@ class TestSerialization:
 # 22. Low-confidence keyword marker
 # =============================================================================
 
+
 class TestLowConfidenceMarker:
     """Tests that low-confidence Stage 2 results get marked."""
 
@@ -1434,14 +1516,15 @@ class TestLowConfidenceMarker:
         # A very short, ambiguous input with no clear domain keywords
         result = analyzer.analyze("hmm interesting")
         if result.confidence < STAGE2_CONFIDENCE_THRESHOLD:
-            assert any(
-                "[LOW_CONFIDENCE:" in k for k in result.detected_keywords
-            ), "Low confidence should be marked in detected_keywords"
+            assert any("[LOW_CONFIDENCE:" in k for k in result.detected_keywords), (
+                "Low confidence should be marked in detected_keywords"
+            )
 
 
 # =============================================================================
 # 23. Internal method tests
 # =============================================================================
+
 
 class TestInternalMethods:
     """Tests for internal helper methods."""
@@ -1449,9 +1532,7 @@ class TestInternalMethods:
     def test_detect_domains_returns_sorted(self, analyzer):
         """_detect_domains returns domains sorted by match count."""
         # Provide text with more CODING keywords than TESTING
-        domains, kw = analyzer._detect_domains(
-            "implement a python function class method with test"
-        )
+        domains, kw = analyzer._detect_domains("implement a python function class method with test")
         if TaskDomain.CODING in domains and TaskDomain.TESTING in domains:
             assert domains.index(TaskDomain.CODING) < domains.index(TaskDomain.TESTING)
 
@@ -1470,36 +1551,20 @@ class TestInternalMethods:
     def test_detect_code_requirement(self, analyzer):
         """_detect_code_requirement identifies code execution keywords."""
         assert analyzer._detect_code_requirement("run the tests", []) is True
-        assert analyzer._detect_code_requirement(
-            "something", [TaskDomain.CODING]
-        ) is True
-        assert analyzer._detect_code_requirement(
-            "hello there", [TaskDomain.CREATIVE]
-        ) is False
+        assert analyzer._detect_code_requirement("something", [TaskDomain.CODING]) is True
+        assert analyzer._detect_code_requirement("hello there", [TaskDomain.CREATIVE]) is False
 
     def test_detect_reasoning_requirement(self, analyzer):
         """_detect_reasoning_requirement identifies reasoning needs."""
-        assert analyzer._detect_reasoning_requirement(
-            "analyze the architecture", TaskComplexity.SIMPLE
-        ) is True
-        assert analyzer._detect_reasoning_requirement(
-            "just do it", TaskComplexity.EXPERT
-        ) is True  # EXPERT triggers it
-        assert analyzer._detect_reasoning_requirement(
-            "just do it", TaskComplexity.SIMPLE
-        ) is False
+        assert analyzer._detect_reasoning_requirement("analyze the architecture", TaskComplexity.SIMPLE) is True
+        assert analyzer._detect_reasoning_requirement("just do it", TaskComplexity.EXPERT) is True  # EXPERT triggers it
+        assert analyzer._detect_reasoning_requirement("just do it", TaskComplexity.SIMPLE) is False
 
     def test_detect_iteration_requirement(self, analyzer):
         """_detect_iteration_requirement identifies iteration needs."""
-        assert analyzer._detect_iteration_requirement(
-            "brainstorm and improve", []
-        ) is True
-        assert analyzer._detect_iteration_requirement(
-            "something", [TaskDomain.CREATIVE]
-        ) is True
-        assert analyzer._detect_iteration_requirement(
-            "just code it", [TaskDomain.CODING]
-        ) is False
+        assert analyzer._detect_iteration_requirement("brainstorm and improve", []) is True
+        assert analyzer._detect_iteration_requirement("something", [TaskDomain.CREATIVE]) is True
+        assert analyzer._detect_iteration_requirement("just code it", [TaskDomain.CODING]) is False
 
     def test_analyze_task_structure(self, analyzer):
         """_analyze_task_structure detects structural patterns."""

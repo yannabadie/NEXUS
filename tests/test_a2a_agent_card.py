@@ -161,18 +161,20 @@ class TestSkillDetails:
 # A2A Route Tests
 # =============================================================================
 
+
 class TestA2ARoute:
     """Test the Cerebro A2A endpoint."""
 
     def test_route_module_loads(self):
         """A2A route module should import cleanly."""
         from core.api.cerebro.routes.a2a import router
+
         assert router is not None
 
     def test_load_agent_card_function(self):
         """_load_agent_card should return valid card data."""
-        from core.api.cerebro.routes.a2a import _load_agent_card, _agent_card_cache
         import core.api.cerebro.routes.a2a as a2a_module
+        from core.api.cerebro.routes.a2a import _load_agent_card
 
         # Reset cache for test
         a2a_module._agent_card_cache = None
@@ -204,8 +206,8 @@ class TestA2ARoute:
     @pytest.mark.asyncio
     async def test_endpoint_returns_card(self):
         """GET /.well-known/agent.json should return the card."""
-        from core.api.cerebro.routes.a2a import get_agent_card
         import core.api.cerebro.routes.a2a as a2a_module
+        from core.api.cerebro.routes.a2a import get_agent_card
 
         a2a_module._agent_card_cache = None
 
@@ -221,8 +223,8 @@ class TestA2ARoute:
     @pytest.mark.asyncio
     async def test_endpoint_cache_headers(self):
         """Response should include cache headers."""
-        from core.api.cerebro.routes.a2a import get_agent_card
         import core.api.cerebro.routes.a2a as a2a_module
+        from core.api.cerebro.routes.a2a import get_agent_card
 
         a2a_module._agent_card_cache = None
 
@@ -239,6 +241,7 @@ class TestA2AAppIntegration:
     def test_a2a_router_registered(self):
         """A2A router should be registered in the Cerebro app."""
         from core.api.cerebro.app import create_cerebro_app
+
         app = create_cerebro_app()
 
         routes = [route.path for route in app.routes]

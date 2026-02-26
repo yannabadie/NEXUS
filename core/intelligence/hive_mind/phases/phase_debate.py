@@ -23,35 +23,32 @@ Key Features:
 - V9.2: Session isolation prevents context bleeding
 """
 
-import asyncio
-import json
 import logging
 import re
-from typing import List, Optional, Dict, Any, TYPE_CHECKING
-from datetime import datetime
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Optional
 
-from ..types import (
-    DebateArgument,
-    DebateResult,
-    AnalysisComparison,
-    Disagreement,
-)
-from ..cost_estimator import CostEstimator
-from ..context_manager import HiveMindContextManager
-from ..context_scope import ContextScope
-from ..session_integration import HiveMindSessionIntegration, generate_hivemind_task_id
-from ..adaptive_debate import AdaptiveDebateConfig, DebateParams, TaskComplexity
 from core.foundation.agents.unified_registry import get_registry  # V8.4.0
-from ..prompts import DEBATE_SYSTEM_PROMPT, CONSENSUS_SYSTEM_PROMPT  # V12.4.1: Static prompts for caching
 
 # V13.0 CEREBRO LIVE: Telemetry for agent exchanges
 from core.observability.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
 
+from ..adaptive_debate import AdaptiveDebateConfig, DebateParams, TaskComplexity
+from ..context_manager import HiveMindContextManager
+from ..cost_estimator import CostEstimator
+from ..prompts import CONSENSUS_SYSTEM_PROMPT, DEBATE_SYSTEM_PROMPT  # V12.4.1: Static prompts for caching
+from ..session_integration import HiveMindSessionIntegration, generate_hivemind_task_id
+from ..types import (
+    AnalysisComparison,
+    DebateArgument,
+    DebateResult,
+    Disagreement,
+)
+
 if TYPE_CHECKING:
-    from core.intelligence.swarm.session_manager import SwarmSessionManager
     from core.drivers.protocol import BaseAsyncDriver
-    
+    from core.intelligence.swarm.session_manager import SwarmSessionManager
+
 
 logger = logging.getLogger(__name__)
 
@@ -60,9 +57,11 @@ logger = logging.getLogger(__name__)
 # V10 FIX F11: Misalignment Detection
 # =============================================================================
 
+
 @dataclass
 class MisalignmentFlag:
     """Flag indicating potential inter-agent misalignment."""
+
     flag_type: str  # e.g., "silent_dissent", "input_dismissal", "premature_closure"
     pattern_matched: str
     severity: str  # "LOW", "MEDIUM", "HIGH"
@@ -119,15 +118,11 @@ class MisalignmentDetector:
     }
 
     def __init__(self):
-        self._flags: List[MisalignmentFlag] = []
+        self._flags: list[MisalignmentFlag] = []
 
     def check_argument(
-        self,
-        argument: "DebateArgument",
-        agent_id: str,
-        turn_number: int,
-        previous_context: str = ""
-    ) -> List[MisalignmentFlag]:
+        self, argument: "DebateArgument", agent_id: str, turn_number: int, previous_context: str = ""
+    ) -> list[MisalignmentFlag]:
         """
         Check an argument for misalignment patterns.
 
@@ -152,7 +147,7 @@ class MisalignmentDetector:
                         severity=self.SEVERITY_MAP.get(pattern_type, "LOW"),
                         agent_id=agent_id,
                         turn_number=turn_number,
-                        context=text_to_check[:200]
+                        context=text_to_check[:200],
                     )
                     new_flags.append(flag)
                     self._flags.append(flag)
@@ -163,7 +158,7 @@ class MisalignmentDetector:
 
         return new_flags
 
-    def get_all_flags(self) -> List[MisalignmentFlag]:
+    def get_all_flags(self) -> list[MisalignmentFlag]:
         """Get all detected misalignment flags."""
         return self._flags.copy()
 
@@ -248,14 +243,15 @@ IMPORTANT: Good debate involves concessions. If the other agent made a valid poi
 @dataclass
 class DebatePhaseResult:
     """Result of Phase 2."""
+
     debate_result: DebateResult
     final_approach: str
-    final_capabilities: List[str]
+    final_capabilities: list[str]
     final_mode: str
     was_skipped: bool = False
-    skip_reason: Optional[str] = None
+    skip_reason: str | None = None
     # V10 FIX F11: Misalignment tracking
-    misalignment_flags: Optional[List[MisalignmentFlag]] = None
+    misalignment_flags: list[MisalignmentFlag] | None = None
 
 
 class StrategicDebatePhase:
@@ -274,8 +270,8 @@ class StrategicDebatePhase:
         cost_estimator: CostEstimator,
         context_manager: HiveMindContextManager,
         debate_config: AdaptiveDebateConfig = None,
-        task_id: Optional[str] = None,
-        session_manager: Optional["SwarmSessionManager"] = None
+        task_id: str | None = None,
+        session_manager: Optional["SwarmSessionManager"] = None,
     ):
         """
         Initialize Phase 2.
@@ -298,16 +294,13 @@ class StrategicDebatePhase:
         # V9.2: Session isolation
         self._task_id = task_id or generate_hivemind_task_id("debate")
         self._session_manager = session_manager
-        self._session_integration: Optional[HiveMindSessionIntegration] = None
+        self._session_integration: HiveMindSessionIntegration | None = None
 
         # V10 FIX F11: Misalignment detector
         self._misalignment_detector = MisalignmentDetector()
 
     async def execute(
-        self,
-        task: str,
-        comparison: AnalysisComparison,
-        complexity: TaskComplexity = TaskComplexity.MODERATE
+        self, task: str, comparison: AnalysisComparison, complexity: TaskComplexity = TaskComplexity.MODERATE
     ) -> DebatePhaseResult:
         """
         Execute Phase 2: Strategic Debate.
@@ -333,7 +326,7 @@ class StrategicDebatePhase:
             phase_name="debate",
             context_manager=self.context_manager,
             session_manager=self._session_manager,
-            complexity=complexity.value if hasattr(complexity, 'value') else str(complexity)
+            complexity=complexity.value if hasattr(complexity, "value") else str(complexity),
         )
         self._session_integration.set_previous_phase("analysis")
 
@@ -343,12 +336,12 @@ class StrategicDebatePhase:
         params = self.debate_config.get_debate_params(
             complexity=complexity,
             initial_disagreement=1 - comparison.agreement_score,
-            error_history=[]  # TODO: Get from session history
+            error_history=[],  # TODO: Get from session history
         )
 
         # Track debate state
-        debate_history: List[DebateArgument] = []
-        consensus_progress: List[float] = [comparison.agreement_score]
+        debate_history: list[DebateArgument] = []
+        consensus_progress: list[float] = [comparison.agreement_score]
         current_speaker = "gemini"  # Alternates
         turn_number = 0
 
@@ -374,22 +367,21 @@ class StrategicDebatePhase:
                 disagreement=primary_disagreement,
                 comparison=comparison,
                 debate_history=debate_history,
-                params=params
+                params=params,
             )
 
             debate_history.append(argument)
-            self.context_manager.add_debate_turn(
-                turn_number,
-                current_speaker,
-                argument.argument
-            )
+            self.context_manager.add_debate_turn(turn_number, current_speaker, argument.argument)
 
             # V12.4: Record position in ConsensusTracker
             try:
                 from ..consensus_tracker import get_consensus_tracker
+
                 tracker = get_consensus_tracker()
                 tracker.record(
-                    self._task_id, "debate", current_speaker,
+                    self._task_id,
+                    "debate",
+                    current_speaker,
                     argument.position,
                     topic=argument.target_point or "approach",
                     confidence=1.0 if argument.position == "OPPOSE" else 0.7,
@@ -399,7 +391,8 @@ class StrategicDebatePhase:
 
             # V12.4: EchoChamberGuard - detect sycophantic patterns (arxiv:2509.05396)
             try:
-                from ..echo_chamber_guard import get_echo_chamber_guard, GuardActionType
+                from ..echo_chamber_guard import GuardActionType, get_echo_chamber_guard
+
                 guard = get_echo_chamber_guard()
                 guard_action = guard.check_turn(
                     agent_id=current_speaker,
@@ -418,16 +411,9 @@ class StrategicDebatePhase:
 
             # V13.0 CEREBRO LIVE: Emit debate exchange
             next_speaker = registry.get_alternate(current_speaker) or "user"
-            emit_agent_speak(
-                current_speaker,
-                argument.argument[:300],
-                action_type="DEBATE"
-            )
+            emit_agent_speak(current_speaker, argument.argument[:300], action_type="DEBATE")
             emit_agent_exchange(
-                current_speaker,
-                next_speaker,
-                f"[{argument.position}] {argument.argument[:80]}",
-                exchange_type="debate"
+                current_speaker, next_speaker, f"[{argument.position}] {argument.argument[:80]}", exchange_type="debate"
             )
 
             # V10 FIX F11: Check for inter-agent misalignment
@@ -435,10 +421,12 @@ class StrategicDebatePhase:
                 argument=argument,
                 agent_id=current_speaker,
                 turn_number=turn_number,
-                previous_context=self._format_debate_history(debate_history[:-1]) if len(debate_history) > 1 else ""
+                previous_context=self._format_debate_history(debate_history[:-1]) if len(debate_history) > 1 else "",
             )
             if misalignment_flags:
-                logger.warning(f"Phase 2: {len(misalignment_flags)} misalignment flag(s) detected at turn {turn_number}")
+                logger.warning(
+                    f"Phase 2: {len(misalignment_flags)} misalignment flag(s) detected at turn {turn_number}"
+                )
 
             # V10 FIX F11: Escalate if too many HIGH severity flags
             if self._misalignment_detector.should_escalate(threshold=2):
@@ -454,9 +442,9 @@ class StrategicDebatePhase:
                         "final_capabilities": [],
                         "gemini_satisfaction": 0.2,
                         "claude_satisfaction": 0.2,
-                        "reasoning": f"Misalignment detected: {len(self._misalignment_detector.get_all_flags())} flags"
+                        "reasoning": f"Misalignment detected: {len(self._misalignment_detector.get_all_flags())} flags",
                     },
-                    status="MISALIGNMENT_ESCALATION"
+                    status="MISALIGNMENT_ESCALATION",
                 )
 
             # Record agent behavior for learning
@@ -464,7 +452,7 @@ class StrategicDebatePhase:
                 agent_id=current_speaker,
                 made_concession=argument.concession is not None,
                 defended_position=argument.position == "OPPOSE",
-                changed_position=argument.position == "CONCEDE"
+                changed_position=argument.position == "CONCEDE",
             )
 
             # V12.4: Quorum-based early termination (Aegean-inspired, arxiv:2512.20184)
@@ -473,9 +461,11 @@ class StrategicDebatePhase:
             if len(debate_history) >= 2 and turn_number >= params.min_turns:
                 last_two = debate_history[-2:]
                 agreeing_positions = {"SUPPORT", "CONCEDE"}
-                if (last_two[0].position in agreeing_positions and
-                        last_two[1].position in agreeing_positions and
-                        last_two[0].agent_id != last_two[1].agent_id):
+                if (
+                    last_two[0].position in agreeing_positions
+                    and last_two[1].position in agreeing_positions
+                    and last_two[0].agent_id != last_two[1].agent_id
+                ):
                     # Both agents agreed - quorum reached
                     quorum_approach = argument.proposed_modification or argument.argument
                     logger.info(
@@ -494,18 +484,15 @@ class StrategicDebatePhase:
                             "final_capabilities": [],
                             "gemini_satisfaction": 0.85,
                             "claude_satisfaction": 0.85,
-                            "reasoning": "Quorum: both agents agreed in consecutive turns"
+                            "reasoning": "Quorum: both agents agreed in consecutive turns",
                         },
-                        status="QUORUM_CONSENSUS"
+                        status="QUORUM_CONSENSUS",
                     )
 
             # Check for consensus after minimum turns
             if turn_number >= params.min_turns:
                 consensus = await self._check_consensus(
-                    task=task,
-                    debate_history=debate_history,
-                    disagreement=primary_disagreement,
-                    comparison=comparison
+                    task=task, debate_history=debate_history, disagreement=primary_disagreement, comparison=comparison
                 )
 
                 consensus_progress.append(consensus["consensus_score"])
@@ -513,32 +500,21 @@ class StrategicDebatePhase:
                 if consensus["consensus_reached"]:
                     logger.info(f"Consensus reached at turn {turn_number}")
                     return self._create_result(
-                        debate_history=debate_history,
-                        consensus=consensus,
-                        status="CONSENSUS_REACHED"
+                        debate_history=debate_history, consensus=consensus, status="CONSENSUS_REACHED"
                     )
 
                 # Check for early exit on high consensus
                 if consensus["consensus_score"] >= params.early_exit_threshold:
                     logger.info(f"Early exit: consensus score {consensus['consensus_score']:.0%}")
                     return self._create_result(
-                        debate_history=debate_history,
-                        consensus=consensus,
-                        status="EARLY_CONSENSUS"
+                        debate_history=debate_history, consensus=consensus, status="EARLY_CONSENSUS"
                     )
 
                 # Check if should force vote
-                if self.debate_config.should_force_vote(
-                    turn_number,
-                    consensus_progress,
-                    params
-                ):
+                if self.debate_config.should_force_vote(turn_number, consensus_progress, params):
                     logger.info("Forcing vote due to stalled consensus")
                     return await self._force_vote(
-                        task=task,
-                        debate_history=debate_history,
-                        comparison=comparison,
-                        params=params
+                        task=task, debate_history=debate_history, comparison=comparison, params=params
                     )
 
             # Switch speaker (V8.4.0: via registry)
@@ -547,12 +523,7 @@ class StrategicDebatePhase:
 
         # Max turns reached without consensus - force vote
         logger.info(f"Max turns ({params.max_turns}) reached - forcing vote")
-        return await self._force_vote(
-            task=task,
-            debate_history=debate_history,
-            comparison=comparison,
-            params=params
-        )
+        return await self._force_vote(task=task, debate_history=debate_history, comparison=comparison, params=params)
 
     def _create_skipped_result(self, comparison: AnalysisComparison) -> DebatePhaseResult:
         """Create result when debate is skipped."""
@@ -574,32 +545,23 @@ class StrategicDebatePhase:
                 unresolved_disagreements=[],
                 consensus_confidence=comparison.agreement_score,
                 gemini_satisfaction=0.8,
-                claude_satisfaction=0.8
+                claude_satisfaction=0.8,
             ),
             final_approach=primary.proposed_approach,
             final_capabilities=comparison.merged_capabilities,
             final_mode="PARALLEL",  # Default mode for skipped debate
             was_skipped=True,
-            skip_reason=f"High agreement ({comparison.agreement_score:.0%})"
+            skip_reason=f"High agreement ({comparison.agreement_score:.0%})",
         )
 
-    def _get_primary_disagreement(self, disagreements: List[Disagreement]) -> Disagreement:
+    def _get_primary_disagreement(self, disagreements: list[Disagreement]) -> Disagreement:
         """Get the most significant disagreement to debate."""
         if not disagreements:
             # Create a default disagreement for the approach
-            return Disagreement(
-                topic="approach",
-                gemini_position="default",
-                claude_position="default",
-                severity=0.5
-            )
+            return Disagreement(topic="approach", gemini_position="default", claude_position="default", severity=0.5)
 
         # Sort by severity and return highest
-        sorted_disagreements = sorted(
-            disagreements,
-            key=lambda d: d.severity,
-            reverse=True
-        )
+        sorted_disagreements = sorted(disagreements, key=lambda d: d.severity, reverse=True)
         return sorted_disagreements[0]
 
     async def _get_argument(
@@ -609,8 +571,8 @@ class StrategicDebatePhase:
         turn_number: int,
         disagreement: Disagreement,
         comparison: AnalysisComparison,
-        debate_history: List[DebateArgument],
-        params: DebateParams
+        debate_history: list[DebateArgument],
+        params: DebateParams,
     ) -> DebateArgument:
         """Get an argument from a speaker."""
         # Determine positions (V8.4.0: via registry)
@@ -666,7 +628,9 @@ Respond to this argument (SUPPORT, OPPOSE, or CONCEDE)."""
         session_uuid = None
         if self._session_integration:
             session_uuid = self._session_integration.get_agent_session(speaker)
-            logger.debug(f"Debate turn {turn_number}: {speaker} using session {session_uuid[:8] if session_uuid else 'none'}")
+            logger.debug(
+                f"Debate turn {turn_number}: {speaker} using session {session_uuid[:8] if session_uuid else 'none'}"
+            )
 
         # V12.4.1: Use invoke() with static system prompt (cached by SDK)
         try:
@@ -686,7 +650,7 @@ Respond to this argument (SUPPORT, OPPOSE, or CONCEDE)."""
             argument_data = self._parse_argument_response(response.content)
 
             # Record actual token usage
-            if hasattr(self.cost_estimator, 'record_tokens'):
+            if hasattr(self.cost_estimator, "record_tokens"):
                 self.cost_estimator.record_tokens(
                     "debate_turn",
                     input_tokens=response.input_tokens,
@@ -705,7 +669,7 @@ Respond to this argument (SUPPORT, OPPOSE, or CONCEDE)."""
                 argument=argument_data.get("argument", response.content[:200]),
                 evidence=argument_data.get("evidence", []),
                 proposed_modification=argument_data.get("proposed_modification"),
-                concession=argument_data.get("concession")
+                concession=argument_data.get("concession"),
             )
 
         except Exception as e:
@@ -716,10 +680,10 @@ Respond to this argument (SUPPORT, OPPOSE, or CONCEDE)."""
                 position="OPPOSE",
                 target_point=disagreement.topic,
                 argument=f"Error generating argument: {e}",
-                evidence=[]
+                evidence=[],
             )
 
-    def _parse_argument_response(self, response) -> Dict[str, Any]:
+    def _parse_argument_response(self, response) -> dict[str, Any]:
         """Parse argument JSON from response."""
         from ..json_parser import parse_json_response
 
@@ -735,7 +699,7 @@ Respond to this argument (SUPPORT, OPPOSE, or CONCEDE)."""
             return {"argument": raw[:300]}
         return data
 
-    def _format_debate_history(self, history: List[DebateArgument]) -> str:
+    def _format_debate_history(self, history: list[DebateArgument]) -> str:
         """Format debate history for prompts."""
         registry = get_registry()  # V8.4.0
         lines = []
@@ -750,10 +714,10 @@ Respond to this argument (SUPPORT, OPPOSE, or CONCEDE)."""
     async def _check_consensus(
         self,
         task: str,
-        debate_history: List[DebateArgument],
+        debate_history: list[DebateArgument],
         disagreement: Disagreement,
-        comparison: AnalysisComparison
-    ) -> Dict[str, Any]:
+        comparison: AnalysisComparison,
+    ) -> dict[str, Any]:
         """Check if consensus has been reached."""
         history_text = self._format_debate_history(debate_history)
 
@@ -792,7 +756,7 @@ Evaluate if consensus has been reached."""
                 raise RuntimeError(f"Consensus check failed: {response.error_message}")
 
             # Record actual token usage
-            if hasattr(self.cost_estimator, 'record_tokens'):
+            if hasattr(self.cost_estimator, "record_tokens"):
                 self.cost_estimator.record_tokens(
                     "check_consensus",
                     input_tokens=response.input_tokens,
@@ -819,15 +783,11 @@ Evaluate if consensus has been reached."""
             "final_capabilities": [],
             "gemini_satisfaction": 0.5,
             "claude_satisfaction": 0.5,
-            "reasoning": "Consensus check failed"
+            "reasoning": "Consensus check failed",
         }
 
     async def _force_vote(
-        self,
-        task: str,
-        debate_history: List[DebateArgument],
-        comparison: AnalysisComparison,
-        params: DebateParams
+        self, task: str, debate_history: list[DebateArgument], comparison: AnalysisComparison, params: DebateParams
     ) -> DebatePhaseResult:
         """Force a vote when consensus cannot be reached."""
         # Calculate decision using debate config
@@ -837,7 +797,7 @@ Evaluate if consensus has been reached."""
             gemini_confidence=comparison.gemini_analysis.confidence,
             claude_confidence=comparison.claude_analysis.confidence,
             gemini_satisfaction=0.5,  # Neutral for forced vote
-            claude_satisfaction=0.5
+            claude_satisfaction=0.5,
         )
 
         # Record outcome
@@ -849,21 +809,13 @@ Evaluate if consensus has been reached."""
             was_forced_vote=True,
             gemini_satisfaction=decision["gemini_score"],
             claude_satisfaction=decision["claude_score"],
-            task_success=True  # Will be updated by later phases
+            task_success=True,  # Will be updated by later phases
         )
 
         # Update agent satisfaction
         winner = decision["winner"]
-        self.debate_config.update_agent_satisfaction(
-            "gemini",
-            decision["gemini_score"],
-            winner == "gemini"
-        )
-        self.debate_config.update_agent_satisfaction(
-            "claude",
-            decision["claude_score"],
-            winner == "claude"
-        )
+        self.debate_config.update_agent_satisfaction("gemini", decision["gemini_score"], winner == "gemini")
+        self.debate_config.update_agent_satisfaction("claude", decision["claude_score"], winner == "claude")
 
         return self._create_result(
             debate_history=debate_history,
@@ -876,16 +828,13 @@ Evaluate if consensus has been reached."""
                 "final_capabilities": comparison.merged_capabilities,
                 "gemini_satisfaction": decision["gemini_score"],
                 "claude_satisfaction": decision["claude_score"],
-                "reasoning": decision["reason"]
+                "reasoning": decision["reason"],
             },
-            status="FORCED_VOTE"
+            status="FORCED_VOTE",
         )
 
     def _create_result(
-        self,
-        debate_history: List[DebateArgument],
-        consensus: Dict[str, Any],
-        status: str
+        self, debate_history: list[DebateArgument], consensus: dict[str, Any], status: str
     ) -> DebatePhaseResult:
         """Create debate phase result."""
         # Determine mode based on outcome
@@ -911,12 +860,13 @@ Evaluate if consensus has been reached."""
             unresolved_disagreements=consensus.get("unresolved_points", []),
             consensus_confidence=consensus.get("consensus_score", 0.5),
             gemini_satisfaction=consensus.get("gemini_satisfaction", 0.5),
-            claude_satisfaction=consensus.get("claude_satisfaction", 0.5)
+            claude_satisfaction=consensus.get("claude_satisfaction", 0.5),
         )
 
         # V12.4: TrajectoryScorer - evaluate debate trajectory quality (arxiv:2509.11035)
         try:
             from core.intelligence.reasoning.trajectory_scorer import get_trajectory_scorer
+
             _tscorer = get_trajectory_scorer()
             _trajectory_dicts = [
                 {
@@ -945,5 +895,7 @@ Evaluate if consensus has been reached."""
             final_mode=mode,
             was_skipped=False,
             # V10 FIX F11: Include misalignment flags
-            misalignment_flags=self._misalignment_detector.get_all_flags() if hasattr(self, '_misalignment_detector') else None
+            misalignment_flags=self._misalignment_detector.get_all_flags()
+            if hasattr(self, "_misalignment_detector")
+            else None,
         )

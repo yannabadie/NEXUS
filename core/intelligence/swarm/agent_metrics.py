@@ -33,15 +33,20 @@ Usage:
     best = pool.select_best_for_task("brainstorm")
 """
 
+import contextlib
+import json
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 from datetime import datetime
 from enum import Enum
-import json
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from core.memory_pkg.memory import SuccessMemory
 
 
 class AgentProvider(Enum):
     """Agent providers - extensible for future integrations"""
+
     GEMINI = "gemini"
     CLAUDE = "claude"
     # Future: OPENAI = "openai", LOCAL = "local"
@@ -54,6 +59,7 @@ class AgentInvocationResult:
 
     Used to calculate DyLAN importance score for agent selection.
     """
+
     agent_id: str
     task_type: str
     timestamp: datetime = field(default_factory=datetime.now)
@@ -61,7 +67,7 @@ class AgentInvocationResult:
     quality_score: float = 0.5  # 0.0-1.0
     tokens_used: int = 0
     time_seconds: float = 0.0
-    error: Optional[str] = None
+    error: str | None = None
 
     @property
     def importance_score(self) -> float:
@@ -75,7 +81,7 @@ class AgentInvocationResult:
         cost = (self.tokens_used / 1000) + self.time_seconds
         return self.quality_score / max(cost, 0.1)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "agent_id": self.agent_id,
             "task_type": self.task_type,
@@ -85,7 +91,7 @@ class AgentInvocationResult:
             "tokens_used": self.tokens_used,
             "time_seconds": self.time_seconds,
             "importance_score": round(self.importance_score, 4),
-            "error": self.error
+            "error": self.error,
         }
 
 
@@ -97,13 +103,14 @@ class AgentProfile:
     Tracks invocation history for importance scoring.
     Scales to N agents in Phase 6 Swarm.
     """
+
     agent_id: str
     provider: str  # "gemini", "claude", "spawned"
     model: str
-    capabilities: List[str] = field(default_factory=list)
+    capabilities: list[str] = field(default_factory=list)
     is_active: bool = True
-    uuid: Optional[str] = None  # V8.2.0: Unique identifier for spawned agents
-    invocation_history: List[AgentInvocationResult] = field(default_factory=list)
+    uuid: str | None = None  # V8.2.0: Unique identifier for spawned agents
+    invocation_history: list[AgentInvocationResult] = field(default_factory=list)
     history_window: int = 100  # Keep last N invocations
 
     @property
@@ -134,9 +141,9 @@ class AgentProfile:
         self.invocation_history.append(result)
         # Trim to window size
         if len(self.invocation_history) > self.history_window:
-            self.invocation_history = self.invocation_history[-self.history_window:]
+            self.invocation_history = self.invocation_history[-self.history_window :]
 
-    def to_dict(self, include_history: bool = False) -> Dict:
+    def to_dict(self, include_history: bool = False) -> dict:
         """
         Convert to dictionary.
 
@@ -152,7 +159,7 @@ class AgentProfile:
             "uuid": self.uuid,  # V8.2.0
             "average_importance": round(self.average_importance, 4),
             "success_rate": round(self.success_rate, 4),
-            "invocation_count": len(self.invocation_history)
+            "invocation_count": len(self.invocation_history),
         }
         if include_history:
             result["invocation_history"] = [r.to_dict() for r in self.invocation_history]
@@ -172,8 +179,9 @@ class AgentPool:
 
     V7 Enhancement: Auto-persistence of DyLAN scores.
     """
-    agents: Dict[str, AgentProfile] = field(default_factory=dict)
-    _persistence_path: Optional[str] = field(default=None, repr=False)
+
+    agents: dict[str, AgentProfile] = field(default_factory=dict)
+    _persistence_path: str | None = field(default=None, repr=False)
     _auto_save: bool = field(default=False, repr=False)
     _save_counter: int = field(default=0, repr=False)
     _save_interval: int = field(default=5, repr=False)  # Save every N invocations
@@ -192,10 +200,8 @@ class AgentPool:
         self._save_interval = save_interval
 
         # Try to load existing data
-        try:
+        with contextlib.suppress(FileNotFoundError, json.JSONDecodeError):
             self._load_history_from_file(path)
-        except (FileNotFoundError, json.JSONDecodeError):
-            pass  # No existing file, start fresh
 
     def register(self, profile: AgentProfile):
         """Register an agent in the pool"""
@@ -206,11 +212,11 @@ class AgentPool:
         if agent_id in self.agents:
             del self.agents[agent_id]
 
-    def get_active_agents(self) -> List[AgentProfile]:
+    def get_active_agents(self) -> list[AgentProfile]:
         """Get all active agents"""
         return [a for a in self.agents.values() if a.is_active]
 
-    def get_spawned_agents(self) -> List[AgentProfile]:
+    def get_spawned_agents(self) -> list[AgentProfile]:
         """
         Get all spawned agents (provider == 'spawned').
 
@@ -220,29 +226,18 @@ class AgentPool:
         Returns:
             List of AgentProfile for spawned agents only
         """
-        return [
-            a for a in self.agents.values()
-            if a.is_active and a.provider == "spawned"
-        ]
+        return [a for a in self.agents.values() if a.is_active and a.provider == "spawned"]
 
-    def get_internal_agents(self) -> List[AgentProfile]:
+    def get_internal_agents(self) -> list[AgentProfile]:
         """
         Get internal agents (Gemini + Claude).
 
         Returns:
             List of AgentProfile for internal agents only
         """
-        return [
-            a for a in self.agents.values()
-            if a.is_active and a.provider in ("gemini", "claude")
-        ]
+        return [a for a in self.agents.values() if a.is_active and a.provider in ("gemini", "claude")]
 
-    def select_best_for_task(
-        self,
-        task_type: str,
-        top_k: int = 1,
-        min_importance: float = 0.0
-    ) -> List[AgentProfile]:
+    def select_best_for_task(self, task_type: str, top_k: int = 1, min_importance: float = 0.0) -> list[AgentProfile]:
         """
         Select best agent(s) for a task using importance scoring.
 
@@ -259,10 +254,7 @@ class AgentPool:
             return []
 
         # Score by task-specific importance
-        scored = [
-            (agent, agent.get_task_importance(task_type))
-            for agent in active
-        ]
+        scored = [(agent, agent.get_task_importance(task_type)) for agent in active]
 
         # Filter by minimum threshold
         scored = [(a, s) for a, s in scored if s >= min_importance]
@@ -273,11 +265,8 @@ class AgentPool:
         return [agent for agent, _ in scored[:top_k]]
 
     def select_agents_by_capability(
-        self,
-        domain: str,
-        count: int = 1,
-        include_spawned: bool = True
-    ) -> List[AgentProfile]:
+        self, domain: str, count: int = 1, include_spawned: bool = True
+    ) -> list[AgentProfile]:
         """
         Select top agents by capability/DyLAN score for a domain.
 
@@ -306,7 +295,7 @@ class AgentPool:
             active = [a for a in active if a.provider != "spawned"]
 
         domain_lower = domain.lower()
-        scored: List[tuple] = []
+        scored: list[tuple] = []
 
         for agent in active:
             score = 0.0
@@ -332,12 +321,7 @@ class AgentPool:
 
         return [agent for agent, _ in scored[:count]]
 
-    def get_best_for_role(
-        self,
-        role: str,
-        domain: str,
-        exclude_agents: Optional[List[str]] = None
-    ) -> Optional[AgentProfile]:
+    def get_best_for_role(self, role: str, domain: str, exclude_agents: list[str] | None = None) -> AgentProfile | None:
         """
         Get the best single agent for a specific role in a domain.
 
@@ -370,29 +354,22 @@ class AgentPool:
                 self._save_counter += 1
                 if self._save_counter >= self._save_interval:
                     self._save_counter = 0
-                    try:
+                    with contextlib.suppress(Exception):
                         self.save_to_file(self._persistence_path)
-                    except Exception:
-                        pass  # Silently fail to not interrupt execution
 
     # =========================================================================
     # Phase 10d: Session-Aware Agent Selection
     # =========================================================================
 
     # Session bonus constants (configurable)
-    SESSION_BONUS_HIGH = 0.08      # High quality session (>0.8)
-    SESSION_BONUS_MEDIUM = 0.05    # Medium quality session (>0.6)
-    SESSION_BONUS_LOW = 0.02       # Low quality session (>0.4)
-    SESSION_MIN_QUALITY = 0.4      # Minimum quality to apply any bonus
+    SESSION_BONUS_HIGH = 0.08  # High quality session (>0.8)
+    SESSION_BONUS_MEDIUM = 0.05  # Medium quality session (>0.6)
+    SESSION_BONUS_LOW = 0.02  # Low quality session (>0.4)
+    SESSION_MIN_QUALITY = 0.4  # Minimum quality to apply any bonus
 
     def update_from_session_metrics(
-        self,
-        task_id: str,
-        agents_used: list,
-        quality_score: float,
-        domains: list,
-        task_type: str = "session"
-    ) -> Dict[str, float]:
+        self, task_id: str, agents_used: list, quality_score: float, domains: list, task_type: str = "session"
+    ) -> dict[str, float]:
         """
         Update agent scores based on completed session metrics.
 
@@ -412,7 +389,7 @@ class AgentPool:
         Returns:
             Dictionary mapping agent_id to bonus applied.
         """
-        bonuses_applied: Dict[str, float] = {}
+        bonuses_applied: dict[str, float] = {}
 
         # Skip if quality too low
         if quality_score < self.SESSION_MIN_QUALITY:
@@ -441,7 +418,7 @@ class AgentPool:
                 success=True,
                 quality_score=min(1.0, 0.5 + bonus),  # Base + bonus
                 tokens_used=0,  # No actual token usage
-                time_seconds=0.1  # Minimal time for good importance score
+                time_seconds=0.1,  # Minimal time for good importance score
             )
 
             agent.record_invocation(synthetic_result)
@@ -455,18 +432,14 @@ class AgentPool:
                     success=True,
                     quality_score=min(1.0, 0.5 + bonus),
                     tokens_used=0,
-                    time_seconds=0.1
+                    time_seconds=0.1,
                 )
                 agent.record_invocation(domain_result)
 
         return bonuses_applied
 
     def get_session_aware_score(
-        self,
-        agent_id: str,
-        task_type: str,
-        success_memory: "SuccessMemory" = None,
-        dylan_weight: float = 0.7
+        self, agent_id: str, task_type: str, success_memory: "SuccessMemory" = None, dylan_weight: float = 0.7
     ) -> float:
         """
         Get combined score using DyLAN and session success rate.
@@ -495,9 +468,7 @@ class AgentPool:
         # Get session success rate if available
         session_rate = 0.5  # Neutral default
         if success_memory:
-            session_rate, sample_count = success_memory.get_agent_success_rate(
-                agent_id, domain=task_type
-            )
+            session_rate, sample_count = success_memory.get_agent_success_rate(agent_id, domain=task_type)
             # If not enough samples for domain, try global
             if sample_count < 3:
                 session_rate, _ = success_memory.get_agent_success_rate(agent_id)
@@ -507,39 +478,34 @@ class AgentPool:
 
         return min(1.0, max(0.0, combined))
 
-    def get_pool_stats(self) -> Dict:
+    def get_pool_stats(self) -> dict:
         """Get aggregate statistics for the pool"""
         active = self.get_active_agents()
         if not active:
             return {"agents": 0, "total_invocations": 0}
 
-        total_invocations = sum(
-            len(a.invocation_history) for a in active
-        )
-        avg_importance = sum(
-            a.average_importance for a in active
-        ) / len(active)
+        total_invocations = sum(len(a.invocation_history) for a in active)
+        avg_importance = sum(a.average_importance for a in active) / len(active)
 
         return {
             "agents": len(active),
             "total_invocations": total_invocations,
             "average_pool_importance": round(avg_importance, 4),
-            "agents_detail": {a.agent_id: a.to_dict() for a in active}
+            "agents_detail": {a.agent_id: a.to_dict() for a in active},
         }
 
-    def to_dict(self, include_history: bool = False) -> Dict:
+    def to_dict(self, include_history: bool = False) -> dict:
         """Convert to dictionary, optionally with full history for persistence."""
         return {
             "agents": {
-                agent_id: profile.to_dict(include_history=include_history)
-                for agent_id, profile in self.agents.items()
+                agent_id: profile.to_dict(include_history=include_history) for agent_id, profile in self.agents.items()
             },
-            "stats": self.get_pool_stats()
+            "stats": self.get_pool_stats(),
         }
 
     def save_to_file(self, path: str):
         """Persist pool state with full history to JSON file"""
-        with open(path, 'w', encoding='utf-8') as f:
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(self.to_dict(include_history=True), f, indent=2)
 
     def _load_history_from_file(self, path: str):
@@ -549,7 +515,7 @@ class AgentPool:
         Only loads history for agents that already exist in the pool.
         This preserves the current agent configuration while restoring DyLAN scores.
         """
-        with open(path, 'r', encoding='utf-8') as f:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
 
         for agent_id, agent_data in data.get("agents", {}).items():
@@ -565,24 +531,24 @@ class AgentPool:
                         quality_score=inv_data.get("quality_score", 0.5),
                         tokens_used=inv_data.get("tokens_used", 0),
                         time_seconds=inv_data.get("time_seconds", 0.0),
-                        error=inv_data.get("error")
+                        error=inv_data.get("error"),
                     )
                     self.agents[agent_id].invocation_history.append(result)
 
     @classmethod
     def load_from_file(cls, path: str) -> "AgentPool":
         """Load pool state from JSON file"""
-        with open(path, 'r', encoding='utf-8') as f:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
 
         pool = cls()
-        for agent_id, agent_data in data.get("agents", {}).items():
+        for _agent_id, agent_data in data.get("agents", {}).items():
             profile = AgentProfile(
                 agent_id=agent_data["agent_id"],
                 provider=agent_data["provider"],
                 model=agent_data["model"],
                 capabilities=agent_data.get("capabilities", []),
-                is_active=agent_data.get("is_active", True)
+                is_active=agent_data.get("is_active", True),
             )
             pool.register(profile)
 
@@ -604,25 +570,29 @@ def create_default_pool(config=None) -> AgentPool:
     # Gemini agent
     gemini_model = "gemini-3-pro-preview"
     if config:
-        gemini_model = getattr(config, 'gemini_default_model', gemini_model)
+        gemini_model = getattr(config, "gemini_default_model", gemini_model)
 
-    pool.register(AgentProfile(
-        agent_id="gemini_primary",
-        provider="gemini",
-        model=gemini_model,
-        capabilities=["reasoning", "coding", "research"]
-    ))
+    pool.register(
+        AgentProfile(
+            agent_id="gemini_primary",
+            provider="gemini",
+            model=gemini_model,
+            capabilities=["reasoning", "coding", "research"],
+        )
+    )
 
     # Claude agent
     claude_model = "claude-opus-4-6-20250116"
     if config:
-        claude_model = getattr(config, 'claude_opus_model', claude_model)
+        claude_model = getattr(config, "claude_opus_model", claude_model)
 
-    pool.register(AgentProfile(
-        agent_id="claude_opus",
-        provider="claude",
-        model=claude_model,
-        capabilities=["brainstorm", "creativity", "architecture"]
-    ))
+    pool.register(
+        AgentProfile(
+            agent_id="claude_opus",
+            provider="claude",
+            model=claude_model,
+            capabilities=["brainstorm", "creativity", "architecture"],
+        )
+    )
 
     return pool

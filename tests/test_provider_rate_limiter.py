@@ -17,20 +17,18 @@ Validates:
 
 import time
 
-import pytest
-
 from core.infrastructure.resilience.rate_limiter import (
-    RateLimiter,
+    DEFAULT_LIMITS,
     ProviderLimits,
     ProviderState,
+    RateLimiter,
     TokenBucket,
-    DEFAULT_LIMITS,
 )
-
 
 # =============================================================================
 # ProviderLimits Tests
 # =============================================================================
+
 
 class TestProviderLimits:
     """Test provider limits configuration."""
@@ -59,6 +57,7 @@ class TestProviderLimits:
 # =============================================================================
 # TokenBucket Tests
 # =============================================================================
+
 
 class TestTokenBucket:
     """Test token bucket algorithm."""
@@ -116,6 +115,7 @@ class TestTokenBucket:
 # ProviderState Tests
 # =============================================================================
 
+
 class TestProviderState:
     """Test provider state tracking."""
 
@@ -146,6 +146,7 @@ class TestProviderState:
 # RateLimiter - Initialization Tests
 # =============================================================================
 
+
 class TestRateLimiterInit:
     """Test rate limiter initialization."""
 
@@ -156,16 +157,20 @@ class TestRateLimiterInit:
         assert "ollama" in limiter.providers
 
     def test_custom_defaults(self):
-        limiter = RateLimiter(defaults={
-            "custom_api": ProviderLimits(rpm=10, tpm=100_000),
-        })
+        limiter = RateLimiter(
+            defaults={
+                "custom_api": ProviderLimits(rpm=10, tpm=100_000),
+            }
+        )
         assert "custom_api" in limiter.providers
         assert "gemini" in limiter.providers
 
     def test_override_default(self):
-        limiter = RateLimiter(defaults={
-            "gemini": ProviderLimits(rpm=30, tpm=500_000),
-        })
+        limiter = RateLimiter(
+            defaults={
+                "gemini": ProviderLimits(rpm=30, tpm=500_000),
+            }
+        )
         state = limiter.get_state("gemini")
         assert state["rpm_limit"] == 30
 
@@ -173,6 +178,7 @@ class TestRateLimiterInit:
 # =============================================================================
 # RateLimiter - Acquire Tests
 # =============================================================================
+
 
 class TestAcquire:
     """Test request acquisition."""
@@ -191,9 +197,11 @@ class TestAcquire:
         assert limiter.acquire("unknown") is True
 
     def test_rpm_exhaustion(self):
-        limiter = RateLimiter(defaults={
-            "test": ProviderLimits(rpm=5, tpm=1_000_000, max_burst=0),
-        })
+        limiter = RateLimiter(
+            defaults={
+                "test": ProviderLimits(rpm=5, tpm=1_000_000, max_burst=0),
+            }
+        )
         successes = 0
         for _ in range(20):
             if limiter.acquire("test"):
@@ -202,16 +210,20 @@ class TestAcquire:
         assert successes >= 5
 
     def test_tpm_check(self):
-        limiter = RateLimiter(defaults={
-            "test": ProviderLimits(rpm=1000, tpm=100),
-        })
+        limiter = RateLimiter(
+            defaults={
+                "test": ProviderLimits(rpm=1000, tpm=100),
+            }
+        )
         assert limiter.acquire("test", estimated_tokens=100) is True
         assert limiter.acquire("test", estimated_tokens=100) is False
 
     def test_blocked_counter(self):
-        limiter = RateLimiter(defaults={
-            "test": ProviderLimits(rpm=2, tpm=1_000_000, max_burst=0),
-        })
+        limiter = RateLimiter(
+            defaults={
+                "test": ProviderLimits(rpm=2, tpm=1_000_000, max_burst=0),
+            }
+        )
         for _ in range(10):
             limiter.acquire("test")
         state = limiter.get_state("test")
@@ -228,6 +240,7 @@ class TestAcquire:
 # =============================================================================
 # RateLimiter - Token Recording Tests
 # =============================================================================
+
 
 class TestTokenRecording:
     """Test token usage recording."""
@@ -255,6 +268,7 @@ class TestTokenRecording:
 # RateLimiter - Retry After Tests
 # =============================================================================
 
+
 class TestRetryAfter:
     """Test retry-after calculation."""
 
@@ -263,9 +277,11 @@ class TestRetryAfter:
         assert limiter.retry_after("gemini") == 0.0
 
     def test_wait_when_exhausted(self):
-        limiter = RateLimiter(defaults={
-            "test": ProviderLimits(rpm=2, tpm=1_000_000, max_burst=0),
-        })
+        limiter = RateLimiter(
+            defaults={
+                "test": ProviderLimits(rpm=2, tpm=1_000_000, max_burst=0),
+            }
+        )
         for _ in range(10):
             limiter.acquire("test")
         wait = limiter.retry_after("test")
@@ -279,6 +295,7 @@ class TestRetryAfter:
 # =============================================================================
 # RateLimiter - State Reporting Tests
 # =============================================================================
+
 
 class TestStateReporting:
     """Test state and reporting."""
@@ -313,6 +330,7 @@ class TestStateReporting:
 # RateLimiter - Configure Tests
 # =============================================================================
 
+
 class TestConfigure:
     """Test provider configuration."""
 
@@ -342,6 +360,7 @@ class TestConfigure:
 # =============================================================================
 # RateLimiter - Reset Tests
 # =============================================================================
+
 
 class TestReset:
     """Test rate limiter reset."""
@@ -380,6 +399,7 @@ class TestReset:
 # Default Limits Tests
 # =============================================================================
 
+
 class TestDefaultLimits:
     """Test default limit values."""
 
@@ -400,20 +420,23 @@ class TestDefaultLimits:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_resilience_package(self):
-        from core.infrastructure.resilience import RateLimiter, ProviderLimits, TokenBucket
+        from core.infrastructure.resilience import ProviderLimits, RateLimiter, TokenBucket
+
         assert all([RateLimiter, ProviderLimits, TokenBucket])
 
     def test_from_module(self):
         from core.infrastructure.resilience.rate_limiter import (
-            RateLimiter,
+            DEFAULT_LIMITS,
             ProviderLimits,
             ProviderState,
+            RateLimiter,
             TokenBucket,
-            DEFAULT_LIMITS,
         )
+
         assert all([RateLimiter, ProviderLimits, ProviderState, TokenBucket])
         assert len(DEFAULT_LIMITS) >= 3

@@ -5,7 +5,6 @@ Tests the StagnationDetector's ability to detect stagnation
 and recommend lead agent swaps.
 """
 
-import pytest
 from core.fsm.stagnation_detector import StagnationDetector
 
 
@@ -23,7 +22,7 @@ class TestHotSwapLeadAgent:
         """Multiple failures with similar messages should trigger swap."""
         detector = StagnationDetector(
             similarity_threshold=0.5,  # Lower threshold for testing
-            window_size=3
+            window_size=3,
         )
 
         # Add nearly identical stagnating messages
@@ -51,7 +50,7 @@ class TestHotSwapLeadAgent:
         """Swap recommendation when stagnating."""
         detector = StagnationDetector(
             similarity_threshold=0.5,  # Lower threshold for testing
-            window_size=3
+            window_size=3,
         )
 
         # Create stagnation with identical messages

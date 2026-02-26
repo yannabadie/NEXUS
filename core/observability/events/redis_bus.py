@@ -28,10 +28,12 @@ Usage:
 """
 
 import asyncio
+import contextlib
 import logging
 import uuid
+from collections.abc import AsyncIterator
 from threading import RLock
-from typing import Any, AsyncIterator, Dict, List, Optional, Set, Tuple
+from typing import Any, Optional
 
 from .types import CerebroEvent, CerebroEventType
 
@@ -63,29 +65,29 @@ class RedisEventBus:
         if self._initialized:
             return
 
-        self._redis: Optional[Any] = None  # redis.asyncio.Redis
-        self._pubsub: Optional[Any] = None  # redis.asyncio.PubSub
+        self._redis: Any | None = None  # redis.asyncio.Redis
+        self._pubsub: Any | None = None  # redis.asyncio.PubSub
         self._url: str = "redis://localhost:6379"
         self._connected: bool = False
-        self._subscriptions: Set[str] = set()
+        self._subscriptions: set[str] = set()
         self._initialized = True
 
         # V12.0: In-memory pub/sub fallback (when Redis unavailable)
         # Key: (tenant_id, workspace_id), Value: dict of {subscriber_id: asyncio.Queue}
-        self._memory_subscribers: Dict[Tuple[str, str], Dict[str, asyncio.Queue]] = {}
+        self._memory_subscribers: dict[tuple[str, str], dict[str, asyncio.Queue]] = {}
         # Store reference to main event loop for thread-safe queue operations
-        self._main_loop: Optional[asyncio.AbstractEventLoop] = None
+        self._main_loop: asyncio.AbstractEventLoop | None = None
 
         # V13.0: In-memory state storage (F5 recovery without Redis)
         # Key: (tenant_id, workspace_id), Value: {phase: dict, nodes: dict, logs: list}
-        self._memory_state: Dict[Tuple[str, str], Dict[str, Any]] = {}
+        self._memory_state: dict[tuple[str, str], dict[str, Any]] = {}
 
         logger.info("CEREBRO: RedisEventBus initialized with in-memory fallback support")
 
     def set_main_loop(self, loop: asyncio.AbstractEventLoop) -> None:
         """Set the main event loop for thread-safe operations."""
         self._main_loop = loop
-        logger.info(f"CEREBRO: Main event loop registered for in-memory pub/sub")
+        logger.info("CEREBRO: Main event loop registered for in-memory pub/sub")
 
     async def connect(self, url: str = "redis://localhost:6379") -> bool:
         """
@@ -131,17 +133,13 @@ class RedisEventBus:
     async def disconnect(self) -> None:
         """Disconnect from Redis server."""
         if self._pubsub:
-            try:
+            with contextlib.suppress(Exception):
                 await self._pubsub.close()
-            except Exception:
-                pass
             self._pubsub = None
 
         if self._redis:
-            try:
+            with contextlib.suppress(Exception):
                 await self._redis.aclose()
-            except Exception:
-                pass
             self._redis = None
 
         self._connected = False
@@ -175,7 +173,9 @@ class RedisEventBus:
         key = (event.tenant_id, event.workspace_id)
         subscribers = self._memory_subscribers.get(key, {})
 
-        logger.debug(f"CEREBRO: In-memory publish attempt - key={key}, subscribers={len(subscribers)}, event={event.event_type.value}")
+        logger.debug(
+            f"CEREBRO: In-memory publish attempt - key={key}, subscribers={len(subscribers)}, event={event.event_type.value}"
+        )
 
         if not subscribers:
             # Log at INFO level for debugging this issue
@@ -189,7 +189,7 @@ class RedisEventBus:
         # Determine if we're in the main loop or a worker thread
         try:
             current_loop = asyncio.get_running_loop()
-            in_main_loop = (self._main_loop is None or current_loop == self._main_loop)
+            in_main_loop = self._main_loop is None or current_loop == self._main_loop
         except RuntimeError:
             # No running loop - we're in a worker thread
             in_main_loop = False
@@ -207,7 +207,7 @@ class RedisEventBus:
                     published_count += 1
                     logger.debug(f"CEREBRO: Event {event.event_type.value} queued (threadsafe) for {sub_id[:8]}...")
                 else:
-                    logger.warning(f"CEREBRO: Main loop not available for thread-safe publish")
+                    logger.warning("CEREBRO: Main loop not available for thread-safe publish")
             except asyncio.QueueFull:
                 logger.warning(f"CEREBRO: Queue full for subscriber {sub_id}, dropping event")
             except Exception as e:
@@ -220,10 +220,7 @@ class RedisEventBus:
         return False
 
     async def subscribe(
-        self,
-        tenant_id: str,
-        workspace_id: str,
-        event_types: Optional[List[CerebroEventType]] = None
+        self, tenant_id: str, workspace_id: str, event_types: list[CerebroEventType] | None = None
     ) -> AsyncIterator[CerebroEvent]:
         """
         Subscribe to events for a tenant/workspace.
@@ -246,16 +243,11 @@ class RedisEventBus:
         if self._connected and self._redis is not None:
             pubsub = None
             try:
-                import redis.asyncio as aioredis
-
                 pubsub = self._redis.pubsub()
 
                 # Build patterns
                 if event_types:
-                    patterns = [
-                        CerebroEvent.wildcard_channel(tenant_id, workspace_id, et)
-                        for et in event_types
-                    ]
+                    patterns = [CerebroEvent.wildcard_channel(tenant_id, workspace_id, et) for et in event_types]
                 else:
                     patterns = [CerebroEvent.wildcard_channel(tenant_id, workspace_id)]
 
@@ -281,10 +273,8 @@ class RedisEventBus:
                 logger.error(f"CEREBRO: Redis subscription error: {e}")
             finally:
                 if pubsub:
-                    try:
+                    with contextlib.suppress(Exception):
                         await pubsub.close()
-                    except Exception:
-                        pass
             return
 
         # V12.0: In-memory fallback
@@ -298,7 +288,9 @@ class RedisEventBus:
         if key not in self._memory_subscribers:
             self._memory_subscribers[key] = {}
         self._memory_subscribers[key][sub_id] = queue
-        logger.info(f"CEREBRO: In-memory subscriber registered: {sub_id} for {key}, total subs: {len(self._memory_subscribers[key])}")
+        logger.info(
+            f"CEREBRO: In-memory subscriber registered: {sub_id} for {key}, total subs: {len(self._memory_subscribers[key])}"
+        )
 
         try:
             # Filter event types if specified
@@ -317,7 +309,7 @@ class RedisEventBus:
 
                     logger.info(f"CEREBRO: Yielding event {event.event_type.value} to subscriber {sub_id[:8]}...")
                     yield event
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     # No events for 60s, continue waiting
                     logger.debug(f"CEREBRO: No events for 60s, subscriber {sub_id[:8]} still waiting...")
                     continue
@@ -370,7 +362,7 @@ class RedisEventBus:
             total += len(subs)
         return total
 
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """
         Perform health check on Redis connection.
 
@@ -386,6 +378,7 @@ class RedisEventBus:
         if self._connected and self._redis:
             try:
                 import time
+
                 start = time.perf_counter()
                 await self._redis.ping()
                 latency = (time.perf_counter() - start) * 1000
@@ -399,7 +392,7 @@ class RedisEventBus:
 
         return result
 
-    async def get_info(self) -> Dict[str, Any]:
+    async def get_info(self) -> dict[str, Any]:
         """
         Get Redis server info.
 
@@ -425,11 +418,11 @@ class RedisEventBus:
     # V13.0: In-Memory State Storage (F5 Recovery without Redis)
     # =========================================================================
 
-    def _get_state_key(self, tenant_id: str, workspace_id: str) -> Tuple[str, str]:
+    def _get_state_key(self, tenant_id: str, workspace_id: str) -> tuple[str, str]:
         """Get state key tuple."""
         return (tenant_id, workspace_id)
 
-    def _ensure_state_exists(self, key: Tuple[str, str]) -> Dict[str, Any]:
+    def _ensure_state_exists(self, key: tuple[str, str]) -> dict[str, Any]:
         """Ensure state dict exists for key, return it."""
         if key not in self._memory_state:
             self._memory_state[key] = {
@@ -439,33 +432,33 @@ class RedisEventBus:
             }
         return self._memory_state[key]
 
-    def set_phase_state(self, tenant_id: str, workspace_id: str, phase_data: Dict[str, Any]) -> None:
+    def set_phase_state(self, tenant_id: str, workspace_id: str, phase_data: dict[str, Any]) -> None:
         """Set phase state (in-memory)."""
         key = self._get_state_key(tenant_id, workspace_id)
         state = self._ensure_state_exists(key)
         state["phase"] = phase_data
         logger.debug(f"CEREBRO: Phase state set for {key}")
 
-    def get_phase_state(self, tenant_id: str, workspace_id: str) -> Optional[Dict[str, Any]]:
+    def get_phase_state(self, tenant_id: str, workspace_id: str) -> dict[str, Any] | None:
         """Get phase state (in-memory)."""
         key = self._get_state_key(tenant_id, workspace_id)
         state = self._memory_state.get(key)
         return state.get("phase") if state else None
 
-    def set_node(self, tenant_id: str, workspace_id: str, node_id: str, node_data: Dict[str, Any]) -> None:
+    def set_node(self, tenant_id: str, workspace_id: str, node_id: str, node_data: dict[str, Any]) -> None:
         """Set or update a graph node (in-memory)."""
         key = self._get_state_key(tenant_id, workspace_id)
         state = self._ensure_state_exists(key)
         state["nodes"][node_id] = node_data
         logger.debug(f"CEREBRO: Node {node_id} set for {key}")
 
-    def get_nodes(self, tenant_id: str, workspace_id: str) -> Dict[str, Dict[str, Any]]:
+    def get_nodes(self, tenant_id: str, workspace_id: str) -> dict[str, dict[str, Any]]:
         """Get all graph nodes (in-memory)."""
         key = self._get_state_key(tenant_id, workspace_id)
         state = self._memory_state.get(key)
         return state.get("nodes", {}) if state else {}
 
-    def add_log(self, tenant_id: str, workspace_id: str, log_entry: Dict[str, Any]) -> None:
+    def add_log(self, tenant_id: str, workspace_id: str, log_entry: dict[str, Any]) -> None:
         """Add a log entry (in-memory, max 100)."""
         key = self._get_state_key(tenant_id, workspace_id)
         state = self._ensure_state_exists(key)
@@ -475,7 +468,7 @@ class RedisEventBus:
             state["logs"] = logs[:100]  # Keep only 100 most recent
         logger.debug(f"CEREBRO: Log entry added for {key}, total={len(state['logs'])}")
 
-    def get_logs(self, tenant_id: str, workspace_id: str) -> List[Dict[str, Any]]:
+    def get_logs(self, tenant_id: str, workspace_id: str) -> list[dict[str, Any]]:
         """Get log entries (in-memory)."""
         key = self._get_state_key(tenant_id, workspace_id)
         state = self._memory_state.get(key)
@@ -488,7 +481,7 @@ class RedisEventBus:
             del self._memory_state[key]
             logger.debug(f"CEREBRO: State cleared for {key}")
 
-    def get_full_state(self, tenant_id: str, workspace_id: str) -> Dict[str, Any]:
+    def get_full_state(self, tenant_id: str, workspace_id: str) -> dict[str, Any]:
         """Get full state snapshot (for API)."""
         key = self._get_state_key(tenant_id, workspace_id)
         state = self._memory_state.get(key)
@@ -505,7 +498,7 @@ class RedisEventBus:
 # Module-Level Singleton Access
 # =============================================================================
 
-_redis_bus: Optional[RedisEventBus] = None
+_redis_bus: RedisEventBus | None = None
 
 
 def get_redis_bus() -> RedisEventBus:
@@ -536,6 +529,7 @@ def reset_redis_bus() -> None:
 # Convenience Functions
 # =============================================================================
 
+
 async def publish_event(event: CerebroEvent) -> bool:
     """
     Quick publish function (uses global bus).
@@ -550,12 +544,7 @@ async def publish_event(event: CerebroEvent) -> bool:
     return await bus.publish(event)
 
 
-async def publish_interaction(
-    event_type: CerebroEventType,
-    tenant_id: str,
-    workspace_id: str,
-    **payload
-) -> bool:
+async def publish_interaction(event_type: CerebroEventType, tenant_id: str, workspace_id: str, **payload) -> bool:
     """
     Quick publish for interaction events.
 

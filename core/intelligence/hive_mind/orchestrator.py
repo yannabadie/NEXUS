@@ -18,58 +18,61 @@ Usage:
     result = await hive_mind.process_task("Complex task here")
 """
 
-import asyncio
+import contextlib
 import logging
 import time
-from pathlib import Path
-from typing import Dict, Any, Optional, List, TYPE_CHECKING
 from dataclasses import dataclass
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
-from .types import HiveMindState, UserBreakpoint
-from .agent_registry import AgentRegistry
-from .cost_estimator import CostEstimator
-from .context_manager import HiveMindContextManager
-from .strategy_blacklist import StrategyBlacklist
-from .user_interaction import UserInteractionHandler
-from .adaptive_debate import AdaptiveDebateConfig, TaskComplexity
-
-from .phases import (
-    IndependentAnalysisPhase,
-    StrategicDebatePhase,
-    ArchitectureGenerationPhase,
-    MonitoredExecutionPhase,
-    FailureDiagnosisPhase,
-    AdaptiveRetryPhase,
-    KnowledgeConsolidationPhase,
-)
-
-# V8.4.4b: SagaManager for checkpoint/rollback
-from .saga_manager import SagaManager
-
-# V12.4: Stepwise confidence monitoring (arxiv:2511.07364)
-from .confidence_monitor import StepwiseConfidenceMonitor
-
-# V12.4: Phase audit logging for decision tracking
-from .phase_audit_logger import get_phase_audit_logger
-
-# V12.4: Phase budget allocation (TALE, arxiv:2412.18547)
-from .budget_allocator import PhaseBudgetAllocator
+if TYPE_CHECKING:
+    from core.intelligence.swarm.hybrid_swarm_engine import HybridSwarmEngine
+    from core.memory_pkg.memory import SuccessMemory
 
 # V9.4 ISSUE-003: Sync bridge for HiveMind/Swarm state synchronization
-from core.execution_pkg.orchestration.sync_bridge import get_sync_bridge, OrchestratorSyncBridge
+from core.execution_pkg.orchestration.sync_bridge import OrchestratorSyncBridge, get_sync_bridge
+
+# V8.0.1: Hot-Swap Lead Agent
+from core.fsm.stagnation_detector import StagnationDetector
 
 # V10 SYNAPSE: Telemetry instrumentation
 from core.observability.events.telemetry_bridge import get_telemetry_bridge
 from core.observability.events.types import CerebroEventType
 
-# V8.0.1: Hot-Swap Lead Agent
-from core.fsm.stagnation_detector import StagnationDetector
+from .adaptive_debate import AdaptiveDebateConfig, TaskComplexity
+from .agent_registry import AgentRegistry
+
+# V12.4: Phase budget allocation (TALE, arxiv:2412.18547)
+from .budget_allocator import PhaseBudgetAllocator
+
+# V12.4: Stepwise confidence monitoring (arxiv:2511.07364)
+from .confidence_monitor import StepwiseConfidenceMonitor
+from .context_manager import HiveMindContextManager
+from .cost_estimator import CostEstimator
+
+# V12.4: Phase audit logging for decision tracking
+from .phase_audit_logger import get_phase_audit_logger
+from .phases import (
+    AdaptiveRetryPhase,
+    ArchitectureGenerationPhase,
+    FailureDiagnosisPhase,
+    IndependentAnalysisPhase,
+    KnowledgeConsolidationPhase,
+    MonitoredExecutionPhase,
+    StrategicDebatePhase,
+)
+
+# V8.4.4b: SagaManager for checkpoint/rollback
+from .saga_manager import SagaManager
+from .strategy_blacklist import StrategyBlacklist
+from .types import HiveMindState
+from .user_interaction import UserInteractionHandler
 
 if TYPE_CHECKING:
     from core.drivers.protocol import BaseAsyncDriver
     from core.intelligence.swarm import AgentPool
-    from core.observability.telemetry import BudgetTracker
     from core.memory_pkg.memory import ProjectMemory
+    from core.observability.telemetry import BudgetTracker
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +80,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class HiveMindResult:
     """Result of a Hive Mind task execution."""
+
     success: bool
     output: str
     state: HiveMindState
@@ -87,7 +91,7 @@ class HiveMindResult:
     agents_spawned: list
     artifacts_created: list
     knowledge_archived: int
-    error: Optional[str] = None
+    error: str | None = None
 
 
 class TrueHiveMind:
@@ -149,15 +153,15 @@ class TrueHiveMind:
         # Initialize V8 components
         self._init_components()
 
-        logger.info("TrueHiveMind V8.0 initialized", extra={
-            "workspace": str(workspace_path),
-            "breakpoints_enabled": auto_breakpoints
-        })
+        logger.info(
+            "TrueHiveMind V8.0 initialized",
+            extra={"workspace": str(workspace_path), "breakpoints_enabled": auto_breakpoints},
+        )
 
     def _init_components(self):
         """Initialize Hive Mind components."""
         # Budget: Get limit from config or default
-        budget_limit = getattr(self.config, 'hive_mind_budget_limit', 50000)
+        budget_limit = getattr(self.config, "hive_mind_budget_limit", 50000)
 
         # Core components
         self.cost_estimator = CostEstimator(budget_limit=budget_limit)
@@ -168,29 +172,27 @@ class TrueHiveMind:
 
         # V8.0.1: Hot-Swap Lead Agent support
         self.stagnation_detector = StagnationDetector(
-            similarity_threshold=0.8,
-            window_size=3,
-            strategy_blacklist=self.strategy_blacklist
+            similarity_threshold=0.8, window_size=3, strategy_blacklist=self.strategy_blacklist
         )
         self._current_lead = "gemini"  # Default lead agent
         self._lead_swap_count = 0
 
         # User interaction
         self.user_handler = UserInteractionHandler(
-            default_timeout=getattr(self.config, 'hive_mind_breakpoint_timeout', 60),
+            default_timeout=getattr(self.config, "hive_mind_breakpoint_timeout", 60),
             enable_rich=True,
-            auto_accept=not self.auto_breakpoints
+            auto_accept=not self.auto_breakpoints,
         )
 
         # V8.4.4b: SagaManager for checkpoint/rollback (saga_enabled set in __init__)
-        self._saga: Optional[SagaManager] = None
-        self._spawned_agents: List[str] = []
+        self._saga: SagaManager | None = None
+        self._spawned_agents: list[str] = []
 
         # V9.4 ISSUE-003: Sync bridge for HiveMind/Swarm state synchronization
         self._sync_bridge: OrchestratorSyncBridge = get_sync_bridge()
         self._sync_bridge._workspace = self.workspace_path
         # Wire up swarm session manager if available
-        if self.swarm_engine and hasattr(self.swarm_engine, 'session_manager'):
+        if self.swarm_engine and hasattr(self.swarm_engine, "session_manager"):
             self._sync_bridge.set_session_manager(self.swarm_engine.session_manager)
 
         # V12.4: Stepwise confidence monitor
@@ -204,6 +206,7 @@ class TrueHiveMind:
         # V12.4: System introspector - register HiveMind components
         try:
             from core.meta.system_introspector import get_introspector
+
             self._introspector = get_introspector()
             self._introspector.register_component(
                 "hive_mind_orchestrator",
@@ -219,6 +222,7 @@ class TrueHiveMind:
         self._failover = None
         try:
             from core.drivers.failover_manager import get_failover_manager
+
             self._failover = get_failover_manager()
             if not self._failover._configs:  # Only register once
                 self._failover.register_driver("gemini", priority=0)
@@ -230,19 +234,29 @@ class TrueHiveMind:
         self._resource_optimizer = None
         try:
             from core.execution_pkg.routing.resource_optimizer import get_resource_optimizer
+
             self._resource_optimizer = get_resource_optimizer()
             if not self._resource_optimizer._models:
                 self._resource_optimizer.register_model(
-                    "gemini-3-pro", cost_per_1k_input=0.00125, cost_per_1k_output=0.005,
-                    avg_latency_ms=800, quality_score=0.85,
+                    "gemini-3-pro",
+                    cost_per_1k_input=0.00125,
+                    cost_per_1k_output=0.005,
+                    avg_latency_ms=800,
+                    quality_score=0.85,
                 )
                 self._resource_optimizer.register_model(
-                    "claude-opus-4", cost_per_1k_input=0.015, cost_per_1k_output=0.075,
-                    avg_latency_ms=1200, quality_score=0.95,
+                    "claude-opus-4",
+                    cost_per_1k_input=0.015,
+                    cost_per_1k_output=0.075,
+                    avg_latency_ms=1200,
+                    quality_score=0.95,
                 )
                 self._resource_optimizer.register_model(
-                    "claude-sonnet-4", cost_per_1k_input=0.003, cost_per_1k_output=0.015,
-                    avg_latency_ms=600, quality_score=0.88,
+                    "claude-sonnet-4",
+                    cost_per_1k_input=0.003,
+                    cost_per_1k_output=0.015,
+                    avg_latency_ms=600,
+                    quality_score=0.88,
                 )
         except Exception:
             pass
@@ -259,7 +273,7 @@ class TrueHiveMind:
             claude_driver=self.claude,
             cost_estimator=self.cost_estimator,
             context_manager=self.context_manager,
-            workspace_path=self.workspace_path
+            workspace_path=self.workspace_path,
         )
 
         # Phase 2: Strategic Debate
@@ -268,7 +282,7 @@ class TrueHiveMind:
             claude_driver=self.claude,
             cost_estimator=self.cost_estimator,
             context_manager=self.context_manager,
-            debate_config=self.debate_config
+            debate_config=self.debate_config,
         )
 
         # Phase 3: Architecture Generation
@@ -279,7 +293,7 @@ class TrueHiveMind:
             context_manager=self.context_manager,
             agent_registry=self.agent_registry,
             user_handler=self.user_handler,
-            workspace_path=self.workspace_path
+            workspace_path=self.workspace_path,
         )
 
         # Phase 4: Monitored Execution
@@ -289,7 +303,7 @@ class TrueHiveMind:
             claude_driver=self.claude,
             cost_estimator=self.cost_estimator,
             context_manager=self.context_manager,
-            swarm_engine=self.swarm_engine
+            swarm_engine=self.swarm_engine,
         )
 
         # Phase 5: Failure Diagnosis
@@ -298,14 +312,12 @@ class TrueHiveMind:
             claude_driver=self.claude,
             cost_estimator=self.cost_estimator,
             context_manager=self.context_manager,
-            user_handler=self.user_handler
+            user_handler=self.user_handler,
         )
 
         # Phase 6: Adaptive Retry
         self.phase_retry = AdaptiveRetryPhase(
-            cost_estimator=self.cost_estimator,
-            context_manager=self.context_manager,
-            blacklist=self.strategy_blacklist
+            cost_estimator=self.cost_estimator, context_manager=self.context_manager, blacklist=self.strategy_blacklist
         )
 
         # Phase 7: Knowledge Consolidation
@@ -318,7 +330,7 @@ class TrueHiveMind:
             agent_registry=self.agent_registry,
             user_handler=self.user_handler,
             project_memory=self.project_memory,
-            workspace_path=self.workspace_path
+            workspace_path=self.workspace_path,
         )
 
     def _set_state(self, new_state: HiveMindState):
@@ -329,8 +341,7 @@ class TrueHiveMind:
 
         # V10 SYNAPSE: Emit state change telemetry
         get_telemetry_bridge().emit_sync(
-            CerebroEventType.HIVE_STATE_CHANGE,
-            {"old_state": old_state.value, "new_state": new_state.value}
+            CerebroEventType.HIVE_STATE_CHANGE, {"old_state": old_state.value, "new_state": new_state.value}
         )
 
         if self.on_state_change:
@@ -340,7 +351,7 @@ class TrueHiveMind:
         self,
         task: str,
         complexity: TaskComplexity = TaskComplexity.MODERATE,
-        task_id: Optional[str] = None,  # V8.4.4b: For saga resume
+        task_id: str | None = None,  # V8.4.4b: For saga resume
     ) -> HiveMindResult:
         """
         Process a task through the Hive Mind pipeline.
@@ -367,7 +378,7 @@ class TrueHiveMind:
             # V10 SYNAPSE: Emit process_task start event
             await _telemetry_bridge.emit(
                 CerebroEventType.HIVE_PHASE_START,
-                {"phase": "process_task", "task_preview": task[:100], "trace_id": trace_id}
+                {"phase": "process_task", "task_preview": task[:100], "trace_id": trace_id},
             )
 
             # V12.0 RETINA: Spawn graph nodes for visualization
@@ -377,8 +388,8 @@ class TrueHiveMind:
                     "node_id": "gemini",
                     "type": "agent",
                     "data": {"name": "Gemini", "status": "idle", "role": "analyst"},
-                    "position": {"x": 100, "y": 50}
-                }
+                    "position": {"x": 100, "y": 50},
+                },
             )
             await _telemetry_bridge.emit(
                 CerebroEventType.GRAPH_NODE_SPAWN,
@@ -386,8 +397,8 @@ class TrueHiveMind:
                     "node_id": "claude",
                     "type": "agent",
                     "data": {"name": "Claude", "status": "idle", "role": "analyst"},
-                    "position": {"x": 300, "y": 50}
-                }
+                    "position": {"x": 300, "y": 50},
+                },
             )
             await _telemetry_bridge.emit(
                 CerebroEventType.GRAPH_NODE_SPAWN,
@@ -395,8 +406,8 @@ class TrueHiveMind:
                     "node_id": "task",
                     "type": "task",
                     "data": {"name": task[:50], "status": "pending", "phase": "starting"},
-                    "position": {"x": 200, "y": 200}
-                }
+                    "position": {"x": 200, "y": 200},
+                },
             )
 
             # Reset for new task
@@ -408,6 +419,7 @@ class TrueHiveMind:
             # V12.4: Reset echo chamber guard for new task
             try:
                 from .echo_chamber_guard import get_echo_chamber_guard
+
                 get_echo_chamber_guard().reset()
             except Exception:
                 pass
@@ -415,7 +427,7 @@ class TrueHiveMind:
             # V12.4: Allocate phase budgets based on complexity
             self.budget_allocator.reset()
             phase_budgets = self.budget_allocator.allocate(
-                complexity.value if hasattr(complexity, 'value') else str(complexity)
+                complexity.value if hasattr(complexity, "value") else str(complexity)
             )
             logger.info(f"[HiveMind] Phase budgets allocated: execution={phase_budgets.get('execution', 0)}")
 
@@ -423,6 +435,7 @@ class TrueHiveMind:
             _phase_coord = None
             try:
                 from .phase_coordinator import get_phase_coordinator
+
                 _phase_coord = get_phase_coordinator()
                 _phase_coord.start_session(task_id or f"hive_{int(start_time)}")
             except Exception:
@@ -432,6 +445,7 @@ class TrueHiveMind:
             _ckpt_mgr = None
             try:
                 from core.infrastructure.resilience.checkpoint_manager import get_checkpoint_manager
+
                 _ckpt_mgr = get_checkpoint_manager()
             except Exception:
                 pass
@@ -440,6 +454,7 @@ class TrueHiveMind:
             _resilience = None
             try:
                 from core.infrastructure.resilience.resilience_event_tracker import get_resilience_tracker
+
                 _resilience = get_resilience_tracker()
             except Exception:
                 pass
@@ -449,17 +464,30 @@ class TrueHiveMind:
             # V12.4: CapabilityProfiler - register agents for data-driven routing (arxiv:2505.16303)
             try:
                 from core.foundation.agents.capability_profiler import get_capability_profiler
+
                 _cap_profiler = get_capability_profiler()
                 if _cap_profiler.agent_count == 0:
                     _cap_profiler.register_agent(
                         "gemini",
                         capabilities=["research", "web_search", "brainstorming", "analysis", "coding"],
-                        initial_proficiency={"research": 0.85, "web_search": 0.9, "brainstorming": 0.8, "analysis": 0.8, "coding": 0.7},
+                        initial_proficiency={
+                            "research": 0.85,
+                            "web_search": 0.9,
+                            "brainstorming": 0.8,
+                            "analysis": 0.8,
+                            "coding": 0.7,
+                        },
                     )
                     _cap_profiler.register_agent(
                         "claude",
                         capabilities=["coding", "debugging", "architecture", "security_analysis", "documentation"],
-                        initial_proficiency={"coding": 0.9, "debugging": 0.85, "architecture": 0.85, "security_analysis": 0.8, "documentation": 0.8},
+                        initial_proficiency={
+                            "coding": 0.9,
+                            "debugging": 0.85,
+                            "architecture": 0.85,
+                            "security_analysis": 0.8,
+                            "documentation": 0.8,
+                        },
                     )
             except Exception:
                 _cap_profiler = None
@@ -467,6 +495,7 @@ class TrueHiveMind:
             # V8.4.4b: Initialize SagaManager for checkpoint/rollback
             if self.saga_enabled:
                 from core.intelligence.swarm import generate_task_id
+
                 task_id = task_id or generate_task_id(prefix="hive")
                 sagas_dir = self.workspace_path / ".nexus" / "sagas"
                 sagas_dir.mkdir(parents=True, exist_ok=True)
@@ -488,15 +517,10 @@ class TrueHiveMind:
                 # Integration with V7 BudgetTracker
                 estimated_cost = self.cost_estimator.estimate_full_hive_mind()
                 estimated_usd = self.cost_estimator.tokens_to_usd(estimated_cost)
-                logger.info(
-                    f"[HiveMind] Estimated execution cost: "
-                    f"~{estimated_cost:,} tokens (~${estimated_usd:.4f})"
-                )
+                logger.info(f"[HiveMind] Estimated execution cost: ~{estimated_cost:,} tokens (~${estimated_usd:.4f})")
                 # Check if we can afford it
                 if not self.cost_estimator.check_usd_budget(estimated_cost):
-                    logger.warning(
-                        f"[HiveMind] Execution may exceed USD budget"
-                    )
+                    logger.warning("[HiveMind] Execution may exceed USD budget")
 
             # =========================================================
             # PHASE 1: Independent Analysis
@@ -508,15 +532,15 @@ class TrueHiveMind:
             # V12.0 RETINA: Update nodes - agents analyzing
             await _telemetry_bridge.emit(
                 CerebroEventType.GRAPH_NODE_UPDATE,
-                {"node_id": "gemini", "data": {"status": "working", "phase": "analysis"}}
+                {"node_id": "gemini", "data": {"status": "working", "phase": "analysis"}},
             )
             await _telemetry_bridge.emit(
                 CerebroEventType.GRAPH_NODE_UPDATE,
-                {"node_id": "claude", "data": {"status": "working", "phase": "analysis"}}
+                {"node_id": "claude", "data": {"status": "working", "phase": "analysis"}},
             )
             await _telemetry_bridge.emit(
                 CerebroEventType.GRAPH_NODE_UPDATE,
-                {"node_id": "task", "data": {"status": "in_progress", "phase": "analysis"}}
+                {"node_id": "task", "data": {"status": "in_progress", "phase": "analysis"}},
             )
 
             analysis_result = await self.phase_analysis.execute(task)
@@ -547,11 +571,11 @@ class TrueHiveMind:
             # V12.0 RETINA: Update nodes - analysis complete
             await _telemetry_bridge.emit(
                 CerebroEventType.GRAPH_NODE_UPDATE,
-                {"node_id": "gemini", "data": {"status": "done", "phase": "analysis"}}
+                {"node_id": "gemini", "data": {"status": "done", "phase": "analysis"}},
             )
             await _telemetry_bridge.emit(
                 CerebroEventType.GRAPH_NODE_UPDATE,
-                {"node_id": "claude", "data": {"status": "done", "phase": "analysis"}}
+                {"node_id": "claude", "data": {"status": "done", "phase": "analysis"}},
             )
 
             # V8.4.4b: Checkpoint after analysis
@@ -560,7 +584,7 @@ class TrueHiveMind:
                     phase="analysis",
                     result={"task": task, "needs_debate": analysis_result.needs_debate},
                     state=self.state.value,
-                    context_index=len(self.context_manager._items)
+                    context_index=len(self.context_manager._items),
                 )
                 self._saga.update_context(analysis_complete=True)
                 # V9.4 ISSUE-003: Propagate checkpoint to Swarm
@@ -568,18 +592,20 @@ class TrueHiveMind:
                     source="hivemind",
                     task_id=self._saga.task_id,
                     phase_or_mode="analysis",
-                    checkpoint_data={"context_index": len(self.context_manager._items)}
+                    checkpoint_data={"context_index": len(self.context_manager._items)},
                 )
 
             # V12.4: Checkpoint after analysis
             if _ckpt_mgr:
-                try:
-                    _ckpt_mgr.create(_coord_session, "analysis_complete", state={
-                        "needs_debate": analysis_result.needs_debate,
-                        "agreement": analysis_result.comparison.agreement_score,
-                    })
-                except Exception:
-                    pass
+                with contextlib.suppress(Exception):
+                    _ckpt_mgr.create(
+                        _coord_session,
+                        "analysis_complete",
+                        state={
+                            "needs_debate": analysis_result.needs_debate,
+                            "agreement": analysis_result.comparison.agreement_score,
+                        },
+                    )
 
             # =========================================================
             # PHASE 2: Strategic Debate (if needed)
@@ -589,9 +615,7 @@ class TrueHiveMind:
                     _phase_coord.transition(_coord_session, "debate", reason="disagreement")
                 self._set_state(HiveMindState.HIVE_DEBATING)
                 debate_result = await self.phase_debate.execute(
-                    task=task,
-                    comparison=analysis_result.comparison,
-                    complexity=complexity
+                    task=task, comparison=analysis_result.comparison, complexity=complexity
                 )
                 phases_completed.append("debate")
 
@@ -599,9 +623,11 @@ class TrueHiveMind:
                 if self.auto_breakpoints and not debate_result.was_skipped:
                     self._set_state(HiveMindState.HIVE_BREAKPOINT_DEBATE)
                     response = self.user_handler.after_debate(
-                        debate_summary=str(debate_result.debate_result.debate_history[-3:]) if debate_result.debate_result.debate_history else "No debate history",
+                        debate_summary=str(debate_result.debate_result.debate_history[-3:])
+                        if debate_result.debate_result.debate_history
+                        else "No debate history",
                         final_approach=debate_result.final_approach,
-                        consensus_score=debate_result.debate_result.consensus_confidence
+                        consensus_score=debate_result.debate_result.consensus_confidence,
                     )
                     if response.chosen_option == "cancel":
                         return self._create_cancelled_result(
@@ -609,9 +635,7 @@ class TrueHiveMind:
                         )
             else:
                 # Skip debate - use analysis consensus
-                debate_result = self.phase_debate._create_skipped_result(
-                    analysis_result.comparison
-                )
+                debate_result = self.phase_debate._create_skipped_result(analysis_result.comparison)
                 phases_completed.append("debate_skipped")
 
             # V12.4: Record debate confidence
@@ -646,7 +670,7 @@ class TrueHiveMind:
                     phase="debate",
                     result={"was_skipped": debate_result.was_skipped},
                     state=self.state.value,
-                    context_index=len(self.context_manager._items)
+                    context_index=len(self.context_manager._items),
                 )
                 self._saga.update_context(debate_complete=True)
                 # V9.4 ISSUE-003: Propagate checkpoint to Swarm
@@ -654,18 +678,20 @@ class TrueHiveMind:
                     source="hivemind",
                     task_id=self._saga.task_id,
                     phase_or_mode="debate",
-                    checkpoint_data={"context_index": len(self.context_manager._items)}
+                    checkpoint_data={"context_index": len(self.context_manager._items)},
                 )
 
             # V12.4: Checkpoint after debate
             if _ckpt_mgr:
-                try:
-                    _ckpt_mgr.create(_coord_session, "debate_complete", state={
-                        "was_skipped": debate_result.was_skipped,
-                        "consensus": debate_confidence,
-                    })
-                except Exception:
-                    pass
+                with contextlib.suppress(Exception):
+                    _ckpt_mgr.create(
+                        _coord_session,
+                        "debate_complete",
+                        state={
+                            "was_skipped": debate_result.was_skipped,
+                            "consensus": debate_confidence,
+                        },
+                    )
 
             # =========================================================
             # PHASE 3: Architecture Generation
@@ -673,10 +699,7 @@ class TrueHiveMind:
             if _phase_coord:
                 _phase_coord.transition(_coord_session, "architecture", reason="debate_resolved")
             self._set_state(HiveMindState.HIVE_ARCHITECTING)
-            arch_result = await self.phase_architecture.execute(
-                task=task,
-                debate_result=debate_result.debate_result
-            )
+            arch_result = await self.phase_architecture.execute(task=task, debate_result=debate_result.debate_result)
             phases_completed.append("architecture")
             agents_spawned = arch_result.agents_spawned
             self._spawned_agents = agents_spawned  # V8.4.4b: Track for compensation
@@ -708,8 +731,7 @@ class TrueHiveMind:
             if abort_rec.should_abort:
                 logger.warning(f"[HiveMind] Confidence abort: {abort_rec.reason}")
                 return self._create_cancelled_result(
-                    phases_completed, start_time,
-                    f"Low confidence: {abort_rec.reason}"
+                    phases_completed, start_time, f"Low confidence: {abort_rec.reason}"
                 )
 
             # V8.4.4b: Checkpoint after architecture
@@ -718,7 +740,7 @@ class TrueHiveMind:
                     phase="architecture",
                     result={"agents_spawned": agents_spawned},
                     state=self.state.value,
-                    context_index=len(self.context_manager._items)
+                    context_index=len(self.context_manager._items),
                 )
                 self._saga.update_context(architecture_approved=True)
                 # V9.4 ISSUE-003: Propagate checkpoint to Swarm
@@ -726,18 +748,20 @@ class TrueHiveMind:
                     source="hivemind",
                     task_id=self._saga.task_id,
                     phase_or_mode="architecture",
-                    checkpoint_data={"context_index": len(self.context_manager._items)}
+                    checkpoint_data={"context_index": len(self.context_manager._items)},
                 )
 
             # V12.4: Checkpoint after architecture
             if _ckpt_mgr:
-                try:
-                    _ckpt_mgr.create(_coord_session, "architecture_complete", state={
-                        "agents_spawned": agents_spawned,
-                        "status": arch_result.architecture.status,
-                    })
-                except Exception:
-                    pass
+                with contextlib.suppress(Exception):
+                    _ckpt_mgr.create(
+                        _coord_session,
+                        "architecture_complete",
+                        state={
+                            "agents_spawned": agents_spawned,
+                            "status": arch_result.architecture.status,
+                        },
+                    )
 
             # =========================================================
             # PHASE 4-6: Execution Loop (with retry)
@@ -751,10 +775,7 @@ class TrueHiveMind:
                 if _phase_coord:
                     _phase_coord.transition(_coord_session, "execution", reason=f"attempt_{attempt + 1}")
                 self._set_state(HiveMindState.HIVE_EXECUTING)
-                execution_result = await self.phase_execution.execute(
-                    task=task,
-                    architecture=arch_result.architecture
-                )
+                execution_result = await self.phase_execution.execute(task=task, architecture=arch_result.architecture)
 
                 # V12.4: Record execution confidence
                 exec_confidence = 0.90 if execution_result.success else 0.30
@@ -774,7 +795,7 @@ class TrueHiveMind:
                             phase="execution",
                             result={"success": True, "attempt": attempt + 1},
                             state=self.state.value,
-                            context_index=len(self.context_manager._items)
+                            context_index=len(self.context_manager._items),
                         )
                         self._saga.update_context(execution_complete=True)
                         # V9.4 ISSUE-003: Propagate checkpoint to Swarm
@@ -782,7 +803,7 @@ class TrueHiveMind:
                             source="hivemind",
                             task_id=self._saga.task_id,
                             phase_or_mode="execution",
-                            checkpoint_data={"context_index": len(self.context_manager._items)}
+                            checkpoint_data={"context_index": len(self.context_manager._items)},
                         )
                     break
 
@@ -797,15 +818,13 @@ class TrueHiveMind:
 
                 # V12.4: Record execution failure as resilience event
                 if _resilience:
-                    try:
+                    with contextlib.suppress(Exception):
                         _resilience.record_event(
                             event_type="retry",
                             component="hive_mind_execution",
                             description=f"Execution failed attempt {attempt + 1}: {execution_result.failure_step or 'unknown step'}",
                             severity="warning" if attempt < 2 else "critical",
                         )
-                    except Exception:
-                        pass
 
                 # PHASE 5: Failure Diagnosis
                 if _phase_coord:
@@ -815,7 +834,7 @@ class TrueHiveMind:
                     task=task,
                     step_results=execution_result.step_results,
                     issues=execution_result.issues,
-                    failure_step=execution_result.failure_step
+                    failure_step=execution_result.failure_step,
                 )
                 phases_completed.append("diagnosis")
 
@@ -832,7 +851,7 @@ class TrueHiveMind:
                         phase="diagnosis",
                         result={"user_decision": diagnosis_result.user_decision},
                         state=self.state.value,
-                        context_index=len(self.context_manager._items)
+                        context_index=len(self.context_manager._items),
                     )
                     self._saga.update_context(diagnosis_complete=True)
                     # V9.4 ISSUE-003: Propagate checkpoint to Swarm
@@ -840,7 +859,7 @@ class TrueHiveMind:
                         source="hivemind",
                         task_id=self._saga.task_id,
                         phase_or_mode="diagnosis",
-                        checkpoint_data={"context_index": len(self.context_manager._items)}
+                        checkpoint_data={"context_index": len(self.context_manager._items)},
                     )
 
                 # Check user decision
@@ -849,32 +868,32 @@ class TrueHiveMind:
                         phases_completed=phases_completed,
                         start_time=start_time,
                         error=f"User chose to {diagnosis_result.user_decision}",
-                        execution_result=execution_result
+                        execution_result=execution_result,
                     )
 
                 # V12.4: Checkpoint after diagnosis
                 if _ckpt_mgr:
-                    try:
-                        _ckpt_mgr.create(_coord_session, f"diagnosis_attempt_{attempt + 1}", state={
-                            "failure_type": diagnosis_result.diagnosis.failure_type.value,
-                            "user_decision": diagnosis_result.user_decision,
-                            "confidence": diagnosis_result.diagnosis.confidence,
-                        })
-                    except Exception:
-                        pass
+                    with contextlib.suppress(Exception):
+                        _ckpt_mgr.create(
+                            _coord_session,
+                            f"diagnosis_attempt_{attempt + 1}",
+                            state={
+                                "failure_type": diagnosis_result.diagnosis.failure_type.value,
+                                "user_decision": diagnosis_result.user_decision,
+                                "confidence": diagnosis_result.diagnosis.confidence,
+                            },
+                        )
 
                 # PHASE 6: Adaptive Retry
                 if _phase_coord:
                     _phase_coord.transition(_coord_session, "retry", reason=f"retry_attempt_{attempt + 1}")
                 self._set_state(HiveMindState.HIVE_APPLYING_CHANGES)
-                retry_recommendations = self.phase_diagnosis.get_retry_recommendations(
-                    diagnosis_result
-                )
+                retry_recommendations = self.phase_diagnosis.get_retry_recommendations(diagnosis_result)
                 retry_result = self.phase_retry.execute(
                     diagnosis=diagnosis_result.diagnosis,
                     current_architecture=arch_result.architecture,
                     recommendations=retry_recommendations,
-                    user_decision=diagnosis_result.user_decision
+                    user_decision=diagnosis_result.user_decision,
                 )
 
                 if retry_result.decision.action != "RETRY":
@@ -883,22 +902,19 @@ class TrueHiveMind:
                         phases_completed=phases_completed,
                         start_time=start_time,
                         error=retry_result.decision.reason,
-                        execution_result=execution_result
+                        execution_result=execution_result,
                     )
 
                 # =========================================================
                 # V8.0.1: Hot-Swap Lead Agent Check
                 # =========================================================
-                swap_result = self._check_and_swap_lead(
-                    diagnosis_result.diagnosis,
-                    arch_result.architecture
-                )
+                swap_result = self._check_and_swap_lead(diagnosis_result.diagnosis, arch_result.architecture)
                 if swap_result["swapped"]:
                     phases_completed.append(f"lead_swapped_{swap_result['new_lead']}")
                     logger.info(f"Hot-Swap: Lead changed to {swap_result['new_lead']}")
                     # Update architecture to use new lead
-                    if hasattr(arch_result.architecture, 'lead_agent'):
-                        arch_result.architecture.lead_agent = swap_result['new_lead']
+                    if hasattr(arch_result.architecture, "lead_agent"):
+                        arch_result.architecture.lead_agent = swap_result["new_lead"]
 
                 # Update architecture for retry
                 if retry_result.modified_architecture:
@@ -920,7 +936,7 @@ class TrueHiveMind:
                 issues_count=len(execution_result.issues) if execution_result else 0,
                 approach=debate_result.final_approach,
                 agents_used=arch_result.architecture.agents_to_use,
-                agents_spawned=agents_spawned
+                agents_spawned=agents_spawned,
             )
             phases_completed.append("consolidation")
 
@@ -978,28 +994,28 @@ class TrueHiveMind:
             # Mark success in retry system
             if execution_success:
                 self.phase_retry.mark_success(
-                    arch_result.architecture,
-                    diagnosis_result.diagnosis if 'diagnosis_result' in dir() else None
+                    arch_result.architecture, diagnosis_result.diagnosis if "diagnosis_result" in dir() else None
                 )
 
             # Archive context insights to RAG
             if self.project_memory:
                 archived = self.context_manager.archive_to_rag(
-                    self.project_memory,
-                    session_id=f"hive_mind_{int(start_time)}"
+                    self.project_memory, session_id=f"hive_mind_{int(start_time)}"
                 )
                 logger.info(f"Archived {archived} insights to RAG")
 
             # V12.4: Final checkpoint and end coordinator session
             if _ckpt_mgr:
-                try:
-                    _ckpt_mgr.create(_coord_session, "task_complete", state={
-                        "success": execution_success,
-                        "phases": phases_completed,
-                        "tokens": self.cost_estimator.spent,
-                    })
-                except Exception:
-                    pass
+                with contextlib.suppress(Exception):
+                    _ckpt_mgr.create(
+                        _coord_session,
+                        "task_complete",
+                        state={
+                            "success": execution_success,
+                            "phases": phases_completed,
+                            "tokens": self.cost_estimator.spent,
+                        },
+                    )
             if _phase_coord:
                 _phase_coord.transition(_coord_session, "idle", reason="task_complete")
                 _phase_coord.end_session(_coord_session)
@@ -1019,14 +1035,14 @@ class TrueHiveMind:
                         duration=time.time() - start_time,
                         success=execution_success,
                         phases_completed=len(phases_completed),
-                        agents_used=arch_result.architecture.agents_to_use if arch_result else ["gemini", "claude"]
+                        agents_used=arch_result.architecture.agents_to_use if arch_result else ["gemini", "claude"],
                     )
 
                     self.success_memory.record_success(
                         task_id=f"hive_{int(start_time)}",
                         analysis=analysis_adapter,
                         result=result_adapter,
-                        quality_score=0.8 if execution_success else 0.3
+                        quality_score=0.8 if execution_success else 0.3,
                     )
                     logger.debug("Recorded HiveMind success to memory")
                 except Exception as mem_err:
@@ -1036,10 +1052,15 @@ class TrueHiveMind:
             if _cap_profiler is not None:
                 try:
                     agents_used = arch_result.architecture.agents_to_use if arch_result else ["gemini", "claude"]
-                    quality = execution_result.quality_score if execution_result and hasattr(execution_result, 'quality_score') else 0.5
+                    quality = (
+                        execution_result.quality_score
+                        if execution_result and hasattr(execution_result, "quality_score")
+                        else 0.5
+                    )
                     for agent_id in agents_used:
                         _cap_profiler.record_outcome(
-                            agent_id, "general",
+                            agent_id,
+                            "general",
                             success=execution_success,
                             quality=quality,
                         )
@@ -1066,7 +1087,7 @@ class TrueHiveMind:
             # V10 SYNAPSE: Emit process_task end event and end trace
             await _telemetry_bridge.emit(
                 CerebroEventType.HIVE_PHASE_END,
-                {"phase": "process_task", "success": execution_success, "duration": time.time() - start_time}
+                {"phase": "process_task", "success": execution_success, "duration": time.time() - start_time},
             )
             _telemetry_bridge.end_trace()
 
@@ -1080,7 +1101,7 @@ class TrueHiveMind:
                 agents_used=arch_result.architecture.agents_to_use,
                 agents_spawned=agents_spawned,
                 artifacts_created=execution_result.artifacts_created if execution_result else [],
-                knowledge_archived=consolidation_result.archived_to_rag
+                knowledge_archived=consolidation_result.archived_to_rag,
             )
 
         except Exception as e:
@@ -1089,8 +1110,7 @@ class TrueHiveMind:
 
             # V10 SYNAPSE: Emit failure event and end trace
             _telemetry_bridge.emit_sync(
-                CerebroEventType.HIVE_PHASE_END,
-                {"phase": "process_task", "success": False, "error": str(e)[:200]}
+                CerebroEventType.HIVE_PHASE_END, {"phase": "process_task", "success": False, "error": str(e)[:200]}
             )
             _telemetry_bridge.end_trace()
 
@@ -1105,7 +1125,7 @@ class TrueHiveMind:
                 agents_spawned=agents_spawned,
                 artifacts_created=[],
                 knowledge_archived=0,
-                error=str(e)
+                error=str(e),
             )
 
     def _format_output(self, execution_result, consolidation_result) -> str:
@@ -1130,12 +1150,7 @@ class TrueHiveMind:
 
         return "\n".join(lines) if lines else "Task completed"
 
-    def _create_cancelled_result(
-        self,
-        phases_completed: list,
-        start_time: float,
-        reason: str
-    ) -> HiveMindResult:
+    def _create_cancelled_result(self, phases_completed: list, start_time: float, reason: str) -> HiveMindResult:
         """Create result for user-cancelled task."""
         return HiveMindResult(
             success=False,
@@ -1148,15 +1163,11 @@ class TrueHiveMind:
             agents_spawned=[],
             artifacts_created=[],
             knowledge_archived=0,
-            error=reason
+            error=reason,
         )
 
     def _create_failed_result(
-        self,
-        phases_completed: list,
-        start_time: float,
-        error: str,
-        execution_result=None
+        self, phases_completed: list, start_time: float, error: str, execution_result=None
     ) -> HiveMindResult:
         """Create result for failed task."""
         return HiveMindResult(
@@ -1170,10 +1181,10 @@ class TrueHiveMind:
             agents_spawned=[],
             artifacts_created=execution_result.artifacts_created if execution_result else [],
             knowledge_archived=0,
-            error=error
+            error=error,
         )
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get Hive Mind statistics."""
         return {
             "current_state": self.state.value,
@@ -1185,19 +1196,15 @@ class TrueHiveMind:
             "hot_swap_stats": {
                 "current_lead": self._current_lead,
                 "swap_count": self._lead_swap_count,
-                "stagnation": self.stagnation_detector.get_stats()
-            }
+                "stagnation": self.stagnation_detector.get_stats(),
+            },
         }
 
     # =========================================================================
     # V8.0.1: Hot-Swap Lead Agent
     # =========================================================================
 
-    def _check_and_swap_lead(
-        self,
-        diagnosis: str,
-        architecture: Any
-    ) -> Dict[str, Any]:
+    def _check_and_swap_lead(self, diagnosis: str, architecture: Any) -> dict[str, Any]:
         """
         V8.0.1: Check if lead agent should be swapped due to repeated failures.
 
@@ -1219,9 +1226,7 @@ class TrueHiveMind:
         self.stagnation_detector.record_agent_failure(self._current_lead)
 
         # Check if swap is recommended
-        recommendation = self.stagnation_detector.get_swap_recommendation(
-            self._current_lead
-        )
+        recommendation = self.stagnation_detector.get_swap_recommendation(self._current_lead)
 
         if recommendation["should_swap"]:
             # Perform the swap
@@ -1230,33 +1235,24 @@ class TrueHiveMind:
             self._lead_swap_count += 1
 
             # Report to blacklist for future reference
-            self.stagnation_detector.report_to_blacklist(
-                task_context=f"Task failed with {old_lead} as lead"
-            )
+            self.stagnation_detector.report_to_blacklist(task_context=f"Task failed with {old_lead} as lead")
 
             # Reset stagnation detector for fresh start with new lead
             self.stagnation_detector.reset()
 
-            logger.info(
-                f"Hot-Swap Lead: {old_lead} -> {self._current_lead} "
-                f"(reason: {recommendation['reason']})"
-            )
+            logger.info(f"Hot-Swap Lead: {old_lead} -> {self._current_lead} (reason: {recommendation['reason']})")
 
             return {
                 "swapped": True,
                 "old_lead": old_lead,
                 "new_lead": self._current_lead,
                 "reason": recommendation["reason"],
-                "swap_count": self._lead_swap_count
+                "swap_count": self._lead_swap_count,
             }
 
-        return {
-            "swapped": False,
-            "new_lead": None,
-            "reason": "No swap needed - stagnation threshold not reached"
-        }
+        return {"swapped": False, "new_lead": None, "reason": "No swap needed - stagnation threshold not reached"}
 
-    def force_lead_swap(self, new_lead: str) -> Dict[str, Any]:
+    def force_lead_swap(self, new_lead: str) -> dict[str, Any]:
         """
         V8.0.1: Manually force a lead agent swap.
 
@@ -1269,10 +1265,7 @@ class TrueHiveMind:
             Dict with swap result
         """
         if new_lead.lower() not in ("gemini", "claude"):
-            return {
-                "swapped": False,
-                "error": f"Invalid lead agent: {new_lead}. Must be 'gemini' or 'claude'"
-            }
+            return {"swapped": False, "error": f"Invalid lead agent: {new_lead}. Must be 'gemini' or 'claude'"}
 
         old_lead = self._current_lead
         self._current_lead = new_lead.lower()
@@ -1286,7 +1279,7 @@ class TrueHiveMind:
             "old_lead": old_lead,
             "new_lead": self._current_lead,
             "reason": "Manual swap requested",
-            "swap_count": self._lead_swap_count
+            "swap_count": self._lead_swap_count,
         }
 
     def get_current_lead(self) -> str:

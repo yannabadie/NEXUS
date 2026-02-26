@@ -21,12 +21,13 @@ import logging
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from .context_scope import ContextScope, ScopedContext, get_scope_policy
 
 if TYPE_CHECKING:
     from core.intelligence.swarm.session_manager import SwarmSessionManager
+
     from .context_manager import HiveMindContextManager
 
 logger = logging.getLogger(__name__)
@@ -40,21 +41,19 @@ class PhaseSession:
     Tracks which agents have which sessions within a phase,
     and detects model changes for session invalidation.
     """
+
     phase_name: str
     task_id: str
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
 
     # Agent sessions: agent_id -> session_uuid
-    agent_sessions: Dict[str, str] = field(default_factory=dict)
+    agent_sessions: dict[str, str] = field(default_factory=dict)
 
     # Track models used: agent_id -> model_id
-    agent_models: Dict[str, str] = field(default_factory=dict)
+    agent_models: dict[str, str] = field(default_factory=dict)
 
     def get_or_create_session(
-        self,
-        agent_id: str,
-        model_id: Optional[str] = None,
-        invalidate_on_model_change: bool = True
+        self, agent_id: str, model_id: str | None = None, invalidate_on_model_change: bool = True
     ) -> str:
         """
         Get or create session UUID for an agent.
@@ -74,8 +73,7 @@ class PhaseSession:
             previous_model = self.agent_models[agent_id]
             if previous_model != model_id and invalidate_on_model_change:
                 logger.info(
-                    f"Model change detected for {agent_id}: "
-                    f"{previous_model} -> {model_id}. Creating new session."
+                    f"Model change detected for {agent_id}: {previous_model} -> {model_id}. Creating new session."
                 )
                 # Invalidate existing session
                 if agent_id in self.agent_sessions:
@@ -88,14 +86,11 @@ class PhaseSession:
         # Get or create session
         if agent_id not in self.agent_sessions:
             self.agent_sessions[agent_id] = str(uuid.uuid4())
-            logger.debug(
-                f"Created session for {agent_id} in phase {self.phase_name}: "
-                f"{self.agent_sessions[agent_id]}"
-            )
+            logger.debug(f"Created session for {agent_id} in phase {self.phase_name}: {self.agent_sessions[agent_id]}")
 
         return self.agent_sessions[agent_id]
 
-    def get_session(self, agent_id: str) -> Optional[str]:
+    def get_session(self, agent_id: str) -> str | None:
         """Get existing session for agent."""
         return self.agent_sessions.get(agent_id)
 
@@ -122,9 +117,9 @@ class HiveMindSessionIntegration:
         self,
         task_id: str,
         phase_name: str,
-        context_manager: "HiveMindContextManager",
-        session_manager: Optional["SwarmSessionManager"] = None,
-        complexity: str = "MODERATE"
+        context_manager: HiveMindContextManager,
+        session_manager: SwarmSessionManager | None = None,
+        complexity: str = "MODERATE",
     ):
         """
         Initialize session integration.
@@ -144,23 +139,16 @@ class HiveMindSessionIntegration:
         self._scope_policy = get_scope_policy(complexity)
 
         # Create phase session
-        self._phase_session = PhaseSession(
-            phase_name=phase_name,
-            task_id=task_id
-        )
+        self._phase_session = PhaseSession(phase_name=phase_name, task_id=task_id)
 
         # Track previous phase for inheritance
-        self._previous_phase: Optional[str] = None
+        self._previous_phase: str | None = None
 
     def set_previous_phase(self, phase_name: str):
         """Set the previous phase for context inheritance."""
         self._previous_phase = phase_name
 
-    def get_agent_session(
-        self,
-        agent_id: str,
-        model_id: Optional[str] = None
-    ) -> str:
+    def get_agent_session(self, agent_id: str, model_id: str | None = None) -> str:
         """
         Get session UUID for an agent in this phase.
 
@@ -174,14 +162,10 @@ class HiveMindSessionIntegration:
         return self._phase_session.get_or_create_session(
             agent_id=agent_id,
             model_id=model_id,
-            invalidate_on_model_change=self._scope_policy.invalidate_on_model_change
+            invalidate_on_model_change=self._scope_policy.invalidate_on_model_change,
         )
 
-    def get_parallel_sessions(
-        self,
-        agents: List[str],
-        models: Optional[Dict[str, str]] = None
-    ) -> Dict[str, str]:
+    def get_parallel_sessions(self, agents: list[str], models: dict[str, str] | None = None) -> dict[str, str]:
         """
         Get isolated sessions for parallel agent execution.
 
@@ -202,10 +186,10 @@ class HiveMindSessionIntegration:
 
     def create_phase_context(
         self,
-        scope: Optional[ContextScope] = None,
-        agent_id: Optional[str] = None,
-        model_id: Optional[str] = None,
-        relevant_files: Optional[List[str]] = None
+        scope: ContextScope | None = None,
+        agent_id: str | None = None,
+        model_id: str | None = None,
+        relevant_files: list[str] | None = None,
     ) -> ScopedContext:
         """
         Create scoped context for this phase.
@@ -224,10 +208,7 @@ class HiveMindSessionIntegration:
         # Determine scope based on policy
         if scope is None:
             if self._previous_phase:
-                scope = self._scope_policy.get_phase_scope(
-                    self._previous_phase,
-                    self._phase_name
-                )
+                scope = self._scope_policy.get_phase_scope(self._previous_phase, self._phase_name)
             else:
                 scope = ContextScope.TASK_ONLY
 
@@ -241,16 +222,16 @@ class HiveMindSessionIntegration:
             from_phase=self._previous_phase,
             session_uuid=session_uuid,
             relevant_files=relevant_files,
-            model_id=model_id
+            model_id=model_id,
         )
 
     def create_spawn_context(
         self,
         task_description: str,
         agent_id: str,
-        model_id: Optional[str] = None,
-        relevant_files: Optional[List[str]] = None,
-        parent_summary: Optional[str] = None
+        model_id: str | None = None,
+        relevant_files: list[str] | None = None,
+        parent_summary: str | None = None,
     ) -> ScopedContext:
         """
         Create context for a spawned agent.
@@ -274,7 +255,7 @@ class HiveMindSessionIntegration:
         if parent_summary is None:
             parent_summary = self._context_manager.summarize_for_inheritance(
                 from_phase=self._phase_name,
-                max_tokens=1000  # Keep it concise for spawned agents
+                max_tokens=1000,  # Keep it concise for spawned agents
             )
 
         return ScopedContext(
@@ -284,19 +265,16 @@ class HiveMindSessionIntegration:
             parent_summary=parent_summary if self._scope_policy.spawn_scope != ContextScope.MINIMAL else "",
             session_uuid=spawn_session,
             model_context=self._context_manager._get_model_context(model_id) if model_id else None,
-            metadata={
-                "spawned_from_phase": self._phase_name,
-                "parent_task_id": self._task_id
-            }
+            metadata={"spawned_from_phase": self._phase_name, "parent_task_id": self._task_id},
         )
 
     def get_scoped_prompt(
         self,
         instruction: str,
         agent_id: str,
-        model_id: Optional[str] = None,
-        scope: Optional[ContextScope] = None,
-        relevant_files: Optional[List[str]] = None
+        model_id: str | None = None,
+        scope: ContextScope | None = None,
+        relevant_files: list[str] | None = None,
     ) -> str:
         """
         Create a complete prompt with scoped context for an agent.
@@ -314,14 +292,11 @@ class HiveMindSessionIntegration:
             Complete prompt with context prefix
         """
         scoped = self.create_phase_context(
-            scope=scope,
-            agent_id=agent_id,
-            model_id=model_id,
-            relevant_files=relevant_files
+            scope=scope, agent_id=agent_id, model_id=model_id, relevant_files=relevant_files
         )
         return f"{scoped.to_prompt_prefix()}{instruction}"
 
-    def get_phase_stats(self) -> Dict[str, Any]:
+    def get_phase_stats(self) -> dict[str, Any]:
         """Get statistics for this phase's session management."""
         return {
             "task_id": self._task_id,
@@ -330,7 +305,7 @@ class HiveMindSessionIntegration:
             "previous_phase": self._previous_phase,
             "active_sessions": len(self._phase_session.agent_sessions),
             "agents": list(self._phase_session.agent_sessions.keys()),
-            "models_used": self._phase_session.agent_models.copy()
+            "models_used": self._phase_session.agent_models.copy(),
         }
 
 

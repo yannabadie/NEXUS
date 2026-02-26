@@ -13,13 +13,12 @@ from __future__ import annotations
 
 import ast
 from pathlib import Path
-from typing import List, Tuple, Optional
 
 from .code_graph import (
-    Symbol,
     Dependency,
-    SymbolType,
     DependencyType,
+    Symbol,
+    SymbolType,
 )
 
 
@@ -37,9 +36,9 @@ class ASTSymbolExtractor(ast.NodeVisitor):
     def __init__(self, file_path: str, module_name: str):
         self.file_path = file_path
         self.module_name = module_name
-        self.symbols: List[Symbol] = []
-        self.dependencies: List[Dependency] = []
-        self.current_class: Optional[str] = None
+        self.symbols: list[Symbol] = []
+        self.dependencies: list[Dependency] = []
+        self.current_class: str | None = None
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         """Visit class definition."""
@@ -171,7 +170,7 @@ class ASTSymbolExtractor(ast.NodeVisitor):
                 return node.func.attr
         return "unknown"
 
-    def _get_base_name(self, node: ast.expr) -> Optional[str]:
+    def _get_base_name(self, node: ast.expr) -> str | None:
         """Extract base class name from AST node."""
         if isinstance(node, ast.Name):
             return node.id
@@ -188,7 +187,7 @@ class ASTSymbolExtractor(ast.NodeVisitor):
         return None
 
 
-def parse_python_file(file_path: str | Path) -> Tuple[List[Symbol], List[Dependency]]:
+def parse_python_file(file_path: str | Path) -> tuple[list[Symbol], list[Dependency]]:
     """
     Parse a Python file and extract symbols and dependencies.
 
@@ -214,7 +213,7 @@ def parse_python_file(file_path: str | Path) -> Tuple[List[Symbol], List[Depende
     try:
         tree = ast.parse(source, filename=str(file_path))
     except SyntaxError as e:
-        raise SyntaxError(f"Syntax error in {file_path}: {e}")
+        raise SyntaxError(f"Syntax error in {file_path}: {e}") from None
 
     # Determine module name from file path
     # e.g., core/drivers/protocol.py -> core.drivers.protocol
@@ -227,7 +226,7 @@ def parse_python_file(file_path: str | Path) -> Tuple[List[Symbol], List[Depende
     return extractor.symbols, extractor.dependencies
 
 
-def extract_symbols(file_path: str | Path) -> List[Symbol]:
+def extract_symbols(file_path: str | Path) -> list[Symbol]:
     """
     Extract only symbols from a Python file (no dependencies).
 

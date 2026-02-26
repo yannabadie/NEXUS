@@ -20,13 +20,13 @@ def main():
     print("=" * 60)
 
     # Import components
-    from core.intelligence.swarm.task_analyzer import TaskComplexity
     from core.config import Config
+    from core.intelligence.swarm.task_analyzer import TaskComplexity
 
     # Load real config
     config = Config()
 
-    print(f"\n[CONFIG] Hive Mind Settings:")
+    print("\n[CONFIG] Hive Mind Settings:")
     print(f"  - hive_mind_enabled: {config.hive_mind_enabled}")
     print(f"  - hive_mind_moderate: {config.hive_mind_moderate}")
     print(f"  - hive_mind_budget_limit: {config.hive_mind_budget_limit}")
@@ -36,7 +36,7 @@ def main():
     # Test routing logic
     print("\n[TEST] Complexity Routing:")
 
-    with patch('core.execution_pkg.orchestration.fsm_handlers.HIVE_MIND_AVAILABLE', True):
+    with patch("core.execution_pkg.orchestration.fsm_handlers.HIVE_MIND_AVAILABLE", True):
         from core.execution_pkg.orchestration.fsm_handlers import FSMHandlers
 
         # Create mock orchestrator with real config
@@ -62,16 +62,17 @@ def main():
     # Test component initialization
     print("\n[TEST] Component Initialization:")
 
-    from core.intelligence.hive_mind import (
-        TrueHiveMind,
-        AgentRegistry,
-        CostEstimator,
-        StrategyBlacklist,
-        HiveMindContextManager,
-    )
-
     # Create test workspace
     import tempfile
+
+    from core.intelligence.hive_mind import (
+        AgentRegistry,
+        CostEstimator,
+        HiveMindContextManager,
+        StrategyBlacklist,
+        TrueHiveMind,
+    )
+
     workspace = Path(tempfile.mkdtemp())
     (workspace / ".nexus").mkdir()
     (workspace / "agents").mkdir()
@@ -81,20 +82,18 @@ def main():
     estimator = CostEstimator(budget_limit=config.hive_mind_budget_limit)
 
     print("  [OK] AgentRegistry")
-    registry = AgentRegistry(workspace)
+    AgentRegistry(workspace)
 
     print("  [OK] StrategyBlacklist")
-    blacklist = StrategyBlacklist(workspace)
+    StrategyBlacklist(workspace)
 
     print("  [OK] HiveMindContextManager")
-    context_mgr = HiveMindContextManager(max_tokens=30000)
+    HiveMindContextManager(max_tokens=30000)
 
     # Test cost estimation
     print("\n[TEST] Cost Estimation:")
     estimate = estimator.estimate_full_hive_mind(
-        debate_turns=config.hive_mind_max_debate_turns,
-        spawns=1,
-        execution_steps=5
+        debate_turns=config.hive_mind_max_debate_turns, spawns=1, execution_steps=5
     )
     print(f"  Full Hive Mind run estimate: {estimate:,} tokens")
     print(f"  Budget: {config.hive_mind_budget_limit:,} tokens")
@@ -108,10 +107,7 @@ def main():
 
     try:
         hive = TrueHiveMind(
-            workspace_path=workspace,
-            config=config,
-            gemini_driver=mock_gemini,
-            claude_driver=mock_claude
+            workspace_path=workspace, config=config, gemini_driver=mock_gemini, claude_driver=mock_claude
         )
         print("  [OK] TrueHiveMind created successfully")
         print(f"    - cost_estimator: {type(hive.cost_estimator).__name__}")
@@ -149,6 +145,7 @@ def main():
 
     # Cleanup
     import shutil
+
     shutil.rmtree(workspace, ignore_errors=True)
 
     return 0 if all_ok else 1

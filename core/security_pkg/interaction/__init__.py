@@ -41,22 +41,15 @@ Date: 2025-12-13
 
 import os
 import threading
-from typing import Optional
 
-from .base import (
-    InteractionProvider,
-    InteractionLevel,
-    InteractionRequiredError,
-    Choice
-)
+from .base import Choice, InteractionLevel, InteractionProvider, InteractionRequiredError
 from .cli_provider import CLIProvider
 from .headless_provider import HeadlessProvider
-
 
 # =============================================================================
 # V10 PRISM: Multi-Tenant Interaction Provider Access
 # =============================================================================
-_provider: Optional[InteractionProvider] = None
+_provider: InteractionProvider | None = None
 _provider_lock = threading.Lock()
 
 
@@ -79,10 +72,11 @@ def get_interaction_provider() -> InteractionProvider:
     """
     # V10: Try ServiceFactory first (tenant-scoped)
     try:
-        from .base import InteractionProvider as _IP  # avoid shadowing
         from ..context import has_active_session
+
         if has_active_session():
             from ..factory import ServiceFactory
+
             return ServiceFactory.get_interaction_provider()
     except ImportError:
         pass  # context module not available, use legacy
@@ -139,6 +133,7 @@ def reset_interaction_provider() -> None:
     try:
         from ..context import get_current_session_or_none
         from ..factory import ServiceFactory
+
         ctx = get_current_session_or_none()
         if ctx:
             ServiceFactory.clear_tenant_cache(ctx.tenant_id)
@@ -147,11 +142,11 @@ def reset_interaction_provider() -> None:
 
 
 # V12.4 COGNITIVE BOOST: Interaction Quality Tracker
-from .interaction_quality_tracker import (
+from .interaction_quality_tracker import (  # noqa: E402  # after module setup
+    InteractionQualityStats,
     InteractionQualityTracker,
     InteractionRecord,
     InteractionTypeProfile,
-    InteractionQualityStats,
     get_interaction_tracker,
     reset_interaction_tracker,
 )
@@ -162,16 +157,13 @@ __all__ = [
     "InteractionLevel",
     "InteractionRequiredError",
     "Choice",
-
     # Implementations
     "CLIProvider",
     "HeadlessProvider",
-
     # Factory functions
     "get_interaction_provider",
     "set_interaction_provider",
     "reset_interaction_provider",
-
     # V12.4 COGNITIVE BOOST: Interaction Quality Tracker
     "InteractionQualityTracker",
     "InteractionRecord",

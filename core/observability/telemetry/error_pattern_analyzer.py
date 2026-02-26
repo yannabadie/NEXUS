@@ -28,8 +28,8 @@ from __future__ import annotations
 import logging
 import threading
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import UTC, datetime
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -56,6 +56,7 @@ ERROR_CATEGORIES = {
 # Dataclasses
 # =============================================================================
 
+
 @dataclass
 class ErrorRecord:
     """A single error occurrence."""
@@ -72,9 +73,9 @@ class ErrorRecord:
 
     def __post_init__(self) -> None:
         if not self.timestamp:
-            self.timestamp = datetime.now(timezone.utc).isoformat()
+            self.timestamp = datetime.now(UTC).isoformat()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "error_id": self.error_id,
             "category": self.category,
@@ -111,7 +112,7 @@ class ErrorCategoryMetrics:
             return self.total_recovery_ms / self.recovered_count
         return 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "category": self.category,
             "total_count": self.total_count,
@@ -131,7 +132,7 @@ class ErrorPattern:
     details: str = ""
     count: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "pattern_type": self.pattern_type,
             "category": self.category,
@@ -150,7 +151,7 @@ class AnalyzerStats:
     most_common_category: str = ""
     most_error_prone_agent: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_errors": self.total_errors,
             "unique_categories": self.unique_categories,
@@ -164,6 +165,7 @@ class AnalyzerStats:
 # Error Pattern Analyzer
 # =============================================================================
 
+
 class ErrorPatternAnalyzer:
     """
     Analyzes error patterns across NEXUS subsystems.
@@ -175,9 +177,9 @@ class ErrorPatternAnalyzer:
     """
 
     def __init__(self, max_errors: int = MAX_ERRORS) -> None:
-        self._errors: List[ErrorRecord] = []
-        self._category_metrics: Dict[str, ErrorCategoryMetrics] = {}
-        self._agent_errors: Dict[str, int] = {}
+        self._errors: list[ErrorRecord] = []
+        self._category_metrics: dict[str, ErrorCategoryMetrics] = {}
+        self._agent_errors: dict[str, int] = {}
         self._max_errors = max_errors
         self._lock = threading.Lock()
         self._counter = 0
@@ -239,9 +241,7 @@ class ErrorPatternAnalyzer:
 
             # Update agent errors
             if agent_id:
-                self._agent_errors[agent_id] = (
-                    self._agent_errors.get(agent_id, 0) + 1
-                )
+                self._agent_errors[agent_id] = self._agent_errors.get(agent_id, 0) + 1
 
             # FIFO eviction
             if len(self._errors) >= self._max_errors:
@@ -255,7 +255,7 @@ class ErrorPatternAnalyzer:
     # Query: Category Metrics
     # =========================================================================
 
-    def get_category_metrics(self, category: str) -> Optional[ErrorCategoryMetrics]:
+    def get_category_metrics(self, category: str) -> ErrorCategoryMetrics | None:
         """
         Get aggregated metrics for a specific error category.
 
@@ -268,7 +268,7 @@ class ErrorPatternAnalyzer:
         with self._lock:
             return self._category_metrics.get(category)
 
-    def get_all_metrics(self) -> List[ErrorCategoryMetrics]:
+    def get_all_metrics(self) -> list[ErrorCategoryMetrics]:
         """
         Get metrics for all categories, sorted by total_count descending.
 
@@ -284,7 +284,7 @@ class ErrorPatternAnalyzer:
     # Query: By Agent / Category
     # =========================================================================
 
-    def get_errors_by_agent(self, agent_id: str) -> List[ErrorRecord]:
+    def get_errors_by_agent(self, agent_id: str) -> list[ErrorRecord]:
         """
         Get all error records for a specific agent.
 
@@ -297,7 +297,7 @@ class ErrorPatternAnalyzer:
         with self._lock:
             return [e for e in self._errors if e.agent_id == agent_id]
 
-    def get_errors_by_category(self, category: str) -> List[ErrorRecord]:
+    def get_errors_by_category(self, category: str) -> list[ErrorRecord]:
         """
         Get all error records for a specific category.
 
@@ -314,7 +314,7 @@ class ErrorPatternAnalyzer:
     # Pattern Detection
     # =========================================================================
 
-    def detect_patterns(self, min_count: int = 3) -> List[ErrorPattern]:
+    def detect_patterns(self, min_count: int = 3) -> list[ErrorPattern]:
         """
         Detect recurring and agent-specific error patterns.
 
@@ -324,33 +324,35 @@ class ErrorPatternAnalyzer:
         Returns:
             List of detected ErrorPattern instances.
         """
-        patterns: List[ErrorPattern] = []
+        patterns: list[ErrorPattern] = []
 
         with self._lock:
             # Recurring: categories with >= min_count errors
             for cat, metrics in self._category_metrics.items():
                 if metrics.total_count >= min_count:
-                    patterns.append(ErrorPattern(
-                        pattern_type="recurring",
-                        category=cat,
-                        details=(
-                            f"Category '{cat}' has {metrics.total_count} errors "
-                            f"(recovery rate: {metrics.recovery_rate:.1%})"
-                        ),
-                        count=metrics.total_count,
-                    ))
+                    patterns.append(
+                        ErrorPattern(
+                            pattern_type="recurring",
+                            category=cat,
+                            details=(
+                                f"Category '{cat}' has {metrics.total_count} errors "
+                                f"(recovery rate: {metrics.recovery_rate:.1%})"
+                            ),
+                            count=metrics.total_count,
+                        )
+                    )
 
             # Agent-specific: agents with >= min_count errors
             for agent_id, count in self._agent_errors.items():
                 if count >= min_count:
-                    patterns.append(ErrorPattern(
-                        pattern_type="agent_specific",
-                        category="",
-                        details=(
-                            f"Agent '{agent_id}' has {count} errors"
-                        ),
-                        count=count,
-                    ))
+                    patterns.append(
+                        ErrorPattern(
+                            pattern_type="agent_specific",
+                            category="",
+                            details=(f"Agent '{agent_id}' has {count} errors"),
+                            count=count,
+                        )
+                    )
 
         return patterns
 
@@ -358,7 +360,7 @@ class ErrorPatternAnalyzer:
     # Recent / Top Agents
     # =========================================================================
 
-    def get_recent_errors(self, limit: int = 20) -> List[ErrorRecord]:
+    def get_recent_errors(self, limit: int = 20) -> list[ErrorRecord]:
         """
         Get the most recent error records.
 
@@ -372,8 +374,9 @@ class ErrorPatternAnalyzer:
             return list(self._errors[-limit:])
 
     def get_most_error_prone_agents(
-        self, limit: int = 5,
-    ) -> List[Tuple[str, int]]:
+        self,
+        limit: int = 5,
+    ) -> list[tuple[str, int]]:
         """
         Get agents ranked by error count, descending.
 
@@ -404,12 +407,8 @@ class ErrorPatternAnalyzer:
             unique = len(self._category_metrics)
 
             # Overall recovery rate
-            total_recovered = sum(
-                m.recovered_count for m in self._category_metrics.values()
-            )
-            total_all = sum(
-                m.total_count for m in self._category_metrics.values()
-            )
+            total_recovered = sum(m.recovered_count for m in self._category_metrics.values())
+            total_all = sum(m.total_count for m in self._category_metrics.values())
             recovery_rate = total_recovered / total_all if total_all > 0 else 0.0
 
             # Most common category
@@ -424,7 +423,8 @@ class ErrorPatternAnalyzer:
             most_error_prone = ""
             if self._agent_errors:
                 most_error_prone = max(
-                    self._agent_errors, key=self._agent_errors.get,
+                    self._agent_errors,
+                    key=self._agent_errors.get,
                 )
 
         return AnalyzerStats(
@@ -457,7 +457,7 @@ class ErrorPatternAnalyzer:
             self._agent_errors.clear()
             self._counter = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         Export analyzer state for diagnostics.
 
@@ -471,7 +471,8 @@ class ErrorPatternAnalyzer:
                 "error_count": len(self._errors),
                 "max_errors": self._max_errors,
                 "categories": [
-                    m.to_dict() for m in sorted(
+                    m.to_dict()
+                    for m in sorted(
                         self._category_metrics.values(),
                         key=lambda m: m.total_count,
                         reverse=True,
@@ -485,7 +486,7 @@ class ErrorPatternAnalyzer:
 # Global Singleton
 # =============================================================================
 
-_analyzer: Optional[ErrorPatternAnalyzer] = None
+_analyzer: ErrorPatternAnalyzer | None = None
 _analyzer_lock = threading.Lock()
 
 

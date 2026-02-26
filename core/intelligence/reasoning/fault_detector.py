@@ -39,13 +39,11 @@ Usage:
 """
 
 import logging
-import math
 import threading
 import time
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -54,17 +52,20 @@ logger = logging.getLogger(__name__)
 # Data Structures
 # =============================================================================
 
+
 class AgentStatus(Enum):
     """Agent reliability status."""
-    TRUSTED = "trusted"          # Reliable outputs
-    SUSPECT = "suspect"          # Some reliability issues
-    FAULTY = "faulty"            # Consistently unreliable
-    UNKNOWN = "unknown"          # Not enough data
+
+    TRUSTED = "trusted"  # Reliable outputs
+    SUSPECT = "suspect"  # Some reliability issues
+    FAULTY = "faulty"  # Consistently unreliable
+    UNKNOWN = "unknown"  # Not enough data
 
 
 @dataclass
 class OutputRecord:
     """A single agent output observation."""
+
     agent_id: str
     confidence: float
     was_correct: bool
@@ -74,10 +75,11 @@ class OutputRecord:
 @dataclass
 class FaultStatus:
     """Current fault status for an agent."""
+
     agent_id: str
     status: AgentStatus
-    trust_score: float           # 0-1, higher = more trusted
-    fault_rate: float            # Fraction of faulty outputs
+    trust_score: float  # 0-1, higher = more trusted
+    fault_rate: float  # Fraction of faulty outputs
     overconfidence_score: float  # How overconfident the agent is
     observations: int
     reason: str
@@ -94,15 +96,17 @@ class FaultStatus:
 @dataclass
 class DetectorStats:
     """Statistics for the fault detector."""
+
     total_observations: int
-    agents_tracked: List[str]
-    faulty_agents: List[str]
+    agents_tracked: list[str]
+    faulty_agents: list[str]
     avg_trust_score: float
 
 
 # =============================================================================
 # Fault Detector
 # =============================================================================
+
 
 class FaultDetector:
     """
@@ -116,15 +120,15 @@ class FaultDetector:
     """
 
     # Detection parameters
-    MIN_OBSERVATIONS = 5         # Minimum observations before judging
-    FAULT_THRESHOLD = 0.4        # Fault rate above this = faulty
-    SUSPECT_THRESHOLD = 0.25     # Fault rate above this = suspect
-    OVERCONFIDENCE_PENALTY = 0.3 # Penalty for high confidence + wrong
-    TRUST_DECAY = 0.95           # Trust decay per observation window
-    MAX_HISTORY = 100            # Max observations per agent
+    MIN_OBSERVATIONS = 5  # Minimum observations before judging
+    FAULT_THRESHOLD = 0.4  # Fault rate above this = faulty
+    SUSPECT_THRESHOLD = 0.25  # Fault rate above this = suspect
+    OVERCONFIDENCE_PENALTY = 0.3  # Penalty for high confidence + wrong
+    TRUST_DECAY = 0.95  # Trust decay per observation window
+    MAX_HISTORY = 100  # Max observations per agent
 
     def __init__(self):
-        self._history: Dict[str, deque] = defaultdict(lambda: deque(maxlen=self.MAX_HISTORY))
+        self._history: dict[str, deque] = defaultdict(lambda: deque(maxlen=self.MAX_HISTORY))
         self._total_observations = 0
         self._lock = threading.Lock()
 
@@ -236,8 +240,8 @@ class FaultDetector:
 
     def get_weighted_vote(
         self,
-        votes: Dict[str, str],
-    ) -> Dict[str, float]:
+        votes: dict[str, str],
+    ) -> dict[str, float]:
         """
         Weight agent votes by their trust scores.
 
@@ -247,7 +251,7 @@ class FaultDetector:
         Returns:
             vote_value → weighted_score mapping (sum of trust scores per vote)
         """
-        weighted: Dict[str, float] = defaultdict(float)
+        weighted: dict[str, float] = defaultdict(float)
 
         for agent_id, vote in votes.items():
             trust = self.get_trust_score(agent_id)
@@ -281,7 +285,7 @@ class FaultDetector:
     # Internal
     # -------------------------------------------------------------------------
 
-    def _compute_overconfidence(self, records: List[OutputRecord]) -> float:
+    def _compute_overconfidence(self, records: list[OutputRecord]) -> float:
         """
         Compute overconfidence score.
 
@@ -300,7 +304,7 @@ class FaultDetector:
 
     def _compute_trust(
         self,
-        records: List[OutputRecord],
+        records: list[OutputRecord],
         fault_rate: float,
         overconfidence: float,
     ) -> float:
@@ -331,7 +335,7 @@ class FaultDetector:
 # Singleton
 # =============================================================================
 
-_instance: Optional[FaultDetector] = None
+_instance: FaultDetector | None = None
 _instance_lock = threading.Lock()
 
 

@@ -4,19 +4,20 @@ NEXUS V12.4 - Swarm State Handlers
 Handles SWARM_ANALYZING, SWARM_NEGOTIATING, and SWARM_EXECUTING states.
 """
 
-from typing import Dict
-from core.fsm.states import OrchestratorState
 from core.fsm.handlers.base import BaseHandler
+from core.fsm.states import OrchestratorState
 
 
 class SwarmHandler(BaseHandler):
     """Handler for Swarm FSM states."""
 
-    def handle_swarm_analyzing(self) -> Dict:
+    def handle_swarm_analyzing(self) -> dict:
         """Handle SWARM_ANALYZING state."""
         if not self._orch.swarm_engine:
             self._orch._transition_to(OrchestratorState.BRAINSTORMING)
-            return self._make_result("BRAINSTORMING", "Swarm disabled, using classic mode", self._orch.active_agent, False)
+            return self._make_result(
+                "BRAINSTORMING", "Swarm disabled, using classic mode", self._orch.active_agent, False
+            )
 
         analysis = self._orch.swarm_engine.start_analysis(self._orch.blackboard.get("objective", ""))
 
@@ -28,7 +29,7 @@ class SwarmHandler(BaseHandler):
                 f"Complexity: {analysis.complexity.name}\n"
                 f"Mode: {getattr(self._orch.config, 'swarm_default_mode', 'ping_pong')}",
                 None,
-                False
+                False,
             )
 
         self._orch._transition_to(OrchestratorState.SWARM_NEGOTIATING)
@@ -41,10 +42,10 @@ class SwarmHandler(BaseHandler):
             f"Claude fit: {analysis.claude_fit_score:.0%}\n"
             f"Recommended lead: {analysis.recommended_lead}",
             None,
-            False
+            False,
         )
 
-    def handle_swarm_negotiating(self) -> Dict:
+    def handle_swarm_negotiating(self) -> dict:
         """Handle SWARM_NEGOTIATING state."""
         if not self._orch.swarm_engine:
             self._orch._transition_to(OrchestratorState.BRAINSTORMING)
@@ -64,17 +65,14 @@ class SwarmHandler(BaseHandler):
                 f"Consensus: {negotiation_result.consensus_confidence:.0%}\n"
                 f"Turns: {negotiation_result.total_turns}",
                 None,
-                False
+                False,
             )
         else:
             return self._make_result(
-                "SWARM_EXECUTING",
-                f"[Swarm] Using initial proposal: {proposal.mode.value}",
-                None,
-                False
+                "SWARM_EXECUTING", f"[Swarm] Using initial proposal: {proposal.mode.value}", None, False
             )
 
-    def handle_swarm_executing(self) -> Dict:
+    def handle_swarm_executing(self) -> dict:
         """Handle SWARM_EXECUTING state."""
         if not self._orch.swarm_engine:
             self._orch._transition_to(OrchestratorState.BRAINSTORMING)
@@ -84,7 +82,9 @@ class SwarmHandler(BaseHandler):
         execution_result = self._orch.swarm_engine.execute_turn(objective, self._orch.blackboard)
 
         if execution_result.finished:
-            formatted_output = f"[Swarm] Mode: {execution_result.mode.value} | Rounds: {execution_result.total_rounds}\n"
+            formatted_output = (
+                f"[Swarm] Mode: {execution_result.mode.value} | Rounds: {execution_result.total_rounds}\n"
+            )
             for agent_output in execution_result.agent_outputs:
                 # V8.4.0: Use registry for display name
                 agent_name = self._registry.get_display_name(agent_output.agent_id)

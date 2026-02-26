@@ -37,11 +37,11 @@ import json
 import logging
 import re
 import shutil
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from .namespace_manager import RAGNamespaceManager, NamespaceInfo
+from .namespace_manager import RAGNamespaceManager
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ class TenantMemoryService:
     def __init__(
         self,
         nexus_root: Path,
-        embedding_engine: Optional[Any] = None,
+        embedding_engine: Any | None = None,
     ):
         """
         Initialize the tenant memory service.
@@ -79,7 +79,7 @@ class TenantMemoryService:
         self._embedding_engine = embedding_engine
 
         # Cache: tenant_id -> RAGNamespaceManager
-        self._managers: Dict[str, RAGNamespaceManager] = {}
+        self._managers: dict[str, RAGNamespaceManager] = {}
 
         # Ensure base directory exists
         self._tenants_dir.mkdir(parents=True, exist_ok=True)
@@ -93,7 +93,7 @@ class TenantMemoryService:
 
     def get_tenant_manager(
         self,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
     ) -> RAGNamespaceManager:
         """
         Get the RAGNamespaceManager for a specific tenant.
@@ -124,7 +124,7 @@ class TenantMemoryService:
         # Register tenant if new
         if tenant_id not in self._registry.get("tenants", {}):
             self._registry.setdefault("tenants", {})[tenant_id] = {
-                "created_at": datetime.now(timezone.utc).isoformat(),
+                "created_at": datetime.now(UTC).isoformat(),
                 "status": "active",
             }
             self._save_registry()
@@ -133,7 +133,7 @@ class TenantMemoryService:
         logger.info(f"Tenant memory initialized: {tenant_id}")
         return manager
 
-    def list_tenants(self) -> List[Dict[str, Any]]:
+    def list_tenants(self) -> list[dict[str, Any]]:
         """
         List all registered tenants with their metadata.
 
@@ -163,7 +163,7 @@ class TenantMemoryService:
 
         return result
 
-    def get_tenant_info(self, tenant_id: str) -> Optional[Dict[str, Any]]:
+    def get_tenant_info(self, tenant_id: str) -> dict[str, Any] | None:
         """
         Get detailed info about a specific tenant.
 
@@ -248,7 +248,7 @@ class TenantMemoryService:
     # Private helpers
     # =========================================================================
 
-    def _resolve_tenant(self, tenant_id: Optional[str]) -> str:
+    def _resolve_tenant(self, tenant_id: str | None) -> str:
         """Resolve and sanitize tenant ID, defaulting to _default."""
         if tenant_id is None or tenant_id.strip() == "":
             return DEFAULT_TENANT
@@ -256,19 +256,17 @@ class TenantMemoryService:
 
     def _sanitize_tenant_id(self, tenant_id: str) -> str:
         """Sanitize tenant ID for filesystem safety."""
-        sanitized = re.sub(r'[^a-zA-Z0-9_-]', '_', tenant_id)
+        sanitized = re.sub(r"[^a-zA-Z0-9_-]", "_", tenant_id)
         return sanitized.lower()[:64]  # Max 64 chars
 
-    def _load_registry(self) -> Dict[str, Any]:
+    def _load_registry(self) -> dict[str, Any]:
         """Load tenant registry from disk."""
         if self._registry_path.exists():
             try:
-                return json.loads(
-                    self._registry_path.read_text(encoding="utf-8")
-                )
+                return json.loads(self._registry_path.read_text(encoding="utf-8"))
             except Exception as e:
                 logger.warning(f"Failed to load tenant registry: {e}")
-        return {"tenants": {}, "created_at": datetime.now(timezone.utc).isoformat()}
+        return {"tenants": {}, "created_at": datetime.now(UTC).isoformat()}
 
     def _save_registry(self):
         """Save tenant registry to disk."""

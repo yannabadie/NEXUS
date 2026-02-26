@@ -25,7 +25,7 @@ import logging
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -42,9 +42,11 @@ DEFAULT_RETENTION = 86400.0  # 24 hours in seconds
 # Types
 # =============================================================================
 
+
 @dataclass
 class AuditEntry:
     """A single audit log entry."""
+
     context_id: str
     action: str  # "activation", "deactivation", "violation"
     tenant_id: str = ""
@@ -52,9 +54,9 @@ class AuditEntry:
     workspace_id: str = ""
     timestamp: float = field(default_factory=time.monotonic)
     reason: str = ""
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "context_id": self.context_id,
             "action": self.action,
@@ -70,6 +72,7 @@ class AuditEntry:
 @dataclass
 class AuditStats:
     """Audit trail statistics."""
+
     total_entries: int
     activations: int
     deactivations: int
@@ -77,7 +80,7 @@ class AuditStats:
     unique_tenants: int
     unique_users: int
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_entries": self.total_entries,
             "activations": self.activations,
@@ -92,6 +95,7 @@ class AuditStats:
 # Audit Trail
 # =============================================================================
 
+
 class ContextAuditTrail:
     """
     Append-only audit log for context changes.
@@ -105,7 +109,7 @@ class ContextAuditTrail:
 
     def __init__(self, *, max_entries: int = MAX_ENTRIES):
         self._max_entries = max_entries
-        self._entries: List[AuditEntry] = []
+        self._entries: list[AuditEntry] = []
         self._lock = threading.Lock()
 
     # =========================================================================
@@ -120,7 +124,7 @@ class ContextAuditTrail:
         user_id: str = "",
         workspace_id: str = "",
         reason: str = "",
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> AuditEntry:
         """Record a context activation."""
         entry = AuditEntry(
@@ -142,7 +146,7 @@ class ContextAuditTrail:
         tenant_id: str = "",
         user_id: str = "",
         reason: str = "",
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> AuditEntry:
         """Record a context deactivation."""
         entry = AuditEntry(
@@ -163,7 +167,7 @@ class ContextAuditTrail:
         tenant_id: str = "",
         user_id: str = "",
         reason: str = "",
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> AuditEntry:
         """Record an access violation attempt."""
         entry = AuditEntry(
@@ -189,35 +193,35 @@ class ContextAuditTrail:
     # Queries
     # =========================================================================
 
-    def query_by_tenant(self, tenant_id: str, *, limit: int = 100) -> List[AuditEntry]:
+    def query_by_tenant(self, tenant_id: str, *, limit: int = 100) -> list[AuditEntry]:
         """Get entries for a specific tenant."""
         return self._filter(lambda e: e.tenant_id == tenant_id, limit)
 
-    def query_by_user(self, user_id: str, *, limit: int = 100) -> List[AuditEntry]:
+    def query_by_user(self, user_id: str, *, limit: int = 100) -> list[AuditEntry]:
         """Get entries for a specific user."""
         return self._filter(lambda e: e.user_id == user_id, limit)
 
-    def query_by_action(self, action: str, *, limit: int = 100) -> List[AuditEntry]:
+    def query_by_action(self, action: str, *, limit: int = 100) -> list[AuditEntry]:
         """Get entries for a specific action type."""
         return self._filter(lambda e: e.action == action, limit)
 
-    def query_by_context(self, context_id: str, *, limit: int = 100) -> List[AuditEntry]:
+    def query_by_context(self, context_id: str, *, limit: int = 100) -> list[AuditEntry]:
         """Get entries for a specific context ID."""
         return self._filter(lambda e: e.context_id == context_id, limit)
 
-    def query_by_time_range(self, start: float, end: float, *, limit: int = 100) -> List[AuditEntry]:
+    def query_by_time_range(self, start: float, end: float, *, limit: int = 100) -> list[AuditEntry]:
         """Get entries within a time range (monotonic timestamps)."""
         return self._filter(lambda e: start <= e.timestamp <= end, limit)
 
-    def get_violations(self, *, limit: int = 100) -> List[AuditEntry]:
+    def get_violations(self, *, limit: int = 100) -> list[AuditEntry]:
         """Get all violation entries."""
         return self.query_by_action("violation", limit=limit)
 
-    def get_recent(self, limit: int = 50) -> List[AuditEntry]:
+    def get_recent(self, limit: int = 50) -> list[AuditEntry]:
         """Get most recent entries."""
         return list(reversed(self._entries[-limit:]))
 
-    def _filter(self, predicate, limit: int) -> List[AuditEntry]:
+    def _filter(self, predicate, limit: int) -> list[AuditEntry]:
         """Filter entries with predicate, most recent first."""
         results = []
         for entry in reversed(self._entries):
@@ -260,7 +264,7 @@ class ContextAuditTrail:
         with self._lock:
             self._entries.clear()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "size": self.size,
             "max_entries": self._max_entries,
@@ -272,7 +276,7 @@ class ContextAuditTrail:
 # Global Instance
 # =============================================================================
 
-_trail: Optional[ContextAuditTrail] = None
+_trail: ContextAuditTrail | None = None
 _trail_lock = threading.Lock()
 
 

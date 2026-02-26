@@ -35,7 +35,6 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +55,7 @@ def _is_otel_enabled() -> bool:
 def init_otel(
     service_name: str = "nexus-backend",
     service_version: str = "12.4.0",
-    otlp_endpoint: Optional[str] = None,
+    otlp_endpoint: str | None = None,
 ) -> bool:
     """
     Initialize OpenTelemetry tracing and metrics.
@@ -82,16 +81,18 @@ def init_otel(
         return False
 
     try:
-        from opentelemetry import trace, metrics
-        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry import metrics, trace
         from opentelemetry.sdk.metrics import MeterProvider
         from opentelemetry.sdk.resources import Resource
+        from opentelemetry.sdk.trace import TracerProvider
 
-        resource = Resource.create({
-            "service.name": service_name,
-            "service.version": service_version,
-            "deployment.environment": os.getenv("NEXUS_ENV", "development"),
-        })
+        resource = Resource.create(
+            {
+                "service.name": service_name,
+                "service.version": service_version,
+                "deployment.environment": os.getenv("NEXUS_ENV", "development"),
+            }
+        )
 
         # === Tracing ===
         tracer_provider = TracerProvider(resource=resource)
@@ -113,6 +114,7 @@ def init_otel(
         if os.getenv("NEXUS_ENV", "development") == "development":
             try:
                 from opentelemetry.sdk.trace.export import ConsoleSpanExporter, SimpleSpanProcessor
+
                 tracer_provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
             except ImportError:
                 pass
@@ -145,6 +147,7 @@ def _instrument_anthropic() -> None:
     """Auto-instrument Anthropic SDK if available."""
     try:
         from opentelemetry.instrumentation.anthropic import AnthropicInstrumentor
+
         AnthropicInstrumentor().instrument()
         logger.info("OTel auto-instrumentation: Anthropic SDK enabled")
     except ImportError:
@@ -157,6 +160,7 @@ def _instrument_google_genai() -> None:
     """Auto-instrument Google GenAI SDK if available."""
     try:
         from opentelemetry.instrumentation.google_genai import GoogleGenAiSdkInstrumentor
+
         GoogleGenAiSdkInstrumentor().instrument()
         logger.info("OTel auto-instrumentation: Google GenAI SDK enabled")
     except ImportError:
@@ -168,6 +172,7 @@ def _instrument_google_genai() -> None:
 # =============================================================================
 # Public API
 # =============================================================================
+
 
 def get_tracer():
     """
@@ -181,6 +186,7 @@ def get_tracer():
 
     try:
         from opentelemetry import trace
+
         return trace.get_tracer("nexus")
     except ImportError:
         return _NoOpTracer()
@@ -197,6 +203,7 @@ def get_meter():
 
     try:
         from opentelemetry import metrics
+
         return metrics.get_meter("nexus")
     except ImportError:
         return _NoOpMeter()
@@ -205,6 +212,7 @@ def get_meter():
 # =============================================================================
 # LLM Call Span Helper
 # =============================================================================
+
 
 def trace_llm_call(
     provider: str,
@@ -276,11 +284,12 @@ class _SpanContextManager:
 # FSM Transition Span
 # =============================================================================
 
+
 def trace_fsm_transition(
     from_state: str,
     to_state: str,
     trigger: str,
-    session_id: Optional[str] = None,
+    session_id: str | None = None,
 ) -> None:
     """
     Record an FSM transition as an OTel span event.
@@ -302,6 +311,7 @@ def trace_fsm_transition(
 # =============================================================================
 # No-Op Fallbacks (when OTel is not installed)
 # =============================================================================
+
 
 class _NoOpSpan:
     """No-op span for when OTel is not available."""

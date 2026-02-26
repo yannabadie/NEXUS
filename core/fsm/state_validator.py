@@ -23,9 +23,9 @@ from __future__ import annotations
 
 import logging
 import threading
-import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Set
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -42,16 +42,18 @@ MAX_INVARIANTS = 200
 # Types
 # =============================================================================
 
+
 @dataclass
 class ValidationResult:
     """Result of a state transition validation."""
+
     valid: bool
     from_state: str = ""
     to_state: str = ""
     error: str = ""
-    warnings: List[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "valid": self.valid,
             "from_state": self.from_state,
@@ -64,15 +66,17 @@ class ValidationResult:
 @dataclass
 class Invariant:
     """A state invariant to check."""
+
     name: str
     state: str
-    check: Callable[[Dict[str, Any]], bool]
+    check: Callable[[dict[str, Any]], bool]
     description: str = ""
 
 
 @dataclass
 class ValidatorStats:
     """State validator statistics."""
+
     defined_states: int
     total_transitions_defined: int
     total_invariants: int
@@ -80,7 +84,7 @@ class ValidatorStats:
     total_valid: int
     total_invalid: int
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "defined_states": self.defined_states,
             "total_transitions_defined": self.total_transitions_defined,
@@ -94,6 +98,7 @@ class ValidatorStats:
 # =============================================================================
 # State Validator
 # =============================================================================
+
 
 class StateValidator:
     """
@@ -109,8 +114,8 @@ class StateValidator:
     """
 
     def __init__(self, *, strict: bool = True):
-        self._transitions: Dict[str, Set[str]] = {}
-        self._invariants: Dict[str, List[Invariant]] = {}
+        self._transitions: dict[str, set[str]] = {}
+        self._invariants: dict[str, list[Invariant]] = {}
         self._strict = strict
         self._total_validations = 0
         self._total_valid = 0
@@ -121,12 +126,12 @@ class StateValidator:
     # Transition Matrix
     # =========================================================================
 
-    def define_transition(self, from_state: str, to_states: Set[str]) -> None:
+    def define_transition(self, from_state: str, to_states: set[str]) -> None:
         """Define valid transitions from a state."""
         with self._lock:
             self._transitions[from_state] = set(to_states)
 
-    def define_transitions(self, matrix: Dict[str, Set[str]]) -> None:
+    def define_transitions(self, matrix: dict[str, set[str]]) -> None:
         """Define the full transition matrix at once."""
         with self._lock:
             self._transitions = {k: set(v) for k, v in matrix.items()}
@@ -147,13 +152,13 @@ class StateValidator:
             targets.discard(to_state)
             return True
 
-    def get_valid_targets(self, from_state: str) -> Set[str]:
+    def get_valid_targets(self, from_state: str) -> set[str]:
         """Get valid target states from a state."""
         return set(self._transitions.get(from_state, set()))
 
-    def get_all_states(self) -> Set[str]:
+    def get_all_states(self) -> set[str]:
         """Get all known states (sources and targets)."""
-        states: Set[str] = set()
+        states: set[str] = set()
         for source, targets in self._transitions.items():
             states.add(source)
             states.update(targets)
@@ -167,7 +172,7 @@ class StateValidator:
         self,
         name: str,
         state: str,
-        check: Callable[[Dict[str, Any]], bool],
+        check: Callable[[dict[str, Any]], bool],
         *,
         description: str = "",
     ) -> None:
@@ -181,14 +186,14 @@ class StateValidator:
     def remove_invariant(self, name: str) -> bool:
         """Remove an invariant by name."""
         with self._lock:
-            for state, invs in self._invariants.items():
+            for _state, invs in self._invariants.items():
                 for i, inv in enumerate(invs):
                     if inv.name == name:
                         invs.pop(i)
                         return True
             return False
 
-    def check_invariants(self, state: str, context: Dict[str, Any]) -> List[str]:
+    def check_invariants(self, state: str, context: dict[str, Any]) -> list[str]:
         """Check all invariants for a state. Returns list of violations."""
         violations = []
         invs = self._invariants.get(state, [])
@@ -209,7 +214,7 @@ class StateValidator:
         from_state: str,
         to_state: str,
         *,
-        context: Optional[Dict[str, Any]] = None,
+        context: dict[str, Any] | None = None,
     ) -> ValidationResult:
         """
         Validate a state transition.
@@ -224,7 +229,7 @@ class StateValidator:
         """
         with self._lock:
             self._total_validations += 1
-            warnings: List[str] = []
+            warnings: list[str] = []
 
             # Check if from_state has defined transitions
             valid_targets = self._transitions.get(from_state)
@@ -286,10 +291,10 @@ class StateValidator:
         targets = self._transitions.get(state)
         return targets is None or len(targets) == 0
 
-    def get_reachable(self, from_state: str) -> Set[str]:
+    def get_reachable(self, from_state: str) -> set[str]:
         """Get all states reachable from a state (transitive closure)."""
-        reachable: Set[str] = set()
-        visited: Set[str] = set()
+        reachable: set[str] = set()
+        visited: set[str] = set()
         queue = list(self._transitions.get(from_state, set()))
         reachable.update(queue)
         while queue:
@@ -342,7 +347,7 @@ class StateValidator:
             self._total_valid = 0
             self._total_invalid = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "state_count": self.state_count,
             "strict": self._strict,
@@ -354,7 +359,7 @@ class StateValidator:
 # Global Instance
 # =============================================================================
 
-_validator: Optional[StateValidator] = None
+_validator: StateValidator | None = None
 _validator_lock = threading.Lock()
 
 

@@ -31,10 +31,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from dataclasses import dataclass, field
+from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -43,18 +44,21 @@ logger = logging.getLogger(__name__)
 # HEALTH STATES
 # =============================================================================
 
+
 class HealthState(Enum):
     """System health states."""
-    HEALTHY = "healthy"      # Normal operation
-    DEGRADED = "degraded"    # 1-2 errors, monitoring closely
-    CRITICAL = "critical"    # 3+ errors, attempting recovery
-    RECOVERING = "recovering" # Recovery in progress
-    PANIC = "panic"          # All recovery failed, escalate to user
+
+    HEALTHY = "healthy"  # Normal operation
+    DEGRADED = "degraded"  # 1-2 errors, monitoring closely
+    CRITICAL = "critical"  # 3+ errors, attempting recovery
+    RECOVERING = "recovering"  # Recovery in progress
+    PANIC = "panic"  # All recovery failed, escalate to user
 
 
 # =============================================================================
 # RECOVERY STRATEGIES
 # =============================================================================
+
 
 @dataclass
 class RecoveryStrategy:
@@ -70,12 +74,13 @@ class RecoveryStrategy:
         last_attempt: Timestamp of last attempt
         attempt_count: Number of times tried
     """
+
     name: str
     description: str
     action: Callable
     cooldown_seconds: float = 30.0
     max_attempts: int = 3
-    last_attempt: Optional[datetime] = None
+    last_attempt: datetime | None = None
     attempt_count: int = 0
 
     def is_available(self) -> bool:
@@ -103,6 +108,7 @@ class RecoveryStrategy:
 # =============================================================================
 # HEALTH STATE MACHINE
 # =============================================================================
+
 
 class HealthStateMachine:
     """
@@ -154,15 +160,10 @@ class HealthStateMachine:
     }
 
     # Error thresholds
-    DEGRADED_THRESHOLD = 1   # Errors to enter DEGRADED
-    CRITICAL_THRESHOLD = 3   # Errors to enter CRITICAL
+    DEGRADED_THRESHOLD = 1  # Errors to enter DEGRADED
+    CRITICAL_THRESHOLD = 3  # Errors to enter CRITICAL
 
-    def __init__(
-        self,
-        orchestrator: Optional[Any] = None,
-        *,
-        auto_recover: bool = True
-    ):
+    def __init__(self, orchestrator: Any | None = None, *, auto_recover: bool = True):
         """
         Initialize health state machine.
 
@@ -180,13 +181,13 @@ class HealthStateMachine:
         self._last_state_change = datetime.now()
 
         # Recovery strategies (registered in order)
-        self._strategies: List[RecoveryStrategy] = []
+        self._strategies: list[RecoveryStrategy] = []
 
         # Event callbacks
-        self._on_state_change: List[Callable] = []
+        self._on_state_change: list[Callable] = []
 
         # History for debugging
-        self._history: List[Dict[str, Any]] = []
+        self._history: list[dict[str, Any]] = []
 
         # Register default strategies if orchestrator provided
         if orchestrator:
@@ -234,89 +235,99 @@ class HealthStateMachine:
 
         # 1. Reset stagnation detector
         async def reset_stagnation():
-            if hasattr(orch, 'stagnation_detector'):
+            if hasattr(orch, "stagnation_detector"):
                 orch.stagnation_detector.reset()
                 logger.info("Stagnation detector reset")
                 return True
             return False
 
-        self.add_strategy(RecoveryStrategy(
-            name="reset_stagnation",
-            description="Reset stagnation detector counters",
-            action=reset_stagnation,
-            cooldown_seconds=30.0,
-            max_attempts=3
-        ))
+        self.add_strategy(
+            RecoveryStrategy(
+                name="reset_stagnation",
+                description="Reset stagnation detector counters",
+                action=reset_stagnation,
+                cooldown_seconds=30.0,
+                max_attempts=3,
+            )
+        )
 
         # 2. Switch active agent
         async def switch_agent():
-            if hasattr(orch, 'active_agent') and hasattr(orch, '_switch_agent'):
+            if hasattr(orch, "active_agent") and hasattr(orch, "_switch_agent"):
                 current = orch.active_agent
                 orch._switch_agent()
                 logger.info(f"Agent switched from {current} to {orch.active_agent}")
                 return True
             return False
 
-        self.add_strategy(RecoveryStrategy(
-            name="switch_agent",
-            description="Switch to alternate agent",
-            action=switch_agent,
-            cooldown_seconds=60.0,
-            max_attempts=2
-        ))
+        self.add_strategy(
+            RecoveryStrategy(
+                name="switch_agent",
+                description="Switch to alternate agent",
+                action=switch_agent,
+                cooldown_seconds=60.0,
+                max_attempts=2,
+            )
+        )
 
         # 3. Compress context
         async def compress_context():
-            if hasattr(orch, 'context_manager') and hasattr(orch.context_manager, 'compress'):
+            if hasattr(orch, "context_manager") and hasattr(orch.context_manager, "compress"):
                 await orch.context_manager.compress()
                 logger.info("Context compressed")
                 return True
             return False
 
-        self.add_strategy(RecoveryStrategy(
-            name="compress_context",
-            description="Compress conversation context",
-            action=compress_context,
-            cooldown_seconds=120.0,
-            max_attempts=2
-        ))
+        self.add_strategy(
+            RecoveryStrategy(
+                name="compress_context",
+                description="Compress conversation context",
+                action=compress_context,
+                cooldown_seconds=120.0,
+                max_attempts=2,
+            )
+        )
 
         # 4. Clear tool cache
         async def clear_tool_cache():
-            if hasattr(orch, 'tool_manager') and hasattr(orch.tool_manager, 'clear_cache'):
+            if hasattr(orch, "tool_manager") and hasattr(orch.tool_manager, "clear_cache"):
                 orch.tool_manager.clear_cache()
                 logger.info("Tool cache cleared")
                 return True
             return False
 
-        self.add_strategy(RecoveryStrategy(
-            name="clear_tool_cache",
-            description="Clear tool execution cache",
-            action=clear_tool_cache,
-            cooldown_seconds=60.0,
-            max_attempts=2
-        ))
+        self.add_strategy(
+            RecoveryStrategy(
+                name="clear_tool_cache",
+                description="Clear tool execution cache",
+                action=clear_tool_cache,
+                cooldown_seconds=60.0,
+                max_attempts=2,
+            )
+        )
 
         # 5. Rollback to checkpoint (if SagaManager available)
         async def rollback_phase():
-            if hasattr(orch, 'saga_manager') and orch.saga_manager:
+            if hasattr(orch, "saga_manager") and orch.saga_manager:
                 saga = orch.saga_manager
                 if saga.recovery_point:
                     # Rollback to recovery point
-                    ctx_manager = getattr(orch, 'context_manager', None)
+                    ctx_manager = getattr(orch, "context_manager", None)
                     success = await saga.rollback_to(saga.recovery_point, ctx_manager)
                     if success:
                         logger.info(f"Rolled back to phase: {saga.recovery_point}")
                         return True
             return False
 
-        self.add_strategy(RecoveryStrategy(
-            name="rollback_phase",
-            description="Rollback to last checkpoint via SagaManager",
-            action=rollback_phase,
-            cooldown_seconds=180.0,
-            max_attempts=1  # Only try once per session
-        ))
+        self.add_strategy(
+            RecoveryStrategy(
+                name="rollback_phase",
+                description="Rollback to last checkpoint via SagaManager",
+                action=rollback_phase,
+                cooldown_seconds=180.0,
+                max_attempts=1,  # Only try once per session
+            )
+        )
 
     # -------------------------------------------------------------------------
     # State Transitions
@@ -337,13 +348,15 @@ class HealthStateMachine:
             return False
 
         # Log transition
-        self._history.append({
-            "from": self._state.value,
-            "to": new_state.value,
-            "reason": reason,
-            "error_count": self._error_count,
-            "timestamp": datetime.now().isoformat()
-        })
+        self._history.append(
+            {
+                "from": self._state.value,
+                "to": new_state.value,
+                "reason": reason,
+                "error_count": self._error_count,
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
 
         old_state = self._state
         self._state = new_state
@@ -368,13 +381,7 @@ class HealthStateMachine:
     # Error Recording
     # -------------------------------------------------------------------------
 
-    async def record_error(
-        self,
-        error_type: str,
-        error_message: str,
-        *,
-        severity: float = 1.0
-    ) -> HealthState:
+    async def record_error(self, error_type: str, error_message: str, *, severity: float = 1.0) -> HealthState:
         """
         Record an error and update health state.
 
@@ -396,9 +403,8 @@ class HealthStateMachine:
             if self._error_count >= self.DEGRADED_THRESHOLD:
                 self._transition_to(HealthState.DEGRADED, f"Error threshold: {error_type}")
 
-        elif self._state == HealthState.DEGRADED:
-            if self._error_count >= self.CRITICAL_THRESHOLD:
-                self._transition_to(HealthState.CRITICAL, f"Critical threshold: {error_type}")
+        elif self._state == HealthState.DEGRADED and self._error_count >= self.CRITICAL_THRESHOLD:
+            self._transition_to(HealthState.CRITICAL, f"Critical threshold: {error_type}")
 
         # Auto-recover if enabled and in CRITICAL
         if self._auto_recover and self._state == HealthState.CRITICAL:
@@ -512,7 +518,7 @@ class HealthStateMachine:
     # Status & Debugging
     # -------------------------------------------------------------------------
 
-    def status(self) -> Dict[str, Any]:
+    def status(self) -> dict[str, Any]:
         """Get health status for debugging/monitoring."""
         return {
             "state": self._state.value,
@@ -530,7 +536,7 @@ class HealthStateMachine:
             "history_length": len(self._history),
         }
 
-    def get_history(self, limit: int = 10) -> List[Dict[str, Any]]:
+    def get_history(self, limit: int = 10) -> list[dict[str, Any]]:
         """Get recent state transition history."""
         return self._history[-limit:]
 

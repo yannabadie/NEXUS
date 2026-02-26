@@ -35,18 +35,20 @@ Date: 2025-12-15
 from __future__ import annotations
 
 import uuid
+from collections.abc import Callable
+from contextlib import asynccontextmanager, contextmanager
 from contextvars import ContextVar, Token
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from functools import wraps
 from pathlib import Path
-from typing import Any, Callable, Optional, TypeVar, ParamSpec
-from contextlib import asynccontextmanager, contextmanager
+from typing import ParamSpec, TypeVar
 
 
 class UserRole(Enum):
     """User roles for authorization."""
+
     ADMIN = "admin"
     USER = "user"
     SERVICE = "service"  # For automated/headless operations
@@ -71,6 +73,7 @@ class SessionContext:
         created_at: When this context was created
         workspace_root: Resolved path to tenant's workspace
     """
+
     tenant_id: str
     user_id: str = "anonymous"
     workspace_id: str = "default"
@@ -79,7 +82,7 @@ class SessionContext:
     created_at: datetime = field(default_factory=datetime.now)
 
     # Computed paths (set by factory based on tenant)
-    workspace_root: Optional[Path] = None
+    workspace_root: Path | None = None
 
     def __post_init__(self):
         """Validate context on creation."""
@@ -102,7 +105,7 @@ class SessionContext:
             return Path(f"data/tenants/{self.tenant_id}/workspaces/{self.workspace_id}")
         return self.workspace_root
 
-    def with_workspace(self, workspace_id: str, workspace_root: Optional[Path] = None) -> SessionContext:
+    def with_workspace(self, workspace_id: str, workspace_root: Path | None = None) -> SessionContext:
         """
         Create a new context with different workspace.
 
@@ -133,10 +136,7 @@ class SessionContext:
 
 
 # The global ContextVar - each async task/thread gets its own value
-current_session: ContextVar[Optional[SessionContext]] = ContextVar(
-    "current_session",
-    default=None
-)
+current_session: ContextVar[SessionContext | None] = ContextVar("current_session", default=None)
 
 
 def get_current_session() -> SessionContext:
@@ -158,7 +158,7 @@ def get_current_session() -> SessionContext:
     return ctx
 
 
-def get_current_session_or_none() -> Optional[SessionContext]:
+def get_current_session_or_none() -> SessionContext | None:
     """
     Get the current session context, or None if not set.
 
@@ -186,7 +186,7 @@ def use_context(
     user_id: str = "anonymous",
     workspace_id: str = "default",
     role: UserRole = UserRole.USER,
-    workspace_root: Optional[Path] = None,
+    workspace_root: Path | None = None,
 ):
     """
     Synchronous context manager for setting session context.
@@ -232,7 +232,7 @@ async def use_context_async(
     user_id: str = "anonymous",
     workspace_id: str = "default",
     role: UserRole = UserRole.USER,
-    workspace_root: Optional[Path] = None,
+    workspace_root: Path | None = None,
 ):
     """
     Async context manager for setting session context.
@@ -292,6 +292,7 @@ def require_context(func: Callable[P, R]) -> Callable[P, R]:
             ctx = get_current_session()
             return load_data(ctx.tenant_id)
     """
+
     @wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         if not has_active_session():
@@ -300,6 +301,7 @@ def require_context(func: Callable[P, R]) -> Callable[P, R]:
                 f"Wrap the call in 'with use_context(tenant_id=...)'."
             )
         return func(*args, **kwargs)
+
     return wrapper
 
 
@@ -309,7 +311,7 @@ DEFAULT_USER_ID = "local"
 DEFAULT_WORKSPACE_ID = "default"
 
 
-def get_default_context(nexus_root: Optional[Path] = None) -> SessionContext:
+def get_default_context(nexus_root: Path | None = None) -> SessionContext:
     """
     Get the default context for single-tenant/CLI mode.
 
@@ -334,7 +336,7 @@ def get_default_context(nexus_root: Optional[Path] = None) -> SessionContext:
     )
 
 
-def ensure_context(nexus_root: Optional[Path] = None) -> SessionContext:
+def ensure_context(nexus_root: Path | None = None) -> SessionContext:
     """
     Get current context or create default if none exists.
 

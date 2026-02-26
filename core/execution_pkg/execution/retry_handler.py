@@ -24,8 +24,9 @@ import logging
 import random
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, TypeVar
+from typing import Any, TypeVar
 
 _logger = logging.getLogger(__name__)
 
@@ -47,9 +48,11 @@ MAX_POLICIES = 200
 # Types
 # =============================================================================
 
+
 @dataclass
 class RetryPolicy:
     """Configuration for retry behavior."""
+
     name: str
     max_attempts: int = DEFAULT_MAX_ATTEMPTS
     base_delay: float = DEFAULT_BASE_DELAY
@@ -57,7 +60,7 @@ class RetryPolicy:
     backoff_factor: float = DEFAULT_BACKOFF_FACTOR
     jitter: bool = True
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "max_attempts": self.max_attempts,
@@ -71,6 +74,7 @@ class RetryPolicy:
 @dataclass
 class RetryAttempt:
     """Record of a single retry attempt."""
+
     attempt_number: int
     error: str
     delay_seconds: float
@@ -80,7 +84,7 @@ class RetryAttempt:
         if self.timestamp == 0.0:
             self.timestamp = time.monotonic()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "attempt": self.attempt_number,
             "error": self.error,
@@ -91,14 +95,15 @@ class RetryAttempt:
 @dataclass
 class RetryResult:
     """Result of a retry-wrapped execution."""
+
     success: bool
     result: Any = None
     attempts: int = 0
     total_delay: float = 0.0
     last_error: str = ""
-    history: List[RetryAttempt] = field(default_factory=list)
+    history: list[RetryAttempt] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "success": self.success,
             "attempts": self.attempts,
@@ -110,13 +115,14 @@ class RetryResult:
 @dataclass
 class RetryStats:
     """Retry handler statistics."""
+
     configured_policies: int
     total_executions: int
     total_retries: int
     total_successes: int
     total_failures: int
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "configured_policies": self.configured_policies,
             "total_executions": self.total_executions,
@@ -129,6 +135,7 @@ class RetryStats:
 # =============================================================================
 # Retry Handler
 # =============================================================================
+
 
 class RetryHandler:
     """
@@ -145,7 +152,7 @@ class RetryHandler:
     """
 
     def __init__(self):
-        self._policies: Dict[str, RetryPolicy] = {}
+        self._policies: dict[str, RetryPolicy] = {}
         self._total_executions = 0
         self._total_retries = 0
         self._total_successes = 0
@@ -186,11 +193,11 @@ class RetryHandler:
         with self._lock:
             return self._policies.pop(name, None) is not None
 
-    def get_policy(self, name: str) -> Optional[RetryPolicy]:
+    def get_policy(self, name: str) -> RetryPolicy | None:
         """Get a retry policy by name."""
         return self._policies.get(name)
 
-    def list_policies(self) -> List[RetryPolicy]:
+    def list_policies(self) -> list[RetryPolicy]:
         """List all configured policies."""
         return list(self._policies.values())
 
@@ -200,7 +207,7 @@ class RetryHandler:
 
     def calculate_delay(self, policy: RetryPolicy, attempt: int) -> float:
         """Calculate delay for a given attempt number."""
-        delay = policy.base_delay * (policy.backoff_factor ** attempt)
+        delay = policy.base_delay * (policy.backoff_factor**attempt)
         delay = min(delay, policy.max_delay)
         if policy.jitter:
             delay = delay * (0.5 + random.random() * 0.5)
@@ -215,9 +222,9 @@ class RetryHandler:
         policy_name: str,
         fn: Callable[[], T],
         *,
-        retryable: Optional[Callable[[Exception], bool]] = None,
-        on_retry: Optional[Callable[[int, Exception, float], None]] = None,
-        sleep_fn: Optional[Callable[[float], None]] = None,
+        retryable: Callable[[Exception], bool] | None = None,
+        on_retry: Callable[[int, Exception, float], None] | None = None,
+        sleep_fn: Callable[[float], None] | None = None,
     ) -> RetryResult:
         """
         Execute a function with retry logic.
@@ -246,7 +253,9 @@ class RetryHandler:
                 with self._lock:
                     self._total_failures += 1
                 return RetryResult(
-                    success=False, attempts=1, last_error=str(e),
+                    success=False,
+                    attempts=1,
+                    last_error=str(e),
                 )
 
         _sleep = sleep_fn or time.sleep
@@ -254,7 +263,7 @@ class RetryHandler:
         with self._lock:
             self._total_executions += 1
 
-        history: List[RetryAttempt] = []
+        history: list[RetryAttempt] = []
         total_delay = 0.0
         last_error = ""
 
@@ -349,7 +358,7 @@ class RetryHandler:
             self._total_successes = 0
             self._total_failures = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "policy_count": self.policy_count,
             "stats": self.get_stats().to_dict(),
@@ -360,7 +369,7 @@ class RetryHandler:
 # Global Instance
 # =============================================================================
 
-_handler: Optional[RetryHandler] = None
+_handler: RetryHandler | None = None
 _handler_lock = threading.Lock()
 
 

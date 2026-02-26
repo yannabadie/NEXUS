@@ -4,8 +4,7 @@ V9 System Commands - Status, Help, Doctor, etc.
 These commands provide system information and diagnostics.
 """
 
-from typing import List
-from .registry import Command, CommandContext, CommandResult, CommandStatus
+from .registry import Command, CommandContext, CommandRegistry, CommandResult, CommandStatus
 
 
 class StatusCommand(Command):
@@ -16,7 +15,7 @@ class StatusCommand(Command):
         return "/status"
 
     @property
-    def aliases(self) -> List[str]:
+    def aliases(self) -> list[str]:
         return ["/s"]
 
     @property
@@ -42,16 +41,9 @@ class StatusCommand(Command):
             else:
                 message = self._format_normal(status)
 
-            return CommandResult(
-                status=CommandStatus.SUCCESS,
-                message=message,
-                data=status
-            )
+            return CommandResult(status=CommandStatus.SUCCESS, message=message, data=status)
         except Exception as e:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message=f"Failed to get status: {e}"
-            )
+            return CommandResult(status=CommandStatus.ERROR, message=f"Failed to get status: {e}")
 
     def _format_brief(self, status: dict) -> str:
         """Brief one-line status."""
@@ -107,7 +99,7 @@ class HelpCommand(Command):
         return "/help"
 
     @property
-    def aliases(self) -> List[str]:
+    def aliases(self) -> list[str]:
         return ["/h", "/?"]
 
     @property
@@ -131,10 +123,7 @@ class HelpCommand(Command):
                 message = self._format_command_help(cmd)
             else:
                 message = f"Unknown command: {cmd_name}"
-                return CommandResult(
-                    status=CommandStatus.NOT_FOUND,
-                    message=message
-                )
+                return CommandResult(status=CommandStatus.NOT_FOUND, message=message)
         else:
             # General help
             if self._registry:
@@ -142,10 +131,7 @@ class HelpCommand(Command):
             else:
                 message = "Help not available (no registry set)"
 
-        return CommandResult(
-            status=CommandStatus.HELP,
-            message=message
-        )
+        return CommandResult(status=CommandStatus.HELP, message=message)
 
     def _format_command_help(self, cmd: Command) -> str:
         """Format detailed help for a single command."""
@@ -167,7 +153,7 @@ class QuitCommand(Command):
         return "/quit"
 
     @property
-    def aliases(self) -> List[str]:
+    def aliases(self) -> list[str]:
         return ["/exit", "/q"]
 
     @property
@@ -176,11 +162,7 @@ class QuitCommand(Command):
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
         """Execute quit command."""
-        return CommandResult(
-            status=CommandStatus.SUCCESS,
-            message="Goodbye!",
-            continue_session=False
-        )
+        return CommandResult(status=CommandStatus.SUCCESS, message="Goodbye!", continue_session=False)
 
 
 def register_system_commands(registry: "CommandRegistry") -> None:
@@ -190,7 +172,6 @@ def register_system_commands(registry: "CommandRegistry") -> None:
     Args:
         registry: CommandRegistry instance to register commands with
     """
-    from .registry import CommandRegistry
 
     # Status command
     registry.register(StatusCommand())

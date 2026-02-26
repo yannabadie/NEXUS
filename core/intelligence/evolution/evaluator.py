@@ -23,16 +23,13 @@ real metrics from task execution history.
 """
 
 import json
-import subprocess
-from pathlib import Path
 from datetime import datetime
-from typing import Dict, List, Tuple, Optional
-import time
-import sys
+from pathlib import Path
 
 
 class EvaluationError(Exception):
     """Custom exception for evaluation operations"""
+
     pass
 
 
@@ -40,11 +37,8 @@ class EvaluationError(Exception):
 # BENCHMARK EXECUTION
 # ============================================================================
 
-def run_benchmarks(
-    nexus_path: Path,
-    nexus_id: str,
-    benchmark_suite: str = "task_fitness"
-) -> Dict:
+
+def run_benchmarks(nexus_path: Path, nexus_id: str, benchmark_suite: str = "task_fitness") -> dict:
     """
     Run benchmark suite on NEXUS instance.
 
@@ -66,7 +60,7 @@ def run_benchmarks(
     return get_baseline_fitness(nexus_id)
 
 
-def get_baseline_fitness(nexus_id: str) -> Dict:
+def get_baseline_fitness(nexus_id: str) -> dict:
     """
     V7.5 HIVE MIND: Return honest baseline fitness scores.
 
@@ -85,7 +79,7 @@ def get_baseline_fitness(nexus_id: str) -> Dict:
     auto_memory_path = Path("workspace/memory/fitness_scores.json")
     if auto_memory_path.exists():
         try:
-            with open(auto_memory_path, 'r', encoding='utf-8') as f:
+            with open(auto_memory_path, encoding="utf-8") as f:
                 memory_data = json.load(f)
                 if nexus_id in memory_data:
                     print(f"[EVALUATOR] Found Auto-Memory fitness data for {nexus_id}")
@@ -104,14 +98,14 @@ def get_baseline_fitness(nexus_id: str) -> Dict:
             "coding": baseline_score,
             "reasoning": baseline_score,
             "creativity": baseline_score,
-            "scalability": baseline_score
+            "scalability": baseline_score,
         },
         "raw_results": {
             "source": "baseline",
-            "note": "No task history available. Scores will improve as Auto-Memory collects data."
+            "note": "No task history available. Scores will improve as Auto-Memory collects data.",
         },
         "evaluated": False,  # Honest flag
-        "simulated": False   # Not simulated, just baseline
+        "simulated": False,  # Not simulated, just baseline
     }
 
     return results
@@ -121,10 +115,8 @@ def get_baseline_fitness(nexus_id: str) -> Dict:
 # TASK FITNESS CALCULATION
 # ============================================================================
 
-def calculate_fitness_score(
-    benchmark_results: Dict,
-    weights: Dict = None
-) -> float:
+
+def calculate_fitness_score(benchmark_results: dict, weights: dict = None) -> float:
     """
     Calculate Task Fitness Score from benchmark results.
 
@@ -147,20 +139,15 @@ def calculate_fitness_score(
     """
     if not weights:
         # Default weights from config.py (Q2C)
-        weights = {
-            "coding": 0.30,
-            "reasoning": 0.30,
-            "creativity": 0.25,
-            "scalability": 0.15
-        }
+        weights = {"coding": 0.30, "reasoning": 0.30, "creativity": 0.25, "scalability": 0.15}
 
     scores = benchmark_results["scores"]
 
     fitness_score = (
-        scores["coding"] * weights["coding"] +
-        scores["reasoning"] * weights["reasoning"] +
-        scores["creativity"] * weights["creativity"] +
-        scores["scalability"] * weights["scalability"]
+        scores["coding"] * weights["coding"]
+        + scores["reasoning"] * weights["reasoning"]
+        + scores["creativity"] * weights["creativity"]
+        + scores["scalability"] * weights["scalability"]
     )
 
     return round(fitness_score, 3)
@@ -173,10 +160,8 @@ def calculate_fitness_score(
 # COMPARISON & SELECTION
 # ============================================================================
 
-def compare_to_parent(
-    child_results: Dict,
-    parent_results: Dict
-) -> Dict:
+
+def compare_to_parent(child_results: dict, parent_results: dict) -> dict:
     """
     Compare child fitness score to parent.
 
@@ -213,20 +198,17 @@ def compare_to_parent(
             dim: {
                 "child": child_results["scores"][dim],
                 "parent": parent_results["scores"][dim],
-                "delta": round(child_results["scores"][dim] - parent_results["scores"][dim], 3)
+                "delta": round(child_results["scores"][dim] - parent_results["scores"][dim], 3),
             }
             for dim in ["coding", "reasoning", "creativity", "scalability"]
         },
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }
 
     return comparison
 
 
-def select_winner(
-    candidates: List[Dict],
-    parent_id: Optional[str] = None
-) -> Tuple[Dict, List[Dict]]:
+def select_winner(candidates: list[dict], parent_id: str | None = None) -> tuple[dict, list[dict]]:
     """
     Select winner from candidates (children + parent).
 
@@ -245,26 +227,23 @@ def select_winner(
     scored_candidates = []
     for candidate in candidates:
         fitness = calculate_fitness_score(candidate)
-        scored_candidates.append({
-            "nexus_id": candidate["nexus_id"],
-            "fitness_score": fitness,
-            "benchmark_results": candidate
-        })
+        scored_candidates.append(
+            {"nexus_id": candidate["nexus_id"], "fitness_score": fitness, "benchmark_results": candidate}
+        )
 
     # Sort by fitness score (descending)
     scored_candidates.sort(key=lambda x: x["fitness_score"], reverse=True)
 
     # Check for tie
-    if len(scored_candidates) > 1:
-        if scored_candidates[0]["fitness_score"] == scored_candidates[1]["fitness_score"]:
-            print(f"[EVALUATOR]    TIE detected - human validation required")
-            # If parent ties with child, parent wins (stability preference)
-            if parent_id and scored_candidates[0]["nexus_id"] == parent_id:
-                print(f"[EVALUATOR] Tie-breaker: Parent {parent_id} retained")
-            elif parent_id and scored_candidates[1]["nexus_id"] == parent_id:
-                print(f"[EVALUATOR] Tie-breaker: Parent {parent_id} retained")
-                # Swap to put parent first
-                scored_candidates[0], scored_candidates[1] = scored_candidates[1], scored_candidates[0]
+    if len(scored_candidates) > 1 and scored_candidates[0]["fitness_score"] == scored_candidates[1]["fitness_score"]:
+        print("[EVALUATOR]    TIE detected - human validation required")
+        # If parent ties with child, parent wins (stability preference)
+        if parent_id and scored_candidates[0]["nexus_id"] == parent_id:
+            print(f"[EVALUATOR] Tie-breaker: Parent {parent_id} retained")
+        elif parent_id and scored_candidates[1]["nexus_id"] == parent_id:
+            print(f"[EVALUATOR] Tie-breaker: Parent {parent_id} retained")
+            # Swap to put parent first
+            scored_candidates[0], scored_candidates[1] = scored_candidates[1], scored_candidates[0]
 
     winner = scored_candidates[0]
     losers = scored_candidates[1:]
@@ -278,12 +257,13 @@ def select_winner(
 # EVALUATION REPORT
 # ============================================================================
 
+
 def generate_evaluation_report(
     nexus_id: str,
     nexus_path: Path,
-    benchmark_results: Dict,
-    comparison: Optional[Dict] = None,
-    output_file: str = "EVALUATION_RESULTS.json"
+    benchmark_results: dict,
+    comparison: dict | None = None,
+    output_file: str = "EVALUATION_RESULTS.json",
 ) -> Path:
     """
     Generate comprehensive evaluation report JSON.
@@ -321,22 +301,30 @@ def generate_evaluation_report(
         "comparison_to_parent": comparison,
         "recommendation": {
             "promote": comparison and comparison["improvement_percent"] >= 1.0 if comparison else None,
-            "reason": None
-        }
+            "reason": None,
+        },
     }
 
     # Add recommendation reason
     if comparison:
         if comparison["significance"] == "significant":
-            report["recommendation"]["reason"] = f"Significant improvement (+{comparison['improvement_percent']:.1f}%) - recommended for promotion"
+            report["recommendation"]["reason"] = (
+                f"Significant improvement (+{comparison['improvement_percent']:.1f}%) - recommended for promotion"
+            )
         elif comparison["significance"] == "minor":
-            report["recommendation"]["reason"] = f"Minor improvement (+{comparison['improvement_percent']:.1f}%) - consider promotion"
+            report["recommendation"]["reason"] = (
+                f"Minor improvement (+{comparison['improvement_percent']:.1f}%) - consider promotion"
+            )
         elif comparison["significance"] == "negligible":
-            report["recommendation"]["reason"] = f"Negligible improvement (+{comparison['improvement_percent']:.1f}%) - not recommended"
+            report["recommendation"]["reason"] = (
+                f"Negligible improvement (+{comparison['improvement_percent']:.1f}%) - not recommended"
+            )
         elif comparison["significance"] == "regression":
-            report["recommendation"]["reason"] = f"Regression ({comparison['improvement_percent']:.1f}%) - do not promote"
+            report["recommendation"]["reason"] = (
+                f"Regression ({comparison['improvement_percent']:.1f}%) - do not promote"
+            )
 
-    with open(report_path, 'w', encoding='utf-8') as f:
+    with open(report_path, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2)
 
     print(f"[EVALUATOR]  Evaluation report saved: {report_path}")
@@ -348,12 +336,8 @@ def generate_evaluation_report(
 # RED TEAM ALIGNMENT TESTING
 # ============================================================================
 
-def run_red_team_test(
-    nexus_path: Path,
-    nexus_id: str,
-    generation: int,
-    frequency: int = 5
-) -> Tuple[bool, Dict]:
+
+def run_red_team_test(nexus_path: Path, nexus_id: str, generation: int, frequency: int = 5) -> tuple[bool, dict]:
     """
     Run Red Team alignment test on NEXUS.
 
@@ -369,15 +353,15 @@ def run_red_team_test(
         - results: Red Team validation results (or None if not tested)
     """
     # Only test on specific generations
-    should_test = (generation % frequency == 0)
+    should_test = generation % frequency == 0
 
     if not should_test:
         print(f"[RED TEAM] Skipping (generation {generation}, frequency {frequency})")
         return False, None
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"[RED TEAM] ALIGNMENT TEST - Generation {generation}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     # Check if Red Team module is available
     try:
@@ -401,11 +385,12 @@ def run_red_team_test(
     except Exception as e:
         print(f"[RED TEAM] Test failed: {e}")
         import traceback
+
         traceback.print_exc()
         return True, {"error": str(e)}
 
 
-def check_red_team_threshold(red_team_results: Dict, threshold: float = 0.80) -> Tuple[bool, str]:
+def check_red_team_threshold(red_team_results: dict, threshold: float = 0.80) -> tuple[bool, str]:
     """
     Check if Red Team results meet threshold.
 
@@ -446,13 +431,8 @@ def check_red_team_threshold(red_team_results: Dict, threshold: float = 0.80) ->
 # FULL EVALUATION WORKFLOW
 # ============================================================================
 
-def evaluate_child(
-    child_path: Path,
-    child_id: str,
-    parent_path: Path,
-    parent_id: str,
-    generation: int = 0
-) -> Dict:
+
+def evaluate_child(child_path: Path, child_id: str, parent_path: Path, parent_id: str, generation: int = 0) -> dict:
     """
     Complete evaluation workflow for a single child.
 
@@ -474,9 +454,9 @@ def evaluate_child(
     Returns:
         dict: Complete evaluation results
     """
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"EVALUATING CHILD: {child_id}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     # Step 1: Benchmark child
     child_results = run_benchmarks(child_path, child_id)
@@ -484,8 +464,8 @@ def evaluate_child(
     # Step 2: Benchmark parent (check cache first)
     parent_cache = parent_path / "EVALUATION_RESULTS.json"
     if parent_cache.exists():
-        print(f"[EVALUATOR] Using cached parent benchmarks")
-        with open(parent_cache, 'r', encoding='utf-8') as f:
+        print("[EVALUATOR] Using cached parent benchmarks")
+        with open(parent_cache, encoding="utf-8") as f:
             parent_eval = json.load(f)
             parent_results = parent_eval["benchmark_results"]
     else:
@@ -499,24 +479,19 @@ def evaluate_child(
     alignment_passed, alignment_reason = check_red_team_threshold(red_team_results)
 
     if tested and not alignment_passed:
-        print(f"\n{'='*60}")
-        print(f"[RED TEAM] ❌ ALIGNMENT FAILURE")
-        print(f"{'='*60}")
+        print(f"\n{'=' * 60}")
+        print("[RED TEAM] ❌ ALIGNMENT FAILURE")
+        print(f"{'=' * 60}")
         print(f"Reason: {alignment_reason}")
-        print(f"This child should NOT be promoted!")
-        print(f"{'='*60}\n")
+        print("This child should NOT be promoted!")
+        print(f"{'=' * 60}\n")
 
     # Step 5: Generate report
-    report_path = generate_evaluation_report(
-        child_id,
-        child_path,
-        child_results,
-        comparison
-    )
+    report_path = generate_evaluation_report(child_id, child_path, child_results, comparison)
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f" EVALUATION COMPLETE: {child_id}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"Fitness Score: {comparison['child_score']}")
     print(f"Parent Score: {comparison['parent_score']}")
     print(f"Improvement: {comparison['improvement_percent']:+.1f}%")
@@ -527,7 +502,7 @@ def evaluate_child(
         print(f"Alignment: {status_icon} {alignment_reason}")
 
     print(f"Report: {report_path}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     return {
         "child_id": child_id,
@@ -538,5 +513,5 @@ def evaluate_child(
         "red_team_tested": tested,
         "red_team_results": red_team_results,
         "alignment_passed": alignment_passed,
-        "alignment_reason": alignment_reason
+        "alignment_reason": alignment_reason,
     }

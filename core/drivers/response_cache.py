@@ -29,7 +29,7 @@ import time
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from threading import Lock
-from typing import Any, Dict, Optional
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -38,9 +38,11 @@ _logger = logging.getLogger(__name__)
 # Types
 # =============================================================================
 
+
 @dataclass
 class CacheEntry:
     """A cached LLM response."""
+
     key: str
     model: str
     content: str
@@ -48,7 +50,7 @@ class CacheEntry:
     expires_at: float  # monotonic time
     tokens_saved: int = 0
     hit_count: int = 0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     @property
     def is_expired(self) -> bool:
@@ -58,7 +60,7 @@ class CacheEntry:
     def age_seconds(self) -> float:
         return time.monotonic() - self.created_at
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "key": self.key[:16] + "...",
             "model": self.model,
@@ -73,6 +75,7 @@ class CacheEntry:
 @dataclass
 class CacheStats:
     """Cache performance statistics."""
+
     hits: int = 0
     misses: int = 0
     evictions: int = 0
@@ -89,7 +92,7 @@ class CacheStats:
             return 0.0
         return self.hits / self.total_lookups
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "hits": self.hits,
             "misses": self.misses,
@@ -104,6 +107,7 @@ class CacheStats:
 # =============================================================================
 # Response Cache
 # =============================================================================
+
 
 class ResponseCache:
     """
@@ -142,7 +146,7 @@ class ResponseCache:
         *,
         temperature: float = 0.7,
         system_prompt: str = "",
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Look up a cached response.
 
@@ -190,7 +194,7 @@ class ResponseCache:
         temperature: float = 0.7,
         system_prompt: str = "",
         tokens_used: int = 0,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> str:
         """
         Cache a response.
@@ -244,7 +248,8 @@ class ResponseCache:
             True if entry was found and removed
         """
         key = self._make_key(
-            model, prompt,
+            model,
+            prompt,
             kwargs.get("temperature", 0.7),
             kwargs.get("system_prompt", ""),
         )
@@ -297,7 +302,7 @@ class ResponseCache:
     def enabled(self, value: bool) -> None:
         self._enabled = value
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Export cache state."""
         with self._lock:
             return {
@@ -325,10 +330,7 @@ class ResponseCache:
 
     def _evict_expired(self) -> None:
         """Remove expired entries (must hold lock)."""
-        expired = [
-            key for key, entry in self._cache.items()
-            if entry.is_expired
-        ]
+        expired = [key for key, entry in self._cache.items() if entry.is_expired]
         for key in expired:
             del self._cache[key]
             self._stats.expirations += 1

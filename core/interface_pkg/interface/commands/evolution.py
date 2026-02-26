@@ -7,8 +7,7 @@ improved agent variants.
 Uses EvolutionService for business logic (Service Layer Pattern).
 """
 
-from typing import List
-from .registry import Command, CommandContext, CommandResult, CommandStatus
+from .registry import Command, CommandContext, CommandRegistry, CommandResult, CommandStatus
 
 
 def _get_evolution_service(context: CommandContext):
@@ -28,31 +27,31 @@ def _get_evolution_service(context: CommandContext):
     evolution_manager = context.extras.get("evolution_manager")
     if not evolution_manager:
         repl = context.extras.get("repl")
-        if repl and hasattr(repl, 'evolution_manager'):
+        if repl and hasattr(repl, "evolution_manager"):
             evolution_manager = repl.evolution_manager
         else:
             raise RuntimeError("EvolutionManager not available")
 
     # Get config
     config = context.config
-    if not config and hasattr(context.orchestrator, 'config'):
+    if not config and hasattr(context.orchestrator, "config"):
         config = context.orchestrator.config
     if not config:
         repl = context.extras.get("repl")
-        if repl and hasattr(repl, 'config'):
+        if repl and hasattr(repl, "config"):
             config = repl.config
 
     # Get workspace_path and rate_limiter
     workspace_path = context.extras.get("workspace_path")
     rate_limiter = context.extras.get("rate_limiter")
 
-    if not workspace_path and hasattr(evolution_manager, 'workspace_path'):
+    if not workspace_path and hasattr(evolution_manager, "workspace_path"):
         workspace_path = evolution_manager.workspace_path
     if not rate_limiter:
         repl = context.extras.get("repl")
-        if repl and hasattr(repl, 'rate_limiter'):
+        if repl and hasattr(repl, "rate_limiter"):
             rate_limiter = repl.rate_limiter
-        elif hasattr(evolution_manager, 'rate_limiter'):
+        elif hasattr(evolution_manager, "rate_limiter"):
             rate_limiter = evolution_manager.rate_limiter
 
     return EvolutionService(
@@ -72,7 +71,7 @@ class EvolveCommand(Command):
         return "/evolve"
 
     @property
-    def aliases(self) -> List[str]:
+    def aliases(self) -> list[str]:
         return []
 
     @property
@@ -94,18 +93,12 @@ class EvolveCommand(Command):
             if result.success:
                 return CommandResult(
                     status=CommandStatus.SUCCESS,
-                    message=""  # Service handles its own output
+                    message="",  # Service handles its own output
                 )
             else:
-                return CommandResult(
-                    status=CommandStatus.ERROR,
-                    message=result.error or "Evolution failed"
-                )
+                return CommandResult(status=CommandStatus.ERROR, message=result.error or "Evolution failed")
         except Exception as e:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message=f"Evolution failed: {e}"
-            )
+            return CommandResult(status=CommandStatus.ERROR, message=f"Evolution failed: {e}")
 
 
 class EvolveStatusCommand(Command):
@@ -116,7 +109,7 @@ class EvolveStatusCommand(Command):
         return "/evolve-status"
 
     @property
-    def aliases(self) -> List[str]:
+    def aliases(self) -> list[str]:
         return ["/es"]
 
     @property
@@ -132,18 +125,12 @@ class EvolveStatusCommand(Command):
             if result.success:
                 return CommandResult(
                     status=CommandStatus.SUCCESS,
-                    message=""  # Service handles its own output
+                    message="",  # Service handles its own output
                 )
             else:
-                return CommandResult(
-                    status=CommandStatus.ERROR,
-                    message=result.error or "Failed to get status"
-                )
+                return CommandResult(status=CommandStatus.ERROR, message=result.error or "Failed to get status")
         except Exception as e:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message=f"Failed to get evolution status: {e}"
-            )
+            return CommandResult(status=CommandStatus.ERROR, message=f"Failed to get evolution status: {e}")
 
 
 class ReviewCommand(Command):
@@ -154,7 +141,7 @@ class ReviewCommand(Command):
         return "/review"
 
     @property
-    def aliases(self) -> List[str]:
+    def aliases(self) -> list[str]:
         return []
 
     @property
@@ -171,21 +158,14 @@ class ReviewCommand(Command):
         repl = context.extras.get("repl")
         if not repl:
             return CommandResult(
-                status=CommandStatus.ERROR,
-                message="REPL instance not available (interactive review requires REPL)"
+                status=CommandStatus.ERROR, message="REPL instance not available (interactive review requires REPL)"
             )
 
         try:
             repl.run_review()
-            return CommandResult(
-                status=CommandStatus.SUCCESS,
-                message=""
-            )
+            return CommandResult(status=CommandStatus.SUCCESS, message="")
         except Exception as e:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message=f"Review failed: {e}"
-            )
+            return CommandResult(status=CommandStatus.ERROR, message=f"Review failed: {e}")
 
 
 def register_evolution_commands(registry: "CommandRegistry") -> None:

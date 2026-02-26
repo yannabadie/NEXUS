@@ -17,7 +17,6 @@ from pathlib import Path
 
 import pytest
 
-
 NEXUS_ENTRY = str(Path(__file__).parent.parent / "nexus7.py")
 
 
@@ -136,10 +135,7 @@ class TestHeadlessExitCodes:
         )
         assert result.returncode == 0
 
-    @pytest.mark.skipif(
-        not Path(NEXUS_ENTRY).parent.joinpath("KERNEL.py").exists(),
-        reason="KERNEL.py not available"
-    )
+    @pytest.mark.skipif(not Path(NEXUS_ENTRY).parent.joinpath("KERNEL.py").exists(), reason="KERNEL.py not available")
     def test_verify_flag_exits_deterministically(self):
         """--verify should exit with a deterministic code (not hang)."""
         # --verify runs full bootstrap which checks for CLI tools.
@@ -173,10 +169,7 @@ class TestHeadlessJSONSchema:
 
         output = json.loads(result.stdout)
 
-        required_fields = [
-            "nexus_version", "codename", "mode",
-            "timestamp", "task", "status", "output", "error"
-        ]
+        required_fields = ["nexus_version", "codename", "mode", "timestamp", "task", "status", "output", "error"]
         for field in required_fields:
             assert field in output, f"Missing required field: {field}"
 

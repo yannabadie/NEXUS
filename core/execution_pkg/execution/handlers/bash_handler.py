@@ -14,13 +14,14 @@ Security Layers:
 
 from __future__ import annotations
 
-import subprocess
 import logging
+import subprocess
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any
 
-from core.security_pkg.security.execution_policy import ExecutionPolicy, CommandType
 from core.constants import TIMEOUTS
+from core.security_pkg.security.execution_policy import CommandType, ExecutionPolicy
+
 from .base import BaseHandler, ToolResult
 
 logger = logging.getLogger(__name__)
@@ -36,8 +37,8 @@ class BashHandler(BaseHandler):
     def __init__(
         self,
         workspace_path: Path,
-        validation_service: Optional[Any] = None,
-        execution_policy: Optional[ExecutionPolicy] = None,
+        validation_service: Any | None = None,
+        execution_policy: ExecutionPolicy | None = None,
         timeout: float = None,
     ):
         """
@@ -58,11 +59,13 @@ class BashHandler(BaseHandler):
         self._sandbox_required = False
         try:
             import os
+
             sandbox_enabled = os.getenv("NEXUS_FF_SANDBOX_ENABLED", "false").lower() in ("true", "1")
             self._sandbox_required = os.getenv("NEXUS_FF_SANDBOX_REQUIRED", "false").lower() in ("true", "1")
 
             if sandbox_enabled or self._sandbox_required:
                 from .sandbox_handler import SandboxHandler
+
                 self._sandbox = SandboxHandler(workspace_path)
                 if self._sandbox.is_available():
                     logger.info("BashHandler: sandbox mode ENABLED (Docker)")
@@ -85,7 +88,7 @@ class BashHandler(BaseHandler):
     def tool_name(self) -> str:
         return "bash"
 
-    def execute(self, args: Dict[str, Any]) -> ToolResult:
+    def execute(self, args: dict[str, Any]) -> ToolResult:
         """
         Execute shell command.
 
@@ -107,7 +110,7 @@ class BashHandler(BaseHandler):
                 status="ERROR",
                 content="",
                 error="Sandbox execution required but sandbox not available. "
-                      "Set NEXUS_FF_SANDBOX_REQUIRED=false to allow host execution (development only)."
+                "Set NEXUS_FF_SANDBOX_REQUIRED=false to allow host execution (development only).",
             )
 
         # V12.4: Delegate to sandbox if enabled
@@ -119,10 +122,7 @@ class BashHandler(BaseHandler):
         is_valid, error = self.execution_policy.validate_command(command)
         if not is_valid:
             return ToolResult(
-                tool_name=self.tool_name,
-                status="BLOCKED",
-                output="",
-                error=f"{error}. Command: {command[:80]}..."
+                tool_name=self.tool_name, status="BLOCKED", output="", error=f"{error}. Command: {command[:80]}..."
             )
 
         # SECURITY LAYER 2: Analyze command for safe execution
@@ -133,7 +133,7 @@ class BashHandler(BaseHandler):
                 tool_name=self.tool_name,
                 status="BLOCKED",
                 output="",
-                error=f"[SECURITY] {analysis.blocked_reason}. Command: {command[:80]}..."
+                error=f"[SECURITY] {analysis.blocked_reason}. Command: {command[:80]}...",
             )
 
         try:
@@ -145,19 +145,9 @@ class BashHandler(BaseHandler):
                 result = self._execute_complex(command)
 
             if result.returncode == 0:
-                return ToolResult(
-                    tool_name=self.tool_name,
-                    status="SUCCESS",
-                    output=result.stdout,
-                    error=result.stderr
-                )
+                return ToolResult(tool_name=self.tool_name, status="SUCCESS", output=result.stdout, error=result.stderr)
             else:
-                return ToolResult(
-                    tool_name=self.tool_name,
-                    status="FAILURE",
-                    output=result.stdout,
-                    error=result.stderr
-                )
+                return ToolResult(tool_name=self.tool_name, status="FAILURE", output=result.stdout, error=result.stderr)
 
         except FileNotFoundError:
             return self._error(f"Command not found: {analysis.executable}")
@@ -166,11 +156,7 @@ class BashHandler(BaseHandler):
         except Exception as e:
             return self._error(str(e))
 
-    def _execute_simple(
-        self,
-        executable: str,
-        arguments: list[str]
-    ) -> subprocess.CompletedProcess:
+    def _execute_simple(self, executable: str, arguments: list[str]) -> subprocess.CompletedProcess:
         """
         Execute simple command with shell=False.
 
@@ -189,8 +175,8 @@ class BashHandler(BaseHandler):
             capture_output=True,
             text=True,
             timeout=self.timeout,
-            encoding='utf-8',
-            errors='replace'
+            encoding="utf-8",
+            errors="replace",
         )
 
     def _execute_complex(self, command: str) -> subprocess.CompletedProcess:
@@ -210,16 +196,16 @@ class BashHandler(BaseHandler):
             capture_output=True,
             text=True,
             timeout=self.timeout,
-            encoding='utf-8',
-            errors='replace'
+            encoding="utf-8",
+            errors="replace",
         )
 
 
 # Factory function
 def create_bash_handler(
     workspace_path: Path,
-    validation_service: Optional[Any] = None,
-    execution_policy: Optional[ExecutionPolicy] = None,
+    validation_service: Any | None = None,
+    execution_policy: ExecutionPolicy | None = None,
 ) -> BashHandler:
     """
     Create bash handler.

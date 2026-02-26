@@ -40,7 +40,7 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from .project_memory import ProjectMemory
 from .types import Chunk
@@ -55,23 +55,24 @@ class SuccessEntry:
 
     Same schema as V1 for backward compatibility.
     """
+
     task_id: str
     task_hash: str  # Keep for backward compat, not used in V2
     description: str
     swarm_mode: str
-    agents_used: List[str]
+    agents_used: list[str]
     duration_seconds: float
     complexity: str
-    domains: List[str]
+    domains: list[str]
     quality_score: float
     timestamp: str
 
     # Optional extended metadata
-    primary_domain: Optional[str] = None
-    negotiation_turns: Optional[int] = None
-    execution_rounds: Optional[int] = None
+    primary_domain: str | None = None
+    negotiation_turns: int | None = None
+    execution_rounds: int | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON storage."""
         return {
             "task_id": self.task_id,
@@ -86,11 +87,11 @@ class SuccessEntry:
             "timestamp": self.timestamp,
             "primary_domain": self.primary_domain,
             "negotiation_turns": self.negotiation_turns,
-            "execution_rounds": self.execution_rounds
+            "execution_rounds": self.execution_rounds,
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "SuccessEntry":
+    def from_dict(cls, data: dict[str, Any]) -> SuccessEntry:
         """Create from dictionary."""
         return cls(
             task_id=data.get("task_id", ""),
@@ -105,7 +106,7 @@ class SuccessEntry:
             timestamp=data.get("timestamp", ""),
             primary_domain=data.get("primary_domain"),
             negotiation_turns=data.get("negotiation_turns"),
-            execution_rounds=data.get("execution_rounds")
+            execution_rounds=data.get("execution_rounds"),
         )
 
 
@@ -137,10 +138,7 @@ class SuccessMemoryV2:
     VIRTUAL_FILE_PREFIX = "success_memory://"
 
     def __init__(
-        self,
-        workspace_path: Path,
-        nexus_root: Optional[Path] = None,
-        max_entries: int = DEFAULT_MAX_ENTRIES
+        self, workspace_path: Path, nexus_root: Path | None = None, max_entries: int = DEFAULT_MAX_ENTRIES
     ) -> None:
         """
         Initialize SuccessMemoryV2.
@@ -195,6 +193,7 @@ class SuccessMemoryV2:
         # Load V1 data
         try:
             import json
+
             data = json.loads(v1_path.read_text(encoding="utf-8"))
             entries = data.get("entries", [])
 
@@ -250,6 +249,7 @@ class SuccessMemoryV2:
 
         # Extract terms for sparse retrieval
         from .project_memory import ProjectMemory
+
         pm_temp = ProjectMemory(self.nexus_root)
         terms = pm_temp._extract_terms(content)
 
@@ -272,7 +272,7 @@ class SuccessMemoryV2:
                 "timestamp": entry.timestamp,
                 "agents_used": entry.agents_used,
                 "duration_seconds": entry.duration_seconds,
-            }
+            },
         )
 
         # Add to ProjectMemory
@@ -280,11 +280,7 @@ class SuccessMemoryV2:
         self.project_memory._backend_dirty = True
 
     def record_success(
-        self,
-        task_id: str,
-        analysis: Any,
-        result: Any,
-        quality_score: Optional[float] = None
+        self, task_id: str, analysis: Any, result: Any, quality_score: float | None = None
     ) -> SuccessEntry:
         """
         Record a successful task execution.
@@ -307,18 +303,11 @@ class SuccessMemoryV2:
 
         complexity = "UNKNOWN"
         if hasattr(analysis, "complexity"):
-            complexity = (
-                analysis.complexity.name
-                if hasattr(analysis.complexity, "name")
-                else str(analysis.complexity)
-            )
+            complexity = analysis.complexity.name if hasattr(analysis.complexity, "name") else str(analysis.complexity)
 
         domains = []
         if hasattr(analysis, "domains"):
-            domains = [
-                d.value if hasattr(d, "value") else str(d)
-                for d in analysis.domains
-            ]
+            domains = [d.value if hasattr(d, "value") else str(d) for d in analysis.domains]
 
         primary_domain = None
         if hasattr(analysis, "primary_domain") and analysis.primary_domain:
@@ -331,26 +320,16 @@ class SuccessMemoryV2:
         swarm_mode = "UNKNOWN"
         if hasattr(result, "selected_mode"):
             swarm_mode = (
-                result.selected_mode.value
-                if hasattr(result.selected_mode, "value")
-                else str(result.selected_mode)
+                result.selected_mode.value if hasattr(result.selected_mode, "value") else str(result.selected_mode)
             )
         elif hasattr(result, "mode"):
-            swarm_mode = (
-                result.mode.value
-                if hasattr(result.mode, "value")
-                else str(result.mode)
-            )
+            swarm_mode = result.mode.value if hasattr(result.mode, "value") else str(result.mode)
 
         agents_used = []
         if hasattr(result, "execution_result") and hasattr(result.execution_result, "agent_outputs"):
-            agents_used = list(set(
-                ao.agent_id for ao in result.execution_result.agent_outputs
-            ))
+            agents_used = list(set(ao.agent_id for ao in result.execution_result.agent_outputs))
         elif hasattr(result, "agent_outputs"):
-            agents_used = list(set(
-                ao.agent_id for ao in result.agent_outputs
-            ))
+            agents_used = list(set(ao.agent_id for ao in result.agent_outputs))
 
         duration = 0.0
         if hasattr(result, "total_time_seconds"):
@@ -363,9 +342,12 @@ class SuccessMemoryV2:
             execution_rounds = result.total_rounds
 
         negotiation_turns = None
-        if hasattr(result, "negotiation_result") and result.negotiation_result:
-            if hasattr(result.negotiation_result, "total_turns"):
-                negotiation_turns = result.negotiation_result.total_turns
+        if (
+            hasattr(result, "negotiation_result")
+            and result.negotiation_result
+            and hasattr(result.negotiation_result, "total_turns")
+        ):
+            negotiation_turns = result.negotiation_result.total_turns
 
         if quality_score is None:
             quality_score = self._estimate_quality(result)
@@ -384,26 +366,20 @@ class SuccessMemoryV2:
             timestamp=datetime.now().isoformat(),
             primary_domain=primary_domain,
             negotiation_turns=negotiation_turns,
-            execution_rounds=execution_rounds
+            execution_rounds=execution_rounds,
         )
 
         # Index into LanceDB
         self._index_success_entry(entry)
 
         # Check FIFO eviction
-        success_chunks = [
-            c for c in self.project_memory.chunks
-            if c.file_path.startswith(self.VIRTUAL_FILE_PREFIX)
-        ]
+        success_chunks = [c for c in self.project_memory.chunks if c.file_path.startswith(self.VIRTUAL_FILE_PREFIX)]
 
         if len(success_chunks) > self.max_entries:
             # Remove oldest entries
             to_remove = len(success_chunks) - self.max_entries
             # Sort by timestamp (stored in metadata)
-            sorted_chunks = sorted(
-                success_chunks,
-                key=lambda c: c.metadata.get("timestamp", "") if c.metadata else ""
-            )
+            sorted_chunks = sorted(success_chunks, key=lambda c: c.metadata.get("timestamp", "") if c.metadata else "")
 
             for chunk in sorted_chunks[:to_remove]:
                 self.project_memory.chunks.remove(chunk)
@@ -415,8 +391,7 @@ class SuccessMemoryV2:
         self.project_memory.save()
 
         self._logger.debug(
-            f"[MEMORY V2] Recorded task {entry.task_id} "
-            f"(mode={entry.swarm_mode}, quality={entry.quality_score:.2f})"
+            f"[MEMORY V2] Recorded task {entry.task_id} (mode={entry.swarm_mode}, quality={entry.quality_score:.2f})"
         )
 
         return entry
@@ -431,11 +406,7 @@ class SuccessMemoryV2:
 
         status = None
         if hasattr(result, "status"):
-            status = (
-                result.status.value
-                if hasattr(result.status, "value")
-                else str(result.status)
-            )
+            status = result.status.value if hasattr(result.status, "value") else str(result.status)
 
         if status in ("completed", "COMPLETED", "converged", "CONVERGED"):
             score = 0.7
@@ -460,10 +431,7 @@ class SuccessMemoryV2:
         elif hasattr(result, "agent_outputs"):
             agent_outputs = result.agent_outputs
 
-        has_errors = any(
-            getattr(ao, "error", None) or getattr(ao, "status", "") == "error"
-            for ao in agent_outputs
-        )
+        has_errors = any(getattr(ao, "error", None) or getattr(ao, "status", "") == "error" for ao in agent_outputs)
 
         if not has_errors and agent_outputs:
             score += 0.1
@@ -471,11 +439,8 @@ class SuccessMemoryV2:
         return min(1.0, score)
 
     def find_similar_tasks(
-        self,
-        query: str,
-        limit: int = 3,
-        min_score: float = 0.1
-    ) -> List[Tuple[SuccessEntry, float]]:
+        self, query: str, limit: int = 3, min_score: float = 0.1
+    ) -> list[tuple[SuccessEntry, float]]:
         """
         Find tasks similar to the query using semantic search.
 
@@ -495,17 +460,14 @@ class SuccessMemoryV2:
         chunks = self.project_memory.retrieve(
             query,
             limit=limit * 2,  # Get more for filtering
-            min_score=min_score
+            min_score=min_score,
         )
 
         # Filter to only success_memory chunks
-        success_chunks = [
-            c for c in chunks
-            if c.file_path.startswith(self.VIRTUAL_FILE_PREFIX)
-        ][:limit]
+        success_chunks = [c for c in chunks if c.file_path.startswith(self.VIRTUAL_FILE_PREFIX)][:limit]
 
         # Convert chunks back to SuccessEntry
-        results: List[Tuple[SuccessEntry, float]] = []
+        results: list[tuple[SuccessEntry, float]] = []
         for chunk in success_chunks:
             if not chunk.metadata:
                 continue
@@ -536,9 +498,9 @@ class SuccessMemoryV2:
         self,
         query: str,
         min_similarity: float = 0.2,
-        query_domains: Optional[List[str]] = None,
-        domain_boost: float = 0.15
-    ) -> Optional[Tuple[str, str, float]]:
+        query_domains: list[str] | None = None,
+        domain_boost: float = 0.15,
+    ) -> tuple[str, str, float] | None:
         """
         Get the best mode based on similar successful tasks.
 
@@ -557,8 +519,8 @@ class SuccessMemoryV2:
         if not similar:
             return None
 
-        mode_scores: Dict[str, List[float]] = {}
-        mode_best_match: Dict[str, Tuple[str, float]] = {}
+        mode_scores: dict[str, list[float]] = {}
+        mode_best_match: dict[str, tuple[str, float]] = {}
 
         normalized_query_domains = set()
         if query_domains:
@@ -590,25 +552,19 @@ class SuccessMemoryV2:
         if not mode_scores:
             return None
 
-        best_mode = max(
-            mode_scores.keys(),
-            key=lambda m: sum(mode_scores[m]) / len(mode_scores[m])
-        )
+        best_mode = max(mode_scores.keys(), key=lambda m: sum(mode_scores[m]) / len(mode_scores[m]))
 
         task_id, best_similarity = mode_best_match[best_mode]
         return (best_mode, task_id, best_similarity)
 
-    def get_all(self) -> List[SuccessEntry]:
+    def get_all(self) -> list[SuccessEntry]:
         """
         Get all success entries.
 
         Returns:
             List of SuccessEntry objects, oldest first.
         """
-        success_chunks = [
-            c for c in self.project_memory.chunks
-            if c.file_path.startswith(self.VIRTUAL_FILE_PREFIX)
-        ]
+        success_chunks = [c for c in self.project_memory.chunks if c.file_path.startswith(self.VIRTUAL_FILE_PREFIX)]
 
         # Sort by timestamp
         success_chunks.sort(key=lambda c: c.metadata.get("timestamp", "") if c.metadata else "")
@@ -634,7 +590,7 @@ class SuccessMemoryV2:
 
         return entries
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """
         Get statistics about stored successes.
 
@@ -650,14 +606,14 @@ class SuccessMemoryV2:
                 "domain_distribution": {},
                 "avg_duration_seconds": 0.0,
                 "avg_quality_score": 0.0,
-                "backend": self.project_memory.get_backend_info()["backend"]
+                "backend": self.project_memory.get_backend_info()["backend"],
             }
 
-        mode_counts: Dict[str, int] = {}
+        mode_counts: dict[str, int] = {}
         for e in entries:
             mode_counts[e.swarm_mode] = mode_counts.get(e.swarm_mode, 0) + 1
 
-        domain_counts: Dict[str, int] = {}
+        domain_counts: dict[str, int] = {}
         for e in entries:
             for d in e.domains:
                 domain_counts[d] = domain_counts.get(d, 0) + 1
@@ -671,7 +627,7 @@ class SuccessMemoryV2:
             "domain_distribution": domain_counts,
             "avg_duration_seconds": round(avg_duration, 2),
             "avg_quality_score": round(avg_quality, 3),
-            "backend": self.project_memory.get_backend_info()["backend"]
+            "backend": self.project_memory.get_backend_info()["backend"],
         }
 
     def clear(self) -> int:
@@ -681,10 +637,7 @@ class SuccessMemoryV2:
         Returns:
             Number of entries cleared.
         """
-        success_chunks = [
-            c for c in self.project_memory.chunks
-            if c.file_path.startswith(self.VIRTUAL_FILE_PREFIX)
-        ]
+        success_chunks = [c for c in self.project_memory.chunks if c.file_path.startswith(self.VIRTUAL_FILE_PREFIX)]
 
         count = len(success_chunks)
 
@@ -701,10 +654,10 @@ class SuccessMemoryV2:
 # V10 PRISM: Multi-Tenant Success Memory Access
 # =============================================================================
 
-_default_memory_v2: Optional[SuccessMemoryV2] = None
+_default_memory_v2: SuccessMemoryV2 | None = None
 
 
-def get_success_memory_v2(workspace_path: Optional[Path] = None) -> Optional[SuccessMemoryV2]:
+def get_success_memory_v2(workspace_path: Path | None = None) -> SuccessMemoryV2 | None:
     """
     Get the SuccessMemoryV2 instance.
 

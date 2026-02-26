@@ -21,10 +21,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from .context_manager import ContextItem, HiveMindContextManager
+    pass
 
 
 class ContextScope(str, Enum):
@@ -38,6 +38,7 @@ class ContextScope(str, Enum):
     MINIMAL: Only the immediate instruction
     FRESH: No inherited context (complete isolation)
     """
+
     FULL = "full"
     TASK_PLUS_RESULTS = "task_plus_results"
     RESULTS_ONLY = "results_only"
@@ -55,6 +56,7 @@ class InheritanceDirection(str, Enum):
     PHASE_TO_PHASE: Sequential phase inheritance
     BIDIRECTIONAL: Full sharing (debugging only)
     """
+
     NONE = "none"
     PARENT_TO_CHILD = "parent_to_child"
     PHASE_TO_PHASE = "phase_to_phase"
@@ -79,14 +81,15 @@ class ScopedContext:
         session_uuid: Unique session for this scoped context
         model_context: Model-specific context (capabilities, etc.)
     """
+
     scope: ContextScope
     task_description: str = ""
-    relevant_files: List[str] = field(default_factory=list)
+    relevant_files: list[str] = field(default_factory=list)
     parent_summary: str = ""
-    full_history: List[Dict[str, Any]] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    session_uuid: Optional[str] = None
-    model_context: Optional[str] = None
+    full_history: list[dict[str, Any]] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
+    session_uuid: str | None = None
+    model_context: str | None = None
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
 
     # Token estimates for budget management
@@ -100,10 +103,10 @@ class ScopedContext:
     def _estimate_tokens(self) -> int:
         """Rough token estimation (~4 chars per token)."""
         total_chars = (
-            len(self.task_description) +
-            len(self.parent_summary) +
-            sum(len(f) for f in self.relevant_files) +
-            (len(str(self.full_history)) if self.full_history else 0)
+            len(self.task_description)
+            + len(self.parent_summary)
+            + sum(len(f) for f in self.relevant_files)
+            + (len(str(self.full_history)) if self.full_history else 0)
         )
         return total_chars // 4
 
@@ -120,15 +123,17 @@ class ScopedContext:
             return ""
 
         # Task description (unless MINIMAL/FRESH/RESULTS_ONLY)
-        if self.scope not in [ContextScope.MINIMAL, ContextScope.FRESH, ContextScope.RESULTS_ONLY]:
-            if self.task_description:
-                parts.append(f"## Task\n{self.task_description}")
+        if (
+            self.scope not in [ContextScope.MINIMAL, ContextScope.FRESH, ContextScope.RESULTS_ONLY]
+            and self.task_description
+        ):
+            parts.append(f"## Task\n{self.task_description}")
 
         # Relevant files
         if self.relevant_files and self.scope in [
             ContextScope.FULL,
             ContextScope.TASK_PLUS_RESULTS,
-            ContextScope.TASK_ONLY
+            ContextScope.TASK_ONLY,
         ]:
             files_str = ", ".join(self.relevant_files[:10])  # Limit to 10
             if len(self.relevant_files) > 10:
@@ -139,7 +144,7 @@ class ScopedContext:
         if self.parent_summary and self.scope in [
             ContextScope.FULL,
             ContextScope.TASK_PLUS_RESULTS,
-            ContextScope.RESULTS_ONLY
+            ContextScope.RESULTS_ONLY,
         ]:
             parts.append(f"## Previous Findings\n{self.parent_summary}")
 
@@ -152,18 +157,22 @@ class ScopedContext:
 
         return "\n\n".join(parts) + "\n\n---\n\n"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize for storage/logging."""
         return {
             "scope": self.scope.value,
-            "task_description": self.task_description[:200] + "..." if len(self.task_description) > 200 else self.task_description,
+            "task_description": self.task_description[:200] + "..."
+            if len(self.task_description) > 200
+            else self.task_description,
             "relevant_files": self.relevant_files,
-            "parent_summary": self.parent_summary[:500] + "..." if len(self.parent_summary) > 500 else self.parent_summary,
+            "parent_summary": self.parent_summary[:500] + "..."
+            if len(self.parent_summary) > 500
+            else self.parent_summary,
             "has_full_history": len(self.full_history) > 0,
             "history_items": len(self.full_history),
             "session_uuid": self.session_uuid,
             "estimated_tokens": self.estimated_tokens,
-            "created_at": self.created_at
+            "created_at": self.created_at,
         }
 
 
@@ -176,14 +185,16 @@ class ContextScopePolicy:
     """
 
     # Phase-to-phase inheritance
-    phase_inheritance: Dict[str, ContextScope] = field(default_factory=lambda: {
-        "analysis_to_debate": ContextScope.TASK_PLUS_RESULTS,
-        "debate_to_architecture": ContextScope.TASK_PLUS_RESULTS,
-        "architecture_to_execution": ContextScope.TASK_PLUS_RESULTS,
-        "execution_to_diagnosis": ContextScope.FULL,  # Needs full context for debugging
-        "diagnosis_to_retry": ContextScope.TASK_PLUS_RESULTS,
-        "execution_to_consolidation": ContextScope.RESULTS_ONLY,
-    })
+    phase_inheritance: dict[str, ContextScope] = field(
+        default_factory=lambda: {
+            "analysis_to_debate": ContextScope.TASK_PLUS_RESULTS,
+            "debate_to_architecture": ContextScope.TASK_PLUS_RESULTS,
+            "architecture_to_execution": ContextScope.TASK_PLUS_RESULTS,
+            "execution_to_diagnosis": ContextScope.FULL,  # Needs full context for debugging
+            "diagnosis_to_retry": ContextScope.TASK_PLUS_RESULTS,
+            "execution_to_consolidation": ContextScope.RESULTS_ONLY,
+        }
+    )
 
     # Parallel agent isolation
     parallel_scope: ContextScope = ContextScope.TASK_ONLY

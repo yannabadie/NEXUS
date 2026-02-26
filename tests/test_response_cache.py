@@ -15,18 +15,16 @@ Validates:
 
 import time
 
-import pytest
-
 from core.drivers.response_cache import (
-    ResponseCache,
     CacheEntry,
     CacheStats,
+    ResponseCache,
 )
-
 
 # =============================================================================
 # CacheEntry Tests
 # =============================================================================
+
 
 class TestCacheEntry:
     """Test CacheEntry dataclass."""
@@ -34,8 +32,11 @@ class TestCacheEntry:
     def test_basic_creation(self):
         now = time.monotonic()
         entry = CacheEntry(
-            key="abc123", model="gemini-3-pro", content="Hello!",
-            created_at=now, expires_at=now + 300,
+            key="abc123",
+            model="gemini-3-pro",
+            content="Hello!",
+            created_at=now,
+            expires_at=now + 300,
         )
         assert entry.key == "abc123"
         assert entry.model == "gemini-3-pro"
@@ -44,22 +45,30 @@ class TestCacheEntry:
     def test_not_expired(self):
         now = time.monotonic()
         entry = CacheEntry(
-            key="k", model="m", content="c",
-            created_at=now, expires_at=now + 1000,
+            key="k",
+            model="m",
+            content="c",
+            created_at=now,
+            expires_at=now + 1000,
         )
         assert entry.is_expired is False
 
     def test_expired(self):
         now = time.monotonic()
         entry = CacheEntry(
-            key="k", model="m", content="c",
-            created_at=now - 10, expires_at=now - 1,
+            key="k",
+            model="m",
+            content="c",
+            created_at=now - 10,
+            expires_at=now - 1,
         )
         assert entry.is_expired is True
 
     def test_age_seconds(self):
         entry = CacheEntry(
-            key="k", model="m", content="c",
+            key="k",
+            model="m",
+            content="c",
             created_at=time.monotonic() - 5.0,
             expires_at=time.monotonic() + 100,
         )
@@ -68,9 +77,13 @@ class TestCacheEntry:
     def test_to_dict(self):
         now = time.monotonic()
         entry = CacheEntry(
-            key="abc123def456", model="gemini", content="Hello",
-            created_at=now, expires_at=now + 300,
-            tokens_saved=100, hit_count=3,
+            key="abc123def456",
+            model="gemini",
+            content="Hello",
+            created_at=now,
+            expires_at=now + 300,
+            tokens_saved=100,
+            hit_count=3,
         )
         d = entry.to_dict()
         assert d["model"] == "gemini"
@@ -82,6 +95,7 @@ class TestCacheEntry:
 # =============================================================================
 # CacheStats Tests
 # =============================================================================
+
 
 class TestCacheStats:
     """Test CacheStats dataclass."""
@@ -112,6 +126,7 @@ class TestCacheStats:
 # =============================================================================
 # ResponseCache - Basic Tests
 # =============================================================================
+
 
 class TestBasicCache:
     """Test basic cache operations."""
@@ -161,6 +176,7 @@ class TestBasicCache:
 # ResponseCache - TTL Tests
 # =============================================================================
 
+
 class TestTTL:
     """Test time-to-live expiration."""
 
@@ -186,6 +202,7 @@ class TestTTL:
 # =============================================================================
 # ResponseCache - LRU Eviction Tests
 # =============================================================================
+
 
 class TestLRUEviction:
     """Test LRU eviction on size limit."""
@@ -222,6 +239,7 @@ class TestLRUEviction:
 # =============================================================================
 # ResponseCache - Stats Tests
 # =============================================================================
+
 
 class TestStats:
     """Test cache statistics."""
@@ -265,6 +283,7 @@ class TestStats:
 # ResponseCache - Invalidate Tests
 # =============================================================================
 
+
 class TestInvalidate:
     """Test cache entry invalidation."""
 
@@ -292,6 +311,7 @@ class TestInvalidate:
 # ResponseCache - Disabled Tests
 # =============================================================================
 
+
 class TestDisabled:
     """Test disabled cache behavior."""
 
@@ -317,6 +337,7 @@ class TestDisabled:
 # =============================================================================
 # ResponseCache - Key Generation Tests
 # =============================================================================
+
 
 class TestKeyGeneration:
     """Test cache key generation."""
@@ -349,6 +370,7 @@ class TestKeyGeneration:
 # ResponseCache - State Export Tests
 # =============================================================================
 
+
 class TestStateExport:
     """Test cache state export."""
 
@@ -372,17 +394,20 @@ class TestStateExport:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_drivers_package(self):
-        from core.drivers import ResponseCache, CacheStats
+        from core.drivers import CacheStats, ResponseCache
+
         assert all([ResponseCache, CacheStats])
 
     def test_from_module(self):
         from core.drivers.response_cache import (
-            ResponseCache,
             CacheEntry,
             CacheStats,
+            ResponseCache,
         )
+
         assert all([ResponseCache, CacheEntry, CacheStats])

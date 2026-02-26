@@ -30,23 +30,24 @@ Usage:
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Dict, Any, Optional
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from core.interface_pkg.interface.console_v7 import ConsoleV7
     from core.config import Config
+    from core.interface_pkg.interface.console_v7 import ConsoleV7
     from core.security_pkg.interaction import InteractionProvider
 
 
 @dataclass
 class ServiceResult:
     """Result of a service operation."""
+
     success: bool
-    message: Optional[str] = None
-    error: Optional[str] = None
-    data: Optional[Dict[str, Any]] = None
+    message: str | None = None
+    error: str | None = None
+    data: dict[str, Any] | None = None
 
 
 class TelemetryService:
@@ -60,8 +61,8 @@ class TelemetryService:
     def __init__(
         self,
         workspace_path: Path,
-        console: "ConsoleV7",
-        config: Optional["Config"] = None,
+        console: ConsoleV7,
+        config: Config | None = None,
     ):
         """
         Initialize TelemetryService.
@@ -78,6 +79,7 @@ class TelemetryService:
     def _get_exporter(self):
         """Get TelemetryExporter instance."""
         from core.observability.telemetry import TelemetryExporter
+
         return TelemetryExporter(self.workspace_path)
 
     # ==================== PUBLIC API ====================
@@ -127,7 +129,7 @@ class TelemetryService:
         elif file_size < 1024 * 1024:
             size_str = f"{file_size / 1024:.1f} KB"
         else:
-            size_str = f"{file_size / (1024*1024):.1f} MB"
+            size_str = f"{file_size / (1024 * 1024):.1f} MB"
 
         status_lines = [
             f"  File: {exporter.telemetry_file}",
@@ -137,28 +139,28 @@ class TelemetryService:
         ]
 
         if self.config:
-            status_lines.extend([
-                "",
-                "  Config:",
-                f"   Enabled: {getattr(self.config, 'telemetry_enabled', True)}",
-                f"   File: {getattr(self.config, 'telemetry_file', 'telemetry.jsonl')}",
-            ])
+            status_lines.extend(
+                [
+                    "",
+                    "  Config:",
+                    f"   Enabled: {getattr(self.config, 'telemetry_enabled', True)}",
+                    f"   File: {getattr(self.config, 'telemetry_file', 'telemetry.jsonl')}",
+                ]
+            )
 
         if event_count > 0:
             report = exporter.generate_report(days=7)
-            status_lines.extend([
-                "",
-                "  Last 7 Days:",
-                f"   API Calls: {report['api_calls']:,}",
-                f"   Success Rate: {report['success_rate']}%",
-                f"   Total Tokens: {report['total_tokens']['total']:,}",
-            ])
+            status_lines.extend(
+                [
+                    "",
+                    "  Last 7 Days:",
+                    f"   API Calls: {report['api_calls']:,}",
+                    f"   Success Rate: {report['success_rate']}%",
+                    f"   Total Tokens: {report['total_tokens']['total']:,}",
+                ]
+            )
 
-        panel = Panel(
-            "\n".join(status_lines),
-            title="[bold]Telemetry Status[/bold]",
-            border_style="blue"
-        )
+        panel = Panel("\n".join(status_lines), title="[bold]Telemetry Status[/bold]", border_style="blue")
         self.console.console.print(panel)
 
         return ServiceResult(
@@ -167,10 +169,10 @@ class TelemetryService:
                 "file_exists": file_exists,
                 "file_size": file_size,
                 "event_count": event_count,
-            }
+            },
         )
 
-    def export(self, days: Optional[int] = None) -> ServiceResult:
+    def export(self, days: int | None = None) -> ServiceResult:
         """
         Export telemetry to CSV file.
 
@@ -195,14 +197,11 @@ class TelemetryService:
             self.console.print(f"\n  Telemetry exported successfully{period}")
             self.console.print(f"   File: {csv_path}")
             self.console.print(f"   Events: {event_count:,}")
-            self.console.print(f"\n[dim]Import in Excel, Grafana, or analyze with pandas.[/dim]\n")
+            self.console.print("\n[dim]Import in Excel, Grafana, or analyze with pandas.[/dim]\n")
 
-            return ServiceResult(
-                success=True,
-                data={"path": str(csv_path), "events": event_count}
-            )
+            return ServiceResult(success=True, data={"path": str(csv_path), "events": event_count})
 
-        except (IOError, OSError) as e:
+        except OSError as e:
             self.console.print_error(f"Export failed: {e}")
             return ServiceResult(success=False, error=str(e))
 
@@ -220,9 +219,9 @@ class BudgetService:
     def __init__(
         self,
         workspace_path: Path,
-        console: "ConsoleV7",
-        config: Optional["Config"] = None,
-        interaction: Optional["InteractionProvider"] = None,
+        console: ConsoleV7,
+        config: Config | None = None,
+        interaction: InteractionProvider | None = None,
     ):
         """
         Initialize BudgetService.
@@ -241,6 +240,7 @@ class BudgetService:
     def _get_tracker(self):
         """Get BudgetTracker instance."""
         from core.observability.telemetry import BudgetTracker
+
         return BudgetTracker(self.config, self.workspace_path)
 
     # ==================== PUBLIC API ====================
@@ -351,38 +351,33 @@ class BudgetService:
             try:
                 loop = asyncio.get_running_loop()
                 future = asyncio.run_coroutine_threadsafe(
-                    self._interaction.confirm("Reset budget counter?", default=False),
-                    loop
+                    self._interaction.confirm("Reset budget counter?", default=False), loop
                 )
                 return future.result(timeout=30)
             except RuntimeError:
                 # No running loop - create one
-                return asyncio.run(
-                    self._interaction.confirm("Reset budget counter?", default=False)
-                )
+                return asyncio.run(self._interaction.confirm("Reset budget counter?", default=False))
         else:
             # Fallback: Use provider from factory
             from core.security_pkg.interaction import get_interaction_provider
+
             provider = get_interaction_provider()
 
             if provider.is_interactive:
                 # Direct sync input for CLI (avoid event loop issues)
                 response = input("\n    Type 'yes' to confirm: ").strip().lower()
-                return response == 'yes'
+                return response == "yes"
             else:
                 # V11.4 ASYNC: Use run_coroutine_threadsafe when loop is running
                 try:
                     loop = asyncio.get_running_loop()
                     future = asyncio.run_coroutine_threadsafe(
-                        provider.confirm("Reset budget counter?", default=False),
-                        loop
+                        provider.confirm("Reset budget counter?", default=False), loop
                     )
                     return future.result(timeout=30)
                 except RuntimeError:
                     # No running loop - create one
-                    return asyncio.run(
-                        provider.confirm("Reset budget counter?", default=False)
-                    )
+                    return asyncio.run(provider.confirm("Reset budget counter?", default=False))
 
     def add_credit(self, amount: float) -> ServiceResult:
         """
@@ -414,7 +409,7 @@ class BudgetService:
                 "old_limit": old_limit,
                 "new_limit": new_limit,
                 "remaining": tracker.get_remaining(),
-            }
+            },
         )
 
     def history(self) -> ServiceResult:
@@ -476,7 +471,7 @@ def _get_telemetry_service(context) -> TelemetryService:
     workspace_path = context.extras.get("workspace_path")
     if not workspace_path:
         repl = context.extras.get("repl")
-        if repl and hasattr(repl, 'workspace_path'):
+        if repl and hasattr(repl, "workspace_path"):
             workspace_path = repl.workspace_path
 
     config = context.config or context.extras.get("config")
@@ -497,7 +492,7 @@ def _get_budget_service(context) -> BudgetService:
     workspace_path = context.extras.get("workspace_path")
     if not workspace_path:
         repl = context.extras.get("repl")
-        if repl and hasattr(repl, 'workspace_path'):
+        if repl and hasattr(repl, "workspace_path"):
             workspace_path = repl.workspace_path
 
     config = context.config or context.extras.get("config")

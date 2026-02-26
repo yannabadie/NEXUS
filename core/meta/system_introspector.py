@@ -23,7 +23,7 @@ import logging
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -40,19 +40,21 @@ CATEGORIES = {"orchestration", "memory", "security", "telemetry", "reasoning", "
 # Types
 # =============================================================================
 
+
 @dataclass
 class ComponentInfo:
     """Information about a registered system component."""
+
     component_id: str
     category: str = "other"
     version: str = ""
     description: str = ""
-    capabilities: List[str] = field(default_factory=list)
+    capabilities: list[str] = field(default_factory=list)
     status: str = "active"  # active, degraded, inactive
     registered_at: float = field(default_factory=time.monotonic)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "component_id": self.component_id,
             "category": self.category,
@@ -67,15 +69,16 @@ class ComponentInfo:
 @dataclass
 class SystemSnapshot:
     """A point-in-time snapshot of system state."""
+
     total_components: int
     active_components: int
     degraded_components: int
     inactive_components: int
-    categories: Dict[str, int]
+    categories: dict[str, int]
     total_capabilities: int
     timestamp: float = field(default_factory=time.monotonic)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_components": self.total_components,
             "active_components": self.active_components,
@@ -89,11 +92,12 @@ class SystemSnapshot:
 @dataclass
 class IntrospectorStats:
     """Introspector statistics."""
+
     total_registered: int
     total_queries: int
     total_capability_lookups: int
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_registered": self.total_registered,
             "total_queries": self.total_queries,
@@ -104,6 +108,7 @@ class IntrospectorStats:
 # =============================================================================
 # System Introspector
 # =============================================================================
+
 
 class SystemIntrospector:
     """
@@ -118,7 +123,7 @@ class SystemIntrospector:
     """
 
     def __init__(self):
-        self._components: Dict[str, ComponentInfo] = {}
+        self._components: dict[str, ComponentInfo] = {}
         self._total_queries = 0
         self._total_capability_lookups = 0
         self._lock = threading.Lock()
@@ -134,8 +139,8 @@ class SystemIntrospector:
         category: str = "other",
         version: str = "",
         description: str = "",
-        capabilities: Optional[List[str]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        capabilities: list[str] | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> bool:
         """Register a system component. Returns False if already exists or at limit."""
         with self._lock:
@@ -195,7 +200,7 @@ class SystemIntrospector:
     # Queries
     # =========================================================================
 
-    def get_component(self, component_id: str) -> Optional[ComponentInfo]:
+    def get_component(self, component_id: str) -> ComponentInfo | None:
         """Get a component by ID."""
         self._total_queries += 1
         return self._components.get(component_id)
@@ -203,7 +208,7 @@ class SystemIntrospector:
     def is_registered(self, component_id: str) -> bool:
         return component_id in self._components
 
-    def list_components(self, *, category: Optional[str] = None, status: Optional[str] = None) -> List[str]:
+    def list_components(self, *, category: str | None = None, status: str | None = None) -> list[str]:
         """List component IDs with optional filters."""
         self._total_queries += 1
         result = []
@@ -215,22 +220,21 @@ class SystemIntrospector:
             result.append(cid)
         return sorted(result)
 
-    def find_by_capability(self, capability: str) -> List[ComponentInfo]:
+    def find_by_capability(self, capability: str) -> list[ComponentInfo]:
         """Find all components that have a specific capability."""
         self._total_capability_lookups += 1
         return [
-            comp for comp in self._components.values()
-            if capability in comp.capabilities and comp.status != "inactive"
+            comp for comp in self._components.values() if capability in comp.capabilities and comp.status != "inactive"
         ]
 
-    def list_all_capabilities(self) -> List[str]:
+    def list_all_capabilities(self) -> list[str]:
         """List all unique capabilities across all components."""
-        caps: Set[str] = set()
+        caps: set[str] = set()
         for comp in self._components.values():
             caps.update(comp.capabilities)
         return sorted(caps)
 
-    def get_by_category(self, category: str) -> List[ComponentInfo]:
+    def get_by_category(self, category: str) -> list[ComponentInfo]:
         """Get all components in a category."""
         self._total_queries += 1
         return [comp for comp in self._components.values() if comp.category == category]
@@ -245,11 +249,11 @@ class SystemIntrospector:
         degraded = sum(1 for c in self._components.values() if c.status == "degraded")
         inactive = sum(1 for c in self._components.values() if c.status == "inactive")
 
-        cats: Dict[str, int] = {}
+        cats: dict[str, int] = {}
         for comp in self._components.values():
             cats[comp.category] = cats.get(comp.category, 0) + 1
 
-        all_caps: Set[str] = set()
+        all_caps: set[str] = set()
         for comp in self._components.values():
             all_caps.update(comp.capabilities)
 
@@ -287,7 +291,7 @@ class SystemIntrospector:
             self._total_queries = 0
             self._total_capability_lookups = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "component_count": self.component_count,
             "snapshot": self.get_snapshot().to_dict(),
@@ -299,7 +303,7 @@ class SystemIntrospector:
 # Global Instance
 # =============================================================================
 
-_introspector: Optional[SystemIntrospector] = None
+_introspector: SystemIntrospector | None = None
 _introspector_lock = threading.Lock()
 
 

@@ -19,12 +19,11 @@ Usage:
 """
 
 import json
-import threading
 import logging
-from pathlib import Path
-from typing import List, Optional, Dict, Set
-from dataclasses import dataclass, asdict
+import threading
+from dataclasses import asdict, dataclass
 from datetime import datetime
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -32,9 +31,10 @@ logger = logging.getLogger(__name__)
 @dataclass
 class RegisteredAgent:
     """An agent registered in the registry."""
+
     agent_id: str
     role: str
-    capabilities: List[str]
+    capabilities: list[str]
     mission: str
     created_at: str
     last_used: str
@@ -64,14 +64,14 @@ class AgentRegistry:
         self.workspace_path = Path(workspace_path)
         self.registry_path = self.workspace_path / ".nexus" / self.REGISTRY_FILE
         self._lock = threading.Lock()
-        self._agents: Dict[str, RegisteredAgent] = {}
+        self._agents: dict[str, RegisteredAgent] = {}
         self._load_registry()
 
     def _load_registry(self):
         """Load registry from disk."""
         if self.registry_path.exists():
             try:
-                data = json.loads(self.registry_path.read_text(encoding='utf-8'))
+                data = json.loads(self.registry_path.read_text(encoding="utf-8"))
                 for agent_id, agent_data in data.get("agents", {}).items():
                     self._agents[agent_id] = RegisteredAgent(**agent_data)
                 logger.info(f"Loaded {len(self._agents)} agents from registry")
@@ -89,15 +89,9 @@ class AgentRegistry:
         data = {
             "version": "8.0",
             "updated_at": datetime.now().isoformat(),
-            "agents": {
-                agent_id: asdict(agent)
-                for agent_id, agent in self._agents.items()
-            }
+            "agents": {agent_id: asdict(agent) for agent_id, agent in self._agents.items()},
         }
-        self.registry_path.write_text(
-            json.dumps(data, indent=2, ensure_ascii=False),
-            encoding='utf-8'
-        )
+        self.registry_path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
 
     def _register_builtin_agents(self):
         """Register builtin agents (Gemini, Claude)."""
@@ -109,7 +103,7 @@ class AgentRegistry:
                 mission="General-purpose AI assistant (Google)",
                 created_at=datetime.now().isoformat(),
                 last_used=datetime.now().isoformat(),
-                source="builtin"
+                source="builtin",
             ),
             RegisteredAgent(
                 agent_id="claude",
@@ -118,17 +112,13 @@ class AgentRegistry:
                 mission="General-purpose AI assistant (Anthropic)",
                 created_at=datetime.now().isoformat(),
                 last_used=datetime.now().isoformat(),
-                source="builtin"
-            )
+                source="builtin",
+            ),
         ]
         for agent in builtins:
             self._agents[agent.agent_id] = agent
 
-    def find_similar(
-        self,
-        required_capabilities: List[str],
-        threshold: float = None
-    ) -> Optional[RegisteredAgent]:
+    def find_similar(self, required_capabilities: list[str], threshold: float = None) -> RegisteredAgent | None:
         """
         Find an existing agent with similar capabilities.
 
@@ -159,14 +149,11 @@ class AgentRegistry:
                     best_score = similarity
 
             if best_match:
-                logger.info(
-                    f"Found similar agent: {best_match.agent_id} "
-                    f"(similarity: {best_score:.2f})"
-                )
+                logger.info(f"Found similar agent: {best_match.agent_id} (similarity: {best_score:.2f})")
 
             return best_match
 
-    def _jaccard_similarity(self, set1: Set[str], set2: Set[str]) -> float:
+    def _jaccard_similarity(self, set1: set[str], set2: set[str]) -> float:
         """Calculate Jaccard similarity between two sets."""
         if not set1 and not set2:
             return 1.0
@@ -177,13 +164,7 @@ class AgentRegistry:
         union = len(set1 | set2)
         return intersection / union
 
-    def register_spawn(
-        self,
-        agent_id: str,
-        role: str,
-        capabilities: List[str],
-        mission: str
-    ) -> bool:
+    def register_spawn(self, agent_id: str, role: str, capabilities: list[str], mission: str) -> bool:
         """
         Register a newly spawned agent.
 
@@ -206,8 +187,7 @@ class AgentRegistry:
             similar = self.find_similar(capabilities)
             if similar and similar.agent_id != agent_id:
                 logger.warning(
-                    f"Similar agent exists: {similar.agent_id}. "
-                    f"Consider using existing agent instead of spawning."
+                    f"Similar agent exists: {similar.agent_id}. Consider using existing agent instead of spawning."
                 )
                 # Still allow registration, but log warning
 
@@ -220,7 +200,7 @@ class AgentRegistry:
                 created_at=datetime.now().isoformat(),
                 last_used=datetime.now().isoformat(),
                 use_count=0,
-                source="spawned"
+                source="spawned",
             )
             self._agents[agent_id] = agent
             self._save_registry()
@@ -264,12 +244,7 @@ class AgentRegistry:
                 self._save_registry()
                 logger.info(f"Deactivated agent {agent_id}: {reason}")
 
-    def merge_agents(
-        self,
-        source_id: str,
-        target_id: str,
-        new_capabilities: List[str] = None
-    ) -> bool:
+    def merge_agents(self, source_id: str, target_id: str, new_capabilities: list[str] = None) -> bool:
         """
         Merge source agent into target agent.
 
@@ -303,30 +278,26 @@ class AgentRegistry:
             logger.info(f"Merged {source_id} into {target_id}")
             return True
 
-    def get_agent(self, agent_id: str) -> Optional[RegisteredAgent]:
+    def get_agent(self, agent_id: str) -> RegisteredAgent | None:
         """Get agent by ID."""
         return self._agents.get(agent_id)
 
-    def get_active_agents(self) -> List[RegisteredAgent]:
+    def get_active_agents(self) -> list[RegisteredAgent]:
         """Get all active agents."""
         return [a for a in self._agents.values() if a.is_active]
 
-    def get_spawned_agents(self) -> List[RegisteredAgent]:
+    def get_spawned_agents(self) -> list[RegisteredAgent]:
         """Get all spawned (non-builtin) agents."""
-        return [
-            a for a in self._agents.values()
-            if a.is_active and a.source == "spawned"
-        ]
+        return [a for a in self._agents.values() if a.is_active and a.source == "spawned"]
 
-    def get_agents_by_capability(self, capability: str) -> List[RegisteredAgent]:
+    def get_agents_by_capability(self, capability: str) -> list[RegisteredAgent]:
         """Get agents that have a specific capability."""
         capability_lower = capability.lower()
         return [
-            a for a in self._agents.values()
-            if a.is_active and capability_lower in [c.lower() for c in a.capabilities]
+            a for a in self._agents.values() if a.is_active and capability_lower in [c.lower() for c in a.capabilities]
         ]
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> dict:
         """Get registry statistics."""
         active = [a for a in self._agents.values() if a.is_active]
         spawned = [a for a in active if a.source == "spawned"]
@@ -336,9 +307,5 @@ class AgentRegistry:
             "active_agents": len(active),
             "spawned_agents": len(spawned),
             "builtin_agents": len(active) - len(spawned),
-            "total_capabilities": len(set(
-                c.lower()
-                for a in active
-                for c in a.capabilities
-            ))
+            "total_capabilities": len(set(c.lower() for a in active for c in a.capabilities)),
         }

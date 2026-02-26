@@ -17,41 +17,40 @@ Usage:
     if result.success:
         print(f"Winner: {result.winner_id} (score: {result.winner_score})")
 """
-from pathlib import Path
-from typing import Dict, List, Optional, Callable, Any
-from datetime import datetime
+
 import json
 import time
+from collections.abc import Callable
+from datetime import datetime
+from pathlib import Path
+from typing import Any
 
+from core.intelligence.evolution.evaluator import compare_to_parent, run_benchmarks
+from core.intelligence.evolution.lineage import load_lineage
 from core.intelligence.evolution.models import (
-    MutationProposal,
+    ArchiveResult,
     BrainstormResult,
     ChildCreationResult,
-    ValidationResult,
     EvaluationResult,
-    PromotionResult,
-    ArchiveResult,
     EvolutionResult,
-    SpecializationResult,
     EvolutionStatus,
-    EvolutionContext,
-    EvolutionPhaseStatus,
+    MutationProposal,
+    PromotionResult,
+    SpecializationResult,
+    ValidationResult,
 )
-from core.intelligence.evolution.rate_limiter import EvolutionRateLimiter
-from core.intelligence.evolution.lineage import load_lineage, add_child, sign_birth_certificate
-from core.intelligence.evolution.tiered_validator import TieredValidator, ValidationTier
-from core.intelligence.evolution.evaluator import run_benchmarks, compare_to_parent
 from core.intelligence.evolution.phases.brainstorm import BrainstormPhase
 from core.intelligence.evolution.phases.create import CreatePhase
 from core.intelligence.evolution.phases.promote import PromotePhase
-
+from core.intelligence.evolution.rate_limiter import EvolutionRateLimiter
+from core.intelligence.evolution.tiered_validator import TieredValidator, ValidationTier
 
 # Type alias for progress callback
 ProgressCallback = Callable[[str, float], None]
 
 # Type alias for approval callback
 # Receives (child_id, fitness_score, improvement_pct, metrics) → bool
-ApprovalCallback = Callable[[str, float, float, Dict], bool]
+ApprovalCallback = Callable[[str, float, float, dict], bool]
 
 
 class EvolutionManager:
@@ -74,9 +73,9 @@ class EvolutionManager:
         nexus_root: Path,
         config: Any,
         orchestrator: Any,
-        rate_limiter: Optional[EvolutionRateLimiter] = None,
-        progress_callback: Optional[ProgressCallback] = None,
-        approval_callback: Optional[ApprovalCallback] = None,
+        rate_limiter: EvolutionRateLimiter | None = None,
+        progress_callback: ProgressCallback | None = None,
+        approval_callback: ApprovalCallback | None = None,
     ):
         """
         Initialize EvolutionManager.
@@ -102,8 +101,8 @@ class EvolutionManager:
         self.approval_callback = approval_callback
 
         # V12.4: HITL gate configuration
-        self._auto_promotion = getattr(config, 'auto_promotion', False)
-        self._red_team_mandatory = getattr(config, 'red_team_mandatory', False)
+        self._auto_promotion = getattr(config, "auto_promotion", False)
+        self._red_team_mandatory = getattr(config, "red_team_mandatory", False)
 
         # Paths
         self.children_path = workspace_path / "children"
@@ -143,7 +142,7 @@ class EvolutionManager:
         self,
         parent_id: str,
         child_count: int = 3,
-        focus_areas: Optional[List[str]] = None,
+        focus_areas: list[str] | None = None,
     ) -> BrainstormResult:
         """
         Generate mutation proposals via AI debate.
@@ -208,9 +207,9 @@ class EvolutionManager:
 
     def create_children(
         self,
-        mutations: List[MutationProposal],
-        parent_id: Optional[str] = None,
-        generation: Optional[int] = None,
+        mutations: list[MutationProposal],
+        parent_id: str | None = None,
+        generation: int | None = None,
     ) -> ChildCreationResult:
         """
         Create child instances from mutation proposals.
@@ -246,9 +245,9 @@ class EvolutionManager:
 
     def validate_children(
         self,
-        children: List[str],
+        children: list[str],
         tier: ValidationTier = ValidationTier.REDTEAM,
-    ) -> List[ValidationResult]:
+    ) -> list[ValidationResult]:
         """
         Validate children through tiered validation.
 
@@ -263,7 +262,7 @@ class EvolutionManager:
         results = []
 
         for i, child_id in enumerate(children):
-            child_path = self.children_path / child_id
+            self.children_path / child_id
             progress = 0.5 + (0.2 * (i / len(children)))
             self._report_progress(f"Validating {child_id}...", progress)
 
@@ -278,7 +277,9 @@ class EvolutionManager:
                 ValidationResult(
                     child_id=child_id,
                     passed=tier_result.passed,
-                    tier_reached=tier_reached_value.value if hasattr(tier_reached_value, 'value') else tier_reached_value,
+                    tier_reached=tier_reached_value.value
+                    if hasattr(tier_reached_value, "value")
+                    else tier_reached_value,
                     errors=errors,
                     details=tier_result.to_dict(),
                 )
@@ -292,9 +293,9 @@ class EvolutionManager:
 
     def evaluate_fitness(
         self,
-        children: List[str],
+        children: list[str],
         parent_id: str,
-    ) -> List[EvaluationResult]:
+    ) -> list[EvaluationResult]:
         """
         Evaluate fitness of validated children.
 
@@ -336,8 +337,8 @@ class EvolutionManager:
         self,
         child_id: str,
         fitness_score: float,
-        generation: Optional[int] = None,
-        child_metadata: Optional[Dict] = None,
+        generation: int | None = None,
+        child_metadata: dict | None = None,
     ) -> PromotionResult:
         """
         Promote a child to become the new parent.
@@ -369,7 +370,7 @@ class EvolutionManager:
         self,
         child_id: str,
         reason: str,
-        generation: Optional[int] = None,
+        generation: int | None = None,
         fitness_score: float = 0.0,
     ) -> ArchiveResult:
         """
@@ -420,14 +421,13 @@ class EvolutionManager:
         child_id = winner.child_id
         fitness = winner.fitness_score
         improvement = winner.improvement_pct
-        metrics = winner.metrics if hasattr(winner, 'metrics') else {}
+        metrics = winner.metrics if hasattr(winner, "metrics") else {}
 
         # Path 1: Explicit approval callback (HITL via REPL, API, or WebSocket)
         if self.approval_callback is not None:
             try:
                 self._report_progress(
-                    f"Awaiting approval for {child_id} "
-                    f"(score={fitness:.3f}, +{improvement:.1f}%)",
+                    f"Awaiting approval for {child_id} (score={fitness:.3f}, +{improvement:.1f}%)",
                     0.85,
                 )
                 return self.approval_callback(child_id, fitness, improvement, metrics)
@@ -437,7 +437,7 @@ class EvolutionManager:
 
         # Path 2: Auto-promotion enabled in config
         if self._auto_promotion:
-            auto_threshold = getattr(self.config, 'auto_promote_pct', 3.0)
+            auto_threshold = getattr(self.config, "auto_promote_pct", 3.0)
             if improvement >= auto_threshold:
                 self._report_progress(
                     f"Auto-promoting {child_id} (+{improvement:.1f}% >= {auto_threshold}% threshold)",
@@ -465,7 +465,7 @@ class EvolutionManager:
     def run_evolution_cycle(
         self,
         child_count: int = 3,
-        focus_areas: Optional[List[str]] = None,
+        focus_areas: list[str] | None = None,
     ) -> EvolutionResult:
         """
         Run a complete evolution cycle.
@@ -558,7 +558,8 @@ class EvolutionManager:
                 for eval_result in evaluation_results:
                     self.archive_child(
                         eval_result.child_id,
-                        "Promotion not approved" if eval_result.child_id == winner.child_id
+                        "Promotion not approved"
+                        if eval_result.child_id == winner.child_id
                         else "Not selected as winner",
                     )
                 return result
@@ -653,7 +654,9 @@ class EvolutionManager:
             total_children=total_children,
             pending_children=pending_children,
             last_evolution=None,  # TODO: Track from rate limiter
-            rate_limit_remaining=self.rate_limiter.remaining_today() if hasattr(self.rate_limiter, 'remaining_today') else 0,
+            rate_limit_remaining=self.rate_limiter.remaining_today()
+            if hasattr(self.rate_limiter, "remaining_today")
+            else 0,
             can_evolve=can_evolve,
             block_reason=block_reason if not can_evolve else None,
         )

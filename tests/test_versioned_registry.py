@@ -13,21 +13,18 @@ Validates:
 - Module exports
 """
 
-import json
-from pathlib import Path
-
 import pytest
 
 from core.memory_pkg.prompts.versioned_registry import (
-    PromptVersion,
     PromptEntry,
     PromptRegistry,
+    PromptVersion,
 )
-
 
 # =============================================================================
 # PromptVersion Tests
 # =============================================================================
+
 
 class TestPromptVersion:
     """Test PromptVersion dataclass."""
@@ -56,16 +53,17 @@ class TestPromptVersion:
         assert v.line_count == 0
 
     def test_explicit_created_at_preserved(self):
-        v = PromptVersion(
-            version=1, content="test", content_hash="x",
-            created_at="2025-01-01T00:00:00Z"
-        )
+        v = PromptVersion(version=1, content="test", content_hash="x", created_at="2025-01-01T00:00:00Z")
         assert v.created_at == "2025-01-01T00:00:00Z"
 
     def test_to_dict(self):
         v = PromptVersion(
-            version=2, content="Hello", content_hash="abc",
-            author="claude", changelog="update", variables=["name"],
+            version=2,
+            content="Hello",
+            content_hash="abc",
+            author="claude",
+            changelog="update",
+            variables=["name"],
         )
         d = v.to_dict()
         assert d["version"] == 2
@@ -111,6 +109,7 @@ class TestPromptVersion:
 # PromptEntry Tests
 # =============================================================================
 
+
 class TestPromptEntry:
     """Test PromptEntry dataclass."""
 
@@ -129,10 +128,7 @@ class TestPromptEntry:
         assert entry.latest == v2
 
     def test_version_count(self):
-        versions = [
-            PromptVersion(version=i, content=f"v{i}", content_hash=f"h{i}")
-            for i in range(1, 6)
-        ]
+        versions = [PromptVersion(version=i, content=f"v{i}", content_hash=f"h{i}") for i in range(1, 6)]
         entry = PromptEntry(name="test", versions=versions, current_version=5)
         assert entry.version_count == 5
 
@@ -150,10 +146,7 @@ class TestPromptEntry:
 
     def test_to_dict(self):
         v1 = PromptVersion(version=1, content="v1", content_hash="a")
-        entry = PromptEntry(
-            name="my_prompt", current_version=1,
-            versions=[v1], tags=["system"], description="A prompt"
-        )
+        entry = PromptEntry(name="my_prompt", current_version=1, versions=[v1], tags=["system"], description="A prompt")
         d = entry.to_dict()
         assert d["name"] == "my_prompt"
         assert d["current_version"] == 1
@@ -171,6 +164,7 @@ class TestPromptEntry:
 # =============================================================================
 # PromptRegistry - Registration Tests
 # =============================================================================
+
 
 class TestRegistration:
     """Test prompt registration."""
@@ -191,8 +185,7 @@ class TestRegistration:
     def test_register_with_tags(self):
         registry = PromptRegistry()
         registry.register(
-            "system_claude", content="You are helpful",
-            tags=["system", "claude"], description="Claude system prompt"
+            "system_claude", content="You are helpful", tags=["system", "claude"], description="Claude system prompt"
         )
         entry = registry.get_entry("system_claude")
         assert entry.tags == ["system", "claude"]
@@ -227,6 +220,7 @@ class TestRegistration:
 # =============================================================================
 # PromptRegistry - Update Tests
 # =============================================================================
+
 
 class TestUpdate:
     """Test prompt update (new version)."""
@@ -283,6 +277,7 @@ class TestUpdate:
 # =============================================================================
 # PromptRegistry - Get Tests
 # =============================================================================
+
 
 class TestGet:
     """Test getting prompt content."""
@@ -344,6 +339,7 @@ class TestGet:
 # PromptRegistry - Diff Tests
 # =============================================================================
 
+
 class TestDiff:
     """Test version diffing."""
 
@@ -401,6 +397,7 @@ class TestDiff:
 # PromptRegistry - Rollback Tests
 # =============================================================================
 
+
 class TestRollback:
     """Test version rollback."""
 
@@ -446,6 +443,7 @@ class TestRollback:
 # =============================================================================
 # PromptRegistry - Search Tests
 # =============================================================================
+
 
 class TestSearch:
     """Test prompt search."""
@@ -493,6 +491,7 @@ class TestSearch:
 # PromptRegistry - List Tests
 # =============================================================================
 
+
 class TestList:
     """Test listing prompts and versions."""
 
@@ -528,6 +527,7 @@ class TestList:
 # PromptRegistry - Remove Tests
 # =============================================================================
 
+
 class TestRemove:
     """Test prompt removal."""
 
@@ -553,16 +553,17 @@ class TestRemove:
 # PromptRegistry - Persistence Tests
 # =============================================================================
 
+
 class TestPersistence:
     """Test save/load to disk."""
 
     def test_save_and_load(self, tmp_path):
         # Create and populate registry
         r1 = PromptRegistry(storage_path=tmp_path / "prompts")
-        r1.register("greeting", content="Hello {name}!", author="claude",
-                     tags=["system"], description="Greeting template")
-        r1.update("greeting", content="Hi {name}!", author="gemini",
-                  changelog="Shorter greeting")
+        r1.register(
+            "greeting", content="Hello {name}!", author="claude", tags=["system"], description="Greeting template"
+        )
+        r1.update("greeting", content="Hi {name}!", author="gemini", changelog="Shorter greeting")
 
         # Load into new registry
         r2 = PromptRegistry(storage_path=tmp_path / "prompts")
@@ -622,6 +623,7 @@ class TestPersistence:
 # PromptRegistry - Hash Tests
 # =============================================================================
 
+
 class TestHashing:
     """Test content hashing."""
 
@@ -646,6 +648,7 @@ class TestHashing:
 # =============================================================================
 # PromptRegistry - Variable Extraction Tests
 # =============================================================================
+
 
 class TestVariableExtraction:
     """Test {variable} placeholder extraction."""
@@ -680,6 +683,7 @@ class TestVariableExtraction:
 # PromptRegistry - State Export Tests
 # =============================================================================
 
+
 class TestStateExport:
     """Test registry state export."""
 
@@ -707,19 +711,22 @@ class TestStateExport:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test that versioned registry types are importable."""
 
     def test_from_prompts_package(self):
-        from core.memory_pkg.prompts import PromptRegistry, PromptVersion, PromptEntry
+        from core.memory_pkg.prompts import PromptEntry, PromptRegistry, PromptVersion
+
         assert PromptRegistry is not None
         assert PromptVersion is not None
         assert PromptEntry is not None
 
     def test_from_module(self):
         from core.memory_pkg.prompts.versioned_registry import (
+            PromptEntry,
             PromptRegistry,
             PromptVersion,
-            PromptEntry,
         )
+
         assert all([PromptRegistry, PromptVersion, PromptEntry])

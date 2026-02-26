@@ -6,18 +6,17 @@ and manages active server connections.
 """
 
 import json
-from pathlib import Path
-from dataclasses import dataclass, field
-from typing import Dict, Any, List, Optional
 import logging
+from dataclasses import dataclass, field
+from pathlib import Path
 
 from .client import MCPClient, MCPClientError
-from .discovery import MCPToolDiscovery, DiscoveredTool, ToolDiscoveryResult
-
+from .discovery import MCPToolDiscovery, ToolDiscoveryResult
 
 # =============================================================================
 # Configuration Types
 # =============================================================================
+
 
 @dataclass
 class MCPServerConfig:
@@ -33,19 +32,20 @@ class MCPServerConfig:
             "description": "File system access server"
         }
     """
+
     name: str
-    command: List[str]
-    env: Dict[str, str] = field(default_factory=dict)
+    command: list[str]
+    env: dict[str, str] = field(default_factory=dict)
     enabled: bool = True
     description: str = ""
-    args: List[str] = field(default_factory=list)  # Additional args appended to command
+    args: list[str] = field(default_factory=list)  # Additional args appended to command
 
     @property
-    def full_command(self) -> List[str]:
+    def full_command(self) -> list[str]:
         """Get full command with args."""
         return self.command + self.args
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Serialize to dict."""
         return {
             "name": self.name,
@@ -57,7 +57,7 @@ class MCPServerConfig:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "MCPServerConfig":
+    def from_dict(cls, data: dict) -> "MCPServerConfig":
         """Deserialize from dict."""
         return cls(
             name=data.get("name", "unknown"),
@@ -72,6 +72,7 @@ class MCPServerConfig:
 # =============================================================================
 # Registry
 # =============================================================================
+
 
 class MCPRegistry:
     """
@@ -110,10 +111,10 @@ class MCPRegistry:
         self.config_path = self.workspace_path / self.CONFIG_PATH / self.CONFIG_FILENAME
 
         # Server configs (loaded on demand)
-        self._configs: Optional[Dict[str, MCPServerConfig]] = None
+        self._configs: dict[str, MCPServerConfig] | None = None
 
         # Active clients (lazy initialization)
-        self._clients: Dict[str, MCPClient] = {}
+        self._clients: dict[str, MCPClient] = {}
 
         # Logger
         self._logger = logging.getLogger("nexus.mcp.registry")
@@ -122,7 +123,7 @@ class MCPRegistry:
     # Configuration
     # =========================================================================
 
-    def get_servers(self, include_disabled: bool = False) -> List[MCPServerConfig]:
+    def get_servers(self, include_disabled: bool = False) -> list[MCPServerConfig]:
         """
         Get all server configurations.
 
@@ -140,7 +141,7 @@ class MCPRegistry:
 
         return servers
 
-    def get_server(self, name: str) -> Optional[MCPServerConfig]:
+    def get_server(self, name: str) -> MCPServerConfig | None:
         """
         Get a specific server configuration.
 
@@ -194,7 +195,7 @@ class MCPRegistry:
         self,
         name: str,
         auto_initialize: bool = False,
-    ) -> Optional[MCPClient]:
+    ) -> MCPClient | None:
         """
         Create a new client for a server.
 
@@ -231,7 +232,7 @@ class MCPRegistry:
 
         return client
 
-    def get_client(self, name: str) -> Optional[MCPClient]:
+    def get_client(self, name: str) -> MCPClient | None:
         """
         Get or create a connected client for a server.
 
@@ -282,9 +283,7 @@ class MCPRegistry:
     # Tool Discovery
     # =========================================================================
 
-    def discover_all_tools(
-        self, validate_schemas: bool = True
-    ) -> ToolDiscoveryResult:
+    def discover_all_tools(self, validate_schemas: bool = True) -> ToolDiscoveryResult:
         """
         Discover tools from all enabled MCP servers.
 
@@ -300,9 +299,7 @@ class MCPRegistry:
         discovery = MCPToolDiscovery(self)
         return discovery.discover_all(validate_schemas=validate_schemas)
 
-    def discover_server_tools(
-        self, server_name: str, validate_schemas: bool = True
-    ) -> list:
+    def discover_server_tools(self, server_name: str, validate_schemas: bool = True) -> list:
         """
         Discover tools from a specific server.
 
@@ -334,7 +331,7 @@ class MCPRegistry:
             return
 
         try:
-            with open(self.config_path, "r", encoding="utf-8") as f:
+            with open(self.config_path, encoding="utf-8") as f:
                 data = json.load(f)
 
             # Parse servers

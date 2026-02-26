@@ -3,10 +3,10 @@ Panic System - Gestion des erreurs critiques et panic states
 
 Architecture V7: Improved panic handling with detailed logging.
 """
-from pathlib import Path
-from datetime import datetime, timezone
-from typing import Dict, Optional
+
 import json
+from datetime import UTC, datetime
+from pathlib import Path
 
 
 class PanicSystem:
@@ -40,7 +40,7 @@ class PanicSystem:
         self.stalemate_counter = 0
         self.consecutive_errors = 0
         self.is_in_panic = False
-        self.panic_reason: Optional[str] = None
+        self.panic_reason: str | None = None
 
     def check_stalemate(self) -> bool:
         """
@@ -54,7 +54,7 @@ class PanicSystem:
         if self.stalemate_counter >= self.max_stalemate:
             self._trigger_panic(
                 reason="STALEMATE",
-                details=f"Stalemate counter reached maximum ({self.stalemate_counter}/{self.max_stalemate})"
+                details=f"Stalemate counter reached maximum ({self.stalemate_counter}/{self.max_stalemate})",
             )
             return True
 
@@ -78,19 +78,20 @@ class PanicSystem:
         self.consecutive_errors += 1
 
         # Log error to panic history
-        self._log_to_history({
-            "type": "ERROR",
-            "error_type": error_type,
-            "message": error_message,
-            "consecutive_errors": self.consecutive_errors,
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        })
+        self._log_to_history(
+            {
+                "type": "ERROR",
+                "error_type": error_type,
+                "message": error_message,
+                "consecutive_errors": self.consecutive_errors,
+                "timestamp": datetime.now(UTC).isoformat(),
+            }
+        )
 
         # Trigger panic après 3 erreurs consécutives
         if self.consecutive_errors >= 3:
             self._trigger_panic(
-                reason="CONSECUTIVE_ERRORS",
-                details=f"3+ consecutive errors: {error_type} - {error_message}"
+                reason="CONSECUTIVE_ERRORS", details=f"3+ consecutive errors: {error_type} - {error_message}"
             )
             return True
 
@@ -119,27 +120,24 @@ class PanicSystem:
         self.panic_reason = reason
 
         panic_data = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "reason": reason,
             "details": details,
             "stalemate_counter": self.stalemate_counter,
-            "consecutive_errors": self.consecutive_errors
+            "consecutive_errors": self.consecutive_errors,
         }
 
         # Write panic file
-        self.panic_file.write_text(json.dumps(panic_data, indent=2), encoding='utf-8')
+        self.panic_file.write_text(json.dumps(panic_data, indent=2), encoding="utf-8")
 
         # Log to history
-        self._log_to_history({
-            "type": "PANIC",
-            **panic_data
-        })
+        self._log_to_history({"type": "PANIC", **panic_data})
 
     def is_panicked(self) -> bool:
         """Check if system is in panic"""
         return self.is_in_panic
 
-    def get_panic_info(self) -> Optional[Dict]:
+    def get_panic_info(self) -> dict | None:
         """
         Récupère les infos de panic
 
@@ -150,7 +148,7 @@ class PanicSystem:
             return None
 
         try:
-            return json.loads(self.panic_file.read_text(encoding='utf-8'))
+            return json.loads(self.panic_file.read_text(encoding="utf-8"))
         except Exception:
             # V8.5.0: Return None on JSON parse or file read error
             return None
@@ -169,22 +167,24 @@ class PanicSystem:
             self.panic_file.unlink()
 
         # Log recovery
-        self._log_to_history({
-            "type": "RECOVERY",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "message": "Panic cleared, system recovered"
-        })
+        self._log_to_history(
+            {
+                "type": "RECOVERY",
+                "timestamp": datetime.now(UTC).isoformat(),
+                "message": "Panic cleared, system recovered",
+            }
+        )
 
-    def _log_to_history(self, event: Dict):
+    def _log_to_history(self, event: dict):
         """Log event to panic history (JSONL)"""
         try:
-            with open(self.panic_history, 'a', encoding='utf-8') as f:
-                f.write(json.dumps(event) + '\n')
+            with open(self.panic_history, "a", encoding="utf-8") as f:
+                f.write(json.dumps(event) + "\n")
         except Exception:
             # V8.5.0: Silently ignore logging failures to prevent crash loops
             pass
 
-    def get_status(self) -> Dict:
+    def get_status(self) -> dict:
         """
         Get current panic system status
 
@@ -197,5 +197,5 @@ class PanicSystem:
             "stalemate_counter": self.stalemate_counter,
             "consecutive_errors": self.consecutive_errors,
             "max_stalemate": self.max_stalemate,
-            "panic_file_exists": self.panic_file.exists()
+            "panic_file_exists": self.panic_file.exists(),
         }

@@ -53,14 +53,14 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .success_memory import SuccessMemory
     from .auto_memory import AutoMemory
+    from .success_memory import SuccessMemory
 
 
 # =============================================================================
@@ -91,6 +91,7 @@ class DomainWeights:
         sample_count: Number of feedback samples received
         success_count: Number of successful recommendations
     """
+
     semantic_weight: float = DEFAULT_SEMANTIC_WEIGHT
     procedural_weight: float = DEFAULT_PROCEDURAL_WEIGHT
     sample_count: int = 0
@@ -101,22 +102,23 @@ class DomainWeights:
         """Success rate for this domain's recommendations."""
         return self.success_count / self.sample_count if self.sample_count > 0 else 0.0
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "semantic_weight": round(self.semantic_weight, 3),
             "procedural_weight": round(self.procedural_weight, 3),
             "sample_count": self.sample_count,
             "success_count": self.success_count,
-            "success_rate": round(self.success_rate, 3)
+            "success_rate": round(self.success_rate, 3),
         }
 
 
 class MemorySource(Enum):
     """Which memory provided the recommendation."""
-    SUCCESS = "success_memory"      # Episodic (semantic similarity)
-    AUTO = "auto_memory"            # Procedural (task type)
-    BOTH = "both"                   # Both agree
-    NONE = "none"                   # Neither has data
+
+    SUCCESS = "success_memory"  # Episodic (semantic similarity)
+    AUTO = "auto_memory"  # Procedural (task type)
+    BOTH = "both"  # Both agree
+    NONE = "none"  # Neither has data
 
 
 @dataclass
@@ -132,14 +134,15 @@ class UnifiedRecommendation:
         modes_to_avoid: List of modes to penalize
         reasoning: Human-readable explanation
     """
-    mode: Optional[str]
-    lead: Optional[str]
+
+    mode: str | None
+    lead: str | None
     confidence: float
     source: MemorySource
-    modes_to_avoid: List[str]
+    modes_to_avoid: list[str]
     reasoning: str
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert to dictionary for logging/serialization."""
         return {
             "mode": self.mode,
@@ -147,7 +150,7 @@ class UnifiedRecommendation:
             "confidence": round(self.confidence, 3),
             "source": self.source.value,
             "modes_to_avoid": self.modes_to_avoid,
-            "reasoning": self.reasoning
+            "reasoning": self.reasoning,
         }
 
 
@@ -183,14 +186,11 @@ class MemoryCoordinator:
     PROCEDURAL_WEIGHT = DEFAULT_PROCEDURAL_WEIGHT
 
     # Thresholds
-    MIN_CONFIDENCE = 0.3       # Below this, don't recommend
-    HIGH_CONFIDENCE = 0.7      # Above this, strong recommendation
+    MIN_CONFIDENCE = 0.3  # Below this, don't recommend
+    HIGH_CONFIDENCE = 0.7  # Above this, strong recommendation
 
     def __init__(
-        self,
-        success_memory: Optional['SuccessMemory'],
-        auto_memory: Optional['AutoMemory'],
-        weights_path: Optional[Path] = None
+        self, success_memory: SuccessMemory | None, auto_memory: AutoMemory | None, weights_path: Path | None = None
     ):
         """
         Initialize the coordinator.
@@ -205,19 +205,16 @@ class MemoryCoordinator:
         self._logger = logging.getLogger("nexus.memory.coordinator")
 
         # V12.4: Adaptive weights per domain
-        self._domain_weights: Dict[str, DomainWeights] = {}
+        self._domain_weights: dict[str, DomainWeights] = {}
         self._weights_path = weights_path
-        self._last_recommendation: Optional[Tuple[str, MemorySource]] = None  # (domain, source)
+        self._last_recommendation: tuple[str, MemorySource] | None = None  # (domain, source)
 
         # Load persisted weights if available
         if weights_path and weights_path.exists():
             self._load_weights()
 
     def get_recommendation(
-        self,
-        task_description: str,
-        task_type: str,
-        domains: Optional[List[str]] = None
+        self, task_description: str, task_type: str, domains: list[str] | None = None
     ) -> UnifiedRecommendation:
         """
         Get unified recommendation from both memory systems.
@@ -254,19 +251,12 @@ class MemoryCoordinator:
                     min_similarity=0.2,
                     apply_decay=True,
                     query_domains=domains,
-                    domain_boost=0.15
+                    domain_boost=0.15,
                 )
                 if result:
-                    success_rec = {
-                        'mode': result[0],
-                        'task_id': result[1],
-                        'similarity': result[2]
-                    }
+                    success_rec = {"mode": result[0], "task_id": result[1], "similarity": result[2]}
                     success_score = result[2]  # similarity is 0-1
-                    self._logger.debug(
-                        f"[COORDINATOR] SuccessMemory: mode={result[0]}, "
-                        f"similarity={result[2]:.3f}"
-                    )
+                    self._logger.debug(f"[COORDINATOR] SuccessMemory: mode={result[0]}, similarity={result[2]:.3f}")
             except Exception as e:
                 self._logger.warning(f"[COORDINATOR] SuccessMemory query failed: {e}")
 
@@ -276,12 +266,11 @@ class MemoryCoordinator:
         if self.auto:
             try:
                 result = self.auto.get_recommendation(task_type, task_description)
-                if result and result.get('confidence', 0) > 0:
+                if result and result.get("confidence", 0) > 0:
                     auto_rec = result
-                    auto_score = result['confidence']  # already 0-1
+                    auto_score = result["confidence"]  # already 0-1
                     self._logger.debug(
-                        f"[COORDINATOR] AutoMemory: mode={result.get('suggested_mode')}, "
-                        f"confidence={auto_score:.3f}"
+                        f"[COORDINATOR] AutoMemory: mode={result.get('suggested_mode')}, confidence={auto_score:.3f}"
                     )
             except Exception as e:
                 self._logger.warning(f"[COORDINATOR] AutoMemory query failed: {e}")
@@ -295,7 +284,7 @@ class MemoryCoordinator:
                 confidence=0.0,
                 source=MemorySource.NONE,
                 modes_to_avoid=[],
-                reasoning="No memory data available (cold start)"
+                reasoning="No memory data available (cold start)",
             )
 
         # V12.4: Get domain-specific weights
@@ -304,10 +293,7 @@ class MemoryCoordinator:
         # 4. Both have data - combine
         if success_rec and auto_rec:
             rec = self._combine_recommendations(
-                success_rec, success_score,
-                auto_rec, auto_score,
-                task_description,
-                semantic_w, procedural_w
+                success_rec, success_score, auto_rec, auto_score, task_description, semantic_w, procedural_w
             )
             # V12.4: Track for feedback
             self._last_recommendation = (primary_domain, rec.source)
@@ -317,12 +303,12 @@ class MemoryCoordinator:
         if success_rec:
             weighted_conf = success_score * semantic_w
             rec = UnifiedRecommendation(
-                mode=success_rec['mode'],
+                mode=success_rec["mode"],
                 lead=None,
                 confidence=weighted_conf,
                 source=MemorySource.SUCCESS,
                 modes_to_avoid=[],
-                reasoning=f"Similar task '{success_rec['task_id'][:20]}...' used {success_rec['mode']}"
+                reasoning=f"Similar task '{success_rec['task_id'][:20]}...' used {success_rec['mode']}",
             )
             self._last_recommendation = (primary_domain, MemorySource.SUCCESS)
             return rec
@@ -330,25 +316,25 @@ class MemoryCoordinator:
         # Only auto_rec
         weighted_conf = auto_score * procedural_w
         rec = UnifiedRecommendation(
-            mode=auto_rec.get('suggested_mode'),
-            lead=auto_rec.get('suggested_lead'),
+            mode=auto_rec.get("suggested_mode"),
+            lead=auto_rec.get("suggested_lead"),
             confidence=weighted_conf,
             source=MemorySource.AUTO,
-            modes_to_avoid=auto_rec.get('modes_to_avoid', []),
-            reasoning=f"Task type '{task_type}' typically uses {auto_rec.get('suggested_mode')}"
+            modes_to_avoid=auto_rec.get("modes_to_avoid", []),
+            reasoning=f"Task type '{task_type}' typically uses {auto_rec.get('suggested_mode')}",
         )
         self._last_recommendation = (primary_domain, MemorySource.AUTO)
         return rec
 
     def _combine_recommendations(
         self,
-        success_rec: Dict,
+        success_rec: dict,
         success_score: float,
-        auto_rec: Dict,
+        auto_rec: dict,
         auto_score: float,
         task_description: str,
         semantic_weight: float,
-        procedural_weight: float
+        procedural_weight: float,
     ) -> UnifiedRecommendation:
         """
         Combine recommendations when both memories have data.
@@ -370,26 +356,22 @@ class MemoryCoordinator:
         Returns:
             UnifiedRecommendation
         """
-        success_mode = success_rec['mode']
-        auto_mode = auto_rec.get('suggested_mode')
+        success_mode = success_rec["mode"]
+        auto_mode = auto_rec.get("suggested_mode")
 
         # Agreement case - both recommend same mode
         if success_mode == auto_mode:
-            combined_confidence = (
-                success_score * semantic_weight +
-                auto_score * procedural_weight
-            )
+            combined_confidence = success_score * semantic_weight + auto_score * procedural_weight
             self._logger.debug(
-                f"[COORDINATOR] Agreement: both recommend {success_mode}, "
-                f"combined_confidence={combined_confidence:.3f}"
+                f"[COORDINATOR] Agreement: both recommend {success_mode}, combined_confidence={combined_confidence:.3f}"
             )
             return UnifiedRecommendation(
                 mode=success_mode,
-                lead=auto_rec.get('suggested_lead'),
+                lead=auto_rec.get("suggested_lead"),
                 confidence=min(1.0, combined_confidence),
                 source=MemorySource.BOTH,
-                modes_to_avoid=auto_rec.get('modes_to_avoid', []),
-                reasoning=f"Both memories agree: {success_mode}"
+                modes_to_avoid=auto_rec.get("modes_to_avoid", []),
+                reasoning=f"Both memories agree: {success_mode}",
             )
 
         # Conflict case - different recommendations
@@ -406,21 +388,21 @@ class MemoryCoordinator:
             # Semantic similarity wins (more specific)
             return UnifiedRecommendation(
                 mode=success_mode,
-                lead=auto_rec.get('suggested_lead'),  # Still use lead from auto
+                lead=auto_rec.get("suggested_lead"),  # Still use lead from auto
                 confidence=weighted_success,
                 source=MemorySource.SUCCESS,
-                modes_to_avoid=auto_rec.get('modes_to_avoid', []),
-                reasoning=f"Semantic match ({success_score:.2f}) beats categorical ({auto_score:.2f})"
+                modes_to_avoid=auto_rec.get("modes_to_avoid", []),
+                reasoning=f"Semantic match ({success_score:.2f}) beats categorical ({auto_score:.2f})",
             )
         else:
             # Categorical wins (more samples)
             return UnifiedRecommendation(
                 mode=auto_mode,
-                lead=auto_rec.get('suggested_lead'),
+                lead=auto_rec.get("suggested_lead"),
                 confidence=weighted_auto,
                 source=MemorySource.AUTO,
-                modes_to_avoid=auto_rec.get('modes_to_avoid', []),
-                reasoning=f"Categorical confidence ({auto_score:.2f}) beats semantic ({success_score:.2f})"
+                modes_to_avoid=auto_rec.get("modes_to_avoid", []),
+                reasoning=f"Categorical confidence ({auto_score:.2f}) beats semantic ({success_score:.2f})",
             )
 
     def consolidate(self) -> int:
@@ -450,10 +432,11 @@ class MemoryCoordinator:
 
         # Group by primary_domain (task_type equivalent)
         from collections import defaultdict
-        by_domain: Dict[str, list] = defaultdict(list)
+
+        by_domain: dict[str, list] = defaultdict(list)
 
         for entry in entries:
-            domain = entry.primary_domain or (entry.domains[0] if entry.domains else 'general')
+            domain = entry.primary_domain or (entry.domains[0] if entry.domains else "general")
             by_domain[domain].append(entry)
 
         consolidated = 0
@@ -462,29 +445,25 @@ class MemoryCoordinator:
                 continue
 
             # Find most successful mode
-            mode_scores: Dict[str, List[float]] = defaultdict(list)
+            mode_scores: dict[str, list[float]] = defaultdict(list)
             for entry in domain_entries:
                 mode_scores[entry.swarm_mode].append(entry.quality_score)
 
             if not mode_scores:
                 continue
 
-            best_mode = max(
-                mode_scores.keys(),
-                key=lambda m: sum(mode_scores[m]) / len(mode_scores[m])
-            )
+            best_mode = max(mode_scores.keys(), key=lambda m: sum(mode_scores[m]) / len(mode_scores[m]))
             avg_score = sum(mode_scores[best_mode]) / len(mode_scores[best_mode])
 
             # Log the insight (AutoMemory update could be added here)
             self._logger.info(
-                f"[CONSOLIDATE] {domain}: {best_mode} "
-                f"(avg={avg_score:.2f}, n={len(mode_scores[best_mode])})"
+                f"[CONSOLIDATE] {domain}: {best_mode} (avg={avg_score:.2f}, n={len(mode_scores[best_mode])})"
             )
             consolidated += 1
 
         return consolidated
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> dict:
         """
         Get coordinator statistics.
 
@@ -498,9 +477,7 @@ class MemoryCoordinator:
             "procedural_weight": self.PROCEDURAL_WEIGHT,
             # V12.4: Adaptive weights stats
             "adaptive_domains": len(self._domain_weights),
-            "domain_weights": {
-                k: v.to_dict() for k, v in self._domain_weights.items()
-            }
+            "domain_weights": {k: v.to_dict() for k, v in self._domain_weights.items()},
         }
 
         if self.success:
@@ -524,7 +501,7 @@ class MemoryCoordinator:
     # V12.4 COGNITIVE BOOST - Adaptive Weights
     # =========================================================================
 
-    def get_weights_for_domain(self, domain: str) -> Tuple[float, float]:
+    def get_weights_for_domain(self, domain: str) -> tuple[float, float]:
         """
         Get semantic/procedural weights for a specific domain.
 
@@ -541,12 +518,7 @@ class MemoryCoordinator:
             return (dw.semantic_weight, dw.procedural_weight)
         return (DEFAULT_SEMANTIC_WEIGHT, DEFAULT_PROCEDURAL_WEIGHT)
 
-    def record_feedback(
-        self,
-        domain: str,
-        source: MemorySource,
-        success: bool
-    ) -> None:
+    def record_feedback(self, domain: str, source: MemorySource, success: bool) -> None:
         """
         Record feedback on a recommendation outcome.
 
@@ -595,12 +567,7 @@ class MemoryCoordinator:
         # Persist weights
         self._save_weights()
 
-    def _adapt_weights(
-        self,
-        dw: DomainWeights,
-        source: MemorySource,
-        decrease: bool
-    ) -> None:
+    def _adapt_weights(self, dw: DomainWeights, source: MemorySource, decrease: bool) -> None:
         """
         Adapt weights using exponential moving average.
 
@@ -633,8 +600,7 @@ class MemoryCoordinator:
         dw.procedural_weight /= total
 
         self._logger.debug(
-            f"[ADAPTIVE] Updated weights: semantic={dw.semantic_weight:.3f}, "
-            f"procedural={dw.procedural_weight:.3f}"
+            f"[ADAPTIVE] Updated weights: semantic={dw.semantic_weight:.3f}, procedural={dw.procedural_weight:.3f}"
         )
 
     def _load_weights(self) -> None:
@@ -643,7 +609,7 @@ class MemoryCoordinator:
             return
 
         try:
-            with open(self._weights_path, 'r', encoding='utf-8') as f:
+            with open(self._weights_path, encoding="utf-8") as f:
                 data = json.load(f)
 
             for domain, weights_dict in data.items():
@@ -651,7 +617,7 @@ class MemoryCoordinator:
                     semantic_weight=weights_dict.get("semantic_weight", DEFAULT_SEMANTIC_WEIGHT),
                     procedural_weight=weights_dict.get("procedural_weight", DEFAULT_PROCEDURAL_WEIGHT),
                     sample_count=weights_dict.get("sample_count", 0),
-                    success_count=weights_dict.get("success_count", 0)
+                    success_count=weights_dict.get("success_count", 0),
                 )
 
             self._logger.info(f"[ADAPTIVE] Loaded weights for {len(self._domain_weights)} domains")
@@ -668,12 +634,9 @@ class MemoryCoordinator:
             # Ensure parent directory exists
             self._weights_path.parent.mkdir(parents=True, exist_ok=True)
 
-            data = {
-                domain: dw.to_dict()
-                for domain, dw in self._domain_weights.items()
-            }
+            data = {domain: dw.to_dict() for domain, dw in self._domain_weights.items()}
 
-            with open(self._weights_path, 'w', encoding='utf-8') as f:
+            with open(self._weights_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
 
         except Exception as e:

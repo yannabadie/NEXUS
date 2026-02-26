@@ -28,7 +28,7 @@ import threading
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -45,22 +45,24 @@ DEFAULT_RECENT_LIMIT = 100
 # Types
 # =============================================================================
 
+
 @dataclass
 class TransitionEntry:
     """A logged FSM transition."""
+
     from_state: str
     to_state: str
     trigger: str = ""
     session_id: str = ""
     duration_ms: float = 0.0
-    context: Dict[str, Any] = field(default_factory=dict)
+    context: dict[str, Any] = field(default_factory=dict)
     timestamp: float = 0.0
 
     def __post_init__(self):
         if self.timestamp == 0.0:
             self.timestamp = time.monotonic()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "from": self.from_state,
             "to": self.to_state,
@@ -73,6 +75,7 @@ class TransitionEntry:
 @dataclass
 class StateDurationStats:
     """Duration statistics for a state."""
+
     state: str
     count: int
     total_ms: float
@@ -80,7 +83,7 @@ class StateDurationStats:
     max_ms: float
     avg_ms: float
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "state": self.state,
             "count": self.count,
@@ -94,11 +97,12 @@ class StateDurationStats:
 @dataclass
 class TransitionFrequency:
     """Frequency of a specific transition."""
+
     from_state: str
     to_state: str
     count: int
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "from": self.from_state,
             "to": self.to_state,
@@ -109,12 +113,13 @@ class TransitionFrequency:
 @dataclass
 class LoggerStats:
     """Transition logger statistics."""
+
     total_entries: int
     unique_states: int
     unique_transitions: int
-    entries_by_trigger: Dict[str, int]
+    entries_by_trigger: dict[str, int]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_entries": self.total_entries,
             "unique_states": self.unique_states,
@@ -126,6 +131,7 @@ class LoggerStats:
 # =============================================================================
 # Transition Logger
 # =============================================================================
+
 
 class TransitionLogger:
     """
@@ -141,7 +147,7 @@ class TransitionLogger:
     """
 
     def __init__(self, *, max_entries: int = MAX_ENTRIES):
-        self._entries: List[TransitionEntry] = []
+        self._entries: list[TransitionEntry] = []
         self._max_entries = max_entries
         self._lock = threading.Lock()
 
@@ -157,7 +163,7 @@ class TransitionLogger:
         trigger: str = "",
         session_id: str = "",
         duration_ms: float = 0.0,
-        context: Optional[Dict[str, Any]] = None,
+        context: dict[str, Any] | None = None,
     ) -> TransitionEntry:
         """Log a state transition."""
         entry = TransitionEntry(
@@ -172,38 +178,38 @@ class TransitionLogger:
             self._entries.append(entry)
             # Evict oldest if over limit
             if len(self._entries) > self._max_entries:
-                self._entries = self._entries[-self._max_entries:]
+                self._entries = self._entries[-self._max_entries :]
         return entry
 
     # =========================================================================
     # Queries
     # =========================================================================
 
-    def get_recent(self, *, limit: int = DEFAULT_RECENT_LIMIT) -> List[TransitionEntry]:
+    def get_recent(self, *, limit: int = DEFAULT_RECENT_LIMIT) -> list[TransitionEntry]:
         """Get most recent transitions."""
         return list(reversed(self._entries[-limit:]))
 
-    def get_by_state(self, state: str) -> List[TransitionEntry]:
+    def get_by_state(self, state: str) -> list[TransitionEntry]:
         """Get all transitions from or to a state."""
         return [e for e in self._entries if e.from_state == state or e.to_state == state]
 
-    def get_by_from_state(self, state: str) -> List[TransitionEntry]:
+    def get_by_from_state(self, state: str) -> list[TransitionEntry]:
         """Get all transitions from a state."""
         return [e for e in self._entries if e.from_state == state]
 
-    def get_by_to_state(self, state: str) -> List[TransitionEntry]:
+    def get_by_to_state(self, state: str) -> list[TransitionEntry]:
         """Get all transitions to a state."""
         return [e for e in self._entries if e.to_state == state]
 
-    def get_by_trigger(self, trigger: str) -> List[TransitionEntry]:
+    def get_by_trigger(self, trigger: str) -> list[TransitionEntry]:
         """Get all transitions with a specific trigger."""
         return [e for e in self._entries if e.trigger == trigger]
 
-    def get_by_session(self, session_id: str) -> List[TransitionEntry]:
+    def get_by_session(self, session_id: str) -> list[TransitionEntry]:
         """Get all transitions for a session."""
         return [e for e in self._entries if e.session_id == session_id]
 
-    def get_by_time_range(self, start: float, end: float) -> List[TransitionEntry]:
+    def get_by_time_range(self, start: float, end: float) -> list[TransitionEntry]:
         """Get transitions within a time range (monotonic timestamps)."""
         return [e for e in self._entries if start <= e.timestamp <= end]
 
@@ -211,7 +217,7 @@ class TransitionLogger:
     # Analysis
     # =========================================================================
 
-    def state_duration_stats(self, state: str) -> Optional[StateDurationStats]:
+    def state_duration_stats(self, state: str) -> StateDurationStats | None:
         """Get duration statistics for transitions from a state."""
         durations = [e.duration_ms for e in self._entries if e.from_state == state and e.duration_ms > 0]
         if not durations:
@@ -225,19 +231,18 @@ class TransitionLogger:
             avg_ms=sum(durations) / len(durations),
         )
 
-    def transition_frequencies(self) -> List[TransitionFrequency]:
+    def transition_frequencies(self) -> list[TransitionFrequency]:
         """Get frequency of each unique transition."""
-        counts: Dict[tuple, int] = defaultdict(int)
+        counts: dict[tuple, int] = defaultdict(int)
         for e in self._entries:
             counts[(e.from_state, e.to_state)] += 1
         return sorted(
-            [TransitionFrequency(from_state=k[0], to_state=k[1], count=v)
-             for k, v in counts.items()],
+            [TransitionFrequency(from_state=k[0], to_state=k[1], count=v) for k, v in counts.items()],
             key=lambda f: f.count,
             reverse=True,
         )
 
-    def most_common_transition(self) -> Optional[TransitionFrequency]:
+    def most_common_transition(self) -> TransitionFrequency | None:
         """Get the most common transition."""
         freqs = self.transition_frequencies()
         return freqs[0] if freqs else None
@@ -250,7 +255,7 @@ class TransitionLogger:
         """Get logger statistics."""
         states: set = set()
         transitions: set = set()
-        trigger_counts: Dict[str, int] = defaultdict(int)
+        trigger_counts: dict[str, int] = defaultdict(int)
         for e in self._entries:
             states.add(e.from_state)
             states.add(e.to_state)
@@ -277,7 +282,7 @@ class TransitionLogger:
         with self._lock:
             self._entries.clear()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "entry_count": self.entry_count,
             "stats": self.get_stats().to_dict(),
@@ -288,7 +293,7 @@ class TransitionLogger:
 # Global Instance
 # =============================================================================
 
-_logger_instance: Optional[TransitionLogger] = None
+_logger_instance: TransitionLogger | None = None
 _logger_lock = threading.Lock()
 
 

@@ -18,8 +18,6 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.intelligence.hive_mind.phase_audit_logger import (
     MAX_AUDITS,
     PHASES,
@@ -32,10 +30,10 @@ from core.intelligence.hive_mind.phase_audit_logger import (
     reset_phase_audit_logger,
 )
 
-
 # =============================================================================
 # DecisionAudit Tests
 # =============================================================================
+
 
 class TestDecisionAudit:
     """Test DecisionAudit dataclass."""
@@ -47,8 +45,12 @@ class TestDecisionAudit:
 
     def test_to_dict(self):
         a = DecisionAudit(
-            audit_id="pa_000001", session_id="s1", phase="EXECUTION",
-            decision="parallel_mode", agent_id="claude", duration_ms=150.0,
+            audit_id="pa_000001",
+            session_id="s1",
+            phase="EXECUTION",
+            decision="parallel_mode",
+            agent_id="claude",
+            duration_ms=150.0,
         )
         d = a.to_dict()
         assert d["phase"] == "EXECUTION"
@@ -59,13 +61,17 @@ class TestDecisionAudit:
 # PhaseAuditReport Tests
 # =============================================================================
 
+
 class TestPhaseAuditReport:
     """Test PhaseAuditReport dataclass."""
 
     def test_to_dict(self):
         r = PhaseAuditReport(
-            phase="ANALYSIS", total_decisions=10, avg_duration_ms=200.0,
-            unique_agents=2, most_common_decision="proceed",
+            phase="ANALYSIS",
+            total_decisions=10,
+            avg_duration_ms=200.0,
+            unique_agents=2,
+            most_common_decision="proceed",
             decision_distribution={"proceed": 7, "retry": 3},
         )
         d = r.to_dict()
@@ -77,13 +83,17 @@ class TestPhaseAuditReport:
 # AuditPattern Tests
 # =============================================================================
 
+
 class TestAuditPattern:
     """Test AuditPattern dataclass."""
 
     def test_to_dict(self):
         p = AuditPattern(
-            pattern_type="consistent_routing", phase="EXECUTION",
-            description="Always selects parallel", frequency=0.8, sample_count=10,
+            pattern_type="consistent_routing",
+            phase="EXECUTION",
+            description="Always selects parallel",
+            frequency=0.8,
+            sample_count=10,
         )
         d = p.to_dict()
         assert d["frequency"] == 0.8
@@ -93,12 +103,12 @@ class TestAuditPattern:
 # AuditStats Tests
 # =============================================================================
 
+
 class TestAuditStats:
     """Test AuditStats dataclass."""
 
     def test_to_dict(self):
-        s = AuditStats(total_audits=20, audits_by_phase={"ANALYSIS": 10},
-                       unique_sessions=5, unique_agents=3)
+        s = AuditStats(total_audits=20, audits_by_phase={"ANALYSIS": 10}, unique_sessions=5, unique_agents=3)
         d = s.to_dict()
         assert d["total_audits"] == 20
 
@@ -106,6 +116,7 @@ class TestAuditStats:
 # =============================================================================
 # Recording Tests
 # =============================================================================
+
 
 class TestRecording:
     """Test decision recording."""
@@ -127,7 +138,8 @@ class TestRecording:
     def test_record_with_options(self):
         log = PhaseAuditLogger()
         a = log.record_decision(
-            phase="DEBATE", decision="proceed",
+            phase="DEBATE",
+            decision="proceed",
             options_considered=["proceed", "retry", "escalate"],
             reasoning="Consensus reached",
         )
@@ -145,6 +157,7 @@ class TestRecording:
 # =============================================================================
 # Query Tests
 # =============================================================================
+
 
 class TestQueries:
     """Test query methods."""
@@ -192,6 +205,7 @@ class TestQueries:
 # Phase Report Tests
 # =============================================================================
 
+
 class TestPhaseReport:
     """Test phase report generation."""
 
@@ -222,6 +236,7 @@ class TestPhaseReport:
 # =============================================================================
 # Pattern Detection Tests
 # =============================================================================
+
 
 class TestPatternDetection:
     """Test pattern detection."""
@@ -258,6 +273,7 @@ class TestPatternDetection:
 # Session Timeline Tests
 # =============================================================================
 
+
 class TestSessionTimeline:
     """Test session timeline."""
 
@@ -281,6 +297,7 @@ class TestSessionTimeline:
 # Bounded History Tests
 # =============================================================================
 
+
 class TestBoundedHistory:
     """Test bounded audit history."""
 
@@ -294,6 +311,7 @@ class TestBoundedHistory:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test audit statistics."""
@@ -322,6 +340,7 @@ class TestStatistics:
 # =============================================================================
 # State Tests
 # =============================================================================
+
 
 class TestState:
     """Test state management."""
@@ -357,6 +376,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global phase audit logger."""
 
@@ -383,23 +403,34 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_hive_mind_package(self):
         from core.intelligence.hive_mind import (
-            PhaseAuditLogger, DecisionAudit, PhaseAuditReport,
-            AuditPattern, AuditStats,
-            get_phase_audit_logger, reset_phase_audit_logger,
+            AuditPattern,
+            AuditStats,
+            DecisionAudit,
+            PhaseAuditLogger,
+            PhaseAuditReport,
+            get_phase_audit_logger,
+            reset_phase_audit_logger,
         )
-        assert all([
-            PhaseAuditLogger, DecisionAudit, PhaseAuditReport,
-            AuditPattern, AuditStats,
-            get_phase_audit_logger, reset_phase_audit_logger,
-        ])
+
+        assert all(
+            [
+                PhaseAuditLogger,
+                DecisionAudit,
+                PhaseAuditReport,
+                AuditPattern,
+                AuditStats,
+                get_phase_audit_logger,
+                reset_phase_audit_logger,
+            ]
+        )
 
     def test_constants(self):
-        from core.intelligence.hive_mind.phase_audit_logger import MAX_AUDITS, PHASES
         assert MAX_AUDITS == 50000
         assert "ANALYSIS" in PHASES
         assert "EXECUTION" in PHASES

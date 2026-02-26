@@ -36,10 +36,9 @@ import asyncio
 import logging
 import threading
 import time
-from collections import defaultdict, deque
+from collections import deque
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple, Deque
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -47,6 +46,7 @@ _logger = logging.getLogger(__name__)
 # =============================================================================
 # Core Token Bucket Implementation
 # =============================================================================
+
 
 class TokenBucket:
     """
@@ -133,9 +133,11 @@ class TokenBucket:
 # Provider Rate Limiting (resilience)
 # =============================================================================
 
+
 @dataclass
 class ProviderLimits:
     """Rate limits for an API provider."""
+
     rpm: int = 60  # Requests per minute
     tpm: int = 1_000_000  # Tokens per minute
     max_burst: int = 0  # Max burst above RPM (0 = auto)
@@ -148,6 +150,7 @@ class ProviderLimits:
 @dataclass
 class ProviderState:
     """Tracks rate limiting state for a single provider."""
+
     provider: str
     limits: ProviderLimits
     request_bucket: TokenBucket = field(init=False)
@@ -167,7 +170,7 @@ class ProviderState:
         tps = self.limits.tpm / 60.0
         self.token_bucket = TokenBucket(rate=tps, max_tokens=self.limits.tpm)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "provider": self.provider,
             "rpm_limit": self.limits.rpm,
@@ -181,7 +184,7 @@ class ProviderState:
 
 
 # Default provider limits
-DEFAULT_PROVIDER_LIMITS: Dict[str, ProviderLimits] = {
+DEFAULT_PROVIDER_LIMITS: dict[str, ProviderLimits] = {
     "gemini": ProviderLimits(rpm=60, tpm=1_000_000),
     "claude": ProviderLimits(rpm=50, tpm=400_000),
     "ollama": ProviderLimits(rpm=120, tpm=10_000_000),
@@ -196,7 +199,7 @@ class ProviderRateLimiter:
     limits to prevent API rate limit errors.
     """
 
-    def __init__(self, defaults: Optional[Dict[str, ProviderLimits]] = None):
+    def __init__(self, defaults: dict[str, ProviderLimits] | None = None):
         """
         Initialize provider rate limiter.
 
@@ -204,7 +207,7 @@ class ProviderRateLimiter:
             defaults: Provider limit overrides (merged with DEFAULT_PROVIDER_LIMITS)
         """
         self._lock = threading.Lock()
-        self._providers: Dict[str, ProviderState] = {}
+        self._providers: dict[str, ProviderState] = {}
 
         # Initialize with defaults
         limits = dict(DEFAULT_PROVIDER_LIMITS)
@@ -248,16 +251,15 @@ class ProviderRateLimiter:
                 return False
 
             # Check TPM (if estimated tokens provided)
-            if estimated_tokens > 0:
-                if not state.token_bucket.acquire(estimated_tokens):
-                    # Refund the request token
-                    state.request_bucket._tokens = min(
-                        state.request_bucket.max_tokens,
-                        state.request_bucket._tokens + 1,
-                    )
-                    state.blocked_requests += 1
-                    _logger.debug(f"Rate limit: {provider} TPM exceeded")
-                    return False
+            if estimated_tokens > 0 and not state.token_bucket.acquire(estimated_tokens):
+                # Refund the request token
+                state.request_bucket._tokens = min(
+                    state.request_bucket.max_tokens,
+                    state.request_bucket._tokens + 1,
+                )
+                state.blocked_requests += 1
+                _logger.debug(f"Rate limit: {provider} TPM exceeded")
+                return False
 
             state.total_requests += 1
             state.last_request_time = time.monotonic()
@@ -284,21 +286,18 @@ class ProviderRateLimiter:
                 return 0.0
             return state.request_bucket.wait_time()
 
-    def get_state(self, provider: str) -> Optional[Dict[str, Any]]:
+    def get_state(self, provider: str) -> dict[str, Any] | None:
         """Get current rate limiting state for a provider."""
         with self._lock:
             state = self._providers.get(provider)
             return state.to_dict() if state else None
 
-    def get_all_states(self) -> Dict[str, Dict[str, Any]]:
+    def get_all_states(self) -> dict[str, dict[str, Any]]:
         """Get state for all providers."""
         with self._lock:
-            return {
-                name: state.to_dict()
-                for name, state in self._providers.items()
-            }
+            return {name: state.to_dict() for name, state in self._providers.items()}
 
-    def reset(self, provider: Optional[str] = None) -> None:
+    def reset(self, provider: str | None = None) -> None:
         """Reset rate limiter state."""
         with self._lock:
             if provider:
@@ -316,16 +315,14 @@ class ProviderRateLimiter:
                     )
 
     @property
-    def providers(self) -> List[str]:
+    def providers(self) -> list[str]:
         """List configured providers."""
         return list(self._providers.keys())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Export limiter state."""
         states = self.get_all_states()
-        total_blocked = sum(
-            s.get("blocked_requests", 0) for s in states.values()
-        )
+        total_blocked = sum(s.get("blocked_requests", 0) for s in states.values())
         return {
             "provider_count": len(self._providers),
             "total_blocked_requests": total_blocked,
@@ -346,11 +343,12 @@ MAX_KEYS_PER_LIMIT = 50000
 @dataclass
 class RateLimitConfig:
     """Configuration for a rate limit."""
+
     name: str
     tokens_per_second: float = DEFAULT_TOKENS_PER_SECOND
     bucket_size: int = DEFAULT_BUCKET_SIZE
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "tokens_per_second": self.tokens_per_second,
@@ -361,6 +359,7 @@ class RateLimitConfig:
 @dataclass
 class BucketState:
     """Internal state for a token bucket."""
+
     tokens: float
     last_refill: float
     total_allowed: int = 0
@@ -370,13 +369,14 @@ class BucketState:
 @dataclass
 class RateLimitResult:
     """Result of a rate limit check."""
+
     allowed: bool
     remaining_tokens: float = 0.0
     retry_after_seconds: float = 0.0
     limit_name: str = ""
     key: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "allowed": self.allowed,
             "remaining_tokens": round(self.remaining_tokens, 2),
@@ -389,12 +389,13 @@ class RateLimitResult:
 @dataclass
 class LimiterStats:
     """Rate limiter statistics."""
+
     configured_limits: int
     total_keys: int
     total_allowed: int
     total_denied: int
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "configured_limits": self.configured_limits,
             "total_keys": self.total_keys,
@@ -417,8 +418,8 @@ class SecurityRateLimiter:
     """
 
     def __init__(self):
-        self._configs: Dict[str, RateLimitConfig] = {}
-        self._buckets: Dict[str, Dict[str, BucketState]] = {}
+        self._configs: dict[str, RateLimitConfig] = {}
+        self._buckets: dict[str, dict[str, BucketState]] = {}
         self._lock = threading.Lock()
 
     def configure(
@@ -451,11 +452,11 @@ class SecurityRateLimiter:
             self._buckets.pop(name, None)
             return True
 
-    def get_config(self, name: str) -> Optional[RateLimitConfig]:
+    def get_config(self, name: str) -> RateLimitConfig | None:
         """Get a rate limit configuration."""
         return self._configs.get(name)
 
-    def list_configs(self) -> List[RateLimitConfig]:
+    def list_configs(self) -> list[RateLimitConfig]:
         """List all configured rate limits."""
         return list(self._configs.values())
 
@@ -467,9 +468,7 @@ class SecurityRateLimiter:
             bucket.tokens = min(config.bucket_size, bucket.tokens + new_tokens)
             bucket.last_refill = now
 
-    def _get_or_create_bucket(
-        self, limit_name: str, key: str, config: RateLimitConfig, now: float
-    ) -> BucketState:
+    def _get_or_create_bucket(self, limit_name: str, key: str, config: RateLimitConfig, now: float) -> BucketState:
         """Get or create a bucket for a key."""
         buckets = self._buckets.get(limit_name)
         if buckets is None:
@@ -590,7 +589,7 @@ class SecurityRateLimiter:
             self._configs.clear()
             self._buckets.clear()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "limit_count": self.limit_count,
             "stats": self.get_stats().to_dict(),
@@ -598,7 +597,7 @@ class SecurityRateLimiter:
 
 
 # Global security rate limiter singleton
-_security_limiter: Optional[SecurityRateLimiter] = None
+_security_limiter: SecurityRateLimiter | None = None
 _security_limiter_lock = threading.Lock()
 
 
@@ -622,20 +621,23 @@ def reset_security_rate_limiter() -> None:
 # API Rate Limiting (async/sync support)
 # =============================================================================
 
+
 class RateLimitExceeded(Exception):
     """Raised when rate limit is exceeded and timeout is reached."""
+
     pass
 
 
 @dataclass
 class APIRateLimitConfig:
     """Configuration for API rate limiting per provider."""
+
     requests_per_minute: int = 60
     burst_size: int = 10
     retry_after_seconds: float = 1.0
 
 
-DEFAULT_API_LIMITS: Dict[str, APIRateLimitConfig] = {
+DEFAULT_API_LIMITS: dict[str, APIRateLimitConfig] = {
     "gemini": APIRateLimitConfig(requests_per_minute=60, burst_size=10),
     "claude": APIRateLimitConfig(requests_per_minute=50, burst_size=8),
     "default": APIRateLimitConfig(requests_per_minute=30, burst_size=5),
@@ -650,12 +652,7 @@ class APIRateLimiter:
     and threading.Lock for hybrid sync/async usage.
     """
 
-    def __init__(
-        self,
-        requests_per_minute: int = 60,
-        burst_size: int = 10,
-        provider: str = "default"
-    ):
+    def __init__(self, requests_per_minute: int = 60, burst_size: int = 10, provider: str = "default"):
         """
         Initialize API rate limiter.
 
@@ -669,7 +666,7 @@ class APIRateLimiter:
         self.provider = provider
 
         # Token bucket state (deque for sliding window)
-        self._tokens: Deque[float] = deque(maxlen=burst_size)
+        self._tokens: deque[float] = deque(maxlen=burst_size)
         self._token_interval = 60.0 / requests_per_minute
 
         # Thread safety
@@ -739,16 +736,11 @@ class APIRateLimiter:
                 elapsed = time.time() - start_time
                 if elapsed >= timeout:
                     raise RateLimitExceeded(
-                        f"Rate limit exceeded for {self.provider}. "
-                        f"Waited {elapsed:.1f}s (timeout: {timeout}s)"
+                        f"Rate limit exceeded for {self.provider}. Waited {elapsed:.1f}s (timeout: {timeout}s)"
                     )
 
                 # Calculate wait time
-                wait_time = min(
-                    self._time_until_available(),
-                    timeout - elapsed,
-                    self._token_interval
-                )
+                wait_time = min(self._time_until_available(), timeout - elapsed, self._token_interval)
 
                 self._total_waits += 1
                 self._total_wait_time += wait_time
@@ -768,16 +760,11 @@ class APIRateLimiter:
                 elapsed = time.time() - start_time
                 if elapsed >= timeout:
                     raise RateLimitExceeded(
-                        f"Rate limit exceeded for {self.provider}. "
-                        f"Waited {elapsed:.1f}s (timeout: {timeout}s)"
+                        f"Rate limit exceeded for {self.provider}. Waited {elapsed:.1f}s (timeout: {timeout}s)"
                     )
 
                 # Calculate wait time
-                wait_time = min(
-                    self._time_until_available(),
-                    timeout - elapsed,
-                    self._token_interval
-                )
+                wait_time = min(self._time_until_available(), timeout - elapsed, self._token_interval)
 
                 self._total_waits += 1
                 self._total_wait_time += wait_time
@@ -789,13 +776,9 @@ class APIRateLimiter:
                 finally:
                     self._sync_lock.acquire()
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> dict:
         """Get rate limiter statistics."""
-        avg_wait = (
-            self._total_wait_time / self._total_waits
-            if self._total_waits > 0
-            else 0.0
-        )
+        avg_wait = self._total_wait_time / self._total_waits if self._total_waits > 0 else 0.0
 
         return {
             "provider": self.provider,
@@ -805,7 +788,7 @@ class APIRateLimiter:
             "total_waits": self._total_waits,
             "total_wait_time": round(self._total_wait_time, 2),
             "avg_wait_time": round(avg_wait, 3),
-            "current_bucket_size": len(self._tokens)
+            "current_bucket_size": len(self._tokens),
         }
 
     def reset(self) -> None:
@@ -820,7 +803,7 @@ class APIRateLimiter:
 class APIRateLimiterRegistry:
     """Registry of API rate limiters per provider (singleton pattern)."""
 
-    _instance: Optional["APIRateLimiterRegistry"] = None
+    _instance: APIRateLimiterRegistry | None = None
     _lock = threading.Lock()
 
     def __new__(cls):
@@ -828,7 +811,7 @@ class APIRateLimiterRegistry:
             with cls._lock:
                 if cls._instance is None:
                     cls._instance = super().__new__(cls)
-                    cls._instance._limiters: Dict[str, APIRateLimiter] = {}
+                    cls._instance._limiters: dict[str, APIRateLimiter] = {}
         return cls._instance
 
     def get_limiter(self, provider: str) -> APIRateLimiter:
@@ -836,18 +819,13 @@ class APIRateLimiterRegistry:
         if provider not in self._limiters:
             config = DEFAULT_API_LIMITS.get(provider, DEFAULT_API_LIMITS["default"])
             self._limiters[provider] = APIRateLimiter(
-                requests_per_minute=config.requests_per_minute,
-                burst_size=config.burst_size,
-                provider=provider
+                requests_per_minute=config.requests_per_minute, burst_size=config.burst_size, provider=provider
             )
         return self._limiters[provider]
 
-    def get_all_stats(self) -> Dict[str, Dict]:
+    def get_all_stats(self) -> dict[str, dict]:
         """Get statistics from all API rate limiters."""
-        return {
-            provider: limiter.get_stats()
-            for provider, limiter in self._limiters.items()
-        }
+        return {provider: limiter.get_stats() for provider, limiter in self._limiters.items()}
 
     def reset_all(self) -> None:
         """Reset all API rate limiters."""
@@ -865,8 +843,10 @@ def get_api_rate_limiter_registry() -> APIRateLimiterRegistry:
     # V10: Try ServiceFactory first (tenant-scoped)
     try:
         from ..context import has_active_session
+
         if has_active_session():
             from ..factory import ServiceFactory
+
             return ServiceFactory.get_rate_limiter_registry()
     except ImportError:
         pass  # context module not available, use legacy

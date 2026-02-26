@@ -28,11 +28,10 @@ Usage:
 from __future__ import annotations
 
 import logging
-import re
 import shlex
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -41,8 +40,10 @@ _logger = logging.getLogger(__name__)
 # Types
 # =============================================================================
 
+
 class ArgType(Enum):
     """Argument types."""
+
     STRING = "string"
     INT = "int"
     FLOAT = "float"
@@ -54,14 +55,15 @@ class ArgType(Enum):
 @dataclass
 class Arg:
     """A command argument definition."""
+
     name: str
     arg_type: ArgType = ArgType.STRING
     required: bool = False
     default: Any = None
-    choices: List[str] = field(default_factory=list)
+    choices: list[str] = field(default_factory=list)
     help: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "type": self.arg_type.value,
@@ -75,21 +77,22 @@ class Arg:
 @dataclass
 class CommandDef:
     """A command definition."""
+
     name: str
     description: str = ""
     category: str = "general"
-    args: List[Arg] = field(default_factory=list)
-    aliases: List[str] = field(default_factory=list)
+    args: list[Arg] = field(default_factory=list)
+    aliases: list[str] = field(default_factory=list)
 
     @property
-    def positional_args(self) -> List[Arg]:
+    def positional_args(self) -> list[Arg]:
         return [a for a in self.args if a.required]
 
     @property
-    def optional_args(self) -> List[Arg]:
+    def optional_args(self) -> list[Arg]:
         return [a for a in self.args if not a.required]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "description": self.description,
@@ -102,14 +105,15 @@ class CommandDef:
 @dataclass
 class ParsedCommand:
     """Result of parsing a command string."""
+
     command: str
-    args: Dict[str, Any] = field(default_factory=dict)
-    flags: Dict[str, bool] = field(default_factory=dict)
+    args: dict[str, Any] = field(default_factory=dict)
+    flags: dict[str, bool] = field(default_factory=dict)
     raw_input: str = ""
     is_valid: bool = True
-    errors: List[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "command": self.command,
             "args": self.args,
@@ -122,11 +126,12 @@ class ParsedCommand:
 @dataclass
 class Suggestion:
     """A command suggestion."""
+
     text: str
     description: str = ""
     score: float = 1.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "text": self.text,
             "description": self.description,
@@ -137,6 +142,7 @@ class Suggestion:
 # =============================================================================
 # Command Parser
 # =============================================================================
+
 
 class CommandParser:
     """
@@ -154,8 +160,8 @@ class CommandParser:
     """
 
     def __init__(self, *, prefix: str = "/"):
-        self._commands: Dict[str, CommandDef] = {}
-        self._aliases: Dict[str, str] = {}  # alias -> command name
+        self._commands: dict[str, CommandDef] = {}
+        self._aliases: dict[str, str] = {}  # alias -> command name
         self._prefix = prefix
 
     # =========================================================================
@@ -168,8 +174,8 @@ class CommandParser:
         description: str = "",
         *,
         category: str = "general",
-        args: Optional[List[Arg]] = None,
-        aliases: Optional[List[str]] = None,
+        args: list[Arg] | None = None,
+        aliases: list[str] | None = None,
     ) -> CommandDef:
         """
         Define a command.
@@ -206,7 +212,7 @@ class CommandParser:
         """Check if a command is defined."""
         return name in self._commands or name in self._aliases
 
-    def get_definition(self, name: str) -> Optional[CommandDef]:
+    def get_definition(self, name: str) -> CommandDef | None:
         """Get a command definition (resolves aliases)."""
         if name in self._aliases:
             name = self._aliases[name]
@@ -272,9 +278,9 @@ class CommandParser:
             )
 
         # Parse args
-        parsed_args: Dict[str, Any] = {}
-        parsed_flags: Dict[str, bool] = {}
-        errors: List[str] = []
+        parsed_args: dict[str, Any] = {}
+        parsed_flags: dict[str, bool] = {}
+        errors: list[str] = []
         positional_idx = 0
 
         i = 0
@@ -309,9 +315,8 @@ class CommandParser:
 
         # Apply defaults
         for arg in cmd_def.args:
-            if arg.name not in parsed_args and arg.name not in parsed_flags:
-                if arg.default is not None:
-                    parsed_args[arg.name] = arg.default
+            if arg.name not in parsed_args and arg.name not in parsed_flags and arg.default is not None:
+                parsed_args[arg.name] = arg.default
 
         # Validate
         errors.extend(self._validate_args(cmd_def, parsed_args, parsed_flags))
@@ -334,7 +339,7 @@ class CommandParser:
             errors=errors,
         )
 
-    def _find_arg(self, cmd: CommandDef, name: str) -> Optional[Arg]:
+    def _find_arg(self, cmd: CommandDef, name: str) -> Arg | None:
         """Find an argument definition by name."""
         for arg in cmd.args:
             if arg.name == name:
@@ -344,20 +349,18 @@ class CommandParser:
     def _validate_args(
         self,
         cmd: CommandDef,
-        args: Dict[str, Any],
-        flags: Dict[str, bool],
-    ) -> List[str]:
+        args: dict[str, Any],
+        flags: dict[str, bool],
+    ) -> list[str]:
         """Validate parsed arguments against definition."""
         errors = []
         for arg in cmd.args:
             if arg.required and arg.name not in args and arg.name not in flags:
                 errors.append(f"Missing required argument: {arg.name}")
-            if arg.choices and arg.name in args:
-                if str(args[arg.name]) not in arg.choices:
-                    errors.append(
-                        f"Invalid value for {arg.name}: '{args[arg.name]}'. "
-                        f"Must be one of: {', '.join(arg.choices)}"
-                    )
+            if arg.choices and arg.name in args and str(args[arg.name]) not in arg.choices:
+                errors.append(
+                    f"Invalid value for {arg.name}: '{args[arg.name]}'. Must be one of: {', '.join(arg.choices)}"
+                )
         return errors
 
     def _coerce_type(self, value: Any, arg: Arg) -> tuple:
@@ -386,7 +389,7 @@ class CommandParser:
     # Suggestions
     # =========================================================================
 
-    def suggest(self, partial: str) -> List[Suggestion]:
+    def suggest(self, partial: str) -> list[Suggestion]:
         """
         Get command suggestions for partial input.
 
@@ -401,19 +404,23 @@ class CommandParser:
 
         for name, cmd in self._commands.items():
             if name.lower().startswith(partial):
-                suggestions.append(Suggestion(
-                    text=f"{self._prefix}{name}",
-                    description=cmd.description,
-                    score=1.0 if name.lower() == partial else 0.8,
-                ))
+                suggestions.append(
+                    Suggestion(
+                        text=f"{self._prefix}{name}",
+                        description=cmd.description,
+                        score=1.0 if name.lower() == partial else 0.8,
+                    )
+                )
             # Check aliases
             for alias in cmd.aliases:
                 if alias.lower().startswith(partial) and alias != name:
-                    suggestions.append(Suggestion(
-                        text=f"{self._prefix}{alias}",
-                        description=f"{cmd.description} (alias for {name})",
-                        score=0.7,
-                    ))
+                    suggestions.append(
+                        Suggestion(
+                            text=f"{self._prefix}{alias}",
+                            description=f"{cmd.description} (alias for {name})",
+                            score=0.7,
+                        )
+                    )
 
         suggestions.sort(key=lambda s: (-s.score, s.text))
         return suggestions
@@ -422,18 +429,18 @@ class CommandParser:
     # Listing
     # =========================================================================
 
-    def list_commands(self, *, category: Optional[str] = None) -> List[CommandDef]:
+    def list_commands(self, *, category: str | None = None) -> list[CommandDef]:
         """List all defined commands."""
         cmds = list(self._commands.values())
         if category:
             cmds = [c for c in cmds if c.category == category]
         return sorted(cmds, key=lambda c: c.name)
 
-    def list_categories(self) -> List[str]:
+    def list_categories(self) -> list[str]:
         """List all categories."""
         return sorted(set(c.category for c in self._commands.values()))
 
-    def get_help(self, command_name: str) -> Optional[str]:
+    def get_help(self, command_name: str) -> str | None:
         """Get help text for a command."""
         cmd = self.get_definition(command_name)
         if cmd is None:
@@ -466,12 +473,9 @@ class CommandParser:
         self._commands.clear()
         self._aliases.clear()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "command_count": self.command_count,
             "alias_count": self.alias_count,
-            "commands": {
-                name: cmd.to_dict()
-                for name, cmd in sorted(self._commands.items())
-            },
+            "commands": {name: cmd.to_dict() for name, cmd in sorted(self._commands.items())},
         }

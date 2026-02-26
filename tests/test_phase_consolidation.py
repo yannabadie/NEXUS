@@ -18,17 +18,16 @@ Coverage:
 - Session isolation via HiveMindSessionIntegration
 """
 
-import asyncio
 import json
-import logging
-import pytest
 from dataclasses import fields
-from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from core.intelligence.hive_mind.phases.phase_consolidation import (
-    ConsolidationPhaseResult,
-    REFLECTION_PROMPT,
     CONSOLIDATION_DEBATE_PROMPT,
+    REFLECTION_PROMPT,
+    ConsolidationPhaseResult,
     KnowledgeConsolidationPhase,
 )
 from core.intelligence.hive_mind.types import (
@@ -40,10 +39,10 @@ from core.intelligence.hive_mind.types import (
     UserBreakpoint,
 )
 
-
 # =============================================================================
 # Fixtures
 # =============================================================================
+
 
 def _make_reflection_json(
     patterns=None,
@@ -56,16 +55,18 @@ def _make_reflection_json(
     satisfaction=0.8,
 ):
     """Build a valid reflection JSON string."""
-    return json.dumps({
-        "learned_patterns": patterns or ["cache results"],
-        "learned_antipatterns": antipatterns or ["skip validation"],
-        "new_capabilities_identified": capabilities or ["web_search"],
-        "agents_to_retain": agents_to_retain or [],
-        "knowledge_to_archive": knowledge_to_archive or [],
-        "nexus_improvements": improvements or ["faster routing"],
-        "overall_reflection": overall,
-        "satisfaction": satisfaction,
-    })
+    return json.dumps(
+        {
+            "learned_patterns": patterns or ["cache results"],
+            "learned_antipatterns": antipatterns or ["skip validation"],
+            "new_capabilities_identified": capabilities or ["web_search"],
+            "agents_to_retain": agents_to_retain or [],
+            "knowledge_to_archive": knowledge_to_archive or [],
+            "nexus_improvements": improvements or ["faster routing"],
+            "overall_reflection": overall,
+            "satisfaction": satisfaction,
+        }
+    )
 
 
 def _make_user_response(chosen="accept_all"):
@@ -122,9 +123,7 @@ def mock_agent_registry():
 @pytest.fixture
 def mock_user_handler():
     handler = MagicMock()
-    handler.knowledge_consolidation = MagicMock(
-        return_value=_make_user_response("accept_all")
-    )
+    handler.knowledge_consolidation = MagicMock(return_value=_make_user_response("accept_all"))
     return handler
 
 
@@ -195,6 +194,7 @@ SAMPLE_EXECUTE_KWARGS = dict(
 # =============================================================================
 # 1. ConsolidationPhaseResult Dataclass
 # =============================================================================
+
 
 class TestConsolidationPhaseResult:
     """Validate ConsolidationPhaseResult dataclass structure and construction."""
@@ -270,6 +270,7 @@ class TestConsolidationPhaseResult:
 # 2. Prompt Templates
 # =============================================================================
 
+
 class TestPromptTemplates:
     """Validate prompt template strings and formatting."""
 
@@ -284,9 +285,7 @@ class TestPromptTemplates:
             "{agents_used}",
             "{agents_spawned}",
         ]:
-            assert placeholder in REFLECTION_PROMPT, (
-                f"Missing placeholder {placeholder} in REFLECTION_PROMPT"
-            )
+            assert placeholder in REFLECTION_PROMPT, f"Missing placeholder {placeholder} in REFLECTION_PROMPT"
 
     def test_reflection_prompt_formats_correctly(self):
         formatted = REFLECTION_PROMPT.format(
@@ -341,6 +340,7 @@ class TestPromptTemplates:
 # 3. _parse_reflection
 # =============================================================================
 
+
 class TestParseReflection:
     """Test the _parse_reflection helper that parses LLM JSON output."""
 
@@ -358,7 +358,7 @@ class TestParseReflection:
         assert data == {}
 
     def test_json_with_extra_text(self, phase):
-        text = 'Here is my analysis:\n' + _make_reflection_json() + '\nEnd.'
+        text = "Here is my analysis:\n" + _make_reflection_json() + "\nEnd."
         data = phase._parse_reflection(text)
         assert "learned_patterns" in data
 
@@ -379,6 +379,7 @@ class TestParseReflection:
 # =============================================================================
 # 4. _merge_agent_decisions
 # =============================================================================
+
 
 class TestMergeAgentDecisions:
     """Test the agent retention decision merging logic."""
@@ -472,6 +473,7 @@ class TestMergeAgentDecisions:
 # 5. _merge_knowledge_entries
 # =============================================================================
 
+
 class TestMergeKnowledgeEntries:
     """Test knowledge entry merging and deduplication."""
 
@@ -482,7 +484,12 @@ class TestMergeKnowledgeEntries:
         assert len(result) == 2
 
     def test_deduplication_by_content_prefix(self, phase):
-        entry = {"category": "pattern", "content": "Always validate input data before processing", "usefulness": 0.8, "tags": []}
+        entry = {
+            "category": "pattern",
+            "content": "Always validate input data before processing",
+            "usefulness": 0.8,
+            "tags": [],
+        }
         result = phase._merge_knowledge_entries([entry], [entry])
         assert len(result) == 1
 
@@ -513,6 +520,7 @@ class TestMergeKnowledgeEntries:
 # =============================================================================
 # 6. _apply_agent_decisions
 # =============================================================================
+
 
 class TestApplyAgentDecisions:
     """Test applying agent retention decisions to the registry."""
@@ -592,6 +600,7 @@ class TestApplyAgentDecisions:
 # 7. _archive_knowledge
 # =============================================================================
 
+
 class TestArchiveKnowledge:
     """Test knowledge archival to RAG or context_manager fallback."""
 
@@ -611,9 +620,7 @@ class TestArchiveKnowledge:
         call_kwargs = mock_project_memory.add_document.call_args
         assert "Cache API responses" in call_kwargs.kwargs.get("content", call_kwargs[1].get("content", ""))
 
-    def test_fallback_to_context_manager_when_no_memory(
-        self, phase_no_memory, mock_context_manager
-    ):
+    def test_fallback_to_context_manager_when_no_memory(self, phase_no_memory, mock_context_manager):
         entries = [
             KnowledgeEntry(
                 category="insight",
@@ -638,9 +645,7 @@ class TestArchiveKnowledge:
 
     def test_archive_handles_add_document_exception(self, phase, mock_project_memory):
         mock_project_memory.add_document.side_effect = RuntimeError("DB error")
-        entries = [
-            KnowledgeEntry(category="pattern", content="X", source_task="hm", usefulness_score=0.5, tags=[])
-        ]
+        entries = [KnowledgeEntry(category="pattern", content="X", source_task="hm", usefulness_score=0.5, tags=[])]
         count = phase._archive_knowledge(entries, "task")
         assert count == 0
 
@@ -651,9 +656,7 @@ class TestArchiveKnowledge:
     def test_memory_without_add_document_method(self, phase):
         # If project_memory exists but lacks add_document, archived should be 0
         del phase.project_memory.add_document
-        entries = [
-            KnowledgeEntry(category="pattern", content="X", source_task="hm", usefulness_score=0.5, tags=[])
-        ]
+        entries = [KnowledgeEntry(category="pattern", content="X", source_task="hm", usefulness_score=0.5, tags=[])]
         count = phase._archive_knowledge(entries, "task")
         assert count == 0
 
@@ -661,6 +664,7 @@ class TestArchiveKnowledge:
 # =============================================================================
 # 8. _create_minimal_result
 # =============================================================================
+
 
 class TestCreateMinimalResult:
     """Test budget-limited minimal result creation."""
@@ -702,6 +706,7 @@ class TestCreateMinimalResult:
 # 9. Full execute() flow
 # =============================================================================
 
+
 class TestExecuteFlow:
     """Test the full execute() method with mocked dependencies."""
 
@@ -711,12 +716,15 @@ class TestExecuteFlow:
         with (
             patch("core.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI,
             patch("core.skills.crystallizer.get_crystallizer", side_effect=ImportError),
-            patch.dict("sys.modules", {
-                "core.skills.crystallizer": None,
-                "core.memory.auto_memory": None,
-                "core.reasoning.uncertainty_propagator": None,
-                "core.skills.experience_distiller": None,
-            }),
+            patch.dict(
+                "sys.modules",
+                {
+                    "core.skills.crystallizer": None,
+                    "core.memory.auto_memory": None,
+                    "core.reasoning.uncertainty_propagator": None,
+                    "core.skills.experience_distiller": None,
+                },
+            ),
         ):
             mock_si = MagicMock()
             mock_si.get_parallel_sessions.return_value = {
@@ -776,9 +784,7 @@ class TestExecuteFlow:
 
     @pytest.mark.asyncio
     async def test_execute_gemini_failure_handled(self, phase, mock_gemini):
-        mock_gemini.send_message_async = AsyncMock(
-            side_effect=RuntimeError("Gemini down")
-        )
+        mock_gemini.send_message_async = AsyncMock(side_effect=RuntimeError("Gemini down"))
 
         with patch("core.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI:
             mock_si = MagicMock()
@@ -792,9 +798,7 @@ class TestExecuteFlow:
 
     @pytest.mark.asyncio
     async def test_execute_claude_failure_handled(self, phase, mock_claude):
-        mock_claude.send_message_async = AsyncMock(
-            side_effect=RuntimeError("Claude down")
-        )
+        mock_claude.send_message_async = AsyncMock(side_effect=RuntimeError("Claude down"))
 
         with patch("core.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI:
             mock_si = MagicMock()
@@ -850,9 +854,7 @@ class TestExecuteFlow:
             assert result.user_decision == "selective"
 
     @pytest.mark.asyncio
-    async def test_execute_patterns_added_to_context_manager(
-        self, phase, mock_context_manager
-    ):
+    async def test_execute_patterns_added_to_context_manager(self, phase, mock_context_manager):
         with patch("core.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI:
             mock_si = MagicMock()
             mock_si.get_parallel_sessions.return_value = {"gemini": "g", "claude": "c"}
@@ -862,7 +864,10 @@ class TestExecuteFlow:
 
             # Should have added at least one pattern insight and one antipattern insight
             insight_calls = mock_context_manager.add_insight.call_args_list
-            categories = [c.kwargs.get("category", c[1].get("category", "")) if c[1] else c.kwargs.get("category", "") for c in insight_calls]
+            [
+                c.kwargs.get("category", c[1].get("category", "")) if c[1] else c.kwargs.get("category", "")
+                for c in insight_calls
+            ]
             # Flexible check: add_insight was called
             assert mock_context_manager.add_insight.call_count > 0
 
@@ -896,6 +901,7 @@ class TestExecuteFlow:
 # =============================================================================
 # 10. _debate_consolidation
 # =============================================================================
+
 
 class TestDebateConsolidation:
     """Test the debate logic that merges two reflections."""
@@ -958,8 +964,10 @@ class TestDebateConsolidation:
         claude_json = _make_reflection_json()
 
         result = await phase._debate_consolidation(
-            task="test", gemini_reflection=gemini_json,
-            claude_reflection=claude_json, success=False,
+            task="test",
+            gemini_reflection=gemini_json,
+            claude_reflection=claude_json,
+            success=False,
         )
         assert result.task_success is False
 
@@ -1006,6 +1014,7 @@ class TestDebateConsolidation:
 # 11. V12.4 Integration: Skill Crystallizer (graceful degradation)
 # =============================================================================
 
+
 class TestV124SkillCrystallizer:
     """Test that skill crystallization catches exceptions gracefully."""
 
@@ -1046,6 +1055,7 @@ class TestV124SkillCrystallizer:
 # =============================================================================
 # 12. V12.4 Integration: Principle Library (graceful degradation)
 # =============================================================================
+
 
 class TestV124PrincipleLibrary:
     """Test that principle extraction catches exceptions gracefully."""
@@ -1089,6 +1099,7 @@ class TestV124PrincipleLibrary:
 # =============================================================================
 # 13. V12.4 Integration: AutoMemory (graceful degradation)
 # =============================================================================
+
 
 class TestV124AutoMemory:
     """Test that AutoMemory recording catches exceptions gracefully."""
@@ -1151,6 +1162,7 @@ class TestV124AutoMemory:
 # 14. V12.4 Integration: UncertaintyPropagator (graceful degradation)
 # =============================================================================
 
+
 class TestV124UncertaintyPropagator:
     """Test that UncertaintyPropagator reset catches exceptions gracefully."""
 
@@ -1190,6 +1202,7 @@ class TestV124UncertaintyPropagator:
 # =============================================================================
 # 15. V12.4 Integration: ExperienceDistiller (graceful degradation)
 # =============================================================================
+
 
 class TestV124ExperienceDistiller:
     """Test that ExperienceDistiller catches exceptions gracefully."""
@@ -1231,6 +1244,7 @@ class TestV124ExperienceDistiller:
 # 16. Reflection Helpers
 # =============================================================================
 
+
 class TestReflectWithDrivers:
     """Test _reflect_with_gemini and _reflect_with_claude."""
 
@@ -1260,38 +1274,31 @@ class TestReflectWithDrivers:
 
     @pytest.mark.asyncio
     async def test_reflect_with_gemini_raises_on_error(self, phase, mock_gemini):
-        mock_gemini.send_message_async = AsyncMock(
-            side_effect=ConnectionError("offline")
-        )
+        mock_gemini.send_message_async = AsyncMock(side_effect=ConnectionError("offline"))
         with pytest.raises(ConnectionError):
             await phase._reflect_with_gemini("prompt", None)
 
     @pytest.mark.asyncio
     async def test_reflect_with_claude_raises_on_error(self, phase, mock_claude):
-        mock_claude.send_message_async = AsyncMock(
-            side_effect=TimeoutError("timeout")
-        )
+        mock_claude.send_message_async = AsyncMock(side_effect=TimeoutError("timeout"))
         with pytest.raises(TimeoutError):
             await phase._reflect_with_claude("prompt", None)
 
     @pytest.mark.asyncio
     async def test_reflect_passes_session_uuid(self, phase, mock_gemini):
         await phase._reflect_with_gemini("prompt", "my-session")
-        mock_gemini.send_message_async.assert_called_once_with(
-            "prompt", session_uuid="my-session"
-        )
+        mock_gemini.send_message_async.assert_called_once_with("prompt", session_uuid="my-session")
 
     @pytest.mark.asyncio
     async def test_reflect_with_none_session(self, phase, mock_claude):
         await phase._reflect_with_claude("prompt", None)
-        mock_claude.send_message_async.assert_called_once_with(
-            "prompt", session_uuid=None
-        )
+        mock_claude.send_message_async.assert_called_once_with("prompt", session_uuid=None)
 
 
 # =============================================================================
 # 17. Constructor
 # =============================================================================
+
 
 class TestConstructor:
     """Test KnowledgeConsolidationPhase initialization."""
@@ -1349,6 +1356,7 @@ class TestConstructor:
 # =============================================================================
 # 18. Edge Cases
 # =============================================================================
+
 
 class TestEdgeCases:
     """Edge cases and boundary conditions."""

@@ -17,8 +17,6 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.security_pkg.security.security_event_journal import (
     EVENT_TYPES,
     MAX_EVENTS,
@@ -31,10 +29,10 @@ from core.security_pkg.security.security_event_journal import (
     reset_security_journal,
 )
 
-
 # =============================================================================
 # SecurityEvent Tests
 # =============================================================================
+
 
 class TestSecurityEvent:
     """Test SecurityEvent dataclass."""
@@ -46,8 +44,11 @@ class TestSecurityEvent:
 
     def test_to_dict(self):
         e = SecurityEvent(
-            event_id="se_000001", event_type="auth_attempt",
-            severity="medium", actor="rogue", resource="/kernel",
+            event_id="se_000001",
+            event_type="auth_attempt",
+            severity="medium",
+            actor="rogue",
+            resource="/kernel",
         )
         d = e.to_dict()
         assert d["event_type"] == "auth_attempt"
@@ -58,14 +59,18 @@ class TestSecurityEvent:
 # ThreatPattern Tests
 # =============================================================================
 
+
 class TestThreatPattern:
     """Test ThreatPattern dataclass."""
 
     def test_to_dict(self):
         p = ThreatPattern(
-            pattern_type="repeated_auth_failure", actor="rogue",
-            event_count=5, severity="high",
-            first_seen=100.0, last_seen=200.0,
+            pattern_type="repeated_auth_failure",
+            actor="rogue",
+            event_count=5,
+            severity="high",
+            first_seen=100.0,
+            last_seen=200.0,
         )
         d = p.to_dict()
         assert d["pattern_type"] == "repeated_auth_failure"
@@ -76,13 +81,17 @@ class TestThreatPattern:
 # SecurityJournalStats Tests
 # =============================================================================
 
+
 class TestSecurityJournalStats:
     """Test SecurityJournalStats dataclass."""
 
     def test_to_dict(self):
         s = SecurityJournalStats(
-            total_events=20, events_by_type={"auth_attempt": 10},
-            events_by_severity={"high": 5}, unique_actors=3, critical_events=2,
+            total_events=20,
+            events_by_type={"auth_attempt": 10},
+            events_by_severity={"high": 5},
+            unique_actors=3,
+            critical_events=2,
         )
         d = s.to_dict()
         assert d["total_events"] == 20
@@ -91,6 +100,7 @@ class TestSecurityJournalStats:
 # =============================================================================
 # Recording Tests
 # =============================================================================
+
 
 class TestRecording:
     """Test event recording methods."""
@@ -146,6 +156,7 @@ class TestRecording:
 # =============================================================================
 # Query Tests
 # =============================================================================
+
 
 class TestQueries:
     """Test query methods."""
@@ -209,6 +220,7 @@ class TestQueries:
 # Pattern Detection Tests
 # =============================================================================
 
+
 class TestPatternDetection:
     """Test threat pattern detection."""
 
@@ -245,6 +257,7 @@ class TestPatternDetection:
 # Actor Summary Tests
 # =============================================================================
 
+
 class TestActorSummary:
     """Test actor summary."""
 
@@ -266,6 +279,7 @@ class TestActorSummary:
 # Bounded History Tests
 # =============================================================================
 
+
 class TestBoundedHistory:
     """Test bounded event history."""
 
@@ -279,6 +293,7 @@ class TestBoundedHistory:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test journal statistics."""
@@ -307,6 +322,7 @@ class TestStatistics:
 # =============================================================================
 # State Tests
 # =============================================================================
+
 
 class TestState:
     """Test state management."""
@@ -342,6 +358,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global security journal."""
 
@@ -368,25 +385,32 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_security_package(self):
         from core.security_pkg.security import (
-            SecurityEventJournal, SecurityEvent,
-            ThreatPattern, SecurityJournalStats,
-            get_security_journal, reset_security_journal,
+            SecurityEvent,
+            SecurityEventJournal,
+            SecurityJournalStats,
+            ThreatPattern,
+            get_security_journal,
+            reset_security_journal,
         )
-        assert all([
-            SecurityEventJournal, SecurityEvent,
-            ThreatPattern, SecurityJournalStats,
-            get_security_journal, reset_security_journal,
-        ])
+
+        assert all(
+            [
+                SecurityEventJournal,
+                SecurityEvent,
+                ThreatPattern,
+                SecurityJournalStats,
+                get_security_journal,
+                reset_security_journal,
+            ]
+        )
 
     def test_constants(self):
-        from core.security_pkg.security.security_event_journal import (
-            MAX_EVENTS, SEVERITY_LEVELS, EVENT_TYPES,
-        )
         assert MAX_EVENTS == 100000
         assert "critical" in SEVERITY_LEVELS
         assert "auth_attempt" in EVENT_TYPES

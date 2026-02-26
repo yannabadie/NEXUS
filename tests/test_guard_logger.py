@@ -17,8 +17,6 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.fsm.guard_logger import (
     MAX_EVALUATIONS,
     BlockedTransition,
@@ -30,10 +28,10 @@ from core.fsm.guard_logger import (
     reset_guard_logger,
 )
 
-
 # =============================================================================
 # GuardEvaluation Tests
 # =============================================================================
+
 
 class TestGuardEvaluation:
     """Test GuardEvaluation dataclass."""
@@ -44,8 +42,11 @@ class TestGuardEvaluation:
 
     def test_to_dict(self):
         e = GuardEvaluation(
-            guard_name="can_execute", from_state="IDLE", to_state="EXECUTING",
-            result=False, reason="Not authorized",
+            guard_name="can_execute",
+            from_state="IDLE",
+            to_state="EXECUTING",
+            result=False,
+            reason="Not authorized",
         )
         d = e.to_dict()
         assert d["result"] is False
@@ -55,6 +56,7 @@ class TestGuardEvaluation:
 # =============================================================================
 # GuardMetrics Tests
 # =============================================================================
+
 
 class TestGuardMetrics:
     """Test GuardMetrics dataclass."""
@@ -82,6 +84,7 @@ class TestGuardMetrics:
 # BlockedTransition Tests
 # =============================================================================
 
+
 class TestBlockedTransition:
     """Test BlockedTransition dataclass."""
 
@@ -95,12 +98,14 @@ class TestBlockedTransition:
 # GuardLoggerStats Tests
 # =============================================================================
 
+
 class TestGuardLoggerStats:
     """Test GuardLoggerStats dataclass."""
 
     def test_to_dict(self):
-        s = GuardLoggerStats(total_evaluations=20, total_blocked=5, total_allowed=15,
-                             unique_guards=3, unique_transitions=4)
+        s = GuardLoggerStats(
+            total_evaluations=20, total_blocked=5, total_allowed=15, unique_guards=3, unique_transitions=4
+        )
         d = s.to_dict()
         assert d["total_evaluations"] == 20
 
@@ -108,6 +113,7 @@ class TestGuardLoggerStats:
 # =============================================================================
 # Recording Tests
 # =============================================================================
+
 
 class TestRecording:
     """Test evaluation recording."""
@@ -146,6 +152,7 @@ class TestRecording:
 # =============================================================================
 # Query Tests
 # =============================================================================
+
 
 class TestQueries:
     """Test query methods."""
@@ -218,6 +225,7 @@ class TestQueries:
 # Bounded History Tests
 # =============================================================================
 
+
 class TestBoundedHistory:
     """Test bounded evaluation history."""
 
@@ -231,6 +239,7 @@ class TestBoundedHistory:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test guard logger statistics."""
@@ -259,6 +268,7 @@ class TestStatistics:
 # =============================================================================
 # State Tests
 # =============================================================================
+
 
 class TestState:
     """Test state management."""
@@ -289,6 +299,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global guard logger."""
 
@@ -315,21 +326,32 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_fsm_package(self):
         from core.fsm import (
-            GuardLogger, GuardEvaluation, GuardMetrics,
-            BlockedTransition, GuardLoggerStats,
-            get_guard_logger, reset_guard_logger,
+            BlockedTransition,
+            GuardEvaluation,
+            GuardLogger,
+            GuardLoggerStats,
+            GuardMetrics,
+            get_guard_logger,
+            reset_guard_logger,
         )
-        assert all([
-            GuardLogger, GuardEvaluation, GuardMetrics,
-            BlockedTransition, GuardLoggerStats,
-            get_guard_logger, reset_guard_logger,
-        ])
+
+        assert all(
+            [
+                GuardLogger,
+                GuardEvaluation,
+                GuardMetrics,
+                BlockedTransition,
+                GuardLoggerStats,
+                get_guard_logger,
+                reset_guard_logger,
+            ]
+        )
 
     def test_constants(self):
-        from core.fsm.guard_logger import MAX_EVALUATIONS
         assert MAX_EVALUATIONS == 50000

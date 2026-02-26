@@ -15,31 +15,26 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.infrastructure.db.query_performance_tracker import (
     MAX_QUERIES,
+    QueryPerformanceStats,
     QueryPerformanceTracker,
     QueryRecord,
     TableProfile,
-    QueryPerformanceStats,
     get_query_tracker,
     reset_query_tracker,
 )
-
 
 # =============================================================================
 # QueryRecord Tests
 # =============================================================================
 
+
 class TestQueryRecord:
     """Test QueryRecord dataclass."""
 
     def test_to_dict(self):
-        r = QueryRecord(
-            query_id="qr_000001", query_type="select",
-            table_name="tenants", duration_ms=5.0
-        )
+        r = QueryRecord(query_id="qr_000001", query_type="select", table_name="tenants", duration_ms=5.0)
         d = r.to_dict()
         assert d["query_type"] == "select"
         assert d["table_name"] == "tenants"
@@ -48,6 +43,7 @@ class TestQueryRecord:
 # =============================================================================
 # TableProfile Tests
 # =============================================================================
+
 
 class TestTableProfile:
     """Test TableProfile dataclass."""
@@ -61,9 +57,7 @@ class TestTableProfile:
         assert p.success_rate == 0.0
 
     def test_avg_duration(self):
-        p = TableProfile(
-            table_name="tenants", total_queries=4, total_duration_ms=400.0
-        )
+        p = TableProfile(table_name="tenants", total_queries=4, total_duration_ms=400.0)
         assert abs(p.avg_duration_ms - 100.0) < 0.01
 
     def test_avg_duration_zero(self):
@@ -71,9 +65,7 @@ class TestTableProfile:
         assert p.avg_duration_ms == 0.0
 
     def test_avg_rows(self):
-        p = TableProfile(
-            table_name="tenants", total_queries=4, total_rows=40
-        )
+        p = TableProfile(table_name="tenants", total_queries=4, total_rows=40)
         assert abs(p.avg_rows - 10.0) < 0.01
 
     def test_avg_rows_zero(self):
@@ -92,6 +84,7 @@ class TestTableProfile:
 # QueryPerformanceStats Tests
 # =============================================================================
 
+
 class TestQueryPerformanceStats:
     """Test QueryPerformanceStats dataclass."""
 
@@ -104,6 +97,7 @@ class TestQueryPerformanceStats:
 # =============================================================================
 # Recording Tests
 # =============================================================================
+
 
 class TestRecording:
     """Test query recording."""
@@ -136,6 +130,7 @@ class TestRecording:
 # Query Tests
 # =============================================================================
 
+
 class TestQueries:
     """Test query methods."""
 
@@ -162,7 +157,7 @@ class TestQueries:
 
     def test_recent_queries(self):
         t = QueryPerformanceTracker()
-        for i in range(5):
+        for _i in range(5):
             t.record_query("select", "tenants")
         recent = t.get_recent_queries(limit=3)
         assert len(recent) == 3
@@ -186,12 +181,13 @@ class TestQueries:
 # Bounded History Tests
 # =============================================================================
 
+
 class TestBoundedHistory:
     """Test bounded query history."""
 
     def test_eviction(self):
         t = QueryPerformanceTracker(max_queries=5)
-        for i in range(10):
+        for _i in range(10):
             t.record_query("select", "tenants")
         assert t.query_count == 5
 
@@ -199,6 +195,7 @@ class TestBoundedHistory:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test tracker statistics."""
@@ -226,6 +223,7 @@ class TestStatistics:
 # State Tests
 # =============================================================================
 
+
 class TestState:
     """Test state management."""
 
@@ -251,6 +249,7 @@ class TestState:
 # =============================================================================
 # Global Singleton Tests
 # =============================================================================
+
 
 class TestGlobalSingleton:
     """Test global query tracker."""
@@ -278,21 +277,30 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_db_package(self):
         from core.infrastructure.db import (
-            QueryPerformanceTracker, QueryRecord,
-            TableProfile, QueryPerformanceStats,
-            get_query_tracker, reset_query_tracker,
+            QueryPerformanceStats,
+            QueryPerformanceTracker,
+            QueryRecord,
+            TableProfile,
+            get_query_tracker,
+            reset_query_tracker,
         )
-        assert all([
-            QueryPerformanceTracker, QueryRecord,
-            TableProfile, QueryPerformanceStats,
-            get_query_tracker, reset_query_tracker,
-        ])
+
+        assert all(
+            [
+                QueryPerformanceTracker,
+                QueryRecord,
+                TableProfile,
+                QueryPerformanceStats,
+                get_query_tracker,
+                reset_query_tracker,
+            ]
+        )
 
     def test_constants(self):
-        from core.infrastructure.db.query_performance_tracker import MAX_QUERIES
         assert MAX_QUERIES == 50000

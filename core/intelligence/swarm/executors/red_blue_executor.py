@@ -7,20 +7,19 @@ Use case: Security reviews, critical decisions, risk assessment.
 """
 
 from pathlib import Path
-from typing import List
-
-from .base import (
-    ModeExecutor,
-    ExecutionStatus,
-    AgentResponse,
-    ExecutionContext,
-    ExecutionResult,
-)
-from ..collaboration_modes import CollaborationMode
-from core.utils.artifact_verifier import ArtifactVerifier
 
 # V13.0 CEREBRO LIVE: Telemetry for agent exchanges
 from core.observability.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
+from core.utils.artifact_verifier import ArtifactVerifier
+
+from ..collaboration_modes import CollaborationMode
+from .base import (
+    AgentResponse,
+    ExecutionContext,
+    ExecutionResult,
+    ExecutionStatus,
+    ModeExecutor,
+)
 
 
 class RedBlueExecutor(ModeExecutor):
@@ -50,10 +49,10 @@ class RedBlueExecutor(ModeExecutor):
                 agent_outputs=[],
                 total_rounds=0,
                 total_tokens=0,
-                total_time_seconds=0.0
+                total_time_seconds=0.0,
             )
 
-        outputs: List[AgentResponse] = []
+        outputs: list[AgentResponse] = []
         total_tokens = 0
         total_time = 0.0
 
@@ -72,7 +71,9 @@ class RedBlueExecutor(ModeExecutor):
 
         # V13.0 CEREBRO LIVE: Emit Blue proposal
         emit_agent_speak(blue.agent_id, proposal.content[:200], action_type="PROPOSE")
-        emit_agent_exchange(blue.agent_id, red.agent_id, "[PROPOSE] Solution ready for review", exchange_type="red_blue")
+        emit_agent_exchange(
+            blue.agent_id, red.agent_id, "[PROPOSE] Solution ready for review", exchange_type="red_blue"
+        )
 
         # Phase 2: Red attacks
         attack_context = (
@@ -133,10 +134,7 @@ class RedBlueExecutor(ModeExecutor):
 
         # 1. Improved text-based verdict detection
         # Require explicit "VERDICT: PASS" or "PASS" without "FAIL"
-        text_passed = (
-            "VERDICT: PASS" in verdict_upper or
-            ("PASS" in verdict_upper and "FAIL" not in verdict_upper)
-        )
+        text_passed = "VERDICT: PASS" in verdict_upper or ("PASS" in verdict_upper and "FAIL" not in verdict_upper)
 
         # 2. Artifact verification - check if mentioned files actually exist
         # V12.4: Handle None workspace_path explicitly
@@ -176,6 +174,6 @@ class RedBlueExecutor(ModeExecutor):
                 "artifact_successes": successes,
                 "artifact_failures": failures,
                 "verdict_content": final_verdict_content,
-                "validation_method": "robust_artifacts"
-            }
+                "validation_method": "robust_artifacts",
+            },
         )

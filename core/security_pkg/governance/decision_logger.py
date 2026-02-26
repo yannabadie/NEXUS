@@ -26,7 +26,7 @@ import logging
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -43,19 +43,21 @@ DECISION_TYPES = {"mode_choice", "spawn_decision", "policy_violation", "phase_ro
 # Types
 # =============================================================================
 
+
 @dataclass
 class GovernanceDecision:
     """A recorded governance decision."""
+
     decision_id: str
     decision_type: str  # mode_choice, spawn_decision, policy_violation, phase_routing
     session_id: str = ""
     agent_id: str = ""
     reasoning: str = ""
     outcome: str = ""  # approved, rejected, accepted, remediated
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
     timestamp: float = field(default_factory=time.monotonic)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "decision_id": self.decision_id,
             "decision_type": self.decision_type,
@@ -71,12 +73,13 @@ class GovernanceDecision:
 @dataclass
 class DecisionPattern:
     """Aggregated pattern from decision history."""
+
     decision_type: str
     outcome: str
     count: int
     frequency: float  # proportion of total decisions of this type
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "decision_type": self.decision_type,
             "outcome": self.outcome,
@@ -88,6 +91,7 @@ class DecisionPattern:
 @dataclass
 class DecisionLogStats:
     """Decision log statistics."""
+
     total_decisions: int
     mode_choices: int
     spawn_decisions: int
@@ -95,7 +99,7 @@ class DecisionLogStats:
     phase_routings: int
     unique_sessions: int
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_decisions": self.total_decisions,
             "mode_choices": self.mode_choices,
@@ -110,6 +114,7 @@ class DecisionLogStats:
 # Decision Logger
 # =============================================================================
 
+
 class GovernanceDecisionLog:
     """
     Append-only log of governance decisions with analytics.
@@ -123,7 +128,7 @@ class GovernanceDecisionLog:
 
     def __init__(self, *, max_entries: int = MAX_ENTRIES):
         self._max_entries = max_entries
-        self._entries: List[GovernanceDecision] = []
+        self._entries: list[GovernanceDecision] = []
         self._next_id = 1
         self._lock = threading.Lock()
 
@@ -144,7 +149,7 @@ class GovernanceDecisionLog:
         proposed_mode: str = "",
         accepted_mode: str = "",
         reasoning: str = "",
-        agents: Optional[List[str]] = None,
+        agents: list[str] | None = None,
     ) -> GovernanceDecision:
         """Record a collaboration mode choice decision."""
         return self._record(
@@ -222,7 +227,7 @@ class GovernanceDecisionLog:
         agent_id: str = "",
         reasoning: str = "",
         outcome: str = "",
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> GovernanceDecision:
         """Internal: create and append a decision entry."""
         with self._lock:
@@ -244,25 +249,25 @@ class GovernanceDecisionLog:
     # Queries
     # =========================================================================
 
-    def query_by_session(self, session_id: str, *, limit: int = 100) -> List[GovernanceDecision]:
+    def query_by_session(self, session_id: str, *, limit: int = 100) -> list[GovernanceDecision]:
         return self._filter(lambda e: e.session_id == session_id, limit)
 
-    def query_by_agent(self, agent_id: str, *, limit: int = 100) -> List[GovernanceDecision]:
+    def query_by_agent(self, agent_id: str, *, limit: int = 100) -> list[GovernanceDecision]:
         return self._filter(lambda e: e.agent_id == agent_id, limit)
 
-    def query_by_type(self, decision_type: str, *, limit: int = 100) -> List[GovernanceDecision]:
+    def query_by_type(self, decision_type: str, *, limit: int = 100) -> list[GovernanceDecision]:
         return self._filter(lambda e: e.decision_type == decision_type, limit)
 
-    def query_by_outcome(self, outcome: str, *, limit: int = 100) -> List[GovernanceDecision]:
+    def query_by_outcome(self, outcome: str, *, limit: int = 100) -> list[GovernanceDecision]:
         return self._filter(lambda e: e.outcome == outcome, limit)
 
-    def get_recent(self, limit: int = 50) -> List[GovernanceDecision]:
+    def get_recent(self, limit: int = 50) -> list[GovernanceDecision]:
         return list(reversed(self._entries[-limit:]))
 
-    def get_violations(self, *, limit: int = 100) -> List[GovernanceDecision]:
+    def get_violations(self, *, limit: int = 100) -> list[GovernanceDecision]:
         return self.query_by_type("policy_violation", limit=limit)
 
-    def _filter(self, predicate, limit: int) -> List[GovernanceDecision]:
+    def _filter(self, predicate, limit: int) -> list[GovernanceDecision]:
         results = []
         for entry in reversed(self._entries):
             if predicate(entry):
@@ -275,30 +280,32 @@ class GovernanceDecisionLog:
     # Analytics
     # =========================================================================
 
-    def analyze_patterns(self, decision_type: str) -> List[DecisionPattern]:
+    def analyze_patterns(self, decision_type: str) -> list[DecisionPattern]:
         """Analyze outcome patterns for a decision type."""
         type_entries = [e for e in self._entries if e.decision_type == decision_type]
         if not type_entries:
             return []
 
-        outcome_counts: Dict[str, int] = {}
+        outcome_counts: dict[str, int] = {}
         for e in type_entries:
             outcome_counts[e.outcome] = outcome_counts.get(e.outcome, 0) + 1
 
         total = len(type_entries)
         patterns = []
         for outcome, count in sorted(outcome_counts.items(), key=lambda x: -x[1]):
-            patterns.append(DecisionPattern(
-                decision_type=decision_type,
-                outcome=outcome,
-                count=count,
-                frequency=count / total,
-            ))
+            patterns.append(
+                DecisionPattern(
+                    decision_type=decision_type,
+                    outcome=outcome,
+                    count=count,
+                    frequency=count / total,
+                )
+            )
         return patterns
 
-    def mode_success_summary(self) -> Dict[str, int]:
+    def mode_success_summary(self) -> dict[str, int]:
         """Get count of each accepted mode."""
-        counts: Dict[str, int] = {}
+        counts: dict[str, int] = {}
         for e in self._entries:
             if e.decision_type == "mode_choice":
                 mode = e.outcome
@@ -337,7 +344,7 @@ class GovernanceDecisionLog:
             self._entries.clear()
             self._next_id = 1
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "size": self.size,
             "max_entries": self._max_entries,
@@ -349,7 +356,7 @@ class GovernanceDecisionLog:
 # Global Instance
 # =============================================================================
 
-_log: Optional[GovernanceDecisionLog] = None
+_log: GovernanceDecisionLog | None = None
 _log_lock = threading.Lock()
 
 

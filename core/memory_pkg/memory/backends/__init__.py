@@ -27,10 +27,10 @@ Usage:
 """
 
 from .base import MemoryBackend
+from .bm25 import BM25S_AVAILABLE, STEMMER_AVAILABLE, Bm25Backend
+from .dense import LANCEDB_AVAILABLE, SENTENCE_TRANSFORMERS_AVAILABLE, DenseBackend
+from .hybrid import DEFAULT_DENSE_WEIGHT, DEFAULT_SPARSE_WEIGHT, RRF_K, HybridBackend
 from .tfidf import TfidfBackend
-from .bm25 import Bm25Backend, BM25S_AVAILABLE, STEMMER_AVAILABLE
-from .dense import DenseBackend, LANCEDB_AVAILABLE, SENTENCE_TRANSFORMERS_AVAILABLE
-from .hybrid import HybridBackend, RRF_K, DEFAULT_DENSE_WEIGHT, DEFAULT_SPARSE_WEIGHT
 
 __all__ = [
     "MemoryBackend",

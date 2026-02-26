@@ -15,31 +15,26 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.synapse.message_reliability_tracker import (
     MAX_DELIVERIES,
-    MessageReliabilityTracker,
-    DeliveryRecord,
     ChannelMetrics,
+    DeliveryRecord,
+    MessageReliabilityTracker,
     ReliabilityStats,
     get_message_tracker,
     reset_message_tracker,
 )
 
-
 # =============================================================================
 # DeliveryRecord Tests
 # =============================================================================
+
 
 class TestDeliveryRecord:
     """Test DeliveryRecord dataclass."""
 
     def test_to_dict(self):
-        r = DeliveryRecord(
-            delivery_id="md_000001", sender="gemini",
-            receiver="claude", message_type="talk"
-        )
+        r = DeliveryRecord(delivery_id="md_000001", sender="gemini", receiver="claude", message_type="talk")
         d = r.to_dict()
         assert d["sender"] == "gemini"
         assert d["receiver"] == "claude"
@@ -48,6 +43,7 @@ class TestDeliveryRecord:
 # =============================================================================
 # ChannelMetrics Tests
 # =============================================================================
+
 
 class TestChannelMetrics:
     """Test ChannelMetrics dataclass."""
@@ -61,10 +57,7 @@ class TestChannelMetrics:
         assert m.delivery_rate == 0.0
 
     def test_avg_latency(self):
-        m = ChannelMetrics(
-            sender="a", receiver="b",
-            delivered_count=4, total_latency_ms=400.0
-        )
+        m = ChannelMetrics(sender="a", receiver="b", delivered_count=4, total_latency_ms=400.0)
         assert abs(m.avg_latency_ms - 100.0) < 0.01
 
     def test_avg_latency_zero(self):
@@ -82,6 +75,7 @@ class TestChannelMetrics:
 # ReliabilityStats Tests
 # =============================================================================
 
+
 class TestReliabilityStats:
     """Test ReliabilityStats dataclass."""
 
@@ -94,6 +88,7 @@ class TestReliabilityStats:
 # =============================================================================
 # Recording Tests
 # =============================================================================
+
 
 class TestRecording:
     """Test delivery recording."""
@@ -126,6 +121,7 @@ class TestRecording:
 # =============================================================================
 # Query Tests
 # =============================================================================
+
 
 class TestQueries:
     """Test query methods."""
@@ -160,7 +156,7 @@ class TestQueries:
 
     def test_recent_deliveries(self):
         t = MessageReliabilityTracker()
-        for i in range(5):
+        for _i in range(5):
             t.record_delivery("a", "b")
         recent = t.get_recent_deliveries(limit=3)
         assert len(recent) == 3
@@ -182,12 +178,13 @@ class TestQueries:
 # Bounded History Tests
 # =============================================================================
 
+
 class TestBoundedHistory:
     """Test bounded delivery history."""
 
     def test_eviction(self):
         t = MessageReliabilityTracker(max_deliveries=5)
-        for i in range(10):
+        for _i in range(10):
             t.record_delivery("a", "b")
         assert t.delivery_count == 5
 
@@ -195,6 +192,7 @@ class TestBoundedHistory:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test tracker statistics."""
@@ -225,6 +223,7 @@ class TestStatistics:
 # State Tests
 # =============================================================================
 
+
 class TestState:
     """Test state management."""
 
@@ -250,6 +249,7 @@ class TestState:
 # =============================================================================
 # Global Singleton Tests
 # =============================================================================
+
 
 class TestGlobalSingleton:
     """Test global message tracker."""
@@ -277,21 +277,30 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_synapse_package(self):
         from core.synapse import (
-            MessageReliabilityTracker, DeliveryRecord,
-            ChannelMetrics, MessageReliabilityStats,
-            get_message_tracker, reset_message_tracker,
+            ChannelMetrics,
+            DeliveryRecord,
+            MessageReliabilityStats,
+            MessageReliabilityTracker,
+            get_message_tracker,
+            reset_message_tracker,
         )
-        assert all([
-            MessageReliabilityTracker, DeliveryRecord,
-            ChannelMetrics, MessageReliabilityStats,
-            get_message_tracker, reset_message_tracker,
-        ])
+
+        assert all(
+            [
+                MessageReliabilityTracker,
+                DeliveryRecord,
+                ChannelMetrics,
+                MessageReliabilityStats,
+                get_message_tracker,
+                reset_message_tracker,
+            ]
+        )
 
     def test_constants(self):
-        from core.synapse.message_reliability_tracker import MAX_DELIVERIES
         assert MAX_DELIVERIES == 50000

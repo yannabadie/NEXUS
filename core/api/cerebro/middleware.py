@@ -17,7 +17,7 @@ V11.3 HARDENING: JWT_SECRET loaded from environment variable.
 
 import logging
 import os
-
+from datetime import UTC
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -51,14 +51,9 @@ def decode_jwt(token: str) -> dict | None:
         Decoded claims dict or None if invalid
     """
     try:
-        from jose import jwt, JWTError
+        from jose import jwt
 
-        claims = jwt.decode(
-            token,
-            JWT_SECRET,
-            algorithms=[JWT_ALGORITHM],
-            options={"verify_exp": True}
-        )
+        claims = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM], options={"verify_exp": True})
         return claims
     except ImportError:
         logger.warning("python-jose not installed, JWT auth disabled")
@@ -137,10 +132,11 @@ def create_jwt_token(
     Returns:
         JWT token string
     """
-    from datetime import datetime, timezone, timedelta
+    from datetime import datetime, timedelta
+
     from jose import jwt
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     claims = {
         "sub": user_id,
         "tenant_id": tenant_id,

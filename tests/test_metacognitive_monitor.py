@@ -26,10 +26,10 @@ from core.intelligence.reasoning.metacognitive_monitor import (
     reset_metacognitive_monitor,
 )
 
-
 # ============================================================================
 # _tokenize Tests
 # ============================================================================
+
 
 class TestTokenize:
     """Test the _tokenize helper function."""
@@ -84,6 +84,7 @@ class TestTokenize:
 # _term_frequency Tests
 # ============================================================================
 
+
 class TestTermFrequency:
     """Test the _term_frequency helper function."""
 
@@ -120,6 +121,7 @@ class TestTermFrequency:
 # ============================================================================
 # _cosine_similarity Tests
 # ============================================================================
+
 
 class TestCosineSimilarity:
     """Test the _cosine_similarity function."""
@@ -180,6 +182,7 @@ class TestCosineSimilarity:
 # AnomalyScore Tests
 # ============================================================================
 
+
 class TestAnomalyScore:
     """Test the AnomalyScore dataclass."""
 
@@ -236,6 +239,7 @@ class TestAnomalyScore:
 # ============================================================================
 # StepPrototype Tests
 # ============================================================================
+
 
 class TestStepPrototype:
     """Test the StepPrototype dataclass and its update method."""
@@ -303,6 +307,7 @@ class TestStepPrototype:
 # ============================================================================
 # MetacognitiveMonitor.score_step Tests
 # ============================================================================
+
 
 class TestScoreStep:
     """Test the MetacognitiveMonitor.score_step method."""
@@ -378,6 +383,7 @@ class TestScoreStep:
 # Prototype Building Tests
 # ============================================================================
 
+
 class TestPrototypeBuilding:
     """Test that score_step builds prototypes over multiple calls."""
 
@@ -431,6 +437,7 @@ class TestPrototypeBuilding:
 # ============================================================================
 # should_correct Tests
 # ============================================================================
+
 
 class TestShouldCorrect:
     """Test the should_correct method."""
@@ -493,6 +500,7 @@ class TestShouldCorrect:
 # get_stats Tests
 # ============================================================================
 
+
 class TestGetStats:
     """Test the get_stats method."""
 
@@ -533,6 +541,7 @@ class TestGetStats:
 # ============================================================================
 # Anomaly Detection Tests
 # ============================================================================
+
 
 class TestAnomalyDetection:
     """Test that very different outputs score higher than similar ones."""
@@ -597,6 +606,7 @@ class TestAnomalyDetection:
 # ============================================================================
 # Z-Score Computation Tests
 # ============================================================================
+
 
 class TestZScore:
     """Test z-score computation with enough history."""
@@ -665,6 +675,7 @@ class TestZScore:
 # Singleton Pattern Tests
 # ============================================================================
 
+
 class TestSingleton:
     """Test get_metacognitive_monitor and reset_metacognitive_monitor."""
 
@@ -708,6 +719,7 @@ class TestSingleton:
 # Edge Cases and Integration
 # ============================================================================
 
+
 class TestEdgeCases:
     """Test edge cases and integration scenarios."""
 
@@ -750,7 +762,7 @@ class TestEdgeCases:
 
         # Create a scenario where anomaly is detected
         # Feed many similar steps, then a very different one
-        for i in range(10):
+        for _i in range(10):
             monitor.score_step(
                 "analyzing code structure and patterns",
                 history=["analyzing code structure"],

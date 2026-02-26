@@ -13,11 +13,15 @@ Sprint 1 Consolidation: Eliminated 359 lines of duplicate token bucket code.
 """
 
 from core.infrastructure.resilience.unified_rate_limiter import (
-    ProviderRateLimiter as RateLimiter,
+    DEFAULT_PROVIDER_LIMITS as DEFAULT_LIMITS,
+)
+from core.infrastructure.resilience.unified_rate_limiter import (
     ProviderLimits,
     ProviderState,
     TokenBucket,
-    DEFAULT_PROVIDER_LIMITS as DEFAULT_LIMITS,
+)
+from core.infrastructure.resilience.unified_rate_limiter import (
+    ProviderRateLimiter as RateLimiter,
 )
 
 __all__ = [

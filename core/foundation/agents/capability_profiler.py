@@ -96,9 +96,11 @@ KNOWN_CAPABILITIES: dict[str, str] = {
 # Types
 # =============================================================================
 
+
 @dataclass
 class CapabilityRecord:
     """Proficiency record for one agent-capability pair."""
+
     capability: str
     proficiency: float = DEFAULT_PROFICIENCY
     observations: int = 0
@@ -138,6 +140,7 @@ class CapabilityRecord:
 @dataclass
 class AgentProfile:
     """Complete capability profile for one agent."""
+
     agent_id: str
     capabilities: dict[str, CapabilityRecord] = field(default_factory=dict)
     total_tasks: int = 0
@@ -164,16 +167,14 @@ class AgentProfile:
             "agent_id": self.agent_id,
             "total_tasks": self.total_tasks,
             "overall_success_rate": round(self.overall_success_rate, 4),
-            "capabilities": {
-                name: rec.to_dict()
-                for name, rec in sorted(self.capabilities.items())
-            },
+            "capabilities": {name: rec.to_dict() for name, rec in sorted(self.capabilities.items())},
         }
 
 
 @dataclass
 class MatchResult:
     """Result of matching required capabilities to an agent."""
+
     agent_id: str
     score: float  # 0.0 to 1.0
     matched_capabilities: list[str]
@@ -191,15 +192,14 @@ class MatchResult:
             "is_full_match": self.is_full_match,
             "matched": self.matched_capabilities,
             "missing": self.missing_capabilities,
-            "proficiency": {
-                k: round(v, 4) for k, v in self.proficiency_details.items()
-            },
+            "proficiency": {k: round(v, 4) for k, v in self.proficiency_details.items()},
         }
 
 
 # =============================================================================
 # Capability Profiler
 # =============================================================================
+
 
 class CapabilityProfiler:
     """
@@ -383,10 +383,7 @@ class CapabilityProfiler:
         now = time.monotonic()
         decayed = 0
 
-        profiles = (
-            [self._profiles[agent_id]] if agent_id and agent_id in self._profiles
-            else self._profiles.values()
-        )
+        profiles = [self._profiles[agent_id]] if agent_id and agent_id in self._profiles else self._profiles.values()
 
         for profile in profiles:
             for rec in profile.capabilities.values():
@@ -511,13 +508,15 @@ class CapabilityProfiler:
             else:
                 score = 0.0
 
-            results.append(MatchResult(
-                agent_id=agent_id,
-                score=score,
-                matched_capabilities=matched,
-                missing_capabilities=missing,
-                proficiency_details=proficiency_details,
-            ))
+            results.append(
+                MatchResult(
+                    agent_id=agent_id,
+                    score=score,
+                    matched_capabilities=matched,
+                    missing_capabilities=missing,
+                    proficiency_details=proficiency_details,
+                )
+            )
 
         results.sort(key=lambda r: r.score, reverse=True)
         return results
@@ -550,11 +549,7 @@ class CapabilityProfiler:
 
     def agents_with_capability(self, capability: str) -> list[str]:
         """Find all agents that have a specific capability."""
-        return sorted(
-            agent_id
-            for agent_id, profile in self._profiles.items()
-            if capability in profile.capabilities
-        )
+        return sorted(agent_id for agent_id, profile in self._profiles.items() if capability in profile.capabilities)
 
     def top_agents(
         self,
@@ -601,10 +596,7 @@ class CapabilityProfiler:
             "agent_count": self.agent_count,
             "learning_rate": self._learning_rate,
             "decay_rate_per_hour": self._decay_rate,
-            "profiles": {
-                agent_id: profile.to_dict()
-                for agent_id, profile in sorted(self._profiles.items())
-            },
+            "profiles": {agent_id: profile.to_dict() for agent_id, profile in sorted(self._profiles.items())},
         }
 
 

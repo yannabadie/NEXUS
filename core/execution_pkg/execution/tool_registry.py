@@ -26,8 +26,9 @@ Usage:
 from __future__ import annotations
 
 import logging
-from typing import Callable, Dict, Any, Optional, List, Set
+from collections.abc import Callable
 from dataclasses import dataclass, field
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -35,12 +36,13 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ToolMetadata:
     """Metadata for a registered tool."""
+
     name: str
     description: str = ""
-    schema: Dict[str, Any] = field(default_factory=dict)
+    schema: dict[str, Any] = field(default_factory=dict)
     category: str = "core"  # core, mcp, dynamic, swarm
     enabled: bool = True
-    aliases: List[str] = field(default_factory=list)
+    aliases: list[str] = field(default_factory=list)
 
 
 class ToolRegistry:
@@ -55,31 +57,42 @@ class ToolRegistry:
     """
 
     # Tool name aliases (Gemini CLI names -> NEXUS names)
-    TOOL_ALIASES: Dict[str, str] = {
-        'read_file': 'read',
-        'write_file': 'write',
-        'edit_file': 'edit',
-        'list_directory': 'list_dir',
-        'run_shell_command': 'bash',
-        'google_web_search': 'web_search',
-        'read_many_files': 'read',  # Fallback to single read
+    TOOL_ALIASES: dict[str, str] = {
+        "read_file": "read",
+        "write_file": "write",
+        "edit_file": "edit",
+        "list_directory": "list_dir",
+        "run_shell_command": "bash",
+        "google_web_search": "web_search",
+        "read_many_files": "read",  # Fallback to single read
     }
 
     # Core tool definitions
-    CORE_TOOLS: Set[str] = {
-        "bash", "read", "write", "edit", "list_dir",
-        "git", "web_search", "web_fetch",
-        "glob", "grep", "todo_write",
-        "create_tool", "delete_tool", "list_dynamic_tools", "run_dynamic_tool",
+    CORE_TOOLS: set[str] = {
+        "bash",
+        "read",
+        "write",
+        "edit",
+        "list_dir",
+        "git",
+        "web_search",
+        "web_fetch",
+        "glob",
+        "grep",
+        "todo_write",
+        "create_tool",
+        "delete_tool",
+        "list_dynamic_tools",
+        "run_dynamic_tool",
         "swarm_delegate",
     }
 
     def __init__(self):
         """Initialize empty registry."""
-        self._handlers: Dict[str, Callable] = {}
-        self._metadata: Dict[str, ToolMetadata] = {}
-        self._mcp_tools: Dict[str, str] = {}  # mcp_name -> server_name
-        self._dynamic_tools: Set[str] = set()
+        self._handlers: dict[str, Callable] = {}
+        self._metadata: dict[str, ToolMetadata] = {}
+        self._mcp_tools: dict[str, str] = {}  # mcp_name -> server_name
+        self._dynamic_tools: set[str] = set()
 
     def normalize_name(self, tool_name: str) -> str:
         """
@@ -99,9 +112,9 @@ class ToolRegistry:
         handler: Callable,
         *,
         description: str = "",
-        schema: Optional[Dict[str, Any]] = None,
+        schema: dict[str, Any] | None = None,
         category: str = "core",
-        aliases: Optional[List[str]] = None,
+        aliases: list[str] | None = None,
     ) -> None:
         """
         Register a tool handler.
@@ -149,7 +162,7 @@ class ToolRegistry:
             return True
         return False
 
-    def get_handler(self, name: str) -> Optional[Callable]:
+    def get_handler(self, name: str) -> Callable | None:
         """
         Get handler for a tool.
 
@@ -167,12 +180,12 @@ class ToolRegistry:
         normalized = self.normalize_name(name)
         return normalized in self._handlers
 
-    def get_metadata(self, name: str) -> Optional[ToolMetadata]:
+    def get_metadata(self, name: str) -> ToolMetadata | None:
         """Get metadata for a tool."""
         normalized = self.normalize_name(name)
         return self._metadata.get(normalized)
 
-    def list_tools(self, category: Optional[str] = None) -> List[str]:
+    def list_tools(self, category: str | None = None) -> list[str]:
         """
         List all registered tools.
 
@@ -184,20 +197,17 @@ class ToolRegistry:
         """
         if category is None:
             return list(self._handlers.keys())
-        return [
-            name for name, meta in self._metadata.items()
-            if meta.category == category
-        ]
+        return [name for name, meta in self._metadata.items() if meta.category == category]
 
-    def list_core_tools(self) -> List[str]:
+    def list_core_tools(self) -> list[str]:
         """List core (built-in) tools."""
         return self.list_tools(category="core")
 
-    def list_mcp_tools(self) -> List[str]:
+    def list_mcp_tools(self) -> list[str]:
         """List MCP tools."""
         return self.list_tools(category="mcp")
 
-    def list_dynamic_tools(self) -> List[str]:
+    def list_dynamic_tools(self) -> list[str]:
         """List dynamic tools."""
         return self.list_tools(category="dynamic")
 
@@ -208,7 +218,7 @@ class ToolRegistry:
         handler: Callable,
         server_name: str,
         description: str = "",
-        schema: Optional[Dict[str, Any]] = None,
+        schema: dict[str, Any] | None = None,
     ) -> None:
         """Register an MCP tool with optional input schema."""
         self.register(
@@ -220,7 +230,7 @@ class ToolRegistry:
         )
         self._mcp_tools[name] = server_name
 
-    def get_mcp_server(self, tool_name: str) -> Optional[str]:
+    def get_mcp_server(self, tool_name: str) -> str | None:
         """Get MCP server name for a tool."""
         return self._mcp_tools.get(tool_name)
 
@@ -230,7 +240,7 @@ class ToolRegistry:
         name: str,
         handler: Callable,
         description: str = "",
-        schema: Optional[Dict[str, Any]] = None,
+        schema: dict[str, Any] | None = None,
     ) -> None:
         """Register a dynamic tool."""
         self.register(
@@ -246,11 +256,11 @@ class ToolRegistry:
         """Check if tool is a dynamic tool."""
         return name in self._dynamic_tools
 
-    def get_all_aliases(self) -> Dict[str, str]:
+    def get_all_aliases(self) -> dict[str, str]:
         """Get all tool aliases."""
         return dict(self.TOOL_ALIASES)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Export registry state."""
         return {
             "tools": list(self._handlers.keys()),
@@ -270,7 +280,7 @@ class ToolRegistry:
 # =============================================================================
 # V10 PRISM: Multi-Tenant Tool Registry Access
 # =============================================================================
-_global_registry: Optional[ToolRegistry] = None
+_global_registry: ToolRegistry | None = None
 
 
 def get_tool_registry() -> ToolRegistry:
@@ -286,8 +296,10 @@ def get_tool_registry() -> ToolRegistry:
     # V10: Try ServiceFactory first (tenant-scoped)
     try:
         from ..context import has_active_session
+
         if has_active_session():
             from ..factory import ServiceFactory
+
             return ServiceFactory.get_tool_registry()
     except ImportError:
         pass  # context module not available, use legacy
@@ -312,6 +324,7 @@ def reset_tool_registry() -> None:
     try:
         from ..context import get_current_session_or_none
         from ..factory import ServiceFactory
+
         ctx = get_current_session_or_none()
         if ctx:
             ServiceFactory.clear_tenant_cache(ctx.tenant_id)

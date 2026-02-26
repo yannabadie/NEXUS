@@ -408,24 +408,17 @@ class TestDeterministicFitness:
         """Test that evaluate() tracks total duration"""
         fitness = DeterministicFitness(child_path=temp_child_path, strict_mode=False)
 
-        with patch.object(fitness, "_run_linter") as mock_linter, \
-             patch.object(fitness, "_run_type_check") as mock_types, \
-             patch.object(fitness, "_run_security_scan") as mock_security, \
-             patch.object(fitness, "_run_tests") as mock_tests:
-
+        with (
+            patch.object(fitness, "_run_linter") as mock_linter,
+            patch.object(fitness, "_run_type_check") as mock_types,
+            patch.object(fitness, "_run_security_scan") as mock_security,
+            patch.object(fitness, "_run_tests") as mock_tests,
+        ):
             # Mock results with durations
-            mock_linter.return_value = FitnessResult(
-                FitnessCheck.LINTER, True, "OK", duration_seconds=1.5
-            )
-            mock_types.return_value = FitnessResult(
-                FitnessCheck.TYPE_CHECK, True, "OK", duration_seconds=2.5
-            )
-            mock_security.return_value = FitnessResult(
-                FitnessCheck.SECURITY, True, "OK", duration_seconds=1.0
-            )
-            mock_tests.return_value = FitnessResult(
-                FitnessCheck.TESTS, True, "OK", duration_seconds=3.0
-            )
+            mock_linter.return_value = FitnessResult(FitnessCheck.LINTER, True, "OK", duration_seconds=1.5)
+            mock_types.return_value = FitnessResult(FitnessCheck.TYPE_CHECK, True, "OK", duration_seconds=2.5)
+            mock_security.return_value = FitnessResult(FitnessCheck.SECURITY, True, "OK", duration_seconds=1.0)
+            mock_tests.return_value = FitnessResult(FitnessCheck.TESTS, True, "OK", duration_seconds=3.0)
 
             result = fitness.evaluate()
 
@@ -437,10 +430,7 @@ class TestDeterministicFitness:
 class TestIntegration:
     """Integration tests for fitness pipeline"""
 
-    @pytest.mark.skipif(
-        not Path("core/evolution/fitness.py").exists(),
-        reason="fitness.py module not found"
-    )
+    @pytest.mark.skipif(not Path("core/evolution/fitness.py").exists(), reason="fitness.py module not found")
     def test_fitness_module_imports(self):
         """Test that all fitness module components can be imported"""
         from core.intelligence.evolution.fitness import (
@@ -455,10 +445,7 @@ class TestIntegration:
         assert FitnessCheck is not None
         assert FitnessResult is not None
 
-    @pytest.mark.skipif(
-        not Path("core/evolution/fitness.py").exists(),
-        reason="fitness.py module not found"
-    )
+    @pytest.mark.skipif(not Path("core/evolution/fitness.py").exists(), reason="fitness.py module not found")
     def test_fitness_check_enum_order(self):
         """Test that FitnessCheck enum values are in correct order"""
         from core.intelligence.evolution.fitness import FitnessCheck

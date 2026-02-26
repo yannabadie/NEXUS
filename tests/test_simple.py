@@ -6,6 +6,7 @@ Run with: python -m pytest tests/
 Note: Legacy driver tests removed (test_imports, test_claude_parser)
 after deletion of core/drivers/legacy/ in Sprint 1 consolidation.
 """
+
 import sys
 from pathlib import Path
 

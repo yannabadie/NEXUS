@@ -47,7 +47,6 @@ import threading
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -57,11 +56,11 @@ logger = logging.getLogger(__name__)
 
 # Stage 1: Task complexity → mode mapping thresholds
 COMPLEXITY_THRESHOLDS = {
-    "trivial": 0.2,    # Below 0.2 complexity → SPECIALIST
-    "simple": 0.4,     # 0.2-0.4 → SEQUENTIAL
-    "moderate": 0.6,   # 0.4-0.6 → LEAD_SUPPORT or PING_PONG
-    "complex": 0.8,    # 0.6-0.8 → PARALLEL or RED_BLUE
-    "expert": 1.0,     # 0.8-1.0 → full PARALLEL
+    "trivial": 0.2,  # Below 0.2 complexity → SPECIALIST
+    "simple": 0.4,  # 0.2-0.4 → SEQUENTIAL
+    "moderate": 0.6,  # 0.4-0.6 → LEAD_SUPPORT or PING_PONG
+    "complex": 0.8,  # 0.6-0.8 → PARALLEL or RED_BLUE
+    "expert": 1.0,  # 0.8-1.0 → full PARALLEL
 }
 
 # Stage 2: Mode → default role assignments
@@ -79,15 +78,14 @@ ROLE_MODEL_MAPPING = {
     # Roles that need the strongest model
     "lead": "high",
     "specialist": "high",
-    "blue_team": "high",    # Defender needs thoroughness
-    "first": "high",        # First in sequence sets direction
-
+    "blue_team": "high",  # Defender needs thoroughness
+    "first": "high",  # First in sequence sets direction
     # Roles that can use a lighter model
     "support": "low",
     "peer": "medium",
     "second": "medium",
     "responder": "medium",
-    "red_team": "medium",   # Attacker can be lighter
+    "red_team": "medium",  # Attacker can be lighter
     "initiator": "medium",
     "idle": "low",
 }
@@ -128,8 +126,10 @@ DOMAIN_AFFINITIES = {
 # Data Structures
 # =============================================================================
 
+
 class RoutingStage(Enum):
     """Stages of the cascaded routing pipeline."""
+
     MODE_SELECTION = "mode_selection"
     ROLE_ASSIGNMENT = "role_assignment"
     MODEL_SELECTION = "model_selection"
@@ -138,6 +138,7 @@ class RoutingStage(Enum):
 @dataclass
 class AgentRouting:
     """Routing decision for a single agent."""
+
     agent_id: str
     role: str
     model_tier: str
@@ -152,13 +153,14 @@ class CascadedRoutingDecision:
 
     Contains decisions from all 3 stages.
     """
+
     collaboration_mode: str
-    agent_routings: Dict[str, AgentRouting]
+    agent_routings: dict[str, AgentRouting]
     estimated_cost_reduction: float  # vs always using top-tier models
-    stage_timings: Dict[str, float] = field(default_factory=dict)
+    stage_timings: dict[str, float] = field(default_factory=dict)
     reasoning: str = ""
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Serialize to dict."""
         return {
             "collaboration_mode": self.collaboration_mode,
@@ -180,18 +182,20 @@ class CascadedRoutingDecision:
 @dataclass
 class RoutingHistory:
     """Historical routing record for learning."""
+
     task_hash: str
     decision: CascadedRoutingDecision
-    outcome_success: Optional[bool] = None
+    outcome_success: bool | None = None
     timestamp: float = field(default_factory=time.time)
 
 
 @dataclass
 class RouterStats:
     """Statistics about the cascaded router."""
+
     total_decisions: int
-    mode_distribution: Dict[str, int]
-    tier_distribution: Dict[str, int]
+    mode_distribution: dict[str, int]
+    tier_distribution: dict[str, int]
     avg_cost_reduction: float
     success_rate: float
 
@@ -199,6 +203,7 @@ class RouterStats:
 # =============================================================================
 # CascadedRouter
 # =============================================================================
+
 
 class CascadedRouter:
     """
@@ -214,8 +219,8 @@ class CascadedRouter:
 
     def __init__(
         self,
-        agent_ids: Optional[List[str]] = None,
-        domain_affinities: Optional[Dict[str, set]] = None,
+        agent_ids: list[str] | None = None,
+        domain_affinities: dict[str, set] | None = None,
         history_size: int = 100,
         routing_policy: str = "balanced",
     ):
@@ -230,15 +235,15 @@ class CascadedRouter:
         """
         self._agent_ids = agent_ids or ["claude", "gemini"]
         self._domain_affinities = domain_affinities or DOMAIN_AFFINITIES
-        self._history: List[RoutingHistory] = []
+        self._history: list[RoutingHistory] = []
         self._history_size = history_size
         self._routing_policy = routing_policy
         self._lock = threading.RLock()
 
         # Performance counters
         self._total_decisions = 0
-        self._mode_counts: Dict[str, int] = {}
-        self._tier_counts: Dict[str, int] = {}
+        self._mode_counts: dict[str, int] = {}
+        self._tier_counts: dict[str, int] = {}
         self._total_cost_reduction = 0.0
         self._success_count = 0
         self._feedback_count = 0
@@ -247,8 +252,8 @@ class CascadedRouter:
         self,
         task_description: str,
         complexity: float,
-        domains: Optional[List[str]] = None,
-        agent_scores: Optional[Dict[str, float]] = None,
+        domains: list[str] | None = None,
+        agent_scores: dict[str, float] | None = None,
     ) -> CascadedRoutingDecision:
         """
         Execute the full cascaded routing pipeline.
@@ -265,7 +270,7 @@ class CascadedRouter:
         with self._lock:
             domains = domains or []
             agent_scores = agent_scores or {}
-            timings: Dict[str, float] = {}
+            timings: dict[str, float] = {}
 
             # Stage 1: Mode Selection
             t0 = time.time()
@@ -274,16 +279,12 @@ class CascadedRouter:
 
             # Stage 2: Role Assignment
             t1 = time.time()
-            roles = self._stage2_role_assignment(
-                mode, domains, agent_scores
-            )
+            roles = self._stage2_role_assignment(mode, domains, agent_scores)
             timings["stage2_roles"] = time.time() - t1
 
             # Stage 3: Model Selection
             t2 = time.time()
-            routings, cost_reduction = self._stage3_model_selection(
-                roles, complexity
-            )
+            routings, cost_reduction = self._stage3_model_selection(roles, complexity)
             timings["stage3_models"] = time.time() - t2
 
             # Build decision
@@ -304,17 +305,16 @@ class CascadedRouter:
 
             # Add to history
             task_hash = str(hash(task_description[:200]))
-            self._history.append(RoutingHistory(
-                task_hash=task_hash,
-                decision=decision,
-            ))
-            if len(self._history) > self._history_size:
-                self._history = self._history[-self._history_size:]
-
-            logger.debug(
-                f"[MasRouter] Routed: mode={mode}, "
-                f"cost_reduction={cost_reduction:.1%}"
+            self._history.append(
+                RoutingHistory(
+                    task_hash=task_hash,
+                    decision=decision,
+                )
             )
+            if len(self._history) > self._history_size:
+                self._history = self._history[-self._history_size :]
+
+            logger.debug(f"[MasRouter] Routed: mode={mode}, cost_reduction={cost_reduction:.1%}")
             return decision
 
     def record_outcome(
@@ -345,14 +345,8 @@ class CascadedRouter:
     def get_stats(self) -> RouterStats:
         """Get router statistics."""
         with self._lock:
-            avg_reduction = (
-                self._total_cost_reduction / self._total_decisions
-                if self._total_decisions > 0 else 0.0
-            )
-            success_rate = (
-                self._success_count / self._feedback_count
-                if self._feedback_count > 0 else 0.0
-            )
+            avg_reduction = self._total_cost_reduction / self._total_decisions if self._total_decisions > 0 else 0.0
+            success_rate = self._success_count / self._feedback_count if self._feedback_count > 0 else 0.0
 
             return RouterStats(
                 total_decisions=self._total_decisions,
@@ -369,7 +363,7 @@ class CascadedRouter:
     def _stage1_mode_selection(
         self,
         complexity: float,
-        domains: List[str],
+        domains: list[str],
     ) -> str:
         """
         Determine collaboration mode based on task complexity and domains.
@@ -423,9 +417,9 @@ class CascadedRouter:
     def _stage2_role_assignment(
         self,
         mode: str,
-        domains: List[str],
-        agent_scores: Dict[str, float],
-    ) -> Dict[str, str]:
+        domains: list[str],
+        agent_scores: dict[str, float],
+    ) -> dict[str, str]:
         """
         Assign roles to agents based on mode, domains, and scores.
 
@@ -466,8 +460,8 @@ class CascadedRouter:
 
     def _select_leader(
         self,
-        domains: List[str],
-        agent_scores: Dict[str, float],
+        domains: list[str],
+        agent_scores: dict[str, float],
     ) -> str:
         """
         Select the best agent to lead based on domain affinity and scores.
@@ -479,7 +473,7 @@ class CascadedRouter:
         Returns:
             Agent ID of the best leader
         """
-        scores: Dict[str, float] = {}
+        scores: dict[str, float] = {}
 
         for agent_id in self._agent_ids:
             # Base score from DyLAN
@@ -502,9 +496,9 @@ class CascadedRouter:
 
     def _stage3_model_selection(
         self,
-        roles: Dict[str, str],
+        roles: dict[str, str],
         complexity: float,
-    ) -> Tuple[Dict[str, AgentRouting], float]:
+    ) -> tuple[dict[str, AgentRouting], float]:
         """
         Select model tier for each agent based on their role.
 
@@ -517,7 +511,7 @@ class CascadedRouter:
         Returns:
             Tuple of (agent_routings, estimated_cost_reduction)
         """
-        routings: Dict[str, AgentRouting] = {}
+        routings: dict[str, AgentRouting] = {}
         total_cost = 0.0
         max_cost = 0.0
 
@@ -540,14 +534,12 @@ class CascadedRouter:
                 else:
                     # Keep high tier for quality (but still cheaper than Opus/Pro)
                     model_name = MODEL_TIERS.get(tier, {}).get(
-                        agent_id,
-                        "claude-sonnet-4-5-20250929" if agent_id == "claude" else "gemini-3-pro-preview"
+                        agent_id, "claude-sonnet-4-5-20250929" if agent_id == "claude" else "gemini-3-pro-preview"
                     )
             else:
                 # Balanced or quality-optimized: use original Claude/Gemini
                 model_name = MODEL_TIERS.get(tier, {}).get(
-                    agent_id,
-                    "claude-sonnet-4-5-20250929" if agent_id == "claude" else "gemini-3-pro-preview"
+                    agent_id, "claude-sonnet-4-5-20250929" if agent_id == "claude" else "gemini-3-pro-preview"
                 )
 
             routings[agent_id] = AgentRouting(
@@ -555,7 +547,7 @@ class CascadedRouter:
                 role=role,
                 model_tier=tier,
                 model_name=model_name,
-                reasoning=f"Role '{role}' → tier '{tier}' (policy={self._routing_policy})"
+                reasoning=f"Role '{role}' → tier '{tier}' (policy={self._routing_policy})",
             )
 
             # Cost estimation (relative, V12.4: updated for DeepSeek/Kimi)
@@ -580,9 +572,9 @@ class CascadedRouter:
     def _build_reasoning(
         self,
         mode: str,
-        roles: Dict[str, str],
+        roles: dict[str, str],
         complexity: float,
-        domains: List[str],
+        domains: list[str],
     ) -> str:
         """Build human-readable reasoning for the routing decision."""
         parts = [
@@ -601,12 +593,12 @@ class CascadedRouter:
 # Singleton
 # =============================================================================
 
-_router: Optional[CascadedRouter] = None
+_router: CascadedRouter | None = None
 _router_lock = threading.Lock()
 
 
 def get_cascaded_router(
-    agent_ids: Optional[List[str]] = None,
+    agent_ids: list[str] | None = None,
 ) -> CascadedRouter:
     """Get or create the global CascadedRouter instance."""
     global _router

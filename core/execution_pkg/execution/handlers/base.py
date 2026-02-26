@@ -13,8 +13,8 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Dict, Any, Protocol, runtime_checkable
 from pathlib import Path
+from typing import Any, Protocol, runtime_checkable
 
 logger = logging.getLogger(__name__)
 
@@ -30,12 +30,13 @@ class ToolResult:
         output: Output from the tool
         error: Error message if any
     """
+
     tool_name: str
     status: str  # SUCCESS, FAILURE, ERROR
     output: str
     error: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "tool_name": self.tool_name,
@@ -55,17 +56,17 @@ class ToolResult:
         return self.status in ("FAILURE", "ERROR")
 
     @classmethod
-    def ok(cls, tool_name: str, output: str) -> "ToolResult":
+    def ok(cls, tool_name: str, output: str) -> ToolResult:
         """Create success result."""
         return cls(tool_name=tool_name, status="SUCCESS", output=output)
 
     @classmethod
-    def fail(cls, tool_name: str, error: str, output: str = "") -> "ToolResult":
+    def fail(cls, tool_name: str, error: str, output: str = "") -> ToolResult:
         """Create failure result."""
         return cls(tool_name=tool_name, status="FAILURE", output=output, error=error)
 
     @classmethod
-    def make_error(cls, tool_name: str, error_msg: str) -> "ToolResult":
+    def make_error(cls, tool_name: str, error_msg: str) -> ToolResult:
         """Create error result."""
         return cls(tool_name=tool_name, status="ERROR", output="", error=error_msg)
 
@@ -74,7 +75,7 @@ class ToolResult:
 class HandlerProtocol(Protocol):
     """Protocol for tool handlers."""
 
-    def execute(self, args: Dict[str, Any]) -> ToolResult:
+    def execute(self, args: dict[str, Any]) -> ToolResult:
         """Execute the tool with given arguments."""
         ...
 
@@ -109,7 +110,7 @@ class BaseHandler(ABC):
         ...
 
     @abstractmethod
-    def execute(self, args: Dict[str, Any]) -> ToolResult:
+    def execute(self, args: dict[str, Any]) -> ToolResult:
         """
         Execute the tool.
 
@@ -166,7 +167,7 @@ class BaseHandler(ABC):
         except AttributeError:
             # Fallback: validation_service doesn't have expected methods
             # This allows for mock validation services in tests
-            if hasattr(self.validation_service, 'validate_path'):
+            if hasattr(self.validation_service, "validate_path"):
                 return self.validation_service.validate_path(path, operation)
             return True
 
@@ -196,7 +197,7 @@ class BaseHandler(ABC):
                 is_valid, _, _ = self.validation_service.validate_read(path_str)
             return is_valid
         except AttributeError:
-            if hasattr(self.validation_service, 'validate_path'):
+            if hasattr(self.validation_service, "validate_path"):
                 return self.validation_service.validate_path(Path(path_str), operation)
             return True
 

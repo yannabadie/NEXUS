@@ -17,24 +17,23 @@ Date: 2025-12-11
 
 import asyncio
 import shutil
+
+# Add parent to path for imports
+import sys
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import List
 from unittest import TestCase, main
 
 import pytest
 
-# Add parent to path for imports
-import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.intelligence.hive_mind.saga_manager import (
-    SagaManager,
-    SagaContext,
-    PhaseCheckpoint,
-    PHASE_ORDER,
     PHASE_GUARDS,
+    PhaseCheckpoint,
+    SagaContext,
+    SagaManager,
 )
 
 
@@ -49,7 +48,7 @@ class TestPhaseCheckpoint(TestCase):
             state="ANALYSIS_COMPLETE",
             timestamp=datetime(2025, 12, 11, 10, 30, 0),
             context_index=5,
-            compensation_name="compensate_analysis"
+            compensation_name="compensate_analysis",
         )
 
         data = checkpoint.to_dict()
@@ -69,7 +68,7 @@ class TestPhaseCheckpoint(TestCase):
             "state": "DEBATE_CONVERGED",
             "timestamp": "2025-12-11T11:00:00",
             "context_index": 10,
-            "compensation_name": None
+            "compensation_name": None,
         }
 
         checkpoint = PhaseCheckpoint.from_dict(data)
@@ -89,7 +88,7 @@ class TestPhaseCheckpoint(TestCase):
             state="EXECUTION_COMPLETE",
             timestamp=datetime.now(),
             context_index=20,
-            compensation_name="compensate_execution"
+            compensation_name="compensate_execution",
         )
 
         roundtrip = PhaseCheckpoint.from_dict(original.to_dict())
@@ -114,11 +113,7 @@ class TestSagaContext(TestCase):
 
     def test_to_dict(self):
         """Test context serialization."""
-        ctx = SagaContext(
-            analysis_complete=True,
-            debate_skipped=True,
-            architecture_approved=True
-        )
+        ctx = SagaContext(analysis_complete=True, debate_skipped=True, architecture_approved=True)
 
         data = ctx.to_dict()
 
@@ -133,7 +128,7 @@ class TestSagaContext(TestCase):
             "analysis_complete": True,
             "debate_complete": True,
             "execution_failed": True,
-            "unknown_field": "ignored"
+            "unknown_field": "ignored",
         }
 
         ctx = SagaContext.from_dict(data)
@@ -245,10 +240,7 @@ class TestSagaManagerCheckpoints(TestCase):
         # Run async test
         async def run_test():
             await saga.checkpoint_phase(
-                phase="analysis",
-                result={"test": "data"},
-                state="ANALYSIS_COMPLETE",
-                context_index=5
+                phase="analysis", result={"test": "data"}, state="ANALYSIS_COMPLETE", context_index=5
             )
 
             assert "analysis" in saga.checkpointed_phases
@@ -267,10 +259,7 @@ class TestSagaManagerCheckpoints(TestCase):
 
         async def run_test():
             await saga.checkpoint_phase(
-                phase="analysis",
-                result={"persisted": True},
-                state="ANALYSIS_COMPLETE",
-                context_index=3
+                phase="analysis", result={"persisted": True}, state="ANALYSIS_COMPLETE", context_index=3
             )
 
             # Check file exists
@@ -458,6 +447,7 @@ class TestSagaManagerPersistence(TestCase):
 
     def test_resume_nonexistent_returns_none(self):
         """Test that resume_from returns None for missing saga."""
+
         async def run_test():
             result = await SagaManager.resume_from(self.sagas_dir, "nonexistent")
             assert result is None
@@ -468,6 +458,7 @@ class TestSagaManagerPersistence(TestCase):
 # =============================================================================
 # PYTEST FIXTURES AND ASYNC TESTS
 # =============================================================================
+
 
 @pytest.fixture
 def saga_dir(tmp_path):
@@ -482,12 +473,7 @@ async def test_checkpoint_context_index_preserved(saga_dir):
     """Test that context_index is preserved through checkpoint cycle."""
     saga = SagaManager(saga_dir, "ctx-test", auto_persist=True)
 
-    await saga.checkpoint_phase(
-        phase="analysis",
-        result={"test": 1},
-        state="ANALYSIS_COMPLETE",
-        context_index=42
-    )
+    await saga.checkpoint_phase(phase="analysis", result={"test": 1}, state="ANALYSIS_COMPLETE", context_index=42)
 
     # Resume and verify
     saga2 = await SagaManager.resume_from(saga_dir, "ctx-test")

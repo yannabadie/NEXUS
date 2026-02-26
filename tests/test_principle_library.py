@@ -1,7 +1,7 @@
 """Tests for EvolveR Principle Library - self-distilled lessons with dynamic scoring."""
 
 import pytest
-from pathlib import Path
+
 from core.intelligence.hive_mind.principle_library import (
     Principle,
     PrincipleLibrary,
@@ -9,10 +9,10 @@ from core.intelligence.hive_mind.principle_library import (
     reset_principle_library,
 )
 
-
 # =============================================================================
 # Principle Scoring
 # =============================================================================
+
 
 class TestPrincipleScoring:
     def test_new_principle_score_is_neutral(self):
@@ -54,6 +54,7 @@ class TestPrincipleScoring:
 # Principle Serialization
 # =============================================================================
 
+
 class TestSerialization:
     def test_to_dict(self):
         p = Principle(id="abc", text="Test", tags=["a"], source_task="task1", created_at="2025-01-01")
@@ -90,6 +91,7 @@ class TestSerialization:
 # Library - Add & Retrieve
 # =============================================================================
 
+
 class TestLibraryAddRetrieve:
     def test_add_principle(self):
         lib = PrincipleLibrary()
@@ -100,7 +102,9 @@ class TestLibraryAddRetrieve:
     def test_add_deduplicates(self):
         lib = PrincipleLibrary()
         p1 = lib.add_principle("Always verify file paths before writing to disk safely and correctly", tags=["coding"])
-        p2 = lib.add_principle("Always verify file paths before writing to disk safely and correctly please", tags=["io"])
+        p2 = lib.add_principle(
+            "Always verify file paths before writing to disk safely and correctly please", tags=["io"]
+        )
         assert p1.id == p2.id
         # Tags should be merged
         assert "coding" in p1.tags
@@ -147,7 +151,7 @@ class TestLibraryAddRetrieve:
 
     def test_retrieve_sorted_by_score(self):
         lib = PrincipleLibrary()
-        p1 = lib.add_principle("Principle A with unique start text", tags=["common"])
+        lib.add_principle("Principle A with unique start text", tags=["common"])
         p2 = lib.add_principle("Principle B also unique initial text", tags=["common"])
         # Make p2 higher scoring
         p2.record_usage(True)
@@ -160,6 +164,7 @@ class TestLibraryAddRetrieve:
 # =============================================================================
 # Library - Usage Recording
 # =============================================================================
+
 
 class TestUsageRecording:
     def test_record_usage_success(self):
@@ -184,6 +189,7 @@ class TestUsageRecording:
 # =============================================================================
 # Library - Prompt Formatting
 # =============================================================================
+
 
 class TestPromptFormatting:
     def test_format_empty(self):
@@ -212,6 +218,7 @@ class TestPromptFormatting:
 # Library - Eviction & Capacity
 # =============================================================================
 
+
 class TestEviction:
     def test_evicts_at_capacity(self):
         lib = PrincipleLibrary(max_principles=5)
@@ -223,7 +230,7 @@ class TestEviction:
 
     def test_evicts_lowest_scoring(self):
         lib = PrincipleLibrary(max_principles=3)
-        p1 = lib.add_principle("Good principle unique AAA text", tags=["a"])
+        lib.add_principle("Good principle unique AAA text", tags=["a"])
         p2 = lib.add_principle("Bad principle unique BBB text", tags=["a"])
         p3 = lib.add_principle("Great principle unique CCC text", tags=["a"])
 
@@ -236,7 +243,7 @@ class TestEviction:
         p3.record_usage(True)
 
         # Adding p4 should evict p2 (lowest score)
-        p4 = lib.add_principle("New principle unique DDD text", tags=["a"])
+        lib.add_principle("New principle unique DDD text", tags=["a"])
 
         remaining_ids = {p.id for p in lib.get_all()}
         assert p2.id not in remaining_ids
@@ -246,6 +253,7 @@ class TestEviction:
 # =============================================================================
 # Library - Persistence
 # =============================================================================
+
 
 class TestPersistence:
     def test_save_and_load(self, tmp_path):
@@ -268,6 +276,7 @@ class TestPersistence:
 # =============================================================================
 # Library - Stats & Lifecycle
 # =============================================================================
+
 
 class TestStatsAndLifecycle:
     def test_stats_empty(self):
@@ -301,6 +310,7 @@ class TestStatsAndLifecycle:
 # =============================================================================
 # Singleton
 # =============================================================================
+
 
 class TestSingleton:
     def test_get_returns_same_instance(self):

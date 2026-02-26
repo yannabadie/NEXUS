@@ -20,13 +20,13 @@ Usage:
 
 import re
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any
 
 # Base path for prompts (relative to project root)
 PROMPTS_DIR = Path(__file__).parent.parent.parent / "prompts"
 
 # Include directive pattern: <!-- #include _shared/file.md -->
-INCLUDE_PATTERN = re.compile(r'<!--\s*#include\s+(\S+)\s*-->')
+INCLUDE_PATTERN = re.compile(r"<!--\s*#include\s+(\S+)\s*-->")
 
 
 def resolve_includes(content: str, base_path: Path, depth: int = 0) -> str:
@@ -61,7 +61,7 @@ def resolve_includes(content: str, base_path: Path, depth: int = 0) -> str:
     return INCLUDE_PATTERN.sub(replace_include, content)
 
 
-def apply_template(content: str, variables: Dict[str, Any]) -> str:
+def apply_template(content: str, variables: dict[str, Any]) -> str:
     """
     Apply template variables to content.
 
@@ -81,11 +81,7 @@ def apply_template(content: str, variables: Dict[str, Any]) -> str:
     return content
 
 
-def load_prompt(
-    prompt_name: str,
-    variables: Optional[Dict[str, Any]] = None,
-    prompts_dir: Optional[Path] = None
-) -> str:
+def load_prompt(prompt_name: str, variables: dict[str, Any] | None = None, prompts_dir: Path | None = None) -> str:
     """
     Load a prompt file, resolve includes, and apply template variables.
 
@@ -124,7 +120,7 @@ def load_prompt(
     return content
 
 
-def get_prompt_info(prompt_name: str) -> Dict[str, Any]:
+def get_prompt_info(prompt_name: str) -> dict[str, Any]:
     """
     Get metadata about a prompt (includes, variables, line count).
 
@@ -147,7 +143,7 @@ def get_prompt_info(prompt_name: str) -> Dict[str, Any]:
     includes = INCLUDE_PATTERN.findall(content)
 
     # Find all template variables
-    variables = set(re.findall(r'\{(\w+)\}', content))
+    variables = set(re.findall(r"\{(\w+)\}", content))
 
     # Calculate line counts
     raw_lines = len(content.splitlines())
@@ -161,7 +157,7 @@ def get_prompt_info(prompt_name: str) -> Dict[str, Any]:
         "resolved_lines": resolved_lines,
         "includes": includes,
         "variables": list(variables),
-        "expansion_ratio": resolved_lines / raw_lines if raw_lines > 0 else 0
+        "expansion_ratio": resolved_lines / raw_lines if raw_lines > 0 else 0,
     }
 
 
@@ -172,7 +168,4 @@ def list_prompts() -> list:
     Returns:
         List of prompt names (without .md extension)
     """
-    return [
-        p.stem for p in PROMPTS_DIR.glob("*.md")
-        if not p.name.startswith("_") and p.name != "README.md"
-    ]
+    return [p.stem for p in PROMPTS_DIR.glob("*.md") if not p.name.startswith("_") and p.name != "README.md"]

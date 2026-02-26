@@ -47,9 +47,11 @@ MAX_AGENTS = 5000
 # Types
 # =============================================================================
 
+
 @dataclass
 class RetirementPolicy:
     """Configuration for agent retirement triggers."""
+
     min_quality: float = DEFAULT_MIN_QUALITY
     max_consecutive_failures: int = DEFAULT_MAX_CONSECUTIVE_FAILURES
     observation_window: int = DEFAULT_OBSERVATION_WINDOW
@@ -67,6 +69,7 @@ class RetirementPolicy:
 @dataclass
 class AgentHealthSnapshot:
     """Current health status of an agent."""
+
     agent_id: str
     total_tasks: int = 0
     successes: int = 0
@@ -105,6 +108,7 @@ class AgentHealthSnapshot:
 @dataclass
 class LifecycleEvent:
     """Record of a lifecycle state change."""
+
     agent_id: str
     event_type: str  # "registered", "degraded", "recovered", "retired", "replaced"
     timestamp: float = field(default_factory=time.monotonic)
@@ -122,6 +126,7 @@ class LifecycleEvent:
 @dataclass
 class LifecycleStats:
     """Aggregate lifecycle statistics."""
+
     total_agents: int
     active_agents: int
     degraded_agents: int
@@ -143,6 +148,7 @@ class LifecycleStats:
 # =============================================================================
 # Lifecycle Manager
 # =============================================================================
+
 
 class AgentLifecycleManager:
     """
@@ -189,11 +195,13 @@ class AgentLifecycleManager:
                 capabilities=capabilities or [],
             )
             self._quality_history[agent_id] = []
-            self._events.append(LifecycleEvent(
-                agent_id=agent_id,
-                event_type="registered",
-                details=f"Capabilities: {capabilities or []}",
-            ))
+            self._events.append(
+                LifecycleEvent(
+                    agent_id=agent_id,
+                    event_type="registered",
+                    details=f"Capabilities: {capabilities or []}",
+                )
+            )
             return True
 
     def unregister(self, agent_id: str) -> bool:
@@ -259,17 +267,21 @@ class AgentLifecycleManager:
             snap.is_degraded = self._check_degraded(snap)
 
             if snap.is_degraded and not was_degraded:
-                self._events.append(LifecycleEvent(
-                    agent_id=agent_id,
-                    event_type="degraded",
-                    details=f"Quality={snap.average_quality:.3f}, ConsecFail={snap.consecutive_failures}",
-                ))
+                self._events.append(
+                    LifecycleEvent(
+                        agent_id=agent_id,
+                        event_type="degraded",
+                        details=f"Quality={snap.average_quality:.3f}, ConsecFail={snap.consecutive_failures}",
+                    )
+                )
             elif not snap.is_degraded and was_degraded:
-                self._events.append(LifecycleEvent(
-                    agent_id=agent_id,
-                    event_type="recovered",
-                    details=f"Quality={snap.average_quality:.3f}",
-                ))
+                self._events.append(
+                    LifecycleEvent(
+                        agent_id=agent_id,
+                        event_type="recovered",
+                        details=f"Quality={snap.average_quality:.3f}",
+                    )
+                )
 
             return True
 
@@ -281,10 +293,9 @@ class AgentLifecycleManager:
         half_max = self._policy.max_consecutive_failures // 2
         if snap.consecutive_failures >= max(1, half_max):
             return True
-        if snap.total_tasks >= self._policy.min_observations:
-            if snap.average_quality < self._policy.min_quality * 1.5:
-                return True
-        return False
+        return (
+            snap.total_tasks >= self._policy.min_observations and snap.average_quality < self._policy.min_quality * 1.5
+        )
 
     # =========================================================================
     # Retirement
@@ -303,9 +314,7 @@ class AgentLifecycleManager:
             return False
         if snap.consecutive_failures >= self._policy.max_consecutive_failures:
             return True
-        if snap.average_quality < self._policy.min_quality:
-            return True
-        return False
+        return snap.average_quality < self._policy.min_quality
 
     def retire(self, agent_id: str, *, reason: str = "") -> bool:
         """Manually retire an agent."""
@@ -317,11 +326,13 @@ class AgentLifecycleManager:
             snap.is_degraded = True
             snap.retirement_reason = reason or "Manual retirement"
             self._total_retirements += 1
-            self._events.append(LifecycleEvent(
-                agent_id=agent_id,
-                event_type="retired",
-                details=snap.retirement_reason,
-            ))
+            self._events.append(
+                LifecycleEvent(
+                    agent_id=agent_id,
+                    event_type="retired",
+                    details=snap.retirement_reason,
+                )
+            )
             return True
 
     def apply_retirements(self) -> list[str]:
@@ -339,11 +350,13 @@ class AgentLifecycleManager:
                     else:
                         snap.retirement_reason = f"Low quality: {snap.average_quality:.3f}"
                     self._total_retirements += 1
-                    self._events.append(LifecycleEvent(
-                        agent_id=agent_id,
-                        event_type="retired",
-                        details=snap.retirement_reason,
-                    ))
+                    self._events.append(
+                        LifecycleEvent(
+                            agent_id=agent_id,
+                            event_type="retired",
+                            details=snap.retirement_reason,
+                        )
+                    )
                     retired.append(agent_id)
             return retired
 
@@ -359,11 +372,13 @@ class AgentLifecycleManager:
             snap.retirement_reason = ""
             self._quality_history[agent_id] = []
             snap.average_quality = 0.0
-            self._events.append(LifecycleEvent(
-                agent_id=agent_id,
-                event_type="reinstated",
-                details="Retired agent reinstated, history cleared",
-            ))
+            self._events.append(
+                LifecycleEvent(
+                    agent_id=agent_id,
+                    event_type="reinstated",
+                    details="Retired agent reinstated, history cleared",
+                )
+            )
             return True
 
     # =========================================================================
@@ -376,26 +391,19 @@ class AgentLifecycleManager:
 
     def get_active_agents(self) -> list[str]:
         """List agents that are not retired."""
-        return sorted(
-            aid for aid, snap in self._agents.items()
-            if not snap.is_retired
-        )
+        return sorted(aid for aid, snap in self._agents.items() if not snap.is_retired)
 
     def get_degraded_agents(self) -> list[str]:
         """List agents flagged as degraded (but not yet retired)."""
-        return sorted(
-            aid for aid, snap in self._agents.items()
-            if snap.is_degraded and not snap.is_retired
-        )
+        return sorted(aid for aid, snap in self._agents.items() if snap.is_degraded and not snap.is_retired)
 
     def get_retired_agents(self) -> list[str]:
         """List retired agents."""
-        return sorted(
-            aid for aid, snap in self._agents.items()
-            if snap.is_retired
-        )
+        return sorted(aid for aid, snap in self._agents.items() if snap.is_retired)
 
-    def get_events(self, *, agent_id: str | None = None, event_type: str | None = None, limit: int = 100) -> list[LifecycleEvent]:
+    def get_events(
+        self, *, agent_id: str | None = None, event_type: str | None = None, limit: int = 100
+    ) -> list[LifecycleEvent]:
         """Get lifecycle events with optional filters."""
         events = list(reversed(self._events))
         if agent_id:

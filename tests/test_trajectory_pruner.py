@@ -44,7 +44,6 @@ from core.synapse.trajectory_pruner import (
     reset_trajectory_pruner,
 )
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -175,16 +174,23 @@ class TestPruneResult:
 
     def test_to_dict_rounds_reduction(self):
         result = PruneResult(
-            original_count=0, pruned_count=0, kept_count=0,
-            original_tokens=0, pruned_tokens=0,
+            original_count=0,
+            pruned_count=0,
+            kept_count=0,
+            original_tokens=0,
+            pruned_tokens=0,
             token_reduction_pct=33.33333,
         )
         assert result.to_dict()["token_reduction_pct"] == 33.33
 
     def test_to_dict_excludes_messages_and_decisions(self):
         result = PruneResult(
-            original_count=0, pruned_count=0, kept_count=0,
-            original_tokens=0, pruned_tokens=0, token_reduction_pct=0.0,
+            original_count=0,
+            pruned_count=0,
+            kept_count=0,
+            original_tokens=0,
+            pruned_tokens=0,
+            token_reduction_pct=0.0,
             decisions=[PruneDecision(index=0, keep=True)],
             kept_messages=[TrajectoryMessage(content="kept")],
         )
@@ -194,8 +200,12 @@ class TestPruneResult:
 
     def test_default_lists_empty(self):
         result = PruneResult(
-            original_count=0, pruned_count=0, kept_count=0,
-            original_tokens=0, pruned_tokens=0, token_reduction_pct=0.0,
+            original_count=0,
+            pruned_count=0,
+            kept_count=0,
+            original_tokens=0,
+            pruned_tokens=0,
+            token_reduction_pct=0.0,
         )
         assert result.decisions == []
         assert result.kept_messages == []
@@ -428,10 +438,8 @@ class TestProtectedRoles:
         assert result.kept_count == 2
 
     def test_system_protected_from_budget_enforcement(self, pruner):
-        sys_msg = _msg("System prompt with critical instructions.", role="system",
-                       token_estimate=500)
-        asst_msg = _msg("Some assistant response that is long enough.", role="assistant",
-                        token_estimate=500)
+        sys_msg = _msg("System prompt with critical instructions.", role="system", token_estimate=500)
+        asst_msg = _msg("Some assistant response that is long enough.", role="assistant", token_estimate=500)
         result = pruner.prune([sys_msg, asst_msg], token_budget=600)
         kept_roles = [m.role for m in result.kept_messages]
         assert "system" in kept_roles
@@ -449,11 +457,15 @@ class TestStalenessDetection:
         old_ts = now - STALENESS_WINDOW - 100
         old = _msg(
             "the auth module uses token validation for user sessions in production",
-            role="assistant", agent_id="a1", ts=old_ts,
+            role="assistant",
+            agent_id="a1",
+            ts=old_ts,
         )
         newer = _msg(
             "actually the auth module uses token validation for user sessions updated in production",
-            role="assistant", agent_id="a1", ts=now,
+            role="assistant",
+            agent_id="a1",
+            ts=now,
         )
         result = pruner.prune([old, newer])
         assert result.pruned_count >= 1
@@ -465,11 +477,15 @@ class TestStalenessDetection:
         """Messages within the staleness window are not marked stale."""
         recent = _msg(
             "The auth module uses basic token validation for user sessions.",
-            role="assistant", agent_id="a1", ts=now - 10,
+            role="assistant",
+            agent_id="a1",
+            ts=now - 10,
         )
         newer = _msg(
             "Actually the auth module was updated and corrected for sessions.",
-            role="assistant", agent_id="a1", ts=now,
+            role="assistant",
+            agent_id="a1",
+            ts=now,
         )
         result = pruner.prune([recent, newer])
         stale_decisions = [d for d in result.decisions if d.reason == PruneReason.STALE]
@@ -480,11 +496,15 @@ class TestStalenessDetection:
         old_ts = now - STALENESS_WINDOW - 100
         old = _msg(
             "The auth module uses basic token validation for user sessions.",
-            role="assistant", agent_id="a1", ts=old_ts,
+            role="assistant",
+            agent_id="a1",
+            ts=old_ts,
         )
         newer = _msg(
             "Actually the auth module was updated and corrected for sessions.",
-            role="assistant", agent_id="a2", ts=now,
+            role="assistant",
+            agent_id="a2",
+            ts=now,
         )
         result = pruner.prune([old, newer])
         stale_decisions = [d for d in result.decisions if d.reason == PruneReason.STALE]
@@ -495,11 +515,15 @@ class TestStalenessDetection:
         old_ts = now - STALENESS_WINDOW - 100
         old = _msg(
             "The auth module handles validation logic for token generation.",
-            role="assistant", agent_id="a1", ts=old_ts,
+            role="assistant",
+            agent_id="a1",
+            ts=old_ts,
         )
         newer = _msg(
             "The database layer needs connection pooling for performance.",
-            role="assistant", agent_id="a1", ts=now,
+            role="assistant",
+            agent_id="a1",
+            ts=now,
         )
         result = pruner.prune([old, newer])
         stale_decisions = [d for d in result.decisions if d.reason == PruneReason.STALE]
@@ -510,11 +534,15 @@ class TestStalenessDetection:
         old_ts = now - STALENESS_WINDOW - 100
         old = _msg(
             "The graphics rendering engine uses OpenGL shaders extensively.",
-            role="assistant", agent_id="a1", ts=old_ts,
+            role="assistant",
+            agent_id="a1",
+            ts=old_ts,
         )
         newer = _msg(
             "Actually the database connection pooling was corrected yesterday.",
-            role="assistant", agent_id="a1", ts=now,
+            role="assistant",
+            agent_id="a1",
+            ts=now,
         )
         result = pruner.prune([old, newer])
         stale_decisions = [d for d in result.decisions if d.reason == PruneReason.STALE]
@@ -526,11 +554,15 @@ class TestStalenessDetection:
         old_ts = now - 20  # 20 seconds ago, window is 10
         old = _msg(
             "The module uses basic token validation for user sessions.",
-            role="assistant", agent_id="a1", ts=old_ts,
+            role="assistant",
+            agent_id="a1",
+            ts=old_ts,
         )
         newer = _msg(
             "Actually the module was updated with corrected token validation.",
-            role="assistant", agent_id="a1", ts=now,
+            role="assistant",
+            agent_id="a1",
+            ts=now,
         )
         result = pruner.prune([old, newer])
         stale_decisions = [d for d in result.decisions if d.reason == PruneReason.STALE]
@@ -566,11 +598,13 @@ class TestRedundancyDetection:
     def test_very_different_messages_not_redundant(self, pruner):
         m1 = _msg(
             "The authentication system processes JWT tokens via middleware hooks.",
-            role="assistant", ts=1.0,
+            role="assistant",
+            ts=1.0,
         )
         m2 = _msg(
             "Database migrations require careful planning and staged rollout procedures.",
-            role="assistant", ts=2.0,
+            role="assistant",
+            ts=2.0,
         )
         result = pruner.prune([m1, m2])
         redundant = [d for d in result.decisions if d.reason == PruneReason.REDUNDANT]
@@ -588,10 +622,8 @@ class TestRedundancyDetection:
     def test_near_duplicate_above_threshold(self, pruner):
         """Slightly different messages above threshold are redundant."""
         base = "the deployment pipeline should include automated testing and rollback"
-        m1 = _msg(base + " capabilities for production systems and environments",
-                   role="assistant", ts=1.0)
-        m2 = _msg(base + " capabilities for production systems and platforms",
-                   role="assistant", ts=2.0)
+        m1 = _msg(base + " capabilities for production systems and environments", role="assistant", ts=1.0)
+        m2 = _msg(base + " capabilities for production systems and platforms", role="assistant", ts=2.0)
         result = pruner.prune([m1, m2])
         redundant = [d for d in result.decisions if d.reason == PruneReason.REDUNDANT]
         assert len(redundant) >= 1
@@ -610,11 +642,13 @@ class TestRedundancyDetection:
         pruner = TrajectoryPruner(redundancy_threshold=0.99)
         m1 = _msg(
             "The deployment pipeline includes automated testing and rollback capabilities.",
-            role="assistant", ts=1.0,
+            role="assistant",
+            ts=1.0,
         )
         m2 = _msg(
             "The deployment pipeline includes automated testing and rollback procedures.",
-            role="assistant", ts=2.0,
+            role="assistant",
+            ts=2.0,
         )
         result = pruner.prune([m1, m2])
         redundant = [d for d in result.decisions if d.reason == PruneReason.REDUNDANT]
@@ -686,8 +720,7 @@ class TestTokenBudgetEnforcement:
 
     def test_no_budget_no_pruning(self, pruner):
         msgs = [
-            _msg(f"unique message number {i} about topic {i * 7} in detail",
-                 role="assistant", token_estimate=100)
+            _msg(f"unique message number {i} about topic {i * 7} in detail", role="assistant", token_estimate=100)
             for i in range(5)
         ]
         result = pruner.prune(msgs, token_budget=0)
@@ -695,18 +728,14 @@ class TestTokenBudgetEnforcement:
 
     def test_budget_within_limit_no_pruning(self, pruner):
         msgs = [
-            _msg(f"distinct content for item {i} discussing area {i * 11}",
-                 role="assistant", token_estimate=100)
+            _msg(f"distinct content for item {i} discussing area {i * 11}", role="assistant", token_estimate=100)
             for i in range(3)
         ]
         result = pruner.prune(msgs, token_budget=1000)  # 300 < 1000
         assert result.kept_count == 3
 
     def test_budget_exceeded_prunes_lowest_priority(self, pruner):
-        msgs = [
-            _msg("message content number " * 5, role="assistant", token_estimate=100)
-            for _ in range(5)
-        ]
+        msgs = [_msg("message content number " * 5, role="assistant", token_estimate=100) for _ in range(5)]
         # Total = 500 tokens, budget = 200 => need to prune at least 300
         result = pruner.prune(msgs, token_budget=200)
         kept_tokens = sum(m.token_estimate for m in result.kept_messages)
@@ -715,9 +744,7 @@ class TestTokenBudgetEnforcement:
     def test_budget_protects_system_messages(self, pruner):
         sys_msg = _msg("System instructions.", role="system", token_estimate=200)
         assistant_msgs = [
-            _msg(f"Assistant response number {i} with content.", role="assistant",
-                 token_estimate=200)
-            for i in range(3)
+            _msg(f"Assistant response number {i} with content.", role="assistant", token_estimate=200) for i in range(3)
         ]
         all_msgs = [sys_msg] + assistant_msgs
         # budget = 300 => must keep system (200) + at most 1 assistant (200)
@@ -729,10 +756,8 @@ class TestTokenBudgetEnforcement:
         """Lower priority messages (older, tool role) are pruned first."""
         msgs = [
             _msg("Tool output from first step.", role="tool", token_estimate=100, ts=1.0),
-            _msg("Important assistant analysis for the task.", role="assistant",
-                 token_estimate=100, ts=2.0),
-            _msg("Final assistant summary and recommendation.", role="assistant",
-                 token_estimate=100, ts=3.0),
+            _msg("Important assistant analysis for the task.", role="assistant", token_estimate=100, ts=2.0),
+            _msg("Final assistant summary and recommendation.", role="assistant", token_estimate=100, ts=3.0),
         ]
         result = pruner.prune(msgs, token_budget=200)
         kept_contents = [m.content for m in result.kept_messages]
@@ -749,26 +774,21 @@ class TestAggressivePruning:
     """Tests for Phase 6: aggressive pruning when too many messages."""
 
     def test_below_max_no_aggressive(self, pruner):
-        msgs = [_msg(f"Message {i} with reasonable content.", role="assistant")
-                for i in range(10)]
+        msgs = [_msg(f"Message {i} with reasonable content.", role="assistant") for i in range(10)]
         result = pruner.prune(msgs)
         assert result.kept_count == 10
 
     def test_above_max_triggers_aggressive(self):
         small_max = 5
         pruner = TrajectoryPruner(max_trajectory=small_max)
-        msgs = [_msg(f"Message number {i} content here.", role="assistant",
-                      ts=float(i))
-                for i in range(10)]
+        msgs = [_msg(f"Message number {i} content here.", role="assistant", ts=float(i)) for i in range(10)]
         result = pruner.prune(msgs)
         assert result.kept_count <= small_max
 
     def test_aggressive_uses_expired_reason(self):
         small_max = 3
         pruner = TrajectoryPruner(max_trajectory=small_max)
-        msgs = [_msg(f"Msg number {i} with longer content here.", role="assistant",
-                      ts=float(i))
-                for i in range(6)]
+        msgs = [_msg(f"Msg number {i} with longer content here.", role="assistant", ts=float(i)) for i in range(6)]
         result = pruner.prune(msgs)
         expired = [d for d in result.decisions if d.reason == PruneReason.EXPIRED]
         assert len(expired) >= 1
@@ -779,10 +799,7 @@ class TestAggressivePruning:
         msgs = [
             _msg("System prompt.", role="system", ts=0.0),
             _msg("User question.", role="user", ts=1.0),
-        ] + [
-            _msg(f"Assistant response {i}.", role="assistant", ts=float(i + 2))
-            for i in range(10)
-        ]
+        ] + [_msg(f"Assistant response {i}.", role="assistant", ts=float(i + 2)) for i in range(10)]
         result = pruner.prune(msgs)
         kept_roles = [m.role for m in result.kept_messages]
         assert "system" in kept_roles
@@ -791,9 +808,7 @@ class TestAggressivePruning:
     def test_aggressive_expired_confidence(self):
         small_max = 3
         pruner = TrajectoryPruner(max_trajectory=small_max)
-        msgs = [_msg(f"Message content number {i}.", role="assistant",
-                      ts=float(i))
-                for i in range(8)]
+        msgs = [_msg(f"Message content number {i}.", role="assistant", ts=float(i)) for i in range(8)]
         result = pruner.prune(msgs)
         expired = [d for d in result.decisions if d.reason == PruneReason.EXPIRED]
         for d in expired:
@@ -1186,10 +1201,7 @@ class TestEdgeCases:
 
     def test_max_trajectory_one(self):
         pruner = TrajectoryPruner(max_trajectory=1)
-        msgs = [
-            _msg(f"Message content number {i}.", role="assistant", ts=float(i))
-            for i in range(5)
-        ]
+        msgs = [_msg(f"Message content number {i}.", role="assistant", ts=float(i)) for i in range(5)]
         result = pruner.prune(msgs)
         assert result.kept_count <= 1
 
@@ -1272,19 +1284,25 @@ class TestIntegration:
             # Old message that will be superseded
             _msg(
                 "The database connection uses a single pooled connection manager.",
-                role="assistant", agent_id="a1", ts=old_ts,
+                role="assistant",
+                agent_id="a1",
+                ts=old_ts,
             ),
             # User question - protected
             _msg("How does the database connect?", role="user", ts=old_ts + 30),
             # Newer correction (supersedes #2)
             _msg(
                 "Actually the database connection was updated and corrected to use multiple pools.",
-                role="assistant", agent_id="a1", ts=now,
+                role="assistant",
+                agent_id="a1",
+                ts=now,
             ),
             # Redundant duplicate of correction
             _msg(
                 "Actually the database connection was updated and corrected to use multiple pools.",
-                role="assistant", agent_id="a1", ts=now + 1,
+                role="assistant",
+                agent_id="a1",
+                ts=now + 1,
             ),
         ]
 
@@ -1309,11 +1327,17 @@ class TestIntegration:
             _msg("System prompt.", role="system", token_estimate=50, ts=old_ts - 10),
             _msg(
                 "Old analysis of auth system with basic token validation.",
-                role="assistant", agent_id="a1", token_estimate=200, ts=old_ts,
+                role="assistant",
+                agent_id="a1",
+                token_estimate=200,
+                ts=old_ts,
             ),
             _msg(
                 "Updated analysis: auth system was corrected with JWT validation.",
-                role="assistant", agent_id="a1", token_estimate=200, ts=now,
+                role="assistant",
+                agent_id="a1",
+                token_estimate=200,
+                ts=now,
             ),
             _msg("User asks a follow up.", role="user", token_estimate=20, ts=now + 1),
         ]
@@ -1333,8 +1357,7 @@ class TestIntegration:
             _msg("System instructions for the agent.", role="system", ts=0.0),
             _msg("User's initial question about the system.", role="user", ts=1.0),
         ] + [
-            _msg(f"Assistant response step {i} with detailed analysis.",
-                 role="assistant", ts=float(i + 2))
+            _msg(f"Assistant response step {i} with detailed analysis.", role="assistant", ts=float(i + 2))
             for i in range(18)
         ]
 
@@ -1392,21 +1415,29 @@ class TestIntegration:
             # Phase 2: Stale (will be superseded)
             _msg(
                 "The auth module uses basic validation with token checking.",
-                role="assistant", agent_id="a1", ts=old_ts,
+                role="assistant",
+                agent_id="a1",
+                ts=old_ts,
             ),
             # Superseder for staleness
             _msg(
                 "Actually the auth module was corrected to use JWT-based checking.",
-                role="assistant", agent_id="a1", ts=now,
+                role="assistant",
+                agent_id="a1",
+                ts=now,
             ),
             # Phase 3: Redundant pair
             _msg(
                 "The deployment pipeline includes automated testing and rollback procedures.",
-                role="assistant", agent_id="a2", ts=now + 1,
+                role="assistant",
+                agent_id="a2",
+                ts=now + 1,
             ),
             _msg(
                 "The deployment pipeline includes automated testing and rollback procedures.",
-                role="assistant", agent_id="a2", ts=now + 2,
+                role="assistant",
+                agent_id="a2",
+                ts=now + 2,
             ),
             # Phase 4: Irrelevant tool output
             _msg(lines, role="tool", token_estimate=500, ts=now + 3),

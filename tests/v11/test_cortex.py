@@ -11,8 +11,9 @@ Author: Claude (NEXUS V11.5 CORTEX)
 Date: 2025-12-15
 """
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
 
 from core.api.cerebro.deps import AuthenticatedUser, require_auth
 
@@ -89,7 +90,7 @@ class TestFileSizeLimit:
         from core.api.cerebro.routes import files
 
         # Mock guardian to allow path
-        with patch.object(files, '_get_guardian') as mock_get_guardian:
+        with patch.object(files, "_get_guardian") as mock_get_guardian:
             mock_guardian = MagicMock()
             mock_guardian.validate_read.return_value = (True, MagicMock(), "OK")
             mock_get_guardian.return_value = mock_guardian
@@ -104,6 +105,7 @@ class TestFileSizeLimit:
 
             # Create app
             from fastapi import FastAPI
+
             app = FastAPI()
             app.include_router(files.router, prefix="/api/files")
             app.dependency_overrides[require_auth] = _auth_override
@@ -128,7 +130,7 @@ class TestStateSnapshot:
         from core.api.cerebro.routes import state
 
         # Mock Redis bus
-        with patch('core.events.redis_bus.get_redis_bus') as mock_get_bus:
+        with patch("core.events.redis_bus.get_redis_bus") as mock_get_bus:
             mock_bus = MagicMock()
             mock_bus.is_connected.return_value = True
 
@@ -141,21 +143,19 @@ class TestStateSnapshot:
             mock_get_bus.return_value = mock_bus
 
             # Mock interaction provider
-            with patch('core.interaction.get_interaction_provider') as mock_provider:
+            with patch("core.interaction.get_interaction_provider") as mock_provider:
                 mock_provider.return_value.get_pending_requests.return_value = [
                     {"request_id": "abc123", "type": "confirm", "prompt": "Continue?"}
                 ]
 
                 from fastapi import FastAPI
+
                 app = FastAPI()
                 app.include_router(state.router, prefix="/api/state")
                 app.dependency_overrides[require_auth] = _auth_override
 
                 with TestClient(app) as client:
-                    response = client.get(
-                        "/api/state/snapshot",
-                        params={"tenant_id": "test"}
-                    )
+                    client.get("/api/state/snapshot", params={"tenant_id": "test"})
 
                 # Note: This may fail if Redis is not mocked correctly
                 # The key assertion is that pending_interactions is in the response schema
@@ -174,12 +174,13 @@ class TestInteractionEndpoint:
         from core.api.cerebro.routes import interactions
 
         # Mock provider
-        with patch('core.interaction.get_interaction_provider') as mock_get:
+        with patch("core.interaction.get_interaction_provider") as mock_get:
             mock_provider = MagicMock()
             mock_provider.get_pending_requests.return_value = []
             mock_get.return_value = mock_provider
 
             from fastapi import FastAPI
+
             app = FastAPI()
             app.include_router(interactions.router, prefix="/api/interactions")
             app.dependency_overrides[require_auth] = _auth_override
@@ -202,22 +203,21 @@ class TestWorkflowEndpoint:
         except ImportError:
             pytest.skip("fastapi[all] not installed")
 
+        from fastapi import FastAPI
+
         from core.api.cerebro.routes import workflow
 
-        from fastapi import FastAPI
         app = FastAPI()
         app.include_router(workflow.router, prefix="/api/workflow")
         app.dependency_overrides[require_auth] = _auth_override
 
-        with patch("fastapi.BackgroundTasks.add_task", return_value=None), \
-            patch.object(workflow._registry, "connect", AsyncMock(return_value=False)), \
-            patch.object(workflow._registry, "create_workflow", AsyncMock(return_value={})):
-            with TestClient(app) as client:
-                response = client.post(
-                    "/api/workflow/start",
-                    json={"task": "test task"},
-                    params={"tenant_id": "test"}
-                )
+        with (
+            patch("fastapi.BackgroundTasks.add_task", return_value=None),
+            patch.object(workflow._registry, "connect", AsyncMock(return_value=False)),
+            patch.object(workflow._registry, "create_workflow", AsyncMock(return_value={})),
+            TestClient(app) as client,
+        ):
+            response = client.post("/api/workflow/start", json={"task": "test task"}, params={"tenant_id": "test"})
 
         assert response.status_code == 200
         data = response.json()
@@ -231,17 +231,20 @@ class TestWorkflowEndpoint:
         except ImportError:
             pytest.skip("fastapi[all] not installed")
 
+        from fastapi import FastAPI
+
         from core.api.cerebro.routes import workflow
 
-        from fastapi import FastAPI
         app = FastAPI()
         app.include_router(workflow.router, prefix="/api/workflow")
         app.dependency_overrides[require_auth] = _auth_override
 
-        with patch.object(workflow._registry, "connect", AsyncMock(return_value=False)), \
-            patch.object(workflow._registry, "get_workflow", AsyncMock(return_value=None)):
-            with TestClient(app) as client:
-                response = client.get("/api/workflow/nonexistent123")
+        with (
+            patch.object(workflow._registry, "connect", AsyncMock(return_value=False)),
+            patch.object(workflow._registry, "get_workflow", AsyncMock(return_value=None)),
+            TestClient(app) as client,
+        ):
+            response = client.get("/api/workflow/nonexistent123")
 
         assert response.status_code == 404
 
@@ -260,7 +263,7 @@ class TestTelemetryBridgePersistence:
         from core.observability.events.telemetry_bridge import TelemetryBridge
 
         bridge = TelemetryBridge()
-        assert hasattr(bridge, '_persist_state')
+        assert hasattr(bridge, "_persist_state")
 
 
 class TestCORTEXRoutes:
@@ -292,9 +295,9 @@ class TestBackwardCompatibility:
 
         assert provider._interactive is False
         # Methods should exist
-        assert hasattr(provider, 'ask')
-        assert hasattr(provider, 'confirm')
-        assert hasattr(provider, 'choose')
+        assert hasattr(provider, "ask")
+        assert hasattr(provider, "confirm")
+        assert hasattr(provider, "choose")
 
     @pytest.mark.asyncio
     async def test_ask_returns_default_non_interactive(self):

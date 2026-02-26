@@ -29,7 +29,7 @@ import logging
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -45,9 +45,11 @@ MAX_EVALUATIONS = 50000
 # Types
 # =============================================================================
 
+
 @dataclass
 class GuardEvaluation:
     """A single guard evaluation record."""
+
     guard_name: str
     from_state: str
     to_state: str
@@ -57,7 +59,7 @@ class GuardEvaluation:
     timestamp: float = field(default_factory=time.monotonic)
     reason: str = ""  # why guard blocked (only when result=False)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "guard_name": self.guard_name,
             "from_state": self.from_state,
@@ -73,6 +75,7 @@ class GuardEvaluation:
 @dataclass
 class GuardMetrics:
     """Aggregated metrics for a single guard."""
+
     guard_name: str
     total_evaluations: int = 0
     allowed_count: int = 0
@@ -91,7 +94,7 @@ class GuardMetrics:
             return 0.0
         return self.blocked_count / self.total_evaluations
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "guard_name": self.guard_name,
             "total_evaluations": self.total_evaluations,
@@ -106,6 +109,7 @@ class GuardMetrics:
 @dataclass
 class BlockedTransition:
     """Record of a guard blocking a transition."""
+
     from_state: str
     to_state: str
     guard_name: str
@@ -113,7 +117,7 @@ class BlockedTransition:
     session_id: str = ""
     timestamp: float = field(default_factory=time.monotonic)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "from_state": self.from_state,
             "to_state": self.to_state,
@@ -127,13 +131,14 @@ class BlockedTransition:
 @dataclass
 class GuardLoggerStats:
     """Overall guard logger statistics."""
+
     total_evaluations: int
     total_blocked: int
     total_allowed: int
     unique_guards: int
     unique_transitions: int
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_evaluations": self.total_evaluations,
             "total_blocked": self.total_blocked,
@@ -146,6 +151,7 @@ class GuardLoggerStats:
 # =============================================================================
 # Guard Logger
 # =============================================================================
+
 
 class GuardLogger:
     """
@@ -161,9 +167,9 @@ class GuardLogger:
     """
 
     def __init__(self, *, max_evaluations: int = MAX_EVALUATIONS):
-        self._evaluations: List[GuardEvaluation] = []
-        self._metrics: Dict[str, GuardMetrics] = {}
-        self._blocked: List[BlockedTransition] = []
+        self._evaluations: list[GuardEvaluation] = []
+        self._metrics: dict[str, GuardMetrics] = {}
+        self._blocked: list[BlockedTransition] = []
         self._max_evaluations = max_evaluations
         self._lock = threading.Lock()
 
@@ -210,7 +216,7 @@ class GuardLogger:
             self._evaluations.append(evaluation)
             # Evict oldest if over limit
             if len(self._evaluations) > self._max_evaluations:
-                self._evaluations = self._evaluations[-self._max_evaluations:]
+                self._evaluations = self._evaluations[-self._max_evaluations :]
 
             # Update aggregated metrics
             metrics = self._metrics.get(guard_name)
@@ -224,25 +230,24 @@ class GuardLogger:
             else:
                 metrics.blocked_count += 1
                 # Record blocked transition
-                self._blocked.append(BlockedTransition(
-                    from_state=from_state,
-                    to_state=to_state,
-                    guard_name=guard_name,
-                    reason=reason,
-                    session_id=session_id,
-                ))
+                self._blocked.append(
+                    BlockedTransition(
+                        from_state=from_state,
+                        to_state=to_state,
+                        guard_name=guard_name,
+                        reason=reason,
+                        session_id=session_id,
+                    )
+                )
             # Running average latency
-            metrics.avg_latency_ms = (
-                (metrics.avg_latency_ms * prev_total + latency_ms)
-                / metrics.total_evaluations
-            )
+            metrics.avg_latency_ms = (metrics.avg_latency_ms * prev_total + latency_ms) / metrics.total_evaluations
         return evaluation
 
     # =========================================================================
     # Queries
     # =========================================================================
 
-    def get_guard_metrics(self, guard_name: str) -> Optional[GuardMetrics]:
+    def get_guard_metrics(self, guard_name: str) -> GuardMetrics | None:
         """Get aggregated metrics for a specific guard."""
         with self._lock:
             metrics = self._metrics.get(guard_name)
@@ -257,7 +262,7 @@ class GuardLogger:
                 avg_latency_ms=metrics.avg_latency_ms,
             )
 
-    def get_all_metrics(self) -> List[GuardMetrics]:
+    def get_all_metrics(self) -> list[GuardMetrics]:
         """Get metrics for all guards, sorted by total_evaluations descending."""
         with self._lock:
             result = [
@@ -276,10 +281,10 @@ class GuardLogger:
     def get_blocked_transitions(
         self,
         *,
-        guard_name: Optional[str] = None,
-        from_state: Optional[str] = None,
+        guard_name: str | None = None,
+        from_state: str | None = None,
         limit: int = 50,
-    ) -> List[BlockedTransition]:
+    ) -> list[BlockedTransition]:
         """
         Get blocked transitions, most recent first.
 
@@ -303,12 +308,12 @@ class GuardLogger:
     def get_evaluations(
         self,
         *,
-        guard_name: Optional[str] = None,
-        from_state: Optional[str] = None,
-        to_state: Optional[str] = None,
-        result: Optional[bool] = None,
+        guard_name: str | None = None,
+        from_state: str | None = None,
+        to_state: str | None = None,
+        result: bool | None = None,
         limit: int = 100,
-    ) -> List[GuardEvaluation]:
+    ) -> list[GuardEvaluation]:
         """
         Get evaluations with optional filters, most recent first.
 
@@ -335,7 +340,7 @@ class GuardLogger:
             filtered = [e for e in filtered if e.result == result]
         return filtered[:limit]
 
-    def get_most_blocking_guards(self, *, limit: int = 5) -> List[GuardMetrics]:
+    def get_most_blocking_guards(self, *, limit: int = 5) -> list[GuardMetrics]:
         """
         Get guards sorted by blocked_count descending.
 
@@ -392,7 +397,7 @@ class GuardLogger:
             self._metrics.clear()
             self._blocked.clear()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         # Call get_stats() which acquires the lock internally;
         # do NOT acquire self._lock here to avoid re-entrant locking.
         stats = self.get_stats()
@@ -407,7 +412,7 @@ class GuardLogger:
 # Global Instance
 # =============================================================================
 
-_guard_logger: Optional[GuardLogger] = None
+_guard_logger: GuardLogger | None = None
 _guard_logger_lock = threading.Lock()
 
 

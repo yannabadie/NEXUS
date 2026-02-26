@@ -24,17 +24,18 @@ Author: Claude Opus 4.6 (NEXUS Architect)
 Date: 2026-02-17
 """
 
-from typing import List, Optional
-from pydantic import BaseModel, Field, field_validator
 from enum import Enum
 
+from pydantic import BaseModel, Field, field_validator
 
 # =============================================================================
 # Phase 1: Analysis
 # =============================================================================
 
+
 class TaskComplexity(str, Enum):
     """Task complexity levels."""
+
     TRIVIAL = "TRIVIAL"
     MODERATE = "MODERATE"
     COMPLEX = "COMPLEX"
@@ -48,18 +49,16 @@ class AnalysisOutput(BaseModel):
         description="Clear understanding of what needs to be done",
         min_length=10,
     )
-    complexity_assessment: TaskComplexity = Field(
-        description="Complexity level: TRIVIAL, MODERATE, COMPLEX, or EXPERT"
-    )
+    complexity_assessment: TaskComplexity = Field(description="Complexity level: TRIVIAL, MODERATE, COMPLEX, or EXPERT")
     proposed_approach: str = Field(
         description="Proposed strategy to solve this task",
         min_length=10,
     )
-    required_capabilities: List[str] = Field(
+    required_capabilities: list[str] = Field(
         description="List of capabilities needed",
         min_length=1,
     )
-    potential_risks: List[str] = Field(
+    potential_risks: list[str] = Field(
         description="List of potential risks or challenges",
         default_factory=list,
     )
@@ -82,7 +81,7 @@ class AnalysisOutput(BaseModel):
                 "required_capabilities": ["cryptography", "session management"],
                 "potential_risks": ["Token expiry handling", "Secret storage"],
                 "confidence": 0.85,
-                "reasoning": "JWT is battle-tested and scales well"
+                "reasoning": "JWT is battle-tested and scales well",
             }
         }
 
@@ -90,6 +89,7 @@ class AnalysisOutput(BaseModel):
 # =============================================================================
 # Phase 2: Debate
 # =============================================================================
+
 
 class DebateArgument(BaseModel):
     """Single debate argument."""
@@ -102,18 +102,16 @@ class DebateArgument(BaseModel):
 class DebateOutput(BaseModel):
     """Output schema for Phase 2: Debate."""
 
-    consensus_reached: bool = Field(
-        description="Whether agents reached consensus"
-    )
+    consensus_reached: bool = Field(description="Whether agents reached consensus")
     final_decision: str = Field(
         description="The final agreed-upon decision or approach",
         min_length=10,
     )
-    key_agreements: List[str] = Field(
+    key_agreements: list[str] = Field(
         description="Points where agents agreed",
         default_factory=list,
     )
-    unresolved_disagreements: List[str] = Field(
+    unresolved_disagreements: list[str] = Field(
         description="Points where disagreement remains",
         default_factory=list,
     )
@@ -129,7 +127,7 @@ class DebateOutput(BaseModel):
                 "final_decision": "Use PostgreSQL with B-tree indexes",
                 "key_agreements": ["PostgreSQL is reliable", "Need indexes"],
                 "unresolved_disagreements": [],
-                "debate_summary": "Both agents agreed PostgreSQL is best choice"
+                "debate_summary": "Both agents agreed PostgreSQL is best choice",
             }
         }
 
@@ -138,13 +136,14 @@ class DebateOutput(BaseModel):
 # Phase 3: Architecture
 # =============================================================================
 
+
 class ExecutionStep(BaseModel):
     """Single execution step in the plan."""
 
     step_number: int = Field(description="Step sequence number", ge=1)
     description: str = Field(description="What to do", min_length=5)
-    tool: Optional[str] = Field(description="Tool to use (if any)", default=None)
-    dependencies: List[int] = Field(
+    tool: str | None = Field(description="Tool to use (if any)", default=None)
+    dependencies: list[int] = Field(
         description="Step numbers this depends on",
         default_factory=list,
     )
@@ -161,21 +160,19 @@ class ArchitectureOutput(BaseModel):
         description="Brief overview of the execution plan",
         min_length=20,
     )
-    steps: List[ExecutionStep] = Field(
+    steps: list[ExecutionStep] = Field(
         description="Ordered list of execution steps",
         min_length=1,
     )
-    success_criteria: List[str] = Field(
+    success_criteria: list[str] = Field(
         description="How to verify successful completion",
         min_length=1,
     )
-    estimated_complexity: TaskComplexity = Field(
-        description="Overall plan complexity"
-    )
+    estimated_complexity: TaskComplexity = Field(description="Overall plan complexity")
 
     @field_validator("steps")
     @classmethod
-    def validate_step_numbers(cls, steps: List[ExecutionStep]) -> List[ExecutionStep]:
+    def validate_step_numbers(cls, steps: list[ExecutionStep]) -> list[ExecutionStep]:
         """Ensure step numbers are sequential."""
         for i, step in enumerate(steps, 1):
             if step.step_number != i:
@@ -192,11 +189,11 @@ class ArchitectureOutput(BaseModel):
                         "description": "Install JWT library",
                         "tool": "bash",
                         "dependencies": [],
-                        "expected_outcome": "JWT library installed"
+                        "expected_outcome": "JWT library installed",
                     }
                 ],
                 "success_criteria": ["Tests pass", "Tokens validate correctly"],
-                "estimated_complexity": "MODERATE"
+                "estimated_complexity": "MODERATE",
             }
         }
 
@@ -205,13 +202,14 @@ class ArchitectureOutput(BaseModel):
 # Phase 4: Execution
 # =============================================================================
 
+
 class ExecutionResult(BaseModel):
     """Result of a single step execution."""
 
     step_number: int = Field(description="Step that was executed", ge=1)
     success: bool = Field(description="Whether step succeeded")
     output: str = Field(description="Step output or error message")
-    artifacts: List[str] = Field(
+    artifacts: list[str] = Field(
         description="Files or resources created",
         default_factory=list,
     )
@@ -220,10 +218,8 @@ class ExecutionResult(BaseModel):
 class ExecutionOutput(BaseModel):
     """Output schema for Phase 4: Execution."""
 
-    overall_success: bool = Field(
-        description="Whether all steps succeeded"
-    )
-    completed_steps: List[ExecutionResult] = Field(
+    overall_success: bool = Field(description="Whether all steps succeeded")
+    completed_steps: list[ExecutionResult] = Field(
         description="Results of each step executed",
         min_length=1,
     )
@@ -231,7 +227,7 @@ class ExecutionOutput(BaseModel):
         description="Description of final state after execution",
         min_length=10,
     )
-    verification_notes: Optional[str] = Field(
+    verification_notes: str | None = Field(
         description="Notes on success criteria verification",
         default=None,
     )
@@ -245,11 +241,11 @@ class ExecutionOutput(BaseModel):
                         "step_number": 1,
                         "success": True,
                         "output": "JWT library installed successfully",
-                        "artifacts": ["package.json"]
+                        "artifacts": ["package.json"],
                     }
                 ],
                 "final_state": "JWT auth fully implemented and tested",
-                "verification_notes": "All tests passing"
+                "verification_notes": "All tests passing",
             }
         }
 
@@ -258,6 +254,7 @@ class ExecutionOutput(BaseModel):
 # Phase 5: Diagnosis
 # =============================================================================
 
+
 class DiagnosisOutput(BaseModel):
     """Output schema for Phase 5: Diagnosis."""
 
@@ -265,7 +262,7 @@ class DiagnosisOutput(BaseModel):
         description="Identified root cause of the failure",
         min_length=10,
     )
-    affected_steps: List[int] = Field(
+    affected_steps: list[int] = Field(
         description="Step numbers that failed or were affected",
         min_length=1,
     )
@@ -273,7 +270,7 @@ class DiagnosisOutput(BaseModel):
         description="How to fix the issue",
         min_length=10,
     )
-    alternative_approaches: List[str] = Field(
+    alternative_approaches: list[str] = Field(
         description="Alternative ways to address the issue",
         default_factory=list,
     )
@@ -295,7 +292,7 @@ class DiagnosisOutput(BaseModel):
                 "recommended_fix": "Set JWT_SECRET in .env file",
                 "alternative_approaches": ["Use config file", "Use secrets manager"],
                 "confidence": 0.95,
-                "reasoning": "Error message clearly indicates missing secret"
+                "reasoning": "Error message clearly indicates missing secret",
             }
         }
 
@@ -304,21 +301,20 @@ class DiagnosisOutput(BaseModel):
 # Phase 7: Consolidation
 # =============================================================================
 
+
 class ConsolidationOutput(BaseModel):
     """Output schema for Phase 7: Consolidation."""
 
-    task_success: bool = Field(
-        description="Whether overall task succeeded"
-    )
-    key_learnings: List[str] = Field(
+    task_success: bool = Field(description="Whether overall task succeeded")
+    key_learnings: list[str] = Field(
         description="What was learned from this task",
         min_length=1,
     )
-    patterns_identified: List[str] = Field(
+    patterns_identified: list[str] = Field(
         description="Reusable patterns for future tasks",
         default_factory=list,
     )
-    antipatterns_identified: List[str] = Field(
+    antipatterns_identified: list[str] = Field(
         description="Antipatterns to avoid in future",
         default_factory=list,
     )
@@ -326,7 +322,7 @@ class ConsolidationOutput(BaseModel):
         description="Key knowledge to remember for future tasks",
         min_length=10,
     )
-    performance_notes: Optional[str] = Field(
+    performance_notes: str | None = Field(
         description="Notes on agent performance during task",
         default=None,
     )
@@ -339,7 +335,7 @@ class ConsolidationOutput(BaseModel):
                 "patterns_identified": ["Test auth flow before deploying"],
                 "antipatterns_identified": ["Hardcoding secrets in code"],
                 "knowledge_to_retain": "Always use environment variables for secrets",
-                "performance_notes": "Task completed efficiently with good collaboration"
+                "performance_notes": "Task completed efficiently with good collaboration",
             }
         }
 
@@ -372,8 +368,5 @@ def get_schema_for_phase(phase_name: str) -> type[BaseModel]:
         ValueError: If phase name is unknown
     """
     if phase_name not in PHASE_SCHEMAS:
-        raise ValueError(
-            f"Unknown phase: {phase_name}. "
-            f"Valid phases: {', '.join(PHASE_SCHEMAS.keys())}"
-        )
+        raise ValueError(f"Unknown phase: {phase_name}. Valid phases: {', '.join(PHASE_SCHEMAS.keys())}")
     return PHASE_SCHEMAS[phase_name]

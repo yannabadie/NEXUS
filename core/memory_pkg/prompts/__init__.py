@@ -7,20 +7,20 @@ V12.4: Added versioned prompt registry for version tracking, diff, and rollback.
 
 from .prompt_loader import load_prompt, resolve_includes
 
-# V12.4: Versioned Prompt Registry
-from .versioned_registry import PromptRegistry, PromptVersion, PromptEntry
-
 # V12.4: Prompt Template Optimizer
 from .template_optimizer import (
-    PromptOptimizer,
+    ConflictResult,
     PromptAnalysis,
     PromptIssue,
-    PromptStats,
+    PromptOptimizer,
     PromptOutcome,
-    ConflictResult,
+    PromptStats,
     get_optimizer,
     reset_optimizer,
 )
+
+# V12.4: Versioned Prompt Registry
+from .versioned_registry import PromptEntry, PromptRegistry, PromptVersion
 
 __all__ = [
     "load_prompt",

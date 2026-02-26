@@ -7,15 +7,14 @@ Tests verify that:
 3. Both Orchestrator and Swarm paths handle CoT correctly
 """
 
-import pytest
-from pathlib import Path
-from unittest.mock import MagicMock, patch
 import tempfile
+from unittest.mock import MagicMock
 
-from core.intelligence.swarm.task_analyzer import TaskComplexity, TaskAnalysis, TaskDomain
-from core.intelligence.swarm.mode_executors import ExecutionContext, AgentAssignment
+import pytest
+
 from core.intelligence.swarm.hybrid_swarm_engine import HybridSwarmEngine
-
+from core.intelligence.swarm.mode_executors import AgentAssignment, ExecutionContext
+from core.intelligence.swarm.task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
 
 # =============================================================================
 # CONSTANTS
@@ -28,13 +27,14 @@ COT_INSTRUCTION = "<instruction>BEFORE answering or using tools, you MUST wrap y
 # ORCHESTRATOR PATH TESTS
 # =============================================================================
 
+
 class TestOrchestratorCoT:
     """Test CoT enforcement in Orchestrator path."""
 
     @pytest.fixture
     def mock_orchestrator(self):
         """Create a minimal mock orchestrator for testing _build_context."""
-        with tempfile.TemporaryDirectory() as tmpdir:
+        with tempfile.TemporaryDirectory():
             # We need to test _build_context behavior based on _current_complexity
             # Create a mock that has the necessary attributes
             from unittest.mock import MagicMock
@@ -47,7 +47,7 @@ class TestOrchestratorCoT:
                 "objective": "Test objective",
                 "mode": "Normal",
                 "strategic_plan": [],
-                "recent_history": []
+                "recent_history": [],
             }
             orchestrator.tool_manager = MagicMock()
             orchestrator.tool_manager.tools = {"read": MagicMock(), "write": MagicMock()}
@@ -57,7 +57,6 @@ class TestOrchestratorCoT:
     def test_expert_complexity_triggers_cot(self):
         """Test that EXPERT complexity adds CoT instruction to context."""
         # Import the actual class to test _build_context
-        from core.orchestration_v7 import OrchestratorV7
 
         # We can't easily instantiate OrchestratorV7, so test the logic directly
         # by checking that the condition is correct
@@ -98,24 +97,18 @@ class TestOrchestratorCoT:
 # EXECUTION CONTEXT TESTS
 # =============================================================================
 
+
 class TestExecutionContextCoT:
     """Test force_cot field in ExecutionContext."""
 
     def test_force_cot_default_false(self):
         """Test that force_cot defaults to False."""
-        context = ExecutionContext(
-            task_input="test task",
-            agent_assignments=[]
-        )
+        context = ExecutionContext(task_input="test task", agent_assignments=[])
         assert context.force_cot is False
 
     def test_force_cot_can_be_set_true(self):
         """Test that force_cot can be set to True."""
-        context = ExecutionContext(
-            task_input="expert task",
-            agent_assignments=[],
-            force_cot=True
-        )
+        context = ExecutionContext(task_input="expert task", agent_assignments=[], force_cot=True)
         assert context.force_cot is True
 
     def test_force_cot_with_full_context(self):
@@ -124,12 +117,12 @@ class TestExecutionContextCoT:
             task_input="complex expert task",
             agent_assignments=[
                 AgentAssignment(agent_id="gemini", role="lead", confidence=0.8),
-                AgentAssignment(agent_id="claude", role="support", confidence=0.7)
+                AgentAssignment(agent_id="claude", role="support", confidence=0.7),
             ],
             blackboard={"key": "value"},
             max_rounds=6,
             task_id="test-123",
-            force_cot=True
+            force_cot=True,
         )
 
         assert context.force_cot is True
@@ -141,13 +134,14 @@ class TestExecutionContextCoT:
 # SWARM ENGINE TESTS
 # =============================================================================
 
+
 class TestSwarmEngineCoT:
     """Test CoT enforcement in Swarm Engine path."""
 
     @pytest.fixture
     def swarm_engine(self):
         """Create HybridSwarmEngine with mocked dependencies."""
-        with tempfile.TemporaryDirectory() as tmpdir:
+        with tempfile.TemporaryDirectory():
             config = MagicMock()
             config.swarm_max_rounds = 6
             config.swarm_negotiation_enabled = False
@@ -167,7 +161,7 @@ class TestSwarmEngineCoT:
             primary_domain=TaskDomain.ARCHITECTURE,
             gemini_fit_score=0.7,
             claude_fit_score=0.8,
-            requires_code_execution=True
+            requires_code_execution=True,
         )
 
         # Store it
@@ -175,8 +169,7 @@ class TestSwarmEngineCoT:
 
         # Verify the condition would be True
         is_expert = (
-            swarm_engine._current_analysis and
-            swarm_engine._current_analysis.complexity == TaskComplexity.EXPERT
+            swarm_engine._current_analysis and swarm_engine._current_analysis.complexity == TaskComplexity.EXPERT
         )
         assert is_expert is True
 
@@ -187,14 +180,13 @@ class TestSwarmEngineCoT:
             domains=[TaskDomain.CODING],
             primary_domain=TaskDomain.CODING,
             gemini_fit_score=0.5,
-            claude_fit_score=0.5
+            claude_fit_score=0.5,
         )
 
         swarm_engine._current_analysis = simple_analysis
 
         is_expert = (
-            swarm_engine._current_analysis and
-            swarm_engine._current_analysis.complexity == TaskComplexity.EXPERT
+            swarm_engine._current_analysis and swarm_engine._current_analysis.complexity == TaskComplexity.EXPERT
         )
         assert is_expert is False
 
@@ -206,7 +198,7 @@ class TestSwarmEngineCoT:
             domains=[TaskDomain.SECURITY],
             primary_domain=TaskDomain.SECURITY,
             claude_fit_score=0.9,
-            requires_code_execution=True
+            requires_code_execution=True,
         )
         swarm_engine._current_analysis = expert_analysis
 
@@ -231,9 +223,7 @@ class TestSwarmEngineCoT:
         """Test that _wrap_invoke_agent does NOT inject CoT for SIMPLE tasks."""
         # Set up SIMPLE analysis
         simple_analysis = TaskAnalysis(
-            complexity=TaskComplexity.SIMPLE,
-            domains=[TaskDomain.CODING],
-            primary_domain=TaskDomain.CODING
+            complexity=TaskComplexity.SIMPLE, domains=[TaskDomain.CODING], primary_domain=TaskDomain.CODING
         )
         swarm_engine._current_analysis = simple_analysis
 
@@ -258,6 +248,7 @@ class TestSwarmEngineCoT:
 # COMPLEXITY LEVEL TESTS
 # =============================================================================
 
+
 class TestComplexityLevels:
     """Test that complexity levels are correctly ordered."""
 
@@ -277,10 +268,7 @@ class TestComplexityLevels:
     def test_only_expert_triggers_cot(self):
         """Verify only EXPERT triggers CoT, not COMPLEX."""
         # This is the key distinction - COMPLEX tasks don't need CoT
-        complexities_with_cot = [
-            c for c in TaskComplexity
-            if c == TaskComplexity.EXPERT
-        ]
+        complexities_with_cot = [c for c in TaskComplexity if c == TaskComplexity.EXPERT]
         assert len(complexities_with_cot) == 1
         assert complexities_with_cot[0] == TaskComplexity.EXPERT
 
@@ -288,6 +276,7 @@ class TestComplexityLevels:
 # =============================================================================
 # INTEGRATION TESTS
 # =============================================================================
+
 
 class TestCoTIntegration:
     """Integration tests for CoT across components."""
@@ -301,7 +290,7 @@ class TestCoTIntegration:
             primary_domain=TaskDomain.ARCHITECTURE,
             gemini_fit_score=0.7,
             claude_fit_score=0.8,
-            requires_code_execution=True
+            requires_code_execution=True,
         )
 
         # Create context with force_cot based on analysis
@@ -309,9 +298,9 @@ class TestCoTIntegration:
             task_input="Design a microservices architecture",
             agent_assignments=[
                 AgentAssignment(agent_id="claude", role="lead", confidence=0.7),
-                AgentAssignment(agent_id="gemini", role="support", confidence=0.6)
+                AgentAssignment(agent_id="gemini", role="support", confidence=0.6),
             ],
-            force_cot=(analysis.complexity == TaskComplexity.EXPERT)
+            force_cot=(analysis.complexity == TaskComplexity.EXPERT),
         )
 
         assert context.force_cot is True
@@ -322,13 +311,13 @@ class TestCoTIntegration:
             complexity=TaskComplexity.MODERATE,
             domains=[TaskDomain.CODING],
             primary_domain=TaskDomain.CODING,
-            requires_code_execution=True
+            requires_code_execution=True,
         )
 
         context = ExecutionContext(
             task_input="Implement a simple function",
             agent_assignments=[],
-            force_cot=(analysis.complexity == TaskComplexity.EXPERT)
+            force_cot=(analysis.complexity == TaskComplexity.EXPERT),
         )
 
         assert context.force_cot is False

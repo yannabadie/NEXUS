@@ -22,9 +22,9 @@ from __future__ import annotations
 
 import logging
 import threading
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -40,9 +40,11 @@ MAX_INVOCATIONS = 50000
 # Types
 # =============================================================================
 
+
 @dataclass
 class CommandInvocation:
     """Record of a single command invocation."""
+
     command: str = ""
     args: str = ""
     timestamp: str = ""
@@ -51,7 +53,7 @@ class CommandInvocation:
     error: str = ""
     source: str = "repl"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "command": self.command,
             "args": self.args,
@@ -66,6 +68,7 @@ class CommandInvocation:
 @dataclass
 class CommandMetrics:
     """Aggregated metrics per command."""
+
     command: str = ""
     total_invocations: int = 0
     successes: int = 0
@@ -84,7 +87,7 @@ class CommandMetrics:
             return self.total_duration_ms / self.total_invocations
         return 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "command": self.command,
             "total_invocations": self.total_invocations,
@@ -99,12 +102,13 @@ class CommandMetrics:
 @dataclass
 class UsagePattern:
     """Detected usage pattern."""
+
     pattern_type: str = ""
     command: str = ""
     details: str = ""
     count: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "pattern_type": self.pattern_type,
             "command": self.command,
@@ -116,13 +120,14 @@ class UsagePattern:
 @dataclass
 class AnalyticsStats:
     """Overall analytics statistics."""
+
     total_invocations: int = 0
     unique_commands: int = 0
     overall_success_rate: float = 0.0
     most_used_command: str = ""
     avg_duration_ms: float = 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_invocations": self.total_invocations,
             "unique_commands": self.unique_commands,
@@ -135,6 +140,7 @@ class AnalyticsStats:
 # =============================================================================
 # Command Analytics
 # =============================================================================
+
 
 class CommandAnalytics:
     """
@@ -149,8 +155,8 @@ class CommandAnalytics:
     """
 
     def __init__(self, max_invocations: int = MAX_INVOCATIONS) -> None:
-        self._invocations: List[CommandInvocation] = []
-        self._metrics: Dict[str, CommandMetrics] = {}
+        self._invocations: list[CommandInvocation] = []
+        self._metrics: dict[str, CommandMetrics] = {}
         self._max_invocations = max_invocations
         self._lock = threading.Lock()
 
@@ -171,7 +177,7 @@ class CommandAnalytics:
         invocation = CommandInvocation(
             command=command,
             args=args,
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             duration_ms=duration_ms,
             success=success,
             error=error,
@@ -200,12 +206,12 @@ class CommandAnalytics:
     # Metrics Queries
     # =========================================================================
 
-    def get_command_metrics(self, command: str) -> Optional[CommandMetrics]:
+    def get_command_metrics(self, command: str) -> CommandMetrics | None:
         """Get aggregated metrics for a specific command."""
         with self._lock:
             return self._metrics.get(command)
 
-    def get_all_metrics(self) -> List[CommandMetrics]:
+    def get_all_metrics(self) -> list[CommandMetrics]:
         """Return all command metrics sorted by total_invocations descending."""
         with self._lock:
             return sorted(
@@ -214,7 +220,7 @@ class CommandAnalytics:
                 reverse=True,
             )
 
-    def get_most_used(self, limit: int = 10) -> List[CommandMetrics]:
+    def get_most_used(self, limit: int = 10) -> list[CommandMetrics]:
         """Return top N commands by total_invocations."""
         with self._lock:
             return sorted(
@@ -223,18 +229,14 @@ class CommandAnalytics:
                 reverse=True,
             )[:limit]
 
-    def get_error_prone(self, min_invocations: int = 3) -> List[CommandMetrics]:
+    def get_error_prone(self, min_invocations: int = 3) -> list[CommandMetrics]:
         """Return commands with success_rate < 0.8 and at least min_invocations.
 
         Sorted by success_rate ascending (worst first).
         """
         with self._lock:
             return sorted(
-                [
-                    m for m in self._metrics.values()
-                    if m.total_invocations >= min_invocations
-                    and m.success_rate < 0.8
-                ],
+                [m for m in self._metrics.values() if m.total_invocations >= min_invocations and m.success_rate < 0.8],
                 key=lambda m: m.success_rate,
             )
 
@@ -242,15 +244,11 @@ class CommandAnalytics:
     # Invocation Queries
     # =========================================================================
 
-    def get_recent_invocations(
-        self, limit: int = 20, command: str = ""
-    ) -> List[CommandInvocation]:
+    def get_recent_invocations(self, limit: int = 20, command: str = "") -> list[CommandInvocation]:
         """Return last N invocations, optionally filtered by command name."""
         with self._lock:
             if command:
-                filtered = [
-                    inv for inv in self._invocations if inv.command == command
-                ]
+                filtered = [inv for inv in self._invocations if inv.command == command]
             else:
                 filtered = list(self._invocations)
             return filtered[-limit:]
@@ -259,33 +257,34 @@ class CommandAnalytics:
     # Pattern Detection
     # =========================================================================
 
-    def detect_patterns(self) -> List[UsagePattern]:
+    def detect_patterns(self) -> list[UsagePattern]:
         """Detect usage patterns from recorded metrics.
 
         Patterns detected:
         - frequent_command: commands with >= 10 invocations
         - error_prone: commands with success_rate < 0.5 and >= 3 invocations
         """
-        patterns: List[UsagePattern] = []
+        patterns: list[UsagePattern] = []
         with self._lock:
             for m in self._metrics.values():
                 if m.total_invocations >= 10:
-                    patterns.append(UsagePattern(
-                        pattern_type="frequent_command",
-                        command=m.command,
-                        details=f"{m.total_invocations} invocations",
-                        count=m.total_invocations,
-                    ))
+                    patterns.append(
+                        UsagePattern(
+                            pattern_type="frequent_command",
+                            command=m.command,
+                            details=f"{m.total_invocations} invocations",
+                            count=m.total_invocations,
+                        )
+                    )
                 if m.total_invocations >= 3 and m.success_rate < 0.5:
-                    patterns.append(UsagePattern(
-                        pattern_type="error_prone",
-                        command=m.command,
-                        details=(
-                            f"success_rate={m.success_rate:.2%} "
-                            f"over {m.total_invocations} invocations"
-                        ),
-                        count=m.failures,
-                    ))
+                    patterns.append(
+                        UsagePattern(
+                            pattern_type="error_prone",
+                            command=m.command,
+                            details=(f"success_rate={m.success_rate:.2%} over {m.total_invocations} invocations"),
+                            count=m.failures,
+                        )
+                    )
         return patterns
 
     # =========================================================================
@@ -297,9 +296,7 @@ class CommandAnalytics:
         with self._lock:
             total = sum(m.total_invocations for m in self._metrics.values())
             successes = sum(m.successes for m in self._metrics.values())
-            total_duration = sum(
-                m.total_duration_ms for m in self._metrics.values()
-            )
+            total_duration = sum(m.total_duration_ms for m in self._metrics.values())
             unique = len(self._metrics)
 
             most_used = ""
@@ -312,13 +309,9 @@ class CommandAnalytics:
             return AnalyticsStats(
                 total_invocations=total,
                 unique_commands=unique,
-                overall_success_rate=(
-                    successes / total if total > 0 else 0.0
-                ),
+                overall_success_rate=(successes / total if total > 0 else 0.0),
                 most_used_command=most_used,
-                avg_duration_ms=(
-                    total_duration / total if total > 0 else 0.0
-                ),
+                avg_duration_ms=(total_duration / total if total > 0 else 0.0),
             )
 
     # =========================================================================
@@ -330,7 +323,7 @@ class CommandAnalytics:
         """Number of invocation records currently stored."""
         return len(self._invocations)
 
-    def list_commands(self) -> List[str]:
+    def list_commands(self) -> list[str]:
         """Return sorted list of all tracked command names."""
         with self._lock:
             return sorted(self._metrics.keys())
@@ -341,7 +334,7 @@ class CommandAnalytics:
             self._invocations.clear()
             self._metrics.clear()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize analytics state to dict.
 
         Note: get_stats() is called BEFORE acquiring self._lock
@@ -360,7 +353,7 @@ class CommandAnalytics:
 # Global Instance
 # =============================================================================
 
-_global_analytics: Optional[CommandAnalytics] = None
+_global_analytics: CommandAnalytics | None = None
 _global_lock = threading.Lock()
 
 

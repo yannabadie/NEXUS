@@ -48,10 +48,10 @@ from core.infrastructure.resilience.runtime_waste_filter import (
     reset_runtime_waste_filter,
 )
 
-
 # =============================================================================
 # Fixtures
 # =============================================================================
+
 
 @pytest.fixture(autouse=True)
 def _reset_singleton():
@@ -70,6 +70,7 @@ def rwf() -> RuntimeWasteFilter:
 # =============================================================================
 # 1. InterventionType Enum
 # =============================================================================
+
 
 class TestInterventionType:
     """Test InterventionType enum values."""
@@ -100,6 +101,7 @@ class TestInterventionType:
 # 2. InterventionAction Enum
 # =============================================================================
 
+
 class TestInterventionAction:
     """Test InterventionAction enum values."""
 
@@ -129,6 +131,7 @@ class TestInterventionAction:
 # 3. ExchangeRecord
 # =============================================================================
 
+
 class TestExchangeRecord:
     """Test ExchangeRecord dataclass."""
 
@@ -146,29 +149,39 @@ class TestExchangeRecord:
 
     def test_default_topic_words(self):
         rec = ExchangeRecord(
-            agent_id="gemini", content_hash="h", token_count=1, timestamp=0.0,
+            agent_id="gemini",
+            content_hash="h",
+            token_count=1,
+            timestamp=0.0,
         )
         assert rec.topic_words == set()
 
     def test_topic_words_provided(self):
         rec = ExchangeRecord(
-            agent_id="gemini", content_hash="h", token_count=1,
-            timestamp=0.0, topic_words={"python", "testing"},
+            agent_id="gemini",
+            content_hash="h",
+            token_count=1,
+            timestamp=0.0,
+            topic_words={"python", "testing"},
         )
         assert rec.topic_words == {"python", "testing"}
 
     def test_to_dict_keys(self):
         rec = ExchangeRecord(
-            agent_id="claude", content_hash="0123456789abcdef",
-            token_count=50, timestamp=0.0,
+            agent_id="claude",
+            content_hash="0123456789abcdef",
+            token_count=50,
+            timestamp=0.0,
         )
         d = rec.to_dict()
         assert set(d.keys()) == {"agent_id", "content_hash", "token_count"}
 
     def test_to_dict_hash_truncated_to_8(self):
         rec = ExchangeRecord(
-            agent_id="claude", content_hash="0123456789abcdef",
-            token_count=50, timestamp=0.0,
+            agent_id="claude",
+            content_hash="0123456789abcdef",
+            token_count=50,
+            timestamp=0.0,
         )
         d = rec.to_dict()
         assert d["content_hash"] == "01234567"
@@ -176,8 +189,10 @@ class TestExchangeRecord:
 
     def test_to_dict_values(self):
         rec = ExchangeRecord(
-            agent_id="gemini", content_hash="fedcba9876543210",
-            token_count=200, timestamp=0.0,
+            agent_id="gemini",
+            content_hash="fedcba9876543210",
+            token_count=200,
+            timestamp=0.0,
         )
         d = rec.to_dict()
         assert d["agent_id"] == "gemini"
@@ -187,6 +202,7 @@ class TestExchangeRecord:
 # =============================================================================
 # 4. Intervention
 # =============================================================================
+
 
 class TestIntervention:
     """Test Intervention dataclass."""
@@ -221,7 +237,11 @@ class TestIntervention:
         )
         d = iv.to_dict()
         assert set(d.keys()) == {
-            "type", "action", "confidence", "reason", "token_waste_estimate",
+            "type",
+            "action",
+            "confidence",
+            "reason",
+            "token_waste_estimate",
         }
 
     def test_to_dict_values(self):
@@ -253,6 +273,7 @@ class TestIntervention:
 # 5. FilterStats
 # =============================================================================
 
+
 class TestFilterStats:
     """Test FilterStats dataclass."""
 
@@ -268,13 +289,18 @@ class TestFilterStats:
         s = FilterStats()
         d = s.to_dict()
         assert set(d.keys()) == {
-            "total_exchanges", "interventions_triggered", "tokens_saved",
-            "intervention_counts", "action_counts",
+            "total_exchanges",
+            "interventions_triggered",
+            "tokens_saved",
+            "intervention_counts",
+            "action_counts",
         }
 
     def test_to_dict_values(self):
         s = FilterStats(
-            total_exchanges=10, interventions_triggered=3, tokens_saved=500,
+            total_exchanges=10,
+            interventions_triggered=3,
+            tokens_saved=500,
             intervention_counts={"redundancy": 2, "loop": 1},
             action_counts={"skip": 2, "redirect": 1},
         )
@@ -296,6 +322,7 @@ class TestFilterStats:
 # =============================================================================
 # 6. Basic Exchange Checking - No Waste
 # =============================================================================
+
 
 class TestBasicExchangeNoWaste:
     """Test that clean exchanges produce CONTINUE."""
@@ -326,6 +353,7 @@ class TestBasicExchangeNoWaste:
 # =============================================================================
 # 7. Redundancy Detection
 # =============================================================================
+
 
 class TestRedundancyDetection:
     """Test duplicate content hash detection."""
@@ -414,6 +442,7 @@ class TestRedundancyDetection:
 # =============================================================================
 # 8. Loop Detection
 # =============================================================================
+
 
 class TestLoopDetection:
     """Test circular A->B->A->B pattern detection."""
@@ -510,6 +539,7 @@ class TestLoopDetection:
 # 9. Same-Agent Monologue Detection
 # =============================================================================
 
+
 class TestMonologueDetection:
     """Test MAX_SAME_AGENT consecutive same-agent detection."""
 
@@ -579,6 +609,7 @@ class TestMonologueDetection:
 # =============================================================================
 # 10. Stagnation Detection
 # =============================================================================
+
 
 class TestStagnationDetection:
     """Test no-new-topic-words stagnation detection."""
@@ -676,7 +707,7 @@ class TestStagnationDetection:
 
     def test_no_stagnation_under_window(self, rwf: RuntimeWasteFilter):
         """Fewer than stagnation_window exchanges do not trigger stagnation."""
-        for i in range(STAGNATION_WINDOW - 1):
+        for _i in range(STAGNATION_WINDOW - 1):
             iv = rwf.check_exchange("claude", "Same repeated content about python.", 50)
             if iv.type == InterventionType.STAGNATION:
                 assert iv.action == InterventionAction.CONTINUE
@@ -688,7 +719,7 @@ class TestStagnationDetection:
         rwf.check_exchange("claude", "Alpha beta gamma keyword.", 50)
         # Window of 3 with same words
         for _ in range(3):
-            iv = rwf.check_exchange("gemini", "Alpha beta gamma keyword.", 50)
+            rwf.check_exchange("gemini", "Alpha beta gamma keyword.", 50)
         stats = rwf.get_stats()
         # Either stagnation or redundancy triggered (redundancy may fire first)
         assert stats.interventions_triggered > 0
@@ -697,6 +728,7 @@ class TestStagnationDetection:
 # =============================================================================
 # 11. Divergence Detection
 # =============================================================================
+
 
 class TestDivergenceDetection:
     """Test off-topic exchange detection."""
@@ -715,7 +747,7 @@ class TestDivergenceDetection:
             100,
         )
         # Divergence or another check may trigger
-        stats = rwf.get_stats()
+        rwf.get_stats()
         # The off-topic message should cause some intervention
         if iv.type == InterventionType.DIVERGENCE:
             assert iv.action == InterventionAction.REDIRECT
@@ -753,7 +785,9 @@ class TestDivergenceDetection:
         """Divergence only fires after more than 3 exchanges."""
         rwf.set_task_context("Fix authentication bug.")
         iv = rwf.check_exchange(
-            "claude", "cooking recipe chocolate baking dessert pastry", 50,
+            "claude",
+            "cooking recipe chocolate baking dessert pastry",
+            50,
         )
         if iv.type == InterventionType.DIVERGENCE:
             assert iv.action == InterventionAction.CONTINUE
@@ -772,13 +806,14 @@ class TestDivergenceDetection:
 # 12. Cost Limit Detection
 # =============================================================================
 
+
 class TestCostLimitDetection:
     """Test token budget enforcement."""
 
     def test_budget_exhausted_triggers_terminate(self, rwf: RuntimeWasteFilter):
         rwf.set_task_context("Fix bug.", token_budget=100)
         rwf.check_exchange("claude", "First message about fixing bug.", 60)
-        iv = rwf.check_exchange("gemini", "Second message about fixing bug.", 50)
+        rwf.check_exchange("gemini", "Second message about fixing bug.", 50)
         # Tokens used: 110 / budget: 100 -> exhausted
         # Redundancy or cost_limit may fire depending on priority
         stats = rwf.get_stats()
@@ -833,6 +868,7 @@ class TestCostLimitDetection:
 # 13. Task Context Setting
 # =============================================================================
 
+
 class TestTaskContext:
     """Test set_task_context behavior."""
 
@@ -864,6 +900,7 @@ class TestTaskContext:
 # =============================================================================
 # 14. Topic Word Extraction
 # =============================================================================
+
 
 class TestTopicWordExtraction:
     """Test _extract_topic_words static method."""
@@ -927,6 +964,7 @@ class TestTopicWordExtraction:
 # 15. Content Hashing
 # =============================================================================
 
+
 class TestContentHashing:
     """Test _hash static method."""
 
@@ -978,6 +1016,7 @@ class TestContentHashing:
 # 16. Priority Ordering
 # =============================================================================
 
+
 class TestPriorityOrdering:
     """Test that checks run in priority order: redundancy > loop > stagnation > divergence > cost."""
 
@@ -1002,6 +1041,7 @@ class TestPriorityOrdering:
 # =============================================================================
 # 17. Singleton Pattern
 # =============================================================================
+
 
 class TestSingletonPattern:
     """Test get/reset singleton pattern."""
@@ -1042,6 +1082,7 @@ class TestSingletonPattern:
 # =============================================================================
 # 18. Statistics Tracking
 # =============================================================================
+
 
 class TestStatisticsTracking:
     """Test FilterStats updates via check_exchange."""
@@ -1102,6 +1143,7 @@ class TestStatisticsTracking:
 # 19. Edge Cases
 # =============================================================================
 
+
 class TestEdgeCases:
     """Test edge cases and boundary conditions."""
 
@@ -1111,7 +1153,7 @@ class TestEdgeCases:
 
     def test_zero_token_count_estimated(self, rwf: RuntimeWasteFilter):
         """Token count of 0 is estimated from content length."""
-        iv = rwf.check_exchange("claude", "A message with some content here.", 0)
+        rwf.check_exchange("claude", "A message with some content here.", 0)
         stats = rwf.get_stats()
         assert stats.total_exchanges == 1
 
@@ -1131,7 +1173,9 @@ class TestEdgeCases:
         """Without task context, divergence never fires."""
         for i in range(10):
             iv = rwf.check_exchange(
-                "claude", f"Random topic {i} about completely different subjects.", 50,
+                "claude",
+                f"Random topic {i} about completely different subjects.",
+                50,
             )
             if iv.type == InterventionType.DIVERGENCE:
                 assert iv.action == InterventionAction.CONTINUE
@@ -1187,6 +1231,7 @@ class TestEdgeCases:
 # 20. Reset
 # =============================================================================
 
+
 class TestReset:
     """Test reset clears all state."""
 
@@ -1234,6 +1279,7 @@ class TestReset:
 # =============================================================================
 # 21. Thread Safety
 # =============================================================================
+
 
 class TestThreadSafety:
     """Test concurrent access to RuntimeWasteFilter."""
@@ -1361,6 +1407,7 @@ class TestThreadSafety:
 # 22. Constructor Parameters
 # =============================================================================
 
+
 class TestConstructorParameters:
     """Test custom constructor parameters."""
 
@@ -1392,6 +1439,7 @@ class TestConstructorParameters:
 # =============================================================================
 # 23. Constants Verification
 # =============================================================================
+
 
 class TestConstants:
     """Verify module constants have expected values."""
@@ -1436,6 +1484,7 @@ class TestConstants:
 # 24. Integration-Style Tests
 # =============================================================================
 
+
 class TestIntegrationScenarios:
     """End-to-end scenarios combining multiple features."""
 
@@ -1448,23 +1497,31 @@ class TestIntegrationScenarios:
 
         # Round 1: on-topic analysis with task-relevant words
         iv1 = rwf.check_exchange(
-            "claude", "Analyzing worker pool memory allocation patterns thread.", 80,
+            "claude",
+            "Analyzing worker pool memory allocation patterns thread.",
+            80,
         )
         assert iv1.action == InterventionAction.CONTINUE
 
         iv2 = rwf.check_exchange(
-            "gemini", "Found potential leak in worker thread connection pool.", 90,
+            "gemini",
+            "Found potential leak in worker thread connection pool.",
+            90,
         )
         assert iv2.action == InterventionAction.CONTINUE
 
         # Round 2: continued progress with task-relevant words
         iv3 = rwf.check_exchange(
-            "claude", "Profiling memory handle allocation growth in worker pool.", 85,
+            "claude",
+            "Profiling memory handle allocation growth in worker pool.",
+            85,
         )
         assert iv3.action == InterventionAction.CONTINUE
 
         iv4 = rwf.check_exchange(
-            "gemini", "Confirmed handle leak in connection pool thread worker.", 95,
+            "gemini",
+            "Confirmed handle leak in connection pool thread worker.",
+            95,
         )
         assert iv4.action == InterventionAction.CONTINUE
 

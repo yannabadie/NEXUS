@@ -18,23 +18,22 @@ All external dependencies are mocked (drivers, swarm engine, blackboard, etc.).
 """
 
 import asyncio
-import pytest
 import sys
-import time
 from pathlib import Path
-from typing import Dict, Optional
-from unittest.mock import Mock, MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.fsm.states import OrchestratorState, TRANSITION_MATRIX
+from core.fsm.states import TRANSITION_MATRIX, OrchestratorState
 from core.intelligence.swarm.task_analyzer import TaskComplexity
-
 
 # ---------------------------------------------------------------------------
 # Helpers: Mock objects for the orchestrator and its dependencies
 # ---------------------------------------------------------------------------
+
 
 class MockTaskAnalysis:
     """Mock task analysis result."""
@@ -93,8 +92,15 @@ class MockSwarmExecutionResult:
 class MockSwarmAnalysis:
     """Mock swarm analysis result."""
 
-    def __init__(self, should_skip=False, complexity=TaskComplexity.MODERATE,
-                 domains=None, gemini_fit=0.7, claude_fit=0.5, lead="gemini"):
+    def __init__(
+        self,
+        should_skip=False,
+        complexity=TaskComplexity.MODERATE,
+        domains=None,
+        gemini_fit=0.7,
+        claude_fit=0.5,
+        lead="gemini",
+    ):
         self.should_skip_negotiation = should_skip
         self.complexity = complexity
         self.domains = domains or [Mock(value="coding")]
@@ -106,8 +112,7 @@ class MockSwarmAnalysis:
 class MockNegotiationResult:
     """Mock swarm negotiation result."""
 
-    def __init__(self, status_value="CONSENSUS", mode_value="ping_pong",
-                 confidence=0.9, turns=2):
+    def __init__(self, status_value="CONSENSUS", mode_value="ping_pong", confidence=0.9, turns=2):
         self.status = Mock(value=status_value)
         self.selected_mode = Mock(value=mode_value)
         self.consensus_confidence = confidence
@@ -297,9 +302,11 @@ def mock_orch(tmp_path):
 def handlers(mock_orch):
     """Provide FSMHandlers instance with mocked orchestrator."""
     # Patch get_registry to return a mock
-    with patch("core.execution_pkg.orchestration.fsm_handlers.get_registry") as mock_get_reg, \
-         patch("core.execution_pkg.orchestration.fsm_handlers.emit_agent_exchange"), \
-         patch("core.execution_pkg.orchestration.fsm_handlers.emit_agent_speak"):
+    with (
+        patch("core.execution_pkg.orchestration.fsm_handlers.get_registry") as mock_get_reg,
+        patch("core.execution_pkg.orchestration.fsm_handlers.emit_agent_exchange"),
+        patch("core.execution_pkg.orchestration.fsm_handlers.emit_agent_speak"),
+    ):
         registry = MagicMock()
         registry.get_alternate.return_value = "claude"
         registry.get_display_name.side_effect = lambda x: x.title() if x else "Unknown"
@@ -308,6 +315,7 @@ def handlers(mock_orch):
         mock_get_reg.return_value = registry
 
         from core.execution_pkg.orchestration.fsm_handlers import FSMHandlers
+
         h = FSMHandlers(mock_orch)
         h._registry = registry
         yield h
@@ -316,6 +324,7 @@ def handlers(mock_orch):
 # ===========================================================================
 # 1. Construction and initialization
 # ===========================================================================
+
 
 class TestFSMHandlersInit:
     """Test FSMHandlers construction."""
@@ -337,6 +346,7 @@ class TestFSMHandlersInit:
 # 2. handle_idle
 # ===========================================================================
 
+
 class TestHandleIdle:
     """Test handle_idle state handler."""
 
@@ -352,9 +362,7 @@ class TestHandleIdle:
 
     def test_idle_trivial_static_fallback(self, handlers):
         """TRIVIAL input with static fallback greeting."""
-        handlers._orch.task_analyzer.analyze.return_value = MockTaskAnalysis(
-            complexity=TaskComplexity.TRIVIAL
-        )
+        handlers._orch.task_analyzer.analyze.return_value = MockTaskAnalysis(complexity=TaskComplexity.TRIVIAL)
         handlers._orch.config.fast_path_enabled = False
         result = handlers.handle_idle("hello")
         assert result["state"] == "WAITING_USER"
@@ -363,9 +371,7 @@ class TestHandleIdle:
 
     def test_idle_trivial_hello_variations(self, handlers):
         """All static greeting keywords produce a response."""
-        handlers._orch.task_analyzer.analyze.return_value = MockTaskAnalysis(
-            complexity=TaskComplexity.TRIVIAL
-        )
+        handlers._orch.task_analyzer.analyze.return_value = MockTaskAnalysis(complexity=TaskComplexity.TRIVIAL)
         handlers._orch.config.fast_path_enabled = False
         for greeting in ["hi", "hey", "test", "ok", "merci", "thanks"]:
             result = handlers.handle_idle(greeting)
@@ -375,18 +381,14 @@ class TestHandleIdle:
 
     def test_idle_trivial_unknown_greeting(self, handlers):
         """Unknown trivial input uses fallback acknowledgement."""
-        handlers._orch.task_analyzer.analyze.return_value = MockTaskAnalysis(
-            complexity=TaskComplexity.TRIVIAL
-        )
+        handlers._orch.task_analyzer.analyze.return_value = MockTaskAnalysis(complexity=TaskComplexity.TRIVIAL)
         handlers._orch.config.fast_path_enabled = False
         result = handlers.handle_idle("yooo")
         assert "Acknowledged" in result["output"]
 
     def test_idle_trivial_fast_path(self, handlers):
         """TRIVIAL task with fast_path_enabled uses Gemini for response."""
-        handlers._orch.task_analyzer.analyze.return_value = MockTaskAnalysis(
-            complexity=TaskComplexity.TRIVIAL
-        )
+        handlers._orch.task_analyzer.analyze.return_value = MockTaskAnalysis(complexity=TaskComplexity.TRIVIAL)
         handlers._orch.config.fast_path_enabled = True
         # Gemini driver returns a conversational response
         handlers._orch.gemini_driver.invoke.return_value = {"content": "Hi there!"}
@@ -395,9 +397,7 @@ class TestHandleIdle:
 
     def test_idle_trivial_fast_path_escalation(self, handlers):
         """Fast path that detects actual task input should escalate."""
-        handlers._orch.task_analyzer.analyze.return_value = MockTaskAnalysis(
-            complexity=TaskComplexity.TRIVIAL
-        )
+        handlers._orch.task_analyzer.analyze.return_value = MockTaskAnalysis(complexity=TaskComplexity.TRIVIAL)
         handlers._orch.config.fast_path_enabled = True
         # _is_actual_task returns True for "fix the bug"
         result = handlers.handle_idle("fix the bug in auth.py")
@@ -464,6 +464,7 @@ class TestHandleIdle:
 # 3. handle_waiting_user
 # ===========================================================================
 
+
 class TestHandleWaitingUser:
     """Test handle_waiting_user state handler."""
 
@@ -487,21 +488,27 @@ class TestHandleWaitingUser:
 
     def test_waiting_user_transitions_to_idle(self, handlers):
         """New input transitions to IDLE then processes via process_turn."""
-        result = handlers.handle_waiting_user("Hello again")
+        handlers.handle_waiting_user("Hello again")
         handlers._orch._transition_to.assert_called_with(OrchestratorState.IDLE)
 
     def test_waiting_user_delegates_to_process_turn(self, handlers):
         """After reset, delegates to orchestrator.process_turn."""
-        handlers._orch.process_turn = MagicMock(return_value={
-            "state": "BRAINSTORMING", "output": "Processing", "agent": "gemini", "finished": False,
-        })
-        result = handlers.handle_waiting_user("Something new")
+        handlers._orch.process_turn = MagicMock(
+            return_value={
+                "state": "BRAINSTORMING",
+                "output": "Processing",
+                "agent": "gemini",
+                "finished": False,
+            }
+        )
+        handlers.handle_waiting_user("Something new")
         handlers._orch.process_turn.assert_called_once_with("Something new")
 
 
 # ===========================================================================
 # 4. handle_brainstorming
 # ===========================================================================
+
 
 class TestHandleBrainstorming:
     """Test handle_brainstorming state handler."""
@@ -583,7 +590,7 @@ class TestHandleBrainstorming:
         """Agent invocation error increments json_parse_failures."""
         handlers._orch.agent_invoker.invoke_agent.side_effect = RuntimeError("API down")
         handlers._orch.json_parse_failures = 0
-        result = handlers.handle_brainstorming()
+        handlers.handle_brainstorming()
         assert handlers._orch.json_parse_failures == 1
 
     def test_brainstorming_too_many_failures_triggers_panic(self, handlers):
@@ -655,6 +662,7 @@ class TestHandleBrainstorming:
 # 5. handle_executing_tool
 # ===========================================================================
 
+
 class TestHandleExecutingTool:
     """Test handle_executing_tool state handler."""
 
@@ -697,6 +705,7 @@ class TestHandleExecutingTool:
 # ===========================================================================
 # 6. handle_validating_cfl
 # ===========================================================================
+
 
 class TestHandleValidatingCfl:
     """Test handle_validating_cfl state handler."""
@@ -840,13 +849,14 @@ class TestHandleValidatingCfl:
 
         # Simulate _get_claude_driver path
         with patch.object(handlers, "_get_claude_driver", return_value=mock_claude_driver):
-            result = handlers.handle_validating_cfl()
+            handlers.handle_validating_cfl()
         mock_claude_driver.invoke.assert_called_once()
 
 
 # ===========================================================================
 # 7. handle_error and handle_panic
 # ===========================================================================
+
 
 class TestHandleErrorAndPanic:
     """Test handle_error and handle_panic handlers."""
@@ -878,6 +888,7 @@ class TestHandleErrorAndPanic:
 # ===========================================================================
 # 8. handle_evolution_brainstorm
 # ===========================================================================
+
 
 class TestHandleEvolutionBrainstorm:
     """Test handle_evolution_brainstorm handler."""
@@ -993,6 +1004,7 @@ class TestHandleEvolutionBrainstorm:
 # 9. SWARM State Handlers
 # ===========================================================================
 
+
 class TestSwarmAnalyzing:
     """Test handle_swarm_analyzing."""
 
@@ -1101,6 +1113,7 @@ class TestSwarmExecuting:
 # 10. _handle_trivial (private)
 # ===========================================================================
 
+
 class TestHandleTrivial:
     """Test _handle_trivial private helper."""
 
@@ -1138,6 +1151,7 @@ class TestHandleTrivial:
 # ===========================================================================
 # 11. _is_actual_task
 # ===========================================================================
+
 
 class TestIsActualTask:
     """Test _is_actual_task helper."""
@@ -1178,6 +1192,7 @@ class TestIsActualTask:
 # 12. _fast_path_validation
 # ===========================================================================
 
+
 class TestFastPathValidation:
     """Test _fast_path_validation helper."""
 
@@ -1205,6 +1220,7 @@ class TestFastPathValidation:
 # ===========================================================================
 # 13. _light_cfl_validate
 # ===========================================================================
+
 
 class TestLightCflValidate:
     """Test _light_cfl_validate for simple task safety."""
@@ -1281,6 +1297,7 @@ class TestLightCflValidate:
 # 14. _validate_artifacts_f2
 # ===========================================================================
 
+
 class TestValidateArtifactsF2:
     """Test _validate_artifacts_f2 artifact validation."""
 
@@ -1293,7 +1310,7 @@ class TestValidateArtifactsF2:
         test_file = tmp_path / "output.py"
         test_file.write_text("# created")
         handlers._orch.workspace_path = tmp_path
-        content = f"I created file `output.py`"
+        content = "I created file `output.py`"
         ok, msg = handlers._validate_artifacts_f2(content, "create output.py")
         assert ok is True
 
@@ -1328,6 +1345,7 @@ class TestValidateArtifactsF2:
 # ===========================================================================
 # 15. Result structure validation
 # ===========================================================================
+
 
 class TestResultStructure:
     """Test that handler results have correct structure."""
@@ -1374,6 +1392,7 @@ class TestResultStructure:
 # ===========================================================================
 # 16. Handler dispatch logic
 # ===========================================================================
+
 
 class TestHandlerDispatch:
     """Test that FSMHandlers has handlers for each FSM state."""
@@ -1425,6 +1444,7 @@ class TestHandlerDispatch:
 # 17. Async Handlers
 # ===========================================================================
 
+
 class TestAsyncHandlers:
     """Test async handler variants."""
 
@@ -1448,6 +1468,7 @@ class TestAsyncHandlers:
     @pytest.mark.asyncio
     async def test_async_brainstorming_tool_use(self, handlers):
         """Async brainstorming TOOL_USE transitions to EXECUTING_TOOL."""
+
         async def mock_invoke_async(task_type, context, agent=None):
             return {
                 "sender": "gemini",
@@ -1464,6 +1485,7 @@ class TestAsyncHandlers:
     @pytest.mark.asyncio
     async def test_async_brainstorming_finished(self, handlers):
         """Async brainstorming FINISHED transitions to IDLE."""
+
         # Note: action_type must not be TALK/DELEGATE/TOOL_USE for FINISHED check
         async def mock_invoke_async(task_type, context, agent=None):
             return {
@@ -1492,6 +1514,7 @@ class TestAsyncHandlers:
     @pytest.mark.asyncio
     async def test_async_brainstorming_error(self, handlers):
         """Async brainstorming handles agent errors."""
+
         async def mock_invoke_async(task_type, context, agent=None):
             raise RuntimeError("Async API error")
 
@@ -1502,6 +1525,7 @@ class TestAsyncHandlers:
     @pytest.mark.asyncio
     async def test_async_brainstorming_cancellation_reraises(self, handlers):
         """Async brainstorming re-raises CancelledError."""
+
         async def mock_invoke_async(task_type, context, agent=None):
             raise asyncio.CancelledError()
 
@@ -1519,6 +1543,7 @@ class TestAsyncHandlers:
     @pytest.mark.asyncio
     async def test_async_fast_path(self, handlers):
         """Async fast path returns conversational response."""
+
         async def mock_invoke_async(task_type, context, agent=None):
             return {"content": "Hello!", "sender": "gemini", "action_type": "TALK"}
 
@@ -1530,6 +1555,7 @@ class TestAsyncHandlers:
     @pytest.mark.asyncio
     async def test_async_fast_path_error_fallback(self, handlers):
         """Async fast path falls back on error."""
+
         async def mock_invoke_async(task_type, context, agent=None):
             raise RuntimeError("API down")
 
@@ -1542,6 +1568,7 @@ class TestAsyncHandlers:
 # ===========================================================================
 # 18. _should_use_hive_mind
 # ===========================================================================
+
 
 class TestShouldUseHiveMind:
     """Test _should_use_hive_mind routing logic."""
@@ -1608,6 +1635,7 @@ class TestShouldUseHiveMind:
 # 19. _format_swarm_result
 # ===========================================================================
 
+
 class TestFormatSwarmResult:
     """Test _format_swarm_result formatting."""
 
@@ -1658,6 +1686,7 @@ class TestFormatSwarmResult:
 # ===========================================================================
 # 20. _execute_simple_task edge cases
 # ===========================================================================
+
 
 class TestExecuteSimpleTask:
     """Test _execute_simple_task helper."""
@@ -1737,6 +1766,7 @@ class TestExecuteSimpleTask:
 # 21. HIBERNATE state (transition matrix coverage)
 # ===========================================================================
 
+
 class TestHibernateTransitions:
     """Test HIBERNATE state exists and has correct transitions."""
 
@@ -1761,6 +1791,7 @@ class TestHibernateTransitions:
     def test_active_states_can_enter_hibernate(self):
         """All active states have ws_disconnect -> HIBERNATE."""
         from core.fsm.states import ACTIVE_STATES
+
         for state in ACTIVE_STATES:
             transitions = TRANSITION_MATRIX.get(state, {})
             assert "ws_disconnect" in transitions, f"{state.name} missing ws_disconnect"
@@ -1770,6 +1801,7 @@ class TestHibernateTransitions:
 # ===========================================================================
 # 22. Delegation methods
 # ===========================================================================
+
 
 class TestDelegationMethods:
     """Test that delegation methods correctly call orchestrator."""
@@ -1792,12 +1824,14 @@ class TestDelegationMethods:
 
     def test_invoke_agent_delegates_to_invoker(self, handlers):
         from core.execution_pkg.routing.model_router import TaskType
+
         handlers._invoke_agent(TaskType.BRAINSTORM, "context")
         handlers._orch.agent_invoker.invoke_agent.assert_called_with(TaskType.BRAINSTORM, "context")
 
     def test_invoke_agent_fallback(self, handlers):
         """Falls back to orchestrator if no agent_invoker."""
         from core.execution_pkg.routing.model_router import TaskType
+
         del handlers._orch.agent_invoker
         handlers._orch._invoke_agent = MagicMock(return_value={"content": "ok"})
         handlers._invoke_agent(TaskType.BRAINSTORM, "context")
@@ -1809,13 +1843,14 @@ class TestDelegationMethods:
 
     def test_detect_mutation_fallback(self, handlers):
         del handlers._orch.mutation_detector
-        handlers._orch._detect_mutation_complete = MagicMock(return_value = False)
+        handlers._orch._detect_mutation_complete = MagicMock(return_value=False)
         assert handlers._detect_mutation_complete("content") is False
 
 
 # ===========================================================================
 # 23. Edge cases
 # ===========================================================================
+
 
 class TestEdgeCases:
     """Test edge cases and boundary conditions."""
@@ -1863,6 +1898,7 @@ class TestEdgeCases:
         # The source has a bug: line 344 uses `logger` instead of `self._logger`.
         # Patch the module-level name to avoid NameError.
         import core.execution_pkg.orchestration.fsm_handlers as fh_module
+
         with patch.object(fh_module, "logger", create=True):
             result = handlers.handle_validating_cfl()
         # "tâche terminée" triggers task_finished detection
@@ -1891,6 +1927,6 @@ class TestEdgeCases:
             agent_outputs=[MockAgentOutput("gemini", "Analysis"), MockAgentOutput("claude", "Review")],
         )
         handlers._orch.swarm_engine = mock_engine
-        result = handlers.handle_swarm_executing()
+        handlers.handle_swarm_executing()
         # Registry get_display_name is called for each agent
         assert handlers._registry.get_display_name.called

@@ -6,16 +6,14 @@ Execute agents sequentially, passing output to next.
 Use case: Clear dependencies, pipeline tasks.
 """
 
-from typing import List
-
+from ..collaboration_modes import CollaborationMode
 from .base import (
-    ModeExecutor,
-    ExecutionStatus,
     AgentResponse,
     ExecutionContext,
     ExecutionResult,
+    ExecutionStatus,
+    ModeExecutor,
 )
-from ..collaboration_modes import CollaborationMode
 
 
 class SequentialExecutor(ModeExecutor):
@@ -38,14 +36,16 @@ class SequentialExecutor(ModeExecutor):
             first = agents[0] if agents else None
             second = agents[1] if len(agents) > 1 else None
 
-        outputs: List[AgentResponse] = []
+        outputs: list[AgentResponse] = []
         total_tokens = 0
         total_time = 0.0
 
         # First agent
         # V7.5 Phase 7: Role-based session isolation
         if first:
-            first_context = f"SEQUENTIAL MODE - Phase 1:\n{context.task_input}\n\nYou are first. Provide your analysis/output."
+            first_context = (
+                f"SEQUENTIAL MODE - Phase 1:\n{context.task_input}\n\nYou are first. Provide your analysis/output."
+            )
             first_response = self._invoke(context, first.agent_id, first_context, role="first")
             outputs.append(first_response)
             total_tokens += first_response.tokens_used
@@ -73,5 +73,5 @@ class SequentialExecutor(ModeExecutor):
             total_rounds=len(outputs),
             total_tokens=total_tokens,
             total_time_seconds=total_time,
-            metadata={"execution_type": "sequential"}
+            metadata={"execution_type": "sequential"},
         )

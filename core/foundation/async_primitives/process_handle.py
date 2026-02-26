@@ -29,12 +29,13 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional, Dict, Any
 from enum import Enum
+from typing import Any
 
 
 class ProcessState(str, Enum):
     """State of an async process."""
+
     RUNNING = "running"
     TERMINATED = "terminated"
     KILLED = "killed"
@@ -57,14 +58,15 @@ class AsyncProcessHandle:
         state: Current process state
         metadata: Additional tracking metadata
     """
+
     proc: asyncio.subprocess.Process
     session_uuid: str
-    task_id: Optional[str] = None
-    agent_id: Optional[str] = None
+    task_id: str | None = None
+    agent_id: str | None = None
     created_at: datetime = field(default_factory=datetime.now)
-    terminated_at: Optional[datetime] = None
+    terminated_at: datetime | None = None
     state: ProcessState = ProcessState.RUNNING
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     @property
     def is_running(self) -> bool:
@@ -72,12 +74,12 @@ class AsyncProcessHandle:
         return self.proc.returncode is None
 
     @property
-    def returncode(self) -> Optional[int]:
+    def returncode(self) -> int | None:
         """Get the process return code (None if still running)."""
         return self.proc.returncode
 
     @property
-    def pid(self) -> Optional[int]:
+    def pid(self) -> int | None:
         """Get the process ID."""
         return self.proc.pid
 
@@ -120,7 +122,7 @@ class AsyncProcessHandle:
             self.terminated_at = datetime.now()
             self.state = ProcessState.TERMINATED
             return True
-        except asyncio.TimeoutError:
+        except TimeoutError:
             # Terminate didn't work, force kill
             try:
                 self.proc.kill()
@@ -133,7 +135,7 @@ class AsyncProcessHandle:
             self.terminated_at = datetime.now()
             return True
 
-    async def wait(self, timeout: Optional[float] = None) -> int:
+    async def wait(self, timeout: float | None = None) -> int:
         """
         Wait for the process to complete.
 
@@ -162,7 +164,7 @@ class AsyncProcessHandle:
             return await self.proc.stderr.read()
         return b""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for logging/debugging."""
         return {
             "session_uuid": self.session_uuid,
@@ -178,12 +180,7 @@ class AsyncProcessHandle:
         }
 
     def __repr__(self) -> str:
-        return (
-            f"AsyncProcessHandle("
-            f"uuid={self.session_uuid[:8]}..., "
-            f"pid={self.pid}, "
-            f"state={self.state.value})"
-        )
+        return f"AsyncProcessHandle(uuid={self.session_uuid[:8]}..., pid={self.pid}, state={self.state.value})"
 
 
 class ProcessHandleRegistry:
@@ -200,7 +197,7 @@ class ProcessHandleRegistry:
     """
 
     def __init__(self):
-        self._handles: Dict[str, AsyncProcessHandle] = {}
+        self._handles: dict[str, AsyncProcessHandle] = {}
         self._lock = asyncio.Lock()
 
     async def register(self, handle: AsyncProcessHandle) -> None:
@@ -208,12 +205,12 @@ class ProcessHandleRegistry:
         async with self._lock:
             self._handles[handle.session_uuid] = handle
 
-    async def unregister(self, session_uuid: str) -> Optional[AsyncProcessHandle]:
+    async def unregister(self, session_uuid: str) -> AsyncProcessHandle | None:
         """Unregister and return a process handle."""
         async with self._lock:
             return self._handles.pop(session_uuid, None)
 
-    async def get(self, session_uuid: str) -> Optional[AsyncProcessHandle]:
+    async def get(self, session_uuid: str) -> AsyncProcessHandle | None:
         """Get a process handle by UUID."""
         async with self._lock:
             return self._handles.get(session_uuid)
@@ -249,10 +246,7 @@ class ProcessHandleRegistry:
         """
         count = 0
         async with self._lock:
-            handles_to_cancel = [
-                h for h in self._handles.values()
-                if h.task_id == task_id
-            ]
+            handles_to_cancel = [h for h in self._handles.values() if h.task_id == task_id]
 
         for handle in handles_to_cancel:
             await handle.terminate_gracefully(timeout)
@@ -285,7 +279,7 @@ class ProcessHandleRegistry:
 
         return count
 
-    async def list_active(self) -> list[Dict[str, Any]]:
+    async def list_active(self) -> list[dict[str, Any]]:
         """List all active process handles as dictionaries."""
         async with self._lock:
             return [h.to_dict() for h in self._handles.values() if h.is_running]
@@ -302,8 +296,9 @@ class ProcessHandleRegistry:
 # =============================================================================
 # V10 PRISM: Multi-Tenant Process Registry Access
 # =============================================================================
-import threading
-_global_registry: Optional[ProcessHandleRegistry] = None
+import threading  # noqa: E402  # singleton setup after class definition
+
+_global_registry: ProcessHandleRegistry | None = None
 _registry_lock = threading.Lock()
 
 
@@ -320,8 +315,10 @@ def get_process_registry() -> ProcessHandleRegistry:
     # V10: Try ServiceFactory first (tenant-scoped)
     try:
         from ..context import has_active_session
+
         if has_active_session():
             from ..factory import ServiceFactory
+
             return ServiceFactory.get_process_registry()
     except ImportError:
         pass  # context module not available, use legacy
@@ -350,6 +347,7 @@ def reset_process_registry() -> None:
     try:
         from ..context import get_current_session_or_none
         from ..factory import ServiceFactory
+
         ctx = get_current_session_or_none()
         if ctx:
             ServiceFactory.clear_tenant_cache(ctx.tenant_id)

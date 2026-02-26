@@ -12,7 +12,6 @@ Validates:
 - Module exports
 """
 
-import json
 import os
 from pathlib import Path
 from unittest.mock import patch
@@ -20,20 +19,20 @@ from unittest.mock import patch
 import pytest
 
 from core.security_pkg.security.encryption import (
-    FileEncryptor,
+    DEFAULT_KDF_ITERATIONS,
+    ENV_KEY_NAME,
+    MAGIC_HEADER,
     EncryptionConfig,
+    FileEncryptor,
+    decrypt_bytes,
     derive_key,
     encrypt_bytes,
-    decrypt_bytes,
-    MAGIC_HEADER,
-    ENV_KEY_NAME,
-    DEFAULT_KDF_ITERATIONS,
 )
-
 
 # =============================================================================
 # Key Derivation Tests
 # =============================================================================
+
 
 class TestKeyDerivation:
     """Test PBKDF2 key derivation."""
@@ -71,6 +70,7 @@ class TestKeyDerivation:
 # =============================================================================
 # Low-Level Encrypt/Decrypt Tests
 # =============================================================================
+
 
 class TestEncryptDecryptBytes:
     """Test AES-256-GCM encrypt/decrypt primitives."""
@@ -135,6 +135,7 @@ class TestEncryptDecryptBytes:
 # FileEncryptor - Initialization Tests
 # =============================================================================
 
+
 class TestFileEncryptorInit:
     """Test encryptor initialization."""
 
@@ -165,6 +166,7 @@ class TestFileEncryptorInit:
 # FileEncryptor - Encrypt/Decrypt Tests
 # =============================================================================
 
+
 class TestFileEncryptorRoundTrip:
     """Test high-level encrypt/decrypt."""
 
@@ -178,7 +180,7 @@ class TestFileEncryptorRoundTrip:
     def test_encrypted_has_header(self):
         enc = FileEncryptor(key="test_key")
         encrypted = enc.encrypt(b"data")
-        assert encrypted[:len(MAGIC_HEADER)] == MAGIC_HEADER
+        assert encrypted[: len(MAGIC_HEADER)] == MAGIC_HEADER
 
     def test_wrong_key_fails(self):
         enc1 = FileEncryptor(key="key_one")
@@ -201,6 +203,7 @@ class TestFileEncryptorRoundTrip:
 # =============================================================================
 # FileEncryptor - JSON Tests
 # =============================================================================
+
 
 class TestJsonEncryption:
     """Test JSON encrypt/decrypt."""
@@ -235,6 +238,7 @@ class TestJsonEncryption:
 # =============================================================================
 # FileEncryptor - File Operations Tests
 # =============================================================================
+
 
 class TestFileOperations:
     """Test file encryption/decryption on disk."""
@@ -303,6 +307,7 @@ class TestFileOperations:
 # FileEncryptor - Detection Tests
 # =============================================================================
 
+
 class TestEncryptedDetection:
     """Test encrypted file detection."""
 
@@ -340,6 +345,7 @@ class TestEncryptedDetection:
 # EncryptionConfig Tests
 # =============================================================================
 
+
 class TestEncryptionConfig:
     """Test configuration defaults."""
 
@@ -365,6 +371,7 @@ class TestEncryptionConfig:
 # State Export Tests
 # =============================================================================
 
+
 class TestStateExport:
     """Test encryptor state export."""
 
@@ -380,23 +387,26 @@ class TestStateExport:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test that encryption types are importable."""
 
     def test_from_security_package(self):
-        from core.security_pkg.security import FileEncryptor, EncryptionConfig, derive_key
+        from core.security_pkg.security import EncryptionConfig, FileEncryptor, derive_key
+
         assert FileEncryptor is not None
         assert EncryptionConfig is not None
         assert derive_key is not None
 
     def test_from_module(self):
         from core.security_pkg.security.encryption import (
-            FileEncryptor,
+            MAGIC_HEADER,
             EncryptionConfig,
+            FileEncryptor,
+            decrypt_bytes,
             derive_key,
             encrypt_bytes,
-            decrypt_bytes,
-            MAGIC_HEADER,
         )
+
         assert all([FileEncryptor, EncryptionConfig, derive_key, encrypt_bytes, decrypt_bytes])
         assert MAGIC_HEADER == b"NEXUS_ENC_V1"

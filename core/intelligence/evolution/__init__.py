@@ -17,37 +17,48 @@ Note: Child creation uses emergent JSON patches from Gemini+Claude symbiotic deb
 V7.5: Evolution logic is being extracted from repl.py to manager.py for better separation.
 """
 
-from .lineage import *
-from .evaluator import *
-from .validator import (
-    ChildValidator,
-    ValidationResult,
-    FullValidationResult,
-    SafetyGate,
-    AutoPromotionDecision
+# V12.4: Agent Reaper (DyLAN-based lifecycle management)
+from .agent_reaper import AgentReaper, ArchivalCandidate, ReaperConfig, ReaperReport
+
+# V12.4: Auto-Specializer (data-driven agent spawning)
+from .auto_specializer import AutoSpecializer, DomainProfile, SpecializationConfig, SpecializationProposal
+from .evaluator import (
+    compare_to_parent,
+    run_benchmarks,
+    select_winner,
 )
-from .tiered_validator import (
-    TieredValidator,
-    ValidationTier,
-    TieredValidationResult,
-    TierResult
+from .lineage import (
+    add_child,
+    get_ancestry,
+    load_lineage,
+    sign_birth_certificate,
 )
+from .manager import EvolutionManager
 
 # V7.5 Phase 0a: Evolution Manager and Models
 from .models import (
-    MutationProposal,
+    ArchiveResult,
     BrainstormResult,
     ChildCreationResult,
     EvaluationResult,
-    PromotionResult,
-    ArchiveResult,
-    EvolutionResult,
-    SpecializationResult,
-    EvolutionStatus,
     EvolutionContext,
     EvolutionPhaseStatus,
+    EvolutionResult,
+    EvolutionStatus,
+    MutationProposal,
+    PromotionResult,
+    SpecializationResult,
 )
-from .manager import EvolutionManager
+
+# V12.4: Mutation Tracker
+from .mutation_tracker import (
+    AgentPerformance,
+    LineageNode,
+    MutationRecord,
+    MutationTracker,
+    get_mutation_tracker,
+    reset_mutation_tracker,
+)
 
 # V9.1: Service Layer
 from .service import (
@@ -56,32 +67,18 @@ from .service import (
     _get_evolution_service,
 )
 
-# V12.4: Agent Reaper (DyLAN-based lifecycle management)
-from .agent_reaper import AgentReaper, ReaperConfig, ReaperReport, ArchivalCandidate
-
-# V12.4: Auto-Specializer (data-driven agent spawning)
-from .auto_specializer import AutoSpecializer, SpecializationConfig, SpecializationProposal, DomainProfile
-
-# V12.4: Mutation Tracker
-from .mutation_tracker import (
-    MutationTracker,
-    MutationRecord,
-    AgentPerformance,
-    LineageNode,
-    get_mutation_tracker,
-    reset_mutation_tracker,
-)
-
 # V12.4 COGNITIVE BOOST: Strategy Performance Tracker
 from .strategy_performance_tracker import (
-    StrategyPerformanceTracker,
     StrategyApplication,
     StrategyMetrics,
+    StrategyPerformanceTracker,
     StrategyRecommendation,
     TrackerStats,
     get_strategy_tracker,
     reset_strategy_tracker,
 )
+from .tiered_validator import TieredValidationResult, TieredValidator, TierResult, ValidationTier
+from .validator import AutoPromotionDecision, ChildValidator, FullValidationResult, SafetyGate, ValidationResult
 
 # V7: mutator.py removed - evolution uses emergent JSON patches from AI debate
 

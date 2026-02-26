@@ -29,7 +29,7 @@ import threading
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -46,9 +46,11 @@ MAX_SESSIONS = 1000
 # Types
 # =============================================================================
 
+
 @dataclass
 class Position:
     """An agent's position on a topic."""
+
     agent_id: str
     stance: str
     confidence: float = 1.0
@@ -59,7 +61,7 @@ class Position:
         if self.timestamp == 0.0:
             self.timestamp = time.monotonic()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "agent_id": self.agent_id,
             "stance": self.stance,
@@ -71,16 +73,17 @@ class Position:
 @dataclass
 class TopicConsensus:
     """Consensus state for a specific topic in a phase."""
+
     topic: str
     phase: str
-    positions: List[Position] = field(default_factory=list)
+    positions: list[Position] = field(default_factory=list)
 
     @property
     def agent_count(self) -> int:
         return len(self.positions)
 
     @property
-    def unique_stances(self) -> Set[str]:
+    def unique_stances(self) -> set[str]:
         return set(p.stance for p in self.positions)
 
     @property
@@ -89,7 +92,7 @@ class TopicConsensus:
         if len(self.positions) < 2:
             return 1.0
         # Count most popular stance
-        stance_counts: Dict[str, int] = defaultdict(int)
+        stance_counts: dict[str, int] = defaultdict(int)
         for p in self.positions:
             stance_counts[p.stance] += 1
         max_count = max(stance_counts.values())
@@ -101,7 +104,7 @@ class TopicConsensus:
         if len(self.positions) < 2:
             return 1.0
         # Group by stance, sum confidence
-        stance_conf: Dict[str, float] = defaultdict(float)
+        stance_conf: dict[str, float] = defaultdict(float)
         total_conf = 0.0
         for p in self.positions:
             stance_conf[p.stance] += p.confidence
@@ -115,7 +118,7 @@ class TopicConsensus:
     def is_unanimous(self) -> bool:
         return len(self.unique_stances) <= 1
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "topic": self.topic,
             "phase": self.phase,
@@ -130,12 +133,13 @@ class TopicConsensus:
 @dataclass
 class Disagreement:
     """A point of disagreement between agents."""
+
     topic: str
     phase: str
-    stances: Dict[str, str]  # agent_id -> stance
+    stances: dict[str, str]  # agent_id -> stance
     severity: float = 0.0  # 0 = minor, 1 = major
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "topic": self.topic,
             "phase": self.phase,
@@ -147,24 +151,23 @@ class Disagreement:
 @dataclass
 class ConsensusReport:
     """Report on consensus state for a session."""
+
     session_id: str
     total_topics: int
     unanimous_topics: int
     disputed_topics: int
     overall_consensus: float
-    phase_consensus: Dict[str, float]
-    top_disagreements: List[Disagreement]
+    phase_consensus: dict[str, float]
+    top_disagreements: list[Disagreement]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "session_id": self.session_id,
             "total_topics": self.total_topics,
             "unanimous_topics": self.unanimous_topics,
             "disputed_topics": self.disputed_topics,
             "overall_consensus": round(self.overall_consensus, 4),
-            "phase_consensus": {
-                k: round(v, 4) for k, v in self.phase_consensus.items()
-            },
+            "phase_consensus": {k: round(v, 4) for k, v in self.phase_consensus.items()},
             "top_disagreements": [d.to_dict() for d in self.top_disagreements[:5]],
         }
 
@@ -172,6 +175,7 @@ class ConsensusReport:
 # =============================================================================
 # Consensus Tracker
 # =============================================================================
+
 
 class ConsensusTracker:
     """
@@ -188,9 +192,7 @@ class ConsensusTracker:
 
     def __init__(self, *, min_consensus: float = DEFAULT_MIN_CONSENSUS):
         # session_id -> phase -> topic -> TopicConsensus
-        self._data: Dict[str, Dict[str, Dict[str, TopicConsensus]]] = defaultdict(
-            lambda: defaultdict(dict)
-        )
+        self._data: dict[str, dict[str, dict[str, TopicConsensus]]] = defaultdict(lambda: defaultdict(dict))
         self._min_consensus = min_consensus
         self._lock = threading.Lock()
 
@@ -283,7 +285,7 @@ class ConsensusTracker:
         session_id: str,
         phase: str,
         topic: str = "default",
-    ) -> Optional[TopicConsensus]:
+    ) -> TopicConsensus | None:
         """Get full TopicConsensus object."""
         with self._lock:
             return self._data.get(session_id, {}).get(phase, {}).get(topic)
@@ -296,8 +298,8 @@ class ConsensusTracker:
         self,
         session_id: str,
         *,
-        phase: Optional[str] = None,
-    ) -> List[Disagreement]:
+        phase: str | None = None,
+    ) -> list[Disagreement]:
         """Get all topics where agents disagree."""
         disagreements = []
         with self._lock:
@@ -309,12 +311,14 @@ class ConsensusTracker:
                     if not tc.is_unanimous and tc.agent_count >= 2:
                         stances = {p.agent_id: p.stance for p in tc.positions}
                         severity = 1.0 - tc.consensus_score
-                        disagreements.append(Disagreement(
-                            topic=t_name,
-                            phase=p_name,
-                            stances=stances,
-                            severity=severity,
-                        ))
+                        disagreements.append(
+                            Disagreement(
+                                topic=t_name,
+                                phase=p_name,
+                                stances=stances,
+                                severity=severity,
+                            )
+                        )
         disagreements.sort(key=lambda d: -d.severity)
         return disagreements
 
@@ -327,7 +331,7 @@ class ConsensusTracker:
         session_id: str,
         phase: str,
         *,
-        min_consensus: Optional[float] = None,
+        min_consensus: float | None = None,
     ) -> bool:
         """
         Check if a phase can be concluded based on consensus level.
@@ -355,7 +359,7 @@ class ConsensusTracker:
         with self._lock:
             phases = self._data.get(session_id, {})
             all_topics = []
-            phase_scores: Dict[str, List[float]] = defaultdict(list)
+            phase_scores: dict[str, list[float]] = defaultdict(list)
             for p_name, topics in phases.items():
                 for tc in topics.values():
                     all_topics.append(tc)
@@ -365,10 +369,7 @@ class ConsensusTracker:
         disputed = sum(1 for tc in all_topics if not tc.is_unanimous and tc.agent_count >= 2)
         overall = sum(tc.consensus_score for tc in all_topics) / len(all_topics) if all_topics else 0.0
 
-        phase_avg = {
-            p: sum(scores) / len(scores) if scores else 0.0
-            for p, scores in phase_scores.items()
-        }
+        phase_avg = {p: sum(scores) / len(scores) if scores else 0.0 for p, scores in phase_scores.items()}
 
         disagreements = self.get_disagreements(session_id)
 
@@ -408,7 +409,7 @@ class ConsensusTracker:
         with self._lock:
             self._data.clear()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "session_count": self.session_count,
             "min_consensus": self._min_consensus,
@@ -419,7 +420,7 @@ class ConsensusTracker:
 # Global Instance
 # =============================================================================
 
-_tracker: Optional[ConsensusTracker] = None
+_tracker: ConsensusTracker | None = None
 _tracker_lock = threading.Lock()
 
 

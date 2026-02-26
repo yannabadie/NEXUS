@@ -15,27 +15,25 @@ Author: Claude (NEXUS V12.4)
 Date: 2026-02-17
 """
 
+import logging
 import os
 import sys
-import time
-import pytest
-import shutil
-import logging
-from pathlib import Path
 from datetime import datetime, timedelta
-from threading import Thread, Barrier
-from unittest.mock import patch, MagicMock
+from pathlib import Path
+from threading import Barrier, Thread
+
+import pytest
 
 from core.infrastructure.session.home_isolator import HomeIsolator
-
 
 # ============================================================================
 # 1. Constructor Tests (~5 tests)
 # ============================================================================
 
+
 def test_constructor_creates_session_homes_directory(tmp_path):
     """Test that constructor creates .session_homes directory."""
-    isolator = HomeIsolator(tmp_path)
+    HomeIsolator(tmp_path)
     assert (tmp_path / ".session_homes").exists()
     assert (tmp_path / ".session_homes").is_dir()
 
@@ -64,13 +62,14 @@ def test_constructor_can_set_use_workspace_prefix_false(tmp_path):
 def test_constructor_creates_parent_directories(tmp_path):
     """Test constructor creates parent directories if needed."""
     deep_path = tmp_path / "a" / "b" / "c" / "workspace"
-    isolator = HomeIsolator(deep_path)
+    HomeIsolator(deep_path)
     assert (deep_path / ".session_homes").exists()
 
 
 # ============================================================================
 # 2. Session ID Sanitization Tests (~20 tests)
 # ============================================================================
+
 
 def test_sanitize_normal_alphanumeric_id(tmp_path):
     """Test normal alphanumeric IDs pass through."""
@@ -236,6 +235,7 @@ def test_sanitize_consistent_for_same_input(tmp_path):
 # 3. get_isolated_env Tests (~20 tests)
 # ============================================================================
 
+
 def test_get_isolated_env_returns_dict(tmp_path):
     """Test get_isolated_env returns dict."""
     isolator = HomeIsolator(tmp_path)
@@ -254,7 +254,7 @@ def test_get_isolated_env_contains_original_path(tmp_path):
 def test_get_isolated_env_creates_directory_on_disk(tmp_path):
     """Test creates isolated home directory on disk."""
     isolator = HomeIsolator(tmp_path, use_workspace_prefix=False)
-    env = isolator.get_isolated_env("task_001")
+    isolator.get_isolated_env("task_001")
     expected_dir = tmp_path / ".session_homes" / "task_001"
     assert expected_dir.exists()
     assert expected_dir.is_dir()
@@ -387,7 +387,7 @@ def test_get_isolated_env_thread_safety(tmp_path):
     threads = [
         Thread(target=worker, args=("task_001",)),
         Thread(target=worker, args=("task_002",)),
-        Thread(target=worker, args=("task_003",))
+        Thread(target=worker, args=("task_003",)),
     ]
 
     for t in threads:
@@ -426,7 +426,7 @@ def test_get_isolated_env_records_creation_time(tmp_path):
     """Test records creation time."""
     isolator = HomeIsolator(tmp_path, use_workspace_prefix=False)
     before = datetime.now()
-    env = isolator.get_isolated_env("task_001")
+    isolator.get_isolated_env("task_001")
     after = datetime.now()
 
     # Check internal tracking
@@ -446,12 +446,13 @@ def test_get_isolated_env_idempotent(tmp_path):
     assert env1[home_key] == env2[home_key] == env3[home_key]
 
     # Should only record creation time once
-    assert len([k for k in isolator._creation_times.keys() if "task_001" in k]) == 1
+    assert len([k for k in isolator._creation_times if "task_001" in k]) == 1
 
 
 # ============================================================================
 # 4. get_home_path Tests (~5 tests)
 # ============================================================================
+
 
 def test_get_home_path_returns_none_for_nonexistent(tmp_path):
     """Test returns None for non-existent session."""
@@ -515,6 +516,7 @@ def test_get_home_path_thread_safe(tmp_path):
 # ============================================================================
 # 5. Reference Counting Tests (F26) (~20 tests)
 # ============================================================================
+
 
 def test_acquire_env_increments_ref_count(tmp_path):
     """Test acquire_env increments ref count."""
@@ -615,10 +617,7 @@ def test_ref_count_thread_safety(tmp_path):
         isolator.release_env("task_001")
 
     # 5 acquires, 5 releases
-    threads = (
-        [Thread(target=worker_acquire) for _ in range(5)] +
-        [Thread(target=worker_release) for _ in range(5)]
-    )
+    threads = [Thread(target=worker_acquire) for _ in range(5)] + [Thread(target=worker_release) for _ in range(5)]
 
     for t in threads:
         t.start()
@@ -727,6 +726,7 @@ def test_release_does_not_delete_directory(tmp_path):
 # ============================================================================
 # 6. Cleanup Tests (~15 tests)
 # ============================================================================
+
 
 def test_cleanup_home_removes_directory(tmp_path):
     """Test cleanup_home removes directory."""
@@ -922,6 +922,7 @@ def test_cleanup_respects_sanitization(tmp_path):
 # 7. list_active_homes & get_stats Tests (~10 tests)
 # ============================================================================
 
+
 def test_list_active_homes_returns_empty_on_fresh(tmp_path):
     """Test list_active_homes returns empty on fresh isolator."""
     isolator = HomeIsolator(tmp_path)
@@ -1052,6 +1053,7 @@ def test_get_stats_rounds_size_to_two_decimals(tmp_path):
 # 8. Disk Quota Tests (F29) (~15 tests)
 # ============================================================================
 
+
 def test_check_disk_quota_returns_ok_when_under(tmp_path):
     """Test check_disk_quota returns 'ok' when under quota."""
     isolator = HomeIsolator(tmp_path, use_workspace_prefix=False)
@@ -1142,7 +1144,7 @@ def test_enforce_quota_skips_sessions_with_active_refs(tmp_path):
         (home / "large.txt").write_bytes(b"x" * (10 * 1024 * 1024))  # 10 MB each
 
     # Enforce quota - should skip old_active (has refs)
-    cleaned = isolator.enforce_quota(quota_mb=15.0)
+    isolator.enforce_quota(quota_mb=15.0)
 
     # Should clean old_inactive, not old_active
     assert isolator.get_home_path("old_active") is not None
@@ -1157,7 +1159,7 @@ def test_enforce_quota_stops_when_under_quota(tmp_path):
     for i in range(5):
         session_id = f"task_{i}"
         isolator.get_isolated_env(session_id)
-        isolator._creation_times[session_id] = datetime.now() - timedelta(hours=5-i)
+        isolator._creation_times[session_id] = datetime.now() - timedelta(hours=5 - i)
         home = isolator.get_home_path(session_id)
         (home / "large.txt").write_bytes(b"x" * (5 * 1024 * 1024))
 
@@ -1227,7 +1229,7 @@ def test_enforce_quota_multiple_sessions(tmp_path):
     for i in range(10):
         session_id = f"task_{i}"
         isolator.get_isolated_env(session_id)
-        isolator._creation_times[session_id] = datetime.now() - timedelta(hours=10-i)
+        isolator._creation_times[session_id] = datetime.now() - timedelta(hours=10 - i)
         home = isolator.get_home_path(session_id)
         (home / "file.txt").write_bytes(b"x" * (2 * 1024 * 1024))  # 2 MB each
 
@@ -1261,7 +1263,7 @@ def test_enforce_quota_returns_count(tmp_path):
     for i in range(3):
         session_id = f"task_{i}"
         isolator.get_isolated_env(session_id)
-        isolator._creation_times[session_id] = datetime.now() - timedelta(hours=3-i)
+        isolator._creation_times[session_id] = datetime.now() - timedelta(hours=3 - i)
         home = isolator.get_home_path(session_id)
         (home / "large.txt").write_bytes(b"x" * (10 * 1024 * 1024))
 
@@ -1275,6 +1277,7 @@ def test_enforce_quota_returns_count(tmp_path):
 # ============================================================================
 # 9. Security Edge Cases (~10 tests)
 # ============================================================================
+
 
 def test_security_path_traversal_etc_passwd(tmp_path):
     """Test path traversal attempt with ../../../etc/passwd."""
@@ -1450,6 +1453,7 @@ def test_security_session_id_injection_newlines(tmp_path):
 # ============================================================================
 # Additional edge case tests
 # ============================================================================
+
 
 def test_isolator_with_spaces_in_base_path(tmp_path):
     """Test HomeIsolator with spaces in base path."""

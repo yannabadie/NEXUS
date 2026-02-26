@@ -21,23 +21,19 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.intelligence.evolution.mutation_tracker import (
     AgentPerformance,
     LineageNode,
     MutationRecord,
     MutationTracker,
-    TrackerStats,
-    VariantComparison,
     get_mutation_tracker,
     reset_mutation_tracker,
 )
 
-
 # =============================================================================
 # MutationRecord Tests
 # =============================================================================
+
 
 class TestMutationRecord:
     """Test MutationRecord dataclass."""
@@ -62,6 +58,7 @@ class TestMutationRecord:
 # =============================================================================
 # AgentPerformance Tests
 # =============================================================================
+
 
 class TestAgentPerformance:
     """Test AgentPerformance dataclass."""
@@ -93,6 +90,7 @@ class TestAgentPerformance:
 # LineageNode Tests
 # =============================================================================
 
+
 class TestLineageNode:
     """Test LineageNode dataclass."""
 
@@ -107,6 +105,7 @@ class TestLineageNode:
 # =============================================================================
 # Record Mutation Tests
 # =============================================================================
+
 
 class TestRecordMutation:
     """Test mutation recording."""
@@ -145,6 +144,7 @@ class TestRecordMutation:
 # =============================================================================
 # Lineage Query Tests
 # =============================================================================
+
 
 class TestLineageQueries:
     """Test lineage traversal."""
@@ -233,6 +233,7 @@ class TestLineageQueries:
 # Performance Tests
 # =============================================================================
 
+
 class TestPerformance:
     """Test performance tracking."""
 
@@ -269,6 +270,7 @@ class TestPerformance:
 # =============================================================================
 # Variant Comparison Tests
 # =============================================================================
+
 
 class TestVariantComparison:
     """Test variant comparison."""
@@ -307,6 +309,7 @@ class TestVariantComparison:
 # Rollback Tests
 # =============================================================================
 
+
 class TestRollback:
     """Test rollback version lookup."""
 
@@ -335,6 +338,7 @@ class TestRollback:
 # Max Mutations Tests
 # =============================================================================
 
+
 class TestMaxMutations:
     """Test max mutations enforcement."""
 
@@ -348,6 +352,7 @@ class TestMaxMutations:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test tracker statistics."""
@@ -380,6 +385,7 @@ class TestStatistics:
 # =============================================================================
 # State Tests
 # =============================================================================
+
 
 class TestState:
     """Test state management."""
@@ -414,6 +420,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global mutation tracker."""
 
@@ -440,23 +447,36 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_evolution_package(self):
         from core.intelligence.evolution import (
-            MutationTracker, MutationRecord, AgentPerformance,
-            LineageNode, get_mutation_tracker, reset_mutation_tracker,
+            AgentPerformance,
+            LineageNode,
+            MutationRecord,
+            MutationTracker,
+            get_mutation_tracker,
+            reset_mutation_tracker,
         )
-        assert all([
-            MutationTracker, MutationRecord, AgentPerformance,
-            LineageNode, get_mutation_tracker, reset_mutation_tracker,
-        ])
+
+        assert all(
+            [
+                MutationTracker,
+                MutationRecord,
+                AgentPerformance,
+                LineageNode,
+                get_mutation_tracker,
+                reset_mutation_tracker,
+            ]
+        )
 
     def test_from_module(self):
         from core.intelligence.evolution.mutation_tracker import (
-            MutationTracker, VariantComparison, TrackerStats,
-            MAX_MUTATIONS, LEARNING_RATE,
+            LEARNING_RATE,
+            MAX_MUTATIONS,
         )
+
         assert MAX_MUTATIONS == 10000
         assert LEARNING_RATE == 0.1

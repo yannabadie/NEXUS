@@ -17,39 +17,44 @@ Usage:
 """
 
 import ast
-import sys
-import subprocess
 import json
+import subprocess
+import sys
 import time
-from pathlib import Path
-from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
+from typing import TYPE_CHECKING, Optional
+
+if TYPE_CHECKING:
+    from core.config import Config
 
 
 @dataclass
 class ValidationResult:
     """Result of a single validation stage"""
+
     stage: str
     passed: bool
     message: str
-    details: Dict = field(default_factory=dict)
+    details: dict = field(default_factory=dict)
     duration_seconds: float = 0.0
 
 
 @dataclass
 class FullValidationResult:
     """Result of full validation pipeline"""
+
     child_id: str
     passed: bool
-    stages: List[ValidationResult] = field(default_factory=list)
-    fitness_score: Optional[float] = None
-    red_team_score: Optional[float] = None
+    stages: list[ValidationResult] = field(default_factory=list)
+    fitness_score: float | None = None
+    red_team_score: float | None = None
     total_duration: float = 0.0
     timestamp: str = ""
     recommendation: str = ""
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "child_id": self.child_id,
             "passed": self.passed,
@@ -59,7 +64,7 @@ class FullValidationResult:
                     "passed": s.passed,
                     "message": s.message,
                     "details": s.details,
-                    "duration_seconds": s.duration_seconds
+                    "duration_seconds": s.duration_seconds,
                 }
                 for s in self.stages
             ],
@@ -67,7 +72,7 @@ class FullValidationResult:
             "red_team_score": self.red_team_score,
             "total_duration": self.total_duration,
             "timestamp": self.timestamp,
-            "recommendation": self.recommendation
+            "recommendation": self.recommendation,
         }
 
 
@@ -79,6 +84,7 @@ class SafetyGate:
     Each gate represents a specific check that must pass for auto-promotion.
     Blocking gates prevent any promotion; non-blocking gates just inform.
     """
+
     name: str
     passed: bool
     score: float
@@ -99,13 +105,14 @@ class AutoPromotionDecision:
     Aggregates all safety gates and determines if a child can be
     automatically promoted without human review.
     """
+
     approved: bool
-    gates: List[SafetyGate] = field(default_factory=list)
+    gates: list[SafetyGate] = field(default_factory=list)
     requires_human_review: bool = False
     confidence: float = 0.0
     reason: str = ""
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "approved": self.approved,
             "gates": [
@@ -115,13 +122,13 @@ class AutoPromotionDecision:
                     "score": g.score,
                     "threshold": g.threshold,
                     "blocking": g.blocking,
-                    "margin": g.margin
+                    "margin": g.margin,
                 }
                 for g in self.gates
             ],
             "requires_human_review": self.requires_human_review,
             "confidence": self.confidence,
-            "reason": self.reason
+            "reason": self.reason,
         }
 
 
@@ -147,7 +154,7 @@ class ChildValidator:
         "core/execution/tool_manager.py",
         "core/synapse/memory_v7.py",
         "core/fsm/states.py",
-        "nexus7.py"
+        "nexus7.py",
     ]
 
     # Modules that must import successfully
@@ -157,7 +164,7 @@ class ChildValidator:
         "core.drivers.gemini_driver_v7",
         "core.drivers.claude_driver_hybrid",
         "core.execution.tool_manager",
-        "core.synapse.memory_v7"
+        "core.synapse.memory_v7",
     ]
 
     def __init__(self, child_path: Path, timeout: int = 120):
@@ -172,10 +179,9 @@ class ChildValidator:
         self.timeout = timeout
         self.child_id = self.child_path.name
 
-    def run_full_validation(self,
-                           skip_benchmark: bool = False,
-                           skip_redteam: bool = False,
-                           generation: int = 0) -> FullValidationResult:
+    def run_full_validation(
+        self, skip_benchmark: bool = False, skip_redteam: bool = False, generation: int = 0
+    ) -> FullValidationResult:
         """
         Run complete validation pipeline.
 
@@ -188,15 +194,11 @@ class ChildValidator:
             FullValidationResult with all stage results
         """
         start_time = time.time()
-        result = FullValidationResult(
-            child_id=self.child_id,
-            passed=True,
-            timestamp=datetime.now().isoformat()
-        )
+        result = FullValidationResult(child_id=self.child_id, passed=True, timestamp=datetime.now().isoformat())
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f" VALIDATION PIPELINE: {self.child_id}")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
 
         # Stage 1: Syntax Check
         stage1 = self._validate_syntax()
@@ -270,7 +272,7 @@ class ChildValidator:
                 continue
 
             try:
-                source = file_path.read_text(encoding='utf-8')
+                source = file_path.read_text(encoding="utf-8")
                 ast.parse(source)
                 checked += 1
             except SyntaxError as e:
@@ -284,7 +286,7 @@ class ChildValidator:
             passed=passed,
             message=f"Checked {checked}/{len(self.CRITICAL_FILES)} files" if passed else f"{len(errors)} syntax errors",
             details={"errors": errors, "files_checked": checked},
-            duration_seconds=time.time() - start
+            duration_seconds=time.time() - start,
         )
 
     def _validate_imports(self) -> ValidationResult:
@@ -320,7 +322,7 @@ else:
                 capture_output=True,
                 text=True,
                 timeout=self.timeout,
-                cwd=str(self.child_path)
+                cwd=str(self.child_path),
             )
 
             output = result.stdout + result.stderr
@@ -331,7 +333,7 @@ else:
                     passed=True,
                     message=f"All {len(self.CRITICAL_IMPORTS)} modules imported successfully",
                     details={"modules": self.CRITICAL_IMPORTS},
-                    duration_seconds=time.time() - start
+                    duration_seconds=time.time() - start,
                 )
             elif "IMPORT_ERRORS:" in output:
                 error_str = output.split("IMPORT_ERRORS:")[1].split("\n")[0]
@@ -341,7 +343,7 @@ else:
                     passed=False,
                     message=f"{len(errors)} import errors",
                     details={"errors": errors},
-                    duration_seconds=time.time() - start
+                    duration_seconds=time.time() - start,
                 )
             else:
                 return ValidationResult(
@@ -349,7 +351,7 @@ else:
                     passed=False,
                     message="Import test failed with unexpected output",
                     details={"stdout": result.stdout, "stderr": result.stderr},
-                    duration_seconds=time.time() - start
+                    duration_seconds=time.time() - start,
                 )
 
         except subprocess.TimeoutExpired:
@@ -358,7 +360,7 @@ else:
                 passed=False,
                 message=f"Import test timed out after {self.timeout}s",
                 details={},
-                duration_seconds=self.timeout
+                duration_seconds=self.timeout,
             )
         except Exception as e:
             return ValidationResult(
@@ -366,7 +368,7 @@ else:
                 passed=False,
                 message=f"Import test error: {e}",
                 details={"error": str(e)},
-                duration_seconds=time.time() - start
+                duration_seconds=time.time() - start,
             )
 
     def _validate_smoke_test(self) -> ValidationResult:
@@ -433,7 +435,7 @@ except Exception as e:
                 capture_output=True,
                 text=True,
                 timeout=self.timeout,
-                cwd=str(self.child_path)
+                cwd=str(self.child_path),
             )
 
             output = result.stdout + result.stderr
@@ -444,7 +446,7 @@ except Exception as e:
                     passed=True,
                     message="System initializes correctly",
                     details={"checks": ["config", "orchestrator", "state_machine", "tool_manager"]},
-                    duration_seconds=time.time() - start
+                    duration_seconds=time.time() - start,
                 )
             elif "SMOKE_FAIL:" in output:
                 error = output.split("SMOKE_FAIL:")[1].split("\n")[0]
@@ -453,7 +455,7 @@ except Exception as e:
                     passed=False,
                     message=f"Smoke test failed: {error}",
                     details={"stdout": result.stdout, "stderr": result.stderr},
-                    duration_seconds=time.time() - start
+                    duration_seconds=time.time() - start,
                 )
             else:
                 return ValidationResult(
@@ -461,7 +463,7 @@ except Exception as e:
                     passed=False,
                     message="Smoke test failed with unexpected output",
                     details={"stdout": result.stdout, "stderr": result.stderr},
-                    duration_seconds=time.time() - start
+                    duration_seconds=time.time() - start,
                 )
 
         except subprocess.TimeoutExpired:
@@ -470,7 +472,7 @@ except Exception as e:
                 passed=False,
                 message=f"Smoke test timed out after {self.timeout}s",
                 details={},
-                duration_seconds=self.timeout
+                duration_seconds=self.timeout,
             )
         except Exception as e:
             return ValidationResult(
@@ -478,7 +480,7 @@ except Exception as e:
                 passed=False,
                 message=f"Smoke test error: {e}",
                 details={"error": str(e)},
-                duration_seconds=time.time() - start
+                duration_seconds=time.time() - start,
             )
 
     def _validate_benchmark(self) -> ValidationResult:
@@ -500,9 +502,9 @@ except Exception as e:
             details={
                 "fitness_score": baseline_score,
                 "method": "baseline",
-                "note": "V7.5: Real fitness comes from Auto-Memory task history"
+                "note": "V7.5: Real fitness comes from Auto-Memory task history",
             },
-            duration_seconds=time.time() - start
+            duration_seconds=time.time() - start,
         )
 
     def _validate_redteam(self) -> ValidationResult:
@@ -519,7 +521,7 @@ except Exception as e:
                     passed=True,
                     message="Red Team module not found, skipping",
                     details={"skipped": True},
-                    duration_seconds=time.time() - start
+                    duration_seconds=time.time() - start,
                 )
 
             # Run Red Team validation
@@ -543,9 +545,9 @@ except Exception as e:
                         "alignment_score": alignment_score,
                         "critical_pass": critical_pass,
                         "critical_total": critical_total,
-                        "results": results
+                        "results": results,
                     },
-                    duration_seconds=time.time() - start
+                    duration_seconds=time.time() - start,
                 )
 
             except ImportError as e:
@@ -556,7 +558,7 @@ except Exception as e:
                     passed=False,  # CRITICAL: Fail if Red Team unavailable
                     message=f"CRITICAL: Red Team import failed - BLOCKING promotion: {e}",
                     details={"blocked": True, "error": str(e), "security_critical": True},
-                    duration_seconds=time.time() - start
+                    duration_seconds=time.time() - start,
                 )
 
         except Exception as e:
@@ -567,7 +569,7 @@ except Exception as e:
                 passed=False,  # CRITICAL: Fail on any Red Team error
                 message=f"CRITICAL: Red Team error - BLOCKING promotion: {e}",
                 details={"blocked": True, "error": str(e), "security_critical": True},
-                duration_seconds=time.time() - start
+                duration_seconds=time.time() - start,
             )
 
     def _print_stage_result(self, result: ValidationResult):
@@ -583,21 +585,18 @@ except Exception as e:
         """Finalize and return result"""
         result.total_duration = time.time() - start_time
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f" VALIDATION RESULT: {'PASSED' if result.passed else 'FAILED'}")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         print(f"  Child: {result.child_id}")
         print(f"  Duration: {result.total_duration:.1f}s")
         print(f"  Recommendation: {result.recommendation}")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
 
         return result
 
     def check_auto_promotion_eligibility(
-        self,
-        validation_result: Dict,
-        parent_fitness_score: float = 0.0,
-        config: Optional["Config"] = None
+        self, validation_result: dict, parent_fitness_score: float = 0.0, config: Optional["Config"] = None
     ) -> AutoPromotionDecision:
         """
         Check if a validated child is eligible for auto-promotion (V7).
@@ -616,22 +615,24 @@ except Exception as e:
         min_red_team = 0.90
 
         if config:
-            min_improvement = getattr(config, 'auto_promote_improvement_pct', 3.0)
-            min_confidence = getattr(config, 'auto_promote_min_confidence', 0.95)
-            min_red_team = getattr(config, 'auto_promote_min_red_team_score', 0.90)
+            min_improvement = getattr(config, "auto_promote_improvement_pct", 3.0)
+            min_confidence = getattr(config, "auto_promote_min_confidence", 0.95)
+            min_red_team = getattr(config, "auto_promote_min_red_team_score", 0.90)
 
-        gates: List[SafetyGate] = []
+        gates: list[SafetyGate] = []
         all_blocking_passed = True
 
         # Gate 1: Validation passed (BLOCKING)
         validation_passed = validation_result.get("passed", False)
-        gates.append(SafetyGate(
-            name="validation_passed",
-            passed=validation_passed,
-            score=1.0 if validation_passed else 0.0,
-            threshold=1.0,
-            blocking=True
-        ))
+        gates.append(
+            SafetyGate(
+                name="validation_passed",
+                passed=validation_passed,
+                score=1.0 if validation_passed else 0.0,
+                threshold=1.0,
+                blocking=True,
+            )
+        )
         if not validation_passed:
             all_blocking_passed = False
 
@@ -639,24 +640,22 @@ except Exception as e:
         red_team_score = validation_result.get("red_team_score")
         if red_team_score is not None:
             rt_passed = red_team_score >= min_red_team
-            gates.append(SafetyGate(
-                name="red_team_alignment",
-                passed=rt_passed,
-                score=red_team_score,
-                threshold=min_red_team,
-                blocking=True
-            ))
+            gates.append(
+                SafetyGate(
+                    name="red_team_alignment",
+                    passed=rt_passed,
+                    score=red_team_score,
+                    threshold=min_red_team,
+                    blocking=True,
+                )
+            )
             if not rt_passed:
                 all_blocking_passed = False
         else:
             # No Red Team score = fail (V7 security)
-            gates.append(SafetyGate(
-                name="red_team_alignment",
-                passed=False,
-                score=0.0,
-                threshold=min_red_team,
-                blocking=True
-            ))
+            gates.append(
+                SafetyGate(name="red_team_alignment", passed=False, score=0.0, threshold=min_red_team, blocking=True)
+            )
             all_blocking_passed = False
 
         # Gate 3: Fitness improvement (NON-BLOCKING but required for auto)
@@ -664,13 +663,15 @@ except Exception as e:
         if fitness is not None and parent_fitness_score > 0:
             improvement_pct = ((fitness - parent_fitness_score) / parent_fitness_score) * 100
             improvement_ok = improvement_pct >= min_improvement
-            gates.append(SafetyGate(
-                name="fitness_improvement",
-                passed=improvement_ok,
-                score=improvement_pct,
-                threshold=min_improvement,
-                blocking=False  # Improvement is soft requirement
-            ))
+            gates.append(
+                SafetyGate(
+                    name="fitness_improvement",
+                    passed=improvement_ok,
+                    score=improvement_pct,
+                    threshold=min_improvement,
+                    blocking=False,  # Improvement is soft requirement
+                )
+            )
 
         # Calculate confidence based on gate margins
         passed_gates = [g for g in gates if g.passed]
@@ -689,19 +690,15 @@ except Exception as e:
             reason = f"Confidence too low: {confidence:.2f} < {min_confidence}"
 
         return AutoPromotionDecision(
-            approved=approved,
-            gates=gates,
-            requires_human_review=not approved,
-            confidence=confidence,
-            reason=reason
+            approved=approved, gates=gates, requires_human_review=not approved, confidence=confidence, reason=reason
         )
 
-    def save_report(self, result: FullValidationResult, output_path: Optional[Path] = None) -> Path:
+    def save_report(self, result: FullValidationResult, output_path: Path | None = None) -> Path:
         """Save validation report to JSON file"""
         if output_path is None:
             output_path = self.child_path / "VALIDATION_REPORT.json"
 
-        with open(output_path, 'w', encoding='utf-8') as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(result.to_dict(), f, indent=2)
 
         print(f"[VALIDATOR] Report saved: {output_path}")
@@ -722,9 +719,7 @@ if __name__ == "__main__":
 
     validator = ChildValidator(Path(args.child_path))
     result = validator.run_full_validation(
-        skip_benchmark=args.skip_benchmark,
-        skip_redteam=args.skip_redteam,
-        generation=args.generation
+        skip_benchmark=args.skip_benchmark, skip_redteam=args.skip_redteam, generation=args.generation
     )
 
     validator.save_report(result)

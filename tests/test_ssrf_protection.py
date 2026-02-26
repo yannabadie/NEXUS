@@ -4,10 +4,11 @@ Test SSRF Protection for web_fetch handler.
 NEXUS V12.4 Security - Comprehensive SSRF blocklist tests.
 """
 
-import pytest
 from pathlib import Path
 
-from core.execution_pkg.execution.handlers.web_handlers import WebFetchHandler, ToolResult
+import pytest
+
+from core.execution_pkg.execution.handlers.web_handlers import WebFetchHandler
 
 
 @pytest.fixture
@@ -19,15 +20,18 @@ def handler(tmp_path: Path) -> WebFetchHandler:
 class TestSSRFBlockedHosts:
     """Test hostname-based SSRF blocking."""
 
-    @pytest.mark.parametrize("hostname", [
-        "localhost",
-        "localhost.localdomain",
-        "localhost6",
-        "metadata.google.internal",
-        "metadata.google",
-        "kubernetes.default",
-        "kubernetes.default.svc.cluster.local",
-    ])
+    @pytest.mark.parametrize(
+        "hostname",
+        [
+            "localhost",
+            "localhost.localdomain",
+            "localhost6",
+            "metadata.google.internal",
+            "metadata.google",
+            "kubernetes.default",
+            "kubernetes.default.svc.cluster.local",
+        ],
+    )
     def test_blocked_hostnames(self, handler: WebFetchHandler, hostname: str):
         """Blocked hostnames should be rejected."""
         url = f"http://{hostname}/some/path"
@@ -35,11 +39,14 @@ class TestSSRFBlockedHosts:
         assert is_blocked, f"{hostname} should be blocked"
         assert "Blocked hostname" in reason
 
-    @pytest.mark.parametrize("hostname", [
-        "example.internal",
-        "app.local",
-        "test.localhost",
-    ])
+    @pytest.mark.parametrize(
+        "hostname",
+        [
+            "example.internal",
+            "app.local",
+            "test.localhost",
+        ],
+    )
     def test_blocked_hostname_patterns(self, handler: WebFetchHandler, hostname: str):
         """Blocked hostname patterns should be rejected."""
         url = f"http://{hostname}/api"
@@ -50,11 +57,14 @@ class TestSSRFBlockedHosts:
 class TestSSRFBlockedIPs:
     """Test IP-based SSRF blocking."""
 
-    @pytest.mark.parametrize("ip", [
-        "127.0.0.1",
-        "127.0.0.2",
-        "127.1.1.1",
-    ])
+    @pytest.mark.parametrize(
+        "ip",
+        [
+            "127.0.0.1",
+            "127.0.0.2",
+            "127.1.1.1",
+        ],
+    )
     def test_loopback_ips(self, handler: WebFetchHandler, ip: str):
         """Loopback IPs should be blocked."""
         url = f"http://{ip}/api"
@@ -62,14 +72,17 @@ class TestSSRFBlockedIPs:
         assert is_blocked, f"{ip} should be blocked"
         assert "Loopback" in reason or "Private" in reason
 
-    @pytest.mark.parametrize("ip", [
-        "10.0.0.1",
-        "10.255.255.255",
-        "172.16.0.1",
-        "172.31.255.255",
-        "192.168.0.1",
-        "192.168.255.255",
-    ])
+    @pytest.mark.parametrize(
+        "ip",
+        [
+            "10.0.0.1",
+            "10.255.255.255",
+            "172.16.0.1",
+            "172.31.255.255",
+            "192.168.0.1",
+            "192.168.255.255",
+        ],
+    )
     def test_private_ips(self, handler: WebFetchHandler, ip: str):
         """Private IPs should be blocked."""
         url = f"http://{ip}/internal"
@@ -77,22 +90,28 @@ class TestSSRFBlockedIPs:
         assert is_blocked, f"{ip} should be blocked"
         assert "Private" in reason
 
-    @pytest.mark.parametrize("ip", [
-        "169.254.169.254",  # AWS/Cloud metadata
-        "169.254.0.1",       # Link-local
-        "169.254.255.255",   # Link-local
-    ])
+    @pytest.mark.parametrize(
+        "ip",
+        [
+            "169.254.169.254",  # AWS/Cloud metadata
+            "169.254.0.1",  # Link-local
+            "169.254.255.255",  # Link-local
+        ],
+    )
     def test_link_local_and_metadata(self, handler: WebFetchHandler, ip: str):
         """Link-local and metadata IPs should be blocked."""
         url = f"http://{ip}/latest/meta-data"
         is_blocked, reason = handler._is_ssrf_target(url)
         assert is_blocked, f"{ip} should be blocked"
 
-    @pytest.mark.parametrize("ip", [
-        "0.0.0.0",
-        "[::]",
-        "[::1]",
-    ])
+    @pytest.mark.parametrize(
+        "ip",
+        [
+            "0.0.0.0",
+            "[::]",
+            "[::1]",
+        ],
+    )
     def test_special_blocked_ips(self, handler: WebFetchHandler, ip: str):
         """Special IPs should be blocked."""
         url = f"http://{ip}/"
@@ -103,11 +122,14 @@ class TestSSRFBlockedIPs:
 class TestSSRFBypassPrevention:
     """Test bypass attempt prevention."""
 
-    @pytest.mark.parametrize("bypass_ip", [
-        "0x7f000001",           # Hex: 127.0.0.1
-        "2130706433",           # Decimal: 127.0.0.1
-        "017700000001",         # Octal-like
-    ])
+    @pytest.mark.parametrize(
+        "bypass_ip",
+        [
+            "0x7f000001",  # Hex: 127.0.0.1
+            "2130706433",  # Decimal: 127.0.0.1
+            "017700000001",  # Octal-like
+        ],
+    )
     def test_ip_encoding_bypasses(self, handler: WebFetchHandler, bypass_ip: str):
         """Encoded IP bypasses should be blocked."""
         url = f"http://{bypass_ip}/"
@@ -118,13 +140,16 @@ class TestSSRFBypassPrevention:
 class TestSSRFAllowedUrls:
     """Test that legitimate URLs are allowed."""
 
-    @pytest.mark.parametrize("url", [
-        "https://www.google.com/search",
-        "https://api.github.com/repos",
-        "https://docs.python.org/3/",
-        "https://example.com:443/api",
-        "http://example.com:8080/api",
-    ])
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https://www.google.com/search",
+            "https://api.github.com/repos",
+            "https://docs.python.org/3/",
+            "https://example.com:443/api",
+            "http://example.com:8080/api",
+        ],
+    )
     def test_public_urls_allowed(self, handler: WebFetchHandler, url: str):
         """Public URLs should be allowed."""
         is_blocked, reason = handler._is_ssrf_target(url)
@@ -160,7 +185,7 @@ class TestSSRFPortBlocking:
         """Low ports (except 80/443) should be blocked."""
         url = "http://example.com:22/ssh"
         is_blocked, reason = handler._is_ssrf_target(url)
-        assert is_blocked, f"Port 22 should be blocked"
+        assert is_blocked, "Port 22 should be blocked"
         assert "port" in reason.lower()
 
     @pytest.mark.parametrize("port", [80, 443, 8080, 8443])

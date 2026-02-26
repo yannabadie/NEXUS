@@ -32,34 +32,25 @@ Usage:
 
 import asyncio
 import logging
-from dataclasses import dataclass, field
-from typing import List, Optional, Callable, Any, TYPE_CHECKING
-from datetime import datetime
-from enum import Enum
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from core.security_pkg.interaction import InteractionProvider
 
 # Try to import rich for better UI, fallback to basic input
 try:
-    from rich.console import Console
-    from rich.panel import Panel
-    from rich.table import Table
-    from rich.prompt import Prompt, Confirm
-    from rich.markdown import Markdown
-    from rich.text import Text
-    from rich.style import Style
     from rich.box import ROUNDED
+    from rich.console import Console
+    from rich.markdown import Markdown
+    from rich.panel import Panel
+    from rich.prompt import Confirm, Prompt
+    from rich.table import Table
+
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
 
-from .types import (
-    UserBreakpoint,
-    BreakpointOption,
-    BreakpointRequest,
-    BreakpointResponse
-)
+from .types import BreakpointOption, BreakpointRequest, BreakpointResponse, UserBreakpoint
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +71,7 @@ class UserInteractionHandler:
         default_timeout: int = 60,
         enable_rich: bool = True,
         auto_accept: bool = False,
-        interaction: Optional["InteractionProvider"] = None
+        interaction: Optional["InteractionProvider"] = None,
     ):
         """
         Initialize user interaction handler.
@@ -93,7 +84,7 @@ class UserInteractionHandler:
         """
         self.default_timeout = default_timeout
         self.auto_accept = auto_accept
-        self._history: List[BreakpointResponse] = []
+        self._history: list[BreakpointResponse] = []
         self._interaction = interaction
 
         # Initialize console
@@ -109,9 +100,9 @@ class UserInteractionHandler:
         breakpoint_type: UserBreakpoint,
         context: str,
         recommendation: str,
-        options: List[BreakpointOption],
+        options: list[BreakpointOption],
         timeout_seconds: int = None,
-        metadata: dict = None
+        metadata: dict = None,
     ) -> BreakpointResponse:
         """
         Synchronous breakpoint request (for non-async contexts).
@@ -133,19 +124,16 @@ class UserInteractionHandler:
             recommendation=recommendation,
             options=options,
             timeout_seconds=timeout_seconds or self.default_timeout,
-            metadata=metadata or {}
+            metadata=metadata or {},
         )
 
         # Auto-accept mode (for testing)
         if self.auto_accept:
-            recommended = next(
-                (opt for opt in options if opt.is_recommended),
-                options[0] if options else None
-            )
+            recommended = next((opt for opt in options if opt.is_recommended), options[0] if options else None)
             response = BreakpointResponse(
                 breakpoint_type=breakpoint_type,
                 chosen_option=recommended.id if recommended else "accept",
-                was_timeout=True
+                was_timeout=True,
             )
             self._history.append(response)
             return response
@@ -168,6 +156,7 @@ class UserInteractionHandler:
         Logs the breakpoint for audit trail.
         """
         import logging
+
         logger = logging.getLogger("nexus.interaction.headless")
 
         # Log the breakpoint
@@ -177,14 +166,13 @@ class UserInteractionHandler:
 
         # Get recommended option
         recommended = next(
-            (opt for opt in request.options if opt.is_recommended),
-            request.options[0] if request.options else None
+            (opt for opt in request.options if opt.is_recommended), request.options[0] if request.options else None
         )
 
         response = BreakpointResponse(
             breakpoint_type=request.breakpoint_type,
             chosen_option=recommended.id if recommended else "accept",
-            was_timeout=False  # Not a timeout, deliberate headless choice
+            was_timeout=False,  # Not a timeout, deliberate headless choice
         )
 
         logger.info(f"[HEADLESS BREAKPOINT] Auto-selected: {response.chosen_option}")
@@ -196,9 +184,9 @@ class UserInteractionHandler:
         breakpoint_type: UserBreakpoint,
         context: str,
         recommendation: str,
-        options: List[BreakpointOption],
+        options: list[BreakpointOption],
         timeout_seconds: int = None,
-        metadata: dict = None
+        metadata: dict = None,
     ) -> BreakpointResponse:
         """
         Async breakpoint request with timeout.
@@ -223,27 +211,19 @@ class UserInteractionHandler:
                 asyncio.get_running_loop().run_in_executor(
                     None,
                     lambda: self.request_breakpoint_sync(
-                        breakpoint_type,
-                        context,
-                        recommendation,
-                        options,
-                        timeout,
-                        metadata
-                    )
+                        breakpoint_type, context, recommendation, options, timeout, metadata
+                    ),
                 ),
-                timeout=timeout
+                timeout=timeout,
             )
             return response
-        except asyncio.TimeoutError:
+        except TimeoutError:
             # Return default action on timeout
-            recommended = next(
-                (opt for opt in options if opt.is_recommended),
-                options[0] if options else None
-            )
+            recommended = next((opt for opt in options if opt.is_recommended), options[0] if options else None)
             response = BreakpointResponse(
                 breakpoint_type=breakpoint_type,
                 chosen_option=recommended.id if recommended else "accept",
-                was_timeout=True
+                was_timeout=True,
             )
             self._history.append(response)
 
@@ -263,19 +243,14 @@ class UserInteractionHandler:
         self.console.rule(f"[bold cyan]{title}[/bold cyan]")
 
         # Context panel
-        self.console.print(Panel(
-            Markdown(request.context),
-            title="Context",
-            border_style="blue",
-            box=ROUNDED
-        ))
+        self.console.print(Panel(Markdown(request.context), title="Context", border_style="blue", box=ROUNDED))
 
         # Recommendation
-        self.console.print(Panel(
-            f"[bold green]Recommendation:[/bold green] {request.recommendation}",
-            border_style="green",
-            box=ROUNDED
-        ))
+        self.console.print(
+            Panel(
+                f"[bold green]Recommendation:[/bold green] {request.recommendation}", border_style="green", box=ROUNDED
+            )
+        )
 
         # Options table
         table = Table(title="Available Options", box=ROUNDED)
@@ -286,42 +261,31 @@ class UserInteractionHandler:
         for i, opt in enumerate(request.options, 1):
             style = "bold green" if opt.is_recommended else ""
             recommended_mark = " *" if opt.is_recommended else ""
-            table.add_row(
-                f"[{i}]",
-                f"{opt.label}{recommended_mark}",
-                opt.description,
-                style=style
-            )
+            table.add_row(f"[{i}]", f"{opt.label}{recommended_mark}", opt.description, style=style)
         table.add_row("[c]", "Custom", "Enter custom response")
 
         self.console.print(table)
 
         # Timeout info
         self.console.print(
-            f"[dim]Timeout: {request.timeout_seconds}s "
-            f"(will use recommended option if no response)[/dim]"
+            f"[dim]Timeout: {request.timeout_seconds}s (will use recommended option if no response)[/dim]"
         )
 
         # Get user input
         while True:
             choice = Prompt.ask(
-                "Your choice",
-                choices=[str(i) for i in range(1, len(request.options) + 1)] + ["c"],
-                default="1"
+                "Your choice", choices=[str(i) for i in range(1, len(request.options) + 1)] + ["c"], default="1"
             )
 
             if choice == "c":
                 custom = Prompt.ask("Enter custom response")
                 response = BreakpointResponse(
-                    breakpoint_type=request.breakpoint_type,
-                    chosen_option="custom",
-                    custom_input=custom
+                    breakpoint_type=request.breakpoint_type, chosen_option="custom", custom_input=custom
                 )
             else:
                 idx = int(choice) - 1
                 response = BreakpointResponse(
-                    breakpoint_type=request.breakpoint_type,
-                    chosen_option=request.options[idx].id
+                    breakpoint_type=request.breakpoint_type, chosen_option=request.options[idx].id
                 )
 
             # Confirm
@@ -329,9 +293,7 @@ class UserInteractionHandler:
                 break
 
         self._history.append(response)
-        self.console.print(
-            f"[green]Selected: {response.chosen_option}[/green]"
-        )
+        self.console.print(f"[green]Selected: {response.chosen_option}[/green]")
         self.console.rule()
         self.console.print()
 
@@ -360,15 +322,12 @@ class UserInteractionHandler:
                 if choice == "c":
                     custom = input("Enter custom response: ")
                     response = BreakpointResponse(
-                        breakpoint_type=request.breakpoint_type,
-                        chosen_option="custom",
-                        custom_input=custom
+                        breakpoint_type=request.breakpoint_type, chosen_option="custom", custom_input=custom
                     )
                 elif choice.isdigit() and 1 <= int(choice) <= len(request.options):
                     idx = int(choice) - 1
                     response = BreakpointResponse(
-                        breakpoint_type=request.breakpoint_type,
-                        chosen_option=request.options[idx].id
+                        breakpoint_type=request.breakpoint_type, chosen_option=request.options[idx].id
                     )
                 else:
                     print("Invalid choice. Try again.")
@@ -381,12 +340,12 @@ class UserInteractionHandler:
                 # Default on interrupt
                 recommended = next(
                     (opt for opt in request.options if opt.is_recommended),
-                    request.options[0] if request.options else None
+                    request.options[0] if request.options else None,
                 )
                 response = BreakpointResponse(
                     breakpoint_type=request.breakpoint_type,
                     chosen_option=recommended.id if recommended else "accept",
-                    was_timeout=True
+                    was_timeout=True,
                 )
                 break
 
@@ -398,12 +357,7 @@ class UserInteractionHandler:
 
     # Convenience methods for specific breakpoints
 
-    def after_debate(
-        self,
-        debate_summary: str,
-        final_approach: str,
-        consensus_score: float
-    ) -> BreakpointResponse:
+    def after_debate(self, debate_summary: str, final_approach: str, consensus_score: float) -> BreakpointResponse:
         """Breakpoint after debate phase."""
         context = f"""
 ## Debate Summary
@@ -421,42 +375,28 @@ class UserInteractionHandler:
                 id="accept",
                 label="Accept",
                 description="Proceed with the debated approach",
-                is_recommended=consensus_score >= 0.7
+                is_recommended=consensus_score >= 0.7,
             ),
+            BreakpointOption(id="modify", label="Modify", description="Request modifications to the approach"),
             BreakpointOption(
-                id="modify",
-                label="Modify",
-                description="Request modifications to the approach"
+                id="restart", label="Restart Debate", description="Restart the debate with additional guidance"
             ),
-            BreakpointOption(
-                id="restart",
-                label="Restart Debate",
-                description="Restart the debate with additional guidance"
-            ),
-            BreakpointOption(
-                id="cancel",
-                label="Cancel",
-                description="Cancel the task"
-            )
+            BreakpointOption(id="cancel", label="Cancel", description="Cancel the task"),
         ]
 
         return self.request_breakpoint_sync(
             breakpoint_type=UserBreakpoint.AFTER_DEBATE,
             context=context,
-            recommendation="Accept the debated approach" if consensus_score >= 0.7
-                          else "Review carefully - low consensus",
-            options=options
+            recommendation="Accept the debated approach"
+            if consensus_score >= 0.7
+            else "Review carefully - low consensus",
+            options=options,
         )
 
-    def before_spawn(
-        self,
-        agents_to_spawn: List[dict],
-        estimated_cost: int
-    ) -> BreakpointResponse:
+    def before_spawn(self, agents_to_spawn: list[dict], estimated_cost: int) -> BreakpointResponse:
         """Breakpoint before spawning agents."""
         agent_list = "\n".join(
-            f"- **{a['role']}**: {a.get('mission', 'N/A')} "
-            f"(capabilities: {', '.join(a.get('capabilities', []))})"
+            f"- **{a['role']}**: {a.get('mission', 'N/A')} (capabilities: {', '.join(a.get('capabilities', []))})"
             for a in agents_to_spawn
         )
 
@@ -472,38 +412,21 @@ class UserInteractionHandler:
                 id="spawn_all",
                 label="Spawn All",
                 description="Spawn all proposed agents",
-                is_recommended=len(agents_to_spawn) <= 2
+                is_recommended=len(agents_to_spawn) <= 2,
             ),
-            BreakpointOption(
-                id="spawn_selective",
-                label="Select Agents",
-                description="Choose which agents to spawn"
-            ),
-            BreakpointOption(
-                id="skip",
-                label="Skip Spawning",
-                description="Continue without spawning new agents"
-            ),
-            BreakpointOption(
-                id="cancel",
-                label="Cancel",
-                description="Cancel the task"
-            )
+            BreakpointOption(id="spawn_selective", label="Select Agents", description="Choose which agents to spawn"),
+            BreakpointOption(id="skip", label="Skip Spawning", description="Continue without spawning new agents"),
+            BreakpointOption(id="cancel", label="Cancel", description="Cancel the task"),
         ]
 
         return self.request_breakpoint_sync(
             breakpoint_type=UserBreakpoint.BEFORE_SPAWN,
             context=context,
             recommendation=f"Spawn {len(agents_to_spawn)} agent(s)",
-            options=options
+            options=options,
         )
 
-    def after_diagnosis(
-        self,
-        failure_type: str,
-        root_cause: str,
-        recommended_changes: List[str]
-    ) -> BreakpointResponse:
+    def after_diagnosis(self, failure_type: str, root_cause: str, recommended_changes: list[str]) -> BreakpointResponse:
         """Breakpoint after failure diagnosis."""
         changes_list = "\n".join(f"- {c}" for c in recommended_changes)
 
@@ -519,48 +442,25 @@ class UserInteractionHandler:
 {changes_list}
 """
         options = [
-            BreakpointOption(
-                id="retry",
-                label="Retry",
-                description="Apply changes and retry",
-                is_recommended=True
-            ),
-            BreakpointOption(
-                id="modify_changes",
-                label="Modify",
-                description="Modify the recommended changes"
-            ),
-            BreakpointOption(
-                id="escalate",
-                label="Escalate",
-                description="Stop and request human intervention"
-            ),
-            BreakpointOption(
-                id="abort",
-                label="Abort",
-                description="Abort the task entirely"
-            )
+            BreakpointOption(id="retry", label="Retry", description="Apply changes and retry", is_recommended=True),
+            BreakpointOption(id="modify_changes", label="Modify", description="Modify the recommended changes"),
+            BreakpointOption(id="escalate", label="Escalate", description="Stop and request human intervention"),
+            BreakpointOption(id="abort", label="Abort", description="Abort the task entirely"),
         ]
 
         return self.request_breakpoint_sync(
             breakpoint_type=UserBreakpoint.AFTER_DIAGNOSIS,
             context=context,
             recommendation="Apply changes and retry",
-            options=options
+            options=options,
         )
 
     def knowledge_consolidation(
-        self,
-        learned_patterns: List[str],
-        agents_to_retain: List[dict],
-        knowledge_to_archive: List[str]
+        self, learned_patterns: list[str], agents_to_retain: list[dict], knowledge_to_archive: list[str]
     ) -> BreakpointResponse:
         """Breakpoint for knowledge consolidation decisions."""
         patterns_list = "\n".join(f"- {p}" for p in learned_patterns)
-        agents_list = "\n".join(
-            f"- **{a['agent_id']}**: {a.get('reason', 'N/A')}"
-            for a in agents_to_retain
-        )
+        agents_list = "\n".join(f"- **{a['agent_id']}**: {a.get('reason', 'N/A')}" for a in agents_to_retain)
         knowledge_list = "\n".join(f"- {k}" for k in knowledge_to_archive)
 
         context = f"""
@@ -581,30 +481,22 @@ class UserInteractionHandler:
                 id="accept_all",
                 label="Accept All",
                 description="Accept all consolidation recommendations",
-                is_recommended=True
+                is_recommended=True,
             ),
-            BreakpointOption(
-                id="selective",
-                label="Selective",
-                description="Review and select what to keep"
-            ),
-            BreakpointOption(
-                id="skip",
-                label="Skip",
-                description="Skip consolidation entirely"
-            )
+            BreakpointOption(id="selective", label="Selective", description="Review and select what to keep"),
+            BreakpointOption(id="skip", label="Skip", description="Skip consolidation entirely"),
         ]
 
         return self.request_breakpoint_sync(
             breakpoint_type=UserBreakpoint.KNOWLEDGE_CONSOLIDATION,
             context=context,
             recommendation="Accept all consolidation recommendations",
-            options=options
+            options=options,
         )
 
     # History and stats
 
-    def get_history(self) -> List[BreakpointResponse]:
+    def get_history(self) -> list[BreakpointResponse]:
         """Get breakpoint response history."""
         return self._history.copy()
 
@@ -634,5 +526,5 @@ class UserInteractionHandler:
             "by_type": by_type,
             "timeouts": timeouts,
             "custom_inputs": custom_inputs,
-            "timeout_rate": timeouts / len(self._history) if self._history else 0
+            "timeout_rate": timeouts / len(self._history) if self._history else 0,
         }

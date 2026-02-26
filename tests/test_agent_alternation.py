@@ -9,7 +9,6 @@ Vérifie les corrections de l'audit AUDIT_011225.md:
 5. Config: swarm_auto_route=False (config.py:178)
 """
 
-import pytest
 import sys
 from pathlib import Path
 
@@ -19,10 +18,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from core.fsm.states import OrchestratorState
 from core.synapse.protocol_v7 import LightMessageV7
 
-
 # =============================================================================
 # Tests Alternance BRAINSTORMING
 # =============================================================================
+
 
 class TestAgentAlternationE2E:
     """Tests E2E pour l'alternance agent dans BRAINSTORMING."""
@@ -37,21 +36,22 @@ class TestAgentAlternationE2E:
         orch = orchestrator_with_mocks
 
         # Gemini répond SANS spécifier next_agent
-        orch.drivers["Gemini"].set_responses([{
-            "sender": "Gemini",
-            "action_type": "TALK",
-            "content": "Je commence l'analyse du problème...",
-            # PAS DE next_agent !
-            "status": "CONTINUE"
-        }])
+        orch.drivers["Gemini"].set_responses(
+            [
+                {
+                    "sender": "Gemini",
+                    "action_type": "TALK",
+                    "content": "Je commence l'analyse du problème...",
+                    # PAS DE next_agent !
+                    "status": "CONTINUE",
+                }
+            ]
+        )
 
         # Claude terminera (use FINISH action_type for FINISHED status)
-        orch.drivers["Claude"].set_responses([{
-            "sender": "Claude",
-            "action_type": "FINISH",
-            "content": "Done",
-            "status": "FINISHED"
-        }])
+        orch.drivers["Claude"].set_responses(
+            [{"sender": "Claude", "action_type": "FINISH", "content": "Done", "status": "FINISHED"}]
+        )
 
         # Premier tour: Forcer BRAINSTORMING manuellement pour le test
         # V8.4.0: Use lowercase normalized IDs
@@ -61,31 +61,23 @@ class TestAgentAlternationE2E:
         initial_agent = orch.active_agent  # Should be "gemini"
 
         # Deuxième tour: Gemini répond
-        result2 = orch.process_turn()
+        orch.process_turn()
 
         # APRÈS CORRECTION P0-1: doit avoir alterné vers Claude
-        assert orch.active_agent != initial_agent, \
-            f"Alternation not forced! Agent stayed {orch.active_agent}"
-        assert orch.active_agent == "claude", \
-            f"Expected claude, got {orch.active_agent}"
+        assert orch.active_agent != initial_agent, f"Alternation not forced! Agent stayed {orch.active_agent}"
+        assert orch.active_agent == "claude", f"Expected claude, got {orch.active_agent}"
 
     def test_gemini_to_claude_handoff(self, orchestrator_with_mocks):
         """Gemini doit passer à Claude après sa réponse."""
         orch = orchestrator_with_mocks
 
-        orch.drivers["Gemini"].set_responses([{
-            "sender": "Gemini",
-            "action_type": "TALK",
-            "content": "Analyzing...",
-            "status": "CONTINUE"
-        }])
+        orch.drivers["Gemini"].set_responses(
+            [{"sender": "Gemini", "action_type": "TALK", "content": "Analyzing...", "status": "CONTINUE"}]
+        )
 
-        orch.drivers["Claude"].set_responses([{
-            "sender": "Claude",
-            "action_type": "FINISH",
-            "content": "Done",
-            "status": "FINISHED"
-        }])
+        orch.drivers["Claude"].set_responses(
+            [{"sender": "Claude", "action_type": "FINISH", "content": "Done", "status": "FINISHED"}]
+        )
 
         # Start with Gemini in BRAINSTORMING mode
         # V8.4.0: Use lowercase normalized IDs
@@ -104,19 +96,13 @@ class TestAgentAlternationE2E:
         # Force start with Claude (V8.4.0: lowercase)
         orch.active_agent = "claude"
 
-        orch.drivers["Claude"].set_responses([{
-            "sender": "Claude",
-            "action_type": "TALK",
-            "content": "I'm analyzing...",
-            "status": "CONTINUE"
-        }])
+        orch.drivers["Claude"].set_responses(
+            [{"sender": "Claude", "action_type": "TALK", "content": "I'm analyzing...", "status": "CONTINUE"}]
+        )
 
-        orch.drivers["Gemini"].set_responses([{
-            "sender": "Gemini",
-            "action_type": "FINISH",
-            "content": "Done",
-            "status": "FINISHED"
-        }])
+        orch.drivers["Gemini"].set_responses(
+            [{"sender": "Gemini", "action_type": "FINISH", "content": "Done", "status": "FINISHED"}]
+        )
 
         # Force start with Claude in BRAINSTORMING mode (V8.4.0: lowercase)
         orch.active_agent = "claude"
@@ -136,15 +122,19 @@ class TestAgentAlternationE2E:
         orch = orchestrator_with_mocks
 
         # 4 réponses de chaque agent
-        orch.drivers["Gemini"].set_responses([
-            {"sender": "Gemini", "action_type": "TALK", "content": "Turn 1", "status": "CONTINUE"},
-            {"sender": "Gemini", "action_type": "TALK", "content": "Turn 3", "status": "CONTINUE"},
-        ])
+        orch.drivers["Gemini"].set_responses(
+            [
+                {"sender": "Gemini", "action_type": "TALK", "content": "Turn 1", "status": "CONTINUE"},
+                {"sender": "Gemini", "action_type": "TALK", "content": "Turn 3", "status": "CONTINUE"},
+            ]
+        )
 
-        orch.drivers["Claude"].set_responses([
-            {"sender": "Claude", "action_type": "TALK", "content": "Turn 2", "status": "CONTINUE"},
-            {"sender": "Claude", "action_type": "FINISH", "content": "Turn 4", "status": "FINISHED"},
-        ])
+        orch.drivers["Claude"].set_responses(
+            [
+                {"sender": "Claude", "action_type": "TALK", "content": "Turn 2", "status": "CONTINUE"},
+                {"sender": "Claude", "action_type": "FINISH", "content": "Turn 4", "status": "FINISHED"},
+            ]
+        )
 
         # Force BRAINSTORMING mode for testing alternation
         orch.active_agent = "Gemini"
@@ -152,7 +142,7 @@ class TestAgentAlternationE2E:
         orch.stagnation_detector.reset()
 
         # Run until completion
-        result = run_orchestrator_loop(orch, "Multi-turn test", max_iterations=6)
+        run_orchestrator_loop(orch, "Multi-turn test", max_iterations=6)
 
         # Both agents should have been called
         assert orch.drivers["Gemini"].call_count >= 1, "Gemini should have been called"
@@ -176,6 +166,7 @@ class TestAgentAlternationE2E:
 # Tests Protocol Validator
 # =============================================================================
 
+
 class TestProtocolValidatorAlternation:
     """Tests pour la correction P1: Protocol validator alterne."""
 
@@ -192,25 +183,19 @@ class TestProtocolValidatorAlternation:
             action_type="TALK",
             content="Test message",
             status="CONTINUE",
-            next_agent=None  # Not specified
+            next_agent=None,  # Not specified
         )
 
         # After P1 fix: should be "Claude" (alternated), not "Gemini" (kept)
-        assert gemini_msg.next_agent == "Claude", \
-            f"Expected 'Claude' but got '{gemini_msg.next_agent}'"
+        assert gemini_msg.next_agent == "Claude", f"Expected 'Claude' but got '{gemini_msg.next_agent}'"
 
     def test_protocol_validator_alternates_claude_to_gemini(self):
         """Claude sender → next_agent should be Gemini."""
         claude_msg = LightMessageV7(
-            sender="Claude",
-            action_type="TALK",
-            content="Test",
-            status="CONTINUE",
-            next_agent=None
+            sender="Claude", action_type="TALK", content="Test", status="CONTINUE", next_agent=None
         )
 
-        assert claude_msg.next_agent == "Gemini", \
-            f"Expected 'Gemini' but got '{claude_msg.next_agent}'"
+        assert claude_msg.next_agent == "Gemini", f"Expected 'Gemini' but got '{claude_msg.next_agent}'"
 
     def test_protocol_validator_respects_explicit_next_agent(self):
         """Si next_agent est explicitement spécifié, le garder."""
@@ -219,16 +204,16 @@ class TestProtocolValidatorAlternation:
             action_type="TALK",
             content="I want to continue",
             status="CONTINUE",
-            next_agent="Gemini"  # Explicitly staying
+            next_agent="Gemini",  # Explicitly staying
         )
 
-        assert msg.next_agent == "Gemini", \
-            "Explicit next_agent should be respected"
+        assert msg.next_agent == "Gemini", "Explicit next_agent should be respected"
 
 
 # =============================================================================
 # Tests SWARM Feedback
 # =============================================================================
+
 
 class TestSwarmFeedbackEmojis:
     """Tests pour la correction P2: Emojis SWARM."""
@@ -248,6 +233,7 @@ class TestSwarmFeedbackEmojis:
 # Tests Configuration
 # =============================================================================
 
+
 class TestSwarmAutoRouteConfig:
     """Tests pour la config swarm_auto_route (V7.5: True par défaut)."""
 
@@ -257,16 +243,18 @@ class TestSwarmAutoRouteConfig:
 
         Le Swarm est maintenant le mode principal pour les tâches MODERATE+.
         """
-        from core.config import Config
         import os
+
+        from core.config import Config
 
         # Clear env var if set
         old_value = os.environ.pop("SWARM_AUTO_ROUTE", None)
 
         try:
             cfg = Config()
-            assert cfg.swarm_auto_route is True, \
+            assert cfg.swarm_auto_route is True, (
                 f"swarm_auto_route should default to True (V7.5), got {cfg.swarm_auto_route}"
+            )
         finally:
             # Restore env var if it was set
             if old_value is not None:
@@ -274,16 +262,16 @@ class TestSwarmAutoRouteConfig:
 
     def test_swarm_auto_route_can_be_enabled_via_env(self):
         """swarm_auto_route peut être activé via SWARM_AUTO_ROUTE=True."""
-        from core.config import Config
         import os
+
+        from core.config import Config
 
         old_value = os.environ.get("SWARM_AUTO_ROUTE")
         os.environ["SWARM_AUTO_ROUTE"] = "True"
 
         try:
             cfg = Config()
-            assert cfg.swarm_auto_route is True, \
-                "swarm_auto_route should be True when env var is True"
+            assert cfg.swarm_auto_route is True, "swarm_auto_route should be True when env var is True"
         finally:
             if old_value is not None:
                 os.environ["SWARM_AUTO_ROUTE"] = old_value
@@ -294,6 +282,7 @@ class TestSwarmAutoRouteConfig:
 # =============================================================================
 # Tests Intégration Complète
 # =============================================================================
+
 
 class TestFullAlternationIntegration:
     """Tests d'intégration complète de l'alternance."""
@@ -311,19 +300,27 @@ class TestFullAlternationIntegration:
         """
         orch = orchestrator_with_mocks
 
-        orch.drivers["Gemini"].set_responses([{
-            "sender": "Gemini",
-            "action_type": "TALK",
-            "content": "J'ai analysé le problème. Il faut modifier le fichier auth.py.",
-            "status": "CONTINUE"
-        }])
+        orch.drivers["Gemini"].set_responses(
+            [
+                {
+                    "sender": "Gemini",
+                    "action_type": "TALK",
+                    "content": "J'ai analysé le problème. Il faut modifier le fichier auth.py.",
+                    "status": "CONTINUE",
+                }
+            ]
+        )
 
-        orch.drivers["Claude"].set_responses([{
-            "sender": "Claude",
-            "action_type": "FINISH",  # CRITICAL: Use FINISH for status="FINISHED"
-            "content": "D'accord, je vais faire la modification. Tâche terminée.",
-            "status": "FINISHED"
-        }])
+        orch.drivers["Claude"].set_responses(
+            [
+                {
+                    "sender": "Claude",
+                    "action_type": "FINISH",  # CRITICAL: Use FINISH for status="FINISHED"
+                    "content": "D'accord, je vais faire la modification. Tâche terminée.",
+                    "status": "FINISHED",
+                }
+            ]
+        )
 
         # Force BRAINSTORMING mode for testing alternation
         orch.active_agent = "Gemini"
@@ -333,8 +330,9 @@ class TestFullAlternationIntegration:
         result = run_orchestrator_loop(orch, "Fix the auth bug")
 
         # Should have completed successfully
-        assert result["final_state"] in ("IDLE", "WAITING_USER"), \
+        assert result["final_state"] in ("IDLE", "WAITING_USER"), (
             f"Task should complete, got state {result['final_state']}"
+        )
 
         # Both agents should have participated
         assert orch.drivers["Gemini"].call_count >= 1
@@ -344,6 +342,7 @@ class TestFullAlternationIntegration:
 # =============================================================================
 # Tests TRIVIAL Input Detection (V7 FIX)
 # =============================================================================
+
 
 class TestTrivialInputDetection:
     """Tests pour la détection des inputs triviaux (salutations, etc.)."""
@@ -355,18 +354,24 @@ class TestTrivialInputDetection:
         ta = TaskAnalyzer()
 
         trivial_inputs = [
-            "hello", "Hello!", "HELLO?",
-            "bonjour", "Bonjour!",
-            "salut", "hey", "hi",
-            "test", "ok", "oui", "merci",
+            "hello",
+            "Hello!",
+            "HELLO?",
+            "bonjour",
+            "Bonjour!",
+            "salut",
+            "hey",
+            "hi",
+            "test",
+            "ok",
+            "oui",
+            "merci",
         ]
 
         for input_text in trivial_inputs:
-            assert ta.is_conversational_trivial(input_text), \
-                f"'{input_text}' should be detected as trivial"
+            assert ta.is_conversational_trivial(input_text), f"'{input_text}' should be detected as trivial"
             analysis = ta.analyze(input_text)
-            assert analysis.complexity == TaskComplexity.TRIVIAL, \
-                f"'{input_text}' should have TRIVIAL complexity"
+            assert analysis.complexity == TaskComplexity.TRIVIAL, f"'{input_text}' should have TRIVIAL complexity"
 
     def test_non_trivial_inputs_not_detected(self):
         """Les tâches réelles ne doivent PAS être détectées comme TRIVIAL."""
@@ -382,11 +387,9 @@ class TestTrivialInputDetection:
         ]
 
         for input_text in non_trivial_inputs:
-            assert not ta.is_conversational_trivial(input_text), \
-                f"'{input_text}' should NOT be detected as trivial"
+            assert not ta.is_conversational_trivial(input_text), f"'{input_text}' should NOT be detected as trivial"
             analysis = ta.analyze(input_text)
-            assert analysis.complexity != TaskComplexity.TRIVIAL, \
-                f"'{input_text}' should NOT have TRIVIAL complexity"
+            assert analysis.complexity != TaskComplexity.TRIVIAL, f"'{input_text}' should NOT have TRIVIAL complexity"
 
     def test_trivial_analysis_has_special_keyword(self):
         """Les inputs TRIVIAL doivent avoir le keyword spécial."""
@@ -395,7 +398,7 @@ class TestTrivialInputDetection:
         ta = TaskAnalyzer()
         analysis = ta.analyze("hello")
 
-        assert "[TRIVIAL_CONVERSATIONAL]" in analysis.detected_keywords, \
+        assert "[TRIVIAL_CONVERSATIONAL]" in analysis.detected_keywords, (
             "TRIVIAL input should have special keyword marker"
-        assert analysis.confidence == 1.0, \
-            "TRIVIAL input should have high confidence"
+        )
+        assert analysis.confidence == 1.0, "TRIVIAL input should have high confidence"

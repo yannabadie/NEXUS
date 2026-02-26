@@ -19,15 +19,16 @@ Usage:
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from pathlib import Path
-from typing import Dict, Any, Optional, Callable
+from typing import Any
 
+from .handlers.base import ToolResult
+from .handlers.bash_handler import create_bash_handler
+from .handlers.file_handlers import create_file_handlers
+from .handlers.search_handlers import create_search_handlers
 from .tool_registry import ToolRegistry, get_tool_registry
 from .validation_service import ValidationService
-from .handlers.base import ToolResult
-from .handlers.file_handlers import create_file_handlers
-from .handlers.bash_handler import create_bash_handler
-from .handlers.search_handlers import create_search_handlers
 
 logger = logging.getLogger(__name__)
 
@@ -46,8 +47,8 @@ class ExecutionEngine:
     def __init__(
         self,
         workspace_path: Path,
-        registry: Optional[ToolRegistry] = None,
-        validation_service: Optional[ValidationService] = None,
+        registry: ToolRegistry | None = None,
+        validation_service: ValidationService | None = None,
     ):
         """
         Initialize execution engine.
@@ -128,16 +129,12 @@ class ExecutionEngine:
         Returns:
             ToolResult with execution outcome
         """
-        tool_name = getattr(tool_request, 'tool_name', '')
-        arguments = getattr(tool_request, 'arguments', {})
+        tool_name = getattr(tool_request, "tool_name", "")
+        arguments = getattr(tool_request, "arguments", {})
 
         return self.execute_by_name(tool_name, arguments)
 
-    def execute_by_name(
-        self,
-        tool_name: str,
-        arguments: Dict[str, Any]
-    ) -> ToolResult:
+    def execute_by_name(self, tool_name: str, arguments: dict[str, Any]) -> ToolResult:
         """
         Execute a tool by name.
 
@@ -180,7 +177,7 @@ class ExecutionEngine:
     def register_handler(
         self,
         name: str,
-        handler: Callable[[Dict[str, Any]], ToolResult],
+        handler: Callable[[dict[str, Any]], ToolResult],
         *,
         category: str = "custom",
         description: str = "",
@@ -214,7 +211,7 @@ class ExecutionEngine:
         """Enable or disable evolution mode."""
         self.validation_service.set_evolution_mode(enabled)
 
-    def get_stats(self) -> Dict[str, int]:
+    def get_stats(self) -> dict[str, int]:
         """Get execution statistics."""
         return dict(self._stats)
 
@@ -231,10 +228,10 @@ class ExecutionEngine:
 # =============================================================================
 # V10 PRISM: Multi-Tenant Execution Engine Access
 # =============================================================================
-_engine_instance: Optional[ExecutionEngine] = None
+_engine_instance: ExecutionEngine | None = None
 
 
-def get_execution_engine(workspace_path: Optional[Path] = None) -> ExecutionEngine:
+def get_execution_engine(workspace_path: Path | None = None) -> ExecutionEngine:
     """
     Get the execution engine for the current tenant context.
 
@@ -250,8 +247,10 @@ def get_execution_engine(workspace_path: Optional[Path] = None) -> ExecutionEngi
     # V10: Try ServiceFactory first (tenant-scoped)
     try:
         from ..context import has_active_session
+
         if has_active_session():
             from ..factory import ServiceFactory
+
             return ServiceFactory.get_execution_engine()
     except ImportError:
         pass  # context module not available, use legacy
@@ -278,6 +277,7 @@ def reset_execution_engine() -> None:
     try:
         from ..context import get_current_session_or_none
         from ..factory import ServiceFactory
+
         ctx = get_current_session_or_none()
         if ctx:
             ServiceFactory.clear_tenant_cache(ctx.tenant_id)

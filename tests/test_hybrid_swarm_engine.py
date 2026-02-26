@@ -23,27 +23,31 @@ Coverage targets:
 """
 
 import sys
-import time
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 # Add parent to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.intelligence.swarm.hybrid_swarm_engine import (
-    SwarmPhase,
-    SwarmResult,
-    HybridSwarmEngine,
+from core.intelligence.swarm.agent_metrics import (
+    AgentPool,
+    AgentProfile,
+    create_default_pool,
 )
 from core.intelligence.swarm.collaboration_modes import CollaborationMode
-from core.intelligence.swarm.task_analyzer import (
-    TaskComplexity,
-    TaskDomain,
-    TaskAnalysis,
-    AnalysisStage,
+from core.intelligence.swarm.hybrid_swarm_engine import (
+    HybridSwarmEngine,
+    SwarmPhase,
+    SwarmResult,
+)
+from core.intelligence.swarm.mode_executors import (
+    AgentResponse,
+    ExecutionContext,
+    ExecutionResult,
+    ExecutionStatus,
 )
 from core.intelligence.swarm.mode_selector import (
     AgentAssignment,
@@ -53,23 +57,16 @@ from core.intelligence.swarm.negotiation_protocol import (
     NegotiationResult,
     NegotiationStatus,
 )
-from core.intelligence.swarm.mode_executors import (
-    ExecutionContext,
-    ExecutionResult,
-    ExecutionStatus,
-    AgentResponse,
+from core.intelligence.swarm.task_analyzer import (
+    TaskAnalysis,
+    TaskComplexity,
+    TaskDomain,
 )
-from core.intelligence.swarm.agent_metrics import (
-    AgentPool,
-    AgentProfile,
-    AgentInvocationResult,
-    create_default_pool,
-)
-
 
 # ---------------------------------------------------------------------------
 # Helpers: reusable fixtures and factory functions
 # ---------------------------------------------------------------------------
+
 
 def _make_analysis(
     complexity: TaskComplexity = TaskComplexity.MODERATE,
@@ -147,18 +144,23 @@ def _make_negotiation_result(
 # Telemetry bridge mock applied to all tests in this module
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(autouse=True)
 def mock_telemetry():
     """Mock the telemetry bridge for all tests to avoid Redis dependency."""
     mock_bridge = MagicMock()
     mock_bridge.emit_sync = MagicMock()
-    with patch(
-        "core.intelligence.swarm.hybrid_swarm_engine.get_telemetry_bridge",
-        return_value=mock_bridge,
-    ), patch(
-        "core.intelligence.swarm.hybrid_swarm_engine.emit_agent_exchange",
-    ), patch(
-        "core.intelligence.swarm.hybrid_swarm_engine.emit_agent_speak",
+    with (
+        patch(
+            "core.intelligence.swarm.hybrid_swarm_engine.get_telemetry_bridge",
+            return_value=mock_bridge,
+        ),
+        patch(
+            "core.intelligence.swarm.hybrid_swarm_engine.emit_agent_exchange",
+        ),
+        patch(
+            "core.intelligence.swarm.hybrid_swarm_engine.emit_agent_speak",
+        ),
     ):
         yield mock_bridge
 
@@ -173,8 +175,7 @@ class TestSwarmPhase:
 
     def test_all_phases_exist(self):
         """All 7 SwarmPhase values must be present."""
-        expected = {"idle", "analyzing", "selecting", "negotiating",
-                    "executing", "completed", "failed"}
+        expected = {"idle", "analyzing", "selecting", "negotiating", "executing", "completed", "failed"}
         actual = {phase.value for phase in SwarmPhase}
         assert actual == expected
 
@@ -229,9 +230,15 @@ class TestSwarmResult:
     def test_to_dict_keys(self):
         d = self._make_result().to_dict()
         required_keys = {
-            "status", "final_output", "selected_mode",
-            "task_analysis", "mode_proposal", "negotiation_result",
-            "execution_result", "total_time_seconds", "timestamp",
+            "status",
+            "final_output",
+            "selected_mode",
+            "task_analysis",
+            "mode_proposal",
+            "negotiation_result",
+            "execution_result",
+            "total_time_seconds",
+            "timestamp",
         }
         assert required_keys.issubset(d.keys())
 
@@ -298,9 +305,7 @@ class TestHybridSwarmEngineConstructor:
 
     def test_custom_agent_pool(self):
         pool = AgentPool()
-        pool.register(AgentProfile(
-            agent_id="test_agent", provider="test", model="test-model"
-        ))
+        pool.register(AgentProfile(agent_id="test_agent", provider="test", model="test-model"))
         engine = HybridSwarmEngine(agent_pool=pool)
         assert "test_agent" in engine.agent_pool.agents
 
@@ -426,7 +431,7 @@ class TestProcessTaskFullFlow:
 
         # Default config enables negotiation
         engine.config = None
-        result = engine.process_task("Do something")
+        engine.process_task("Do something")
         engine.negotiation.run_negotiation.assert_called_once()
 
     @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
@@ -434,7 +439,7 @@ class TestProcessTaskFullFlow:
         engine, analysis, proposal, exec_result = self._build_engine_with_mocks()
         mock_get_exec.return_value.execute_with_fallback.return_value = exec_result
 
-        result = engine.process_task("Do something", skip_negotiation=True)
+        engine.process_task("Do something", skip_negotiation=True)
         engine.negotiation.run_negotiation.assert_not_called()
 
     @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
@@ -442,9 +447,7 @@ class TestProcessTaskFullFlow:
         engine, analysis, proposal, exec_result = self._build_engine_with_mocks()
         mock_get_exec.return_value.execute_with_fallback.return_value = exec_result
 
-        result = engine.process_task(
-            "Do something", force_mode=CollaborationMode.SPECIALIST
-        )
+        engine.process_task("Do something", force_mode=CollaborationMode.SPECIALIST)
         engine.negotiation.run_negotiation.assert_not_called()
 
     @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
@@ -523,13 +526,17 @@ class TestPhaseTransitions:
         mock_bridge = MagicMock()
         mock_bridge.emit_sync = emit_sync_tracker
 
-        with patch(
-            "core.intelligence.swarm.hybrid_swarm_engine.get_telemetry_bridge",
-            return_value=mock_bridge,
-        ), patch(
-            "core.intelligence.swarm.hybrid_swarm_engine.emit_agent_exchange",
-        ), patch(
-            "core.intelligence.swarm.hybrid_swarm_engine.emit_agent_speak",
+        with (
+            patch(
+                "core.intelligence.swarm.hybrid_swarm_engine.get_telemetry_bridge",
+                return_value=mock_bridge,
+            ),
+            patch(
+                "core.intelligence.swarm.hybrid_swarm_engine.emit_agent_exchange",
+            ),
+            patch(
+                "core.intelligence.swarm.hybrid_swarm_engine.emit_agent_speak",
+            ),
         ):
             engine.process_task("Test task")
 
@@ -602,16 +609,12 @@ class TestAutoRouting:
         engine.task_analyzer = MagicMock()
         engine.task_analyzer.analyze.return_value = _make_analysis()
         engine.mode_selector = MagicMock()
-        engine.mode_selector.select_mode.return_value = _make_proposal(
-            mode=CollaborationMode.SEQUENTIAL
-        )
+        engine.mode_selector.select_mode.return_value = _make_proposal(mode=CollaborationMode.SEQUENTIAL)
 
         exec_result = _make_execution_result(mode=CollaborationMode.SPECIALIST)
         mock_get_exec.return_value.execute_with_fallback.return_value = exec_result
 
-        result = engine.process_task(
-            "Do something", force_mode=CollaborationMode.SPECIALIST, skip_negotiation=True
-        )
+        result = engine.process_task("Do something", force_mode=CollaborationMode.SPECIALIST, skip_negotiation=True)
         assert result.selected_mode == CollaborationMode.SPECIALIST
 
     @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
@@ -621,16 +624,12 @@ class TestAutoRouting:
         analysis = _make_analysis()
         engine.task_analyzer.analyze.return_value = analysis
         engine.mode_selector = MagicMock()
-        engine.mode_selector.select_mode.return_value = _make_proposal(
-            mode=CollaborationMode.PING_PONG
-        )
+        engine.mode_selector.select_mode.return_value = _make_proposal(mode=CollaborationMode.PING_PONG)
 
         exec_result = _make_execution_result(mode=CollaborationMode.RED_BLUE)
         mock_get_exec.return_value.execute_with_fallback.return_value = exec_result
 
-        result = engine.process_task(
-            "Security review", force_mode=CollaborationMode.RED_BLUE
-        )
+        result = engine.process_task("Security review", force_mode=CollaborationMode.RED_BLUE)
         # The forced proposal should have confidence=1.0
         assert result.mode_proposal.confidence == 1.0
         assert result.mode_proposal.reasoning == "User forced mode"
@@ -642,9 +641,7 @@ class TestAutoRouting:
         engine.task_analyzer = MagicMock()
         engine.task_analyzer.analyze.return_value = _make_analysis()
         engine.mode_selector = MagicMock()
-        engine.mode_selector.select_mode.return_value = _make_proposal(
-            mode=CollaborationMode.PING_PONG
-        )
+        engine.mode_selector.select_mode.return_value = _make_proposal(mode=CollaborationMode.PING_PONG)
         engine.negotiation = MagicMock()
         neg_result = _make_negotiation_result(
             status=NegotiationStatus.CONSENSUS,
@@ -731,9 +728,7 @@ class TestExecutionDelegation:
         engine.task_analyzer = MagicMock()
         engine.task_analyzer.analyze.return_value = _make_analysis()
         engine.mode_selector = MagicMock()
-        engine.mode_selector.select_mode.return_value = _make_proposal(
-            mode=CollaborationMode.SPECIALIST
-        )
+        engine.mode_selector.select_mode.return_value = _make_proposal(mode=CollaborationMode.SPECIALIST)
         engine.negotiation = MagicMock()
         engine.negotiation.run_negotiation.return_value = _make_negotiation_result(
             status=NegotiationStatus.CONSENSUS,
@@ -744,9 +739,7 @@ class TestExecutionDelegation:
         mock_get_exec.return_value.execute_with_fallback.return_value = exec_result
 
         engine.process_task("Do something")
-        mock_get_exec.assert_called_once_with(
-            CollaborationMode.SPECIALIST, workspace_path=None
-        )
+        mock_get_exec.assert_called_once_with(CollaborationMode.SPECIALIST, workspace_path=None)
 
     @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_self_healing_enabled_uses_execute_with_fallback(self, mock_get_exec):
@@ -873,9 +866,7 @@ class TestErrorHandling:
         engine.task_analyzer = MagicMock()
         engine.task_analyzer.analyze.side_effect = Exception("fail")
 
-        result = engine.process_task(
-            "Do something", force_mode=CollaborationMode.RED_BLUE
-        )
+        result = engine.process_task("Do something", force_mode=CollaborationMode.RED_BLUE)
         assert result.selected_mode == CollaborationMode.RED_BLUE
 
     @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
@@ -965,9 +956,7 @@ class TestSessionTracking:
     def test_session_ephemeral_for_trivial(self, mock_get_exec, tmp_path):
         engine = HybridSwarmEngine(workspace_path=tmp_path)
         engine.task_analyzer = MagicMock()
-        engine.task_analyzer.analyze.return_value = _make_analysis(
-            complexity=TaskComplexity.TRIVIAL
-        )
+        engine.task_analyzer.analyze.return_value = _make_analysis(complexity=TaskComplexity.TRIVIAL)
         engine.mode_selector = MagicMock()
         engine.mode_selector.select_mode.return_value = _make_proposal()
         engine.negotiation = MagicMock()
@@ -981,9 +970,11 @@ class TestSessionTracking:
 
         engine.process_task("hello")
         call_kwargs = engine.session_manager.create_task.call_args
-        assert call_kwargs[1].get("is_ephemeral") is True or (
-            len(call_kwargs[0]) > 2 and call_kwargs[0][2] is True
-        ) or call_kwargs.kwargs.get("is_ephemeral") is True
+        assert (
+            call_kwargs[1].get("is_ephemeral") is True
+            or (len(call_kwargs[0]) > 2 and call_kwargs[0][2] is True)
+            or call_kwargs.kwargs.get("is_ephemeral") is True
+        )
 
 
 # ============================================================================
@@ -1153,7 +1144,7 @@ class TestEdgeCases:
         mock_executor.execute_with_fallback.return_value = exec_result
         mock_get_exec.return_value = mock_executor
 
-        result = engine.process_task("task", blackboard=None)
+        engine.process_task("task", blackboard=None)
         ctx = mock_executor.execute_with_fallback.call_args[0][0]
         assert isinstance(ctx.blackboard, dict)
 
@@ -1426,13 +1417,10 @@ class TestSpawnedAgentSupport:
 
     def test_should_suggest_spawning_covered_domains_returns_false(self):
         pool = AgentPool()
-        pool.register(AgentProfile(
-            agent_id="gemini_primary", provider="gemini", model="m"
-        ))
-        pool.register(AgentProfile(
-            agent_id="coding_specialist", provider="spawned", model="m",
-            capabilities=["coding"]
-        ))
+        pool.register(AgentProfile(agent_id="gemini_primary", provider="gemini", model="m"))
+        pool.register(
+            AgentProfile(agent_id="coding_specialist", provider="spawned", model="m", capabilities=["coding"])
+        )
         engine = HybridSwarmEngine(agent_pool=pool)
 
         analysis = _make_analysis(
@@ -1462,26 +1450,16 @@ class TestSpawnedAgentSupport:
 
     def test_count_spawned_agents_with_spawned(self):
         pool = AgentPool()
-        pool.register(AgentProfile(
-            agent_id="internal", provider="gemini", model="m"
-        ))
-        pool.register(AgentProfile(
-            agent_id="spawned1", provider="spawned", model="m"
-        ))
-        pool.register(AgentProfile(
-            agent_id="spawned2", provider="spawned", model="m"
-        ))
+        pool.register(AgentProfile(agent_id="internal", provider="gemini", model="m"))
+        pool.register(AgentProfile(agent_id="spawned1", provider="spawned", model="m"))
+        pool.register(AgentProfile(agent_id="spawned2", provider="spawned", model="m"))
         engine = HybridSwarmEngine(agent_pool=pool)
         assert engine._count_spawned_agents() == 2
 
     def test_get_spawned_agents_filters_correctly(self):
         pool = AgentPool()
-        pool.register(AgentProfile(
-            agent_id="internal", provider="claude", model="m"
-        ))
-        pool.register(AgentProfile(
-            agent_id="spawned1", provider="spawned", model="m"
-        ))
+        pool.register(AgentProfile(agent_id="internal", provider="claude", model="m"))
+        pool.register(AgentProfile(agent_id="spawned1", provider="spawned", model="m"))
         engine = HybridSwarmEngine(agent_pool=pool)
         spawned = engine._get_spawned_agents()
         assert len(spawned) == 1
@@ -1632,9 +1610,11 @@ class TestCallbacks:
         engine.process_task("task", on_negotiation_turn=callback)
 
         call_kwargs = engine.negotiation.run_negotiation.call_args
-        assert call_kwargs.kwargs.get("on_turn") is callback or (
-            len(call_kwargs.args) >= 4 and call_kwargs.args[3] is callback
-        ) or call_kwargs[1].get("on_turn") is callback
+        assert (
+            call_kwargs.kwargs.get("on_turn") is callback
+            or (len(call_kwargs.args) >= 4 and call_kwargs.args[3] is callback)
+            or call_kwargs[1].get("on_turn") is callback
+        )
 
 
 # ============================================================================
@@ -1720,9 +1700,7 @@ class TestAdaptiveMaxRounds:
 
         engine = HybridSwarmEngine()
         engine.task_analyzer = MagicMock()
-        engine.task_analyzer.analyze.return_value = _make_analysis(
-            complexity=TaskComplexity.EXPERT
-        )
+        engine.task_analyzer.analyze.return_value = _make_analysis(complexity=TaskComplexity.EXPERT)
         engine.mode_selector = MagicMock()
         engine.mode_selector.select_mode.return_value = _make_proposal()
         engine.negotiation = MagicMock()
@@ -1779,9 +1757,7 @@ class TestSpawningSuggestionInResult:
     def test_spawning_suggestion_added_to_metadata(self, mock_get_exec):
         engine = HybridSwarmEngine()
         engine.task_analyzer = MagicMock()
-        engine.task_analyzer.analyze.return_value = _make_analysis(
-            complexity=TaskComplexity.COMPLEX
-        )
+        engine.task_analyzer.analyze.return_value = _make_analysis(complexity=TaskComplexity.COMPLEX)
         engine.mode_selector = MagicMock()
         engine.mode_selector.select_mode.return_value = _make_proposal()
         engine.negotiation = MagicMock()
@@ -1797,9 +1773,7 @@ class TestSpawningSuggestionInResult:
     def test_no_spawning_suggestion_for_simple(self, mock_get_exec):
         engine = HybridSwarmEngine()
         engine.task_analyzer = MagicMock()
-        engine.task_analyzer.analyze.return_value = _make_analysis(
-            complexity=TaskComplexity.SIMPLE
-        )
+        engine.task_analyzer.analyze.return_value = _make_analysis(complexity=TaskComplexity.SIMPLE)
         engine.mode_selector = MagicMock()
         engine.mode_selector.select_mode.return_value = _make_proposal()
         engine.negotiation = MagicMock()

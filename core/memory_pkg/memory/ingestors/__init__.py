@@ -27,12 +27,13 @@ Environment:
 
 import logging
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Any
 
 # Try to import docling
 try:
-    from docling.document_converter import DocumentConverter
     from docling.datamodel.base_models import InputFormat
+    from docling.document_converter import DocumentConverter
+
     DOCLING_AVAILABLE = True
 except ImportError:
     DOCLING_AVAILABLE = False
@@ -115,6 +116,7 @@ CODE_EXTENSIONS = {
 # UniversalIngestor Class
 # =============================================================================
 
+
 class UniversalIngestor:
     """
     Universal document ingestor using IBM's Docling.
@@ -138,10 +140,10 @@ class UniversalIngestor:
         self._logger = logging.getLogger("nexus.ingestor")
         self._device = device
         self._enable_ocr = enable_ocr
-        self._converter: Optional[DocumentConverter] = None
+        self._converter: DocumentConverter | None = None
 
     @property
-    def converter(self) -> Optional[DocumentConverter]:
+    def converter(self) -> DocumentConverter | None:
         """Lazy-load Docling converter."""
         if self._converter is None and DOCLING_AVAILABLE:
             try:
@@ -157,7 +159,7 @@ class UniversalIngestor:
         return DOCLING_AVAILABLE
 
     @staticmethod
-    def get_supported_extensions() -> Dict[str, str]:
+    def get_supported_extensions() -> dict[str, str]:
         """Get all supported file extensions with descriptions."""
         all_extensions = {}
         all_extensions.update(DOCLING_EXTENSIONS)
@@ -176,11 +178,7 @@ class UniversalIngestor:
             True if the file format is supported
         """
         suffix = path.suffix.lower()
-        return (
-            suffix in DOCLING_EXTENSIONS or
-            suffix in TEXT_EXTENSIONS or
-            suffix in CODE_EXTENSIONS
-        )
+        return suffix in DOCLING_EXTENSIONS or suffix in TEXT_EXTENSIONS or suffix in CODE_EXTENSIONS
 
     def get_format_type(self, path: Path) -> str:
         """
@@ -201,7 +199,7 @@ class UniversalIngestor:
             return "code"
         return "unknown"
 
-    def ingest(self, path: Path) -> Optional[str]:
+    def ingest(self, path: Path) -> str | None:
         """
         Ingest a file and convert to markdown.
 
@@ -228,7 +226,7 @@ class UniversalIngestor:
             self._logger.warning(f"Unsupported format: {suffix}")
             return None
 
-    def _ingest_with_docling(self, path: Path) -> Optional[str]:
+    def _ingest_with_docling(self, path: Path) -> str | None:
         """
         Ingest using Docling document converter.
 
@@ -265,7 +263,7 @@ class UniversalIngestor:
             # Try fallback text extraction
             return self._ingest_text(path)
 
-    def _ingest_text(self, path: Path) -> Optional[str]:
+    def _ingest_text(self, path: Path) -> str | None:
         """
         Basic text file ingestion.
 
@@ -285,7 +283,7 @@ class UniversalIngestor:
             self._logger.warning(f"Failed to read {path}: {e}")
             return None
 
-    def _ingest_code(self, path: Path) -> Optional[str]:
+    def _ingest_code(self, path: Path) -> str | None:
         """
         Code file ingestion (returns raw code).
 
@@ -300,7 +298,7 @@ class UniversalIngestor:
         """
         return self._ingest_text(path)
 
-    def get_info(self) -> Dict[str, Any]:
+    def get_info(self) -> dict[str, Any]:
         """
         Get information about the ingestor.
 

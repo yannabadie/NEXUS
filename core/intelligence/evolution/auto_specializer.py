@@ -28,8 +28,8 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Set
+from datetime import UTC, datetime
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -37,6 +37,7 @@ _logger = logging.getLogger(__name__)
 # =============================================================================
 # Configuration
 # =============================================================================
+
 
 @dataclass
 class SpecializationConfig:
@@ -51,27 +52,30 @@ class SpecializationConfig:
         cooldown_hours: Minimum hours between proposals for same domain (default 24)
         excluded_domains: Domains to never auto-specialize
     """
+
     success_threshold: float = 0.85
     min_domain_tasks: int = 10
     min_quality_score: float = 0.7
     max_specialists_per_domain: int = 2
     cooldown_hours: int = 24
-    excluded_domains: List[str] = field(default_factory=list)
+    excluded_domains: list[str] = field(default_factory=list)
 
 
 # =============================================================================
 # Data Types
 # =============================================================================
 
+
 @dataclass
 class DomainProfile:
     """Accumulated performance profile for a domain."""
+
     domain: str
     task_count: int = 0
     success_count: int = 0
     total_quality: float = 0.0
-    agents_involved: List[str] = field(default_factory=list)
-    modes_used: Dict[str, int] = field(default_factory=dict)
+    agents_involved: list[str] = field(default_factory=list)
+    modes_used: dict[str, int] = field(default_factory=dict)
     avg_duration: float = 0.0
 
     @property
@@ -82,7 +86,7 @@ class DomainProfile:
     def avg_quality(self) -> float:
         return self.total_quality / self.task_count if self.task_count > 0 else 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "domain": self.domain,
             "task_count": self.task_count,
@@ -97,10 +101,11 @@ class DomainProfile:
 @dataclass
 class SpecializationProposal:
     """A proposed specialization for a domain."""
+
     proposal_id: str
     domain: str
     agent_name: str
-    capabilities: List[str]
+    capabilities: list[str]
     reason: str
     domain_profile: DomainProfile
     suggested_model: str = ""
@@ -109,9 +114,9 @@ class SpecializationProposal:
 
     def __post_init__(self):
         if not self.created_at:
-            self.created_at = datetime.now(timezone.utc).isoformat()
+            self.created_at = datetime.now(UTC).isoformat()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "proposal_id": self.proposal_id,
             "domain": self.domain,
@@ -129,6 +134,7 @@ class SpecializationProposal:
 # Auto-Specializer Engine
 # =============================================================================
 
+
 class AutoSpecializer:
     """
     Data-driven auto-specialization engine.
@@ -142,7 +148,7 @@ class AutoSpecializer:
     """
 
     # Suggested models per domain type
-    MODEL_SUGGESTIONS: Dict[str, str] = {
+    MODEL_SUGGESTIONS: dict[str, str] = {
         "coding": "claude-sonnet-4-5-20250929",
         "research": "gemini-3-pro-preview",
         "creative": "claude-opus-4-6-20250116",
@@ -155,8 +161,8 @@ class AutoSpecializer:
     def __init__(
         self,
         agent_pool: Any,
-        success_memory: Optional[Any] = None,
-        config: Optional[SpecializationConfig] = None,
+        success_memory: Any | None = None,
+        config: SpecializationConfig | None = None,
     ):
         """
         Initialize the auto-specializer.
@@ -169,10 +175,10 @@ class AutoSpecializer:
         self._pool = agent_pool
         self._memory = success_memory
         self.config = config or SpecializationConfig()
-        self._proposals: Dict[str, SpecializationProposal] = {}
-        self._last_proposal_time: Dict[str, str] = {}  # domain -> ISO timestamp
+        self._proposals: dict[str, SpecializationProposal] = {}
+        self._last_proposal_time: dict[str, str] = {}  # domain -> ISO timestamp
 
-    def evaluate(self) -> List[SpecializationProposal]:
+    def evaluate(self) -> list[SpecializationProposal]:
         """
         Evaluate all domains and generate specialization proposals.
 
@@ -209,8 +215,7 @@ class AutoSpecializer:
             new_proposals.append(proposal)
 
         _logger.info(
-            f"Auto-specializer: evaluated {len(domain_profiles)} domains, "
-            f"generated {len(new_proposals)} proposals"
+            f"Auto-specializer: evaluated {len(domain_profiles)} domains, generated {len(new_proposals)} proposals"
         )
 
         return new_proposals
@@ -247,13 +252,11 @@ class AutoSpecializer:
             return True
         return False
 
-    def get_proposal(self, proposal_id: str) -> Optional[SpecializationProposal]:
+    def get_proposal(self, proposal_id: str) -> SpecializationProposal | None:
         """Get a proposal by ID."""
         return self._proposals.get(proposal_id)
 
-    def list_proposals(
-        self, status: Optional[str] = None
-    ) -> List[SpecializationProposal]:
+    def list_proposals(self, status: str | None = None) -> list[SpecializationProposal]:
         """
         List all proposals, optionally filtered by status.
 
@@ -265,7 +268,7 @@ class AutoSpecializer:
             proposals = [p for p in proposals if p.status == status]
         return proposals
 
-    def get_domain_readiness(self) -> Dict[str, Dict[str, Any]]:
+    def get_domain_readiness(self) -> dict[str, dict[str, Any]]:
         """
         Get readiness assessment for all domains.
 
@@ -276,13 +279,8 @@ class AutoSpecializer:
         readiness = {}
 
         for domain, profile in profiles.items():
-            excluded = domain.lower() in [
-                d.lower() for d in self.config.excluded_domains
-            ]
-            at_limit = (
-                self._count_specialists(domain)
-                >= self.config.max_specialists_per_domain
-            )
+            excluded = domain.lower() in [d.lower() for d in self.config.excluded_domains]
+            at_limit = self._count_specialists(domain) >= self.config.max_specialists_per_domain
             qualifies = self._qualifies(domain, profile)
 
             readiness[domain] = {
@@ -291,12 +289,8 @@ class AutoSpecializer:
                 "excluded": excluded,
                 "at_specialist_limit": at_limit,
                 "in_cooldown": self._in_cooldown(domain),
-                "tasks_needed": max(
-                    0, self.config.min_domain_tasks - profile.task_count
-                ),
-                "success_gap": max(
-                    0.0, self.config.success_threshold - profile.success_rate
-                ),
+                "tasks_needed": max(0, self.config.min_domain_tasks - profile.task_count),
+                "success_gap": max(0.0, self.config.success_threshold - profile.success_rate),
             }
 
         return readiness
@@ -305,9 +299,9 @@ class AutoSpecializer:
     # Internal Methods
     # =========================================================================
 
-    def _build_domain_profiles(self) -> Dict[str, DomainProfile]:
+    def _build_domain_profiles(self) -> dict[str, DomainProfile]:
         """Build performance profiles for each domain from SuccessMemory."""
-        profiles: Dict[str, DomainProfile] = {}
+        profiles: dict[str, DomainProfile] = {}
 
         if not self._memory:
             return profiles
@@ -338,9 +332,7 @@ class AutoSpecializer:
 
                 # Running average duration
                 n = profile.task_count
-                profile.avg_duration = (
-                    profile.avg_duration * (n - 1) + entry.duration_seconds
-                ) / n
+                profile.avg_duration = (profile.avg_duration * (n - 1) + entry.duration_seconds) / n
 
         return profiles
 
@@ -352,17 +344,14 @@ class AutoSpecializer:
         if profile.success_rate < self.config.success_threshold:
             return False
 
-        if profile.avg_quality < self.config.min_quality_score:
-            return False
-
-        return True
+        return not profile.avg_quality < self.config.min_quality_score
 
     def _count_specialists(self, domain: str) -> int:
         """Count existing specialist agents for a domain."""
         domain_lower = domain.lower()
         count = 0
 
-        for agent_id, profile in self._pool.agents.items():
+        for _agent_id, profile in self._pool.agents.items():
             if not profile.is_active:
                 continue
             if profile.provider != "spawned":
@@ -385,23 +374,19 @@ class AutoSpecializer:
         try:
             last_time = datetime.fromisoformat(last_time_str)
             if last_time.tzinfo is None:
-                last_time = last_time.replace(tzinfo=timezone.utc)
+                last_time = last_time.replace(tzinfo=UTC)
 
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             hours_elapsed = (now - last_time).total_seconds() / 3600
             return hours_elapsed < self.config.cooldown_hours
         except (ValueError, TypeError):
             return False
 
-    def _create_proposal(
-        self, domain: str, profile: DomainProfile
-    ) -> SpecializationProposal:
+    def _create_proposal(self, domain: str, profile: DomainProfile) -> SpecializationProposal:
         """Create a specialization proposal for a domain."""
         import hashlib
 
-        proposal_id = hashlib.sha256(
-            f"{domain}-{datetime.now(timezone.utc).isoformat()}".encode()
-        ).hexdigest()[:8]
+        proposal_id = hashlib.sha256(f"{domain}-{datetime.now(UTC).isoformat()}".encode()).hexdigest()[:8]
 
         agent_name = f"{domain}_specialist"
 
@@ -436,7 +421,7 @@ class AutoSpecializer:
             suggested_model=suggested_model,
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Export specializer state."""
         return {
             "config": {
@@ -446,9 +431,6 @@ class AutoSpecializer:
                 "max_specialists_per_domain": self.config.max_specialists_per_domain,
                 "cooldown_hours": self.config.cooldown_hours,
             },
-            "proposals": {
-                pid: p.to_dict()
-                for pid, p in self._proposals.items()
-            },
+            "proposals": {pid: p.to_dict() for pid, p in self._proposals.items()},
             "proposal_count": len(self._proposals),
         }

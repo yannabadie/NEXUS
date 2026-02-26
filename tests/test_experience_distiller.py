@@ -11,11 +11,10 @@ Target: 90+ independent tests, all passing.
 
 from __future__ import annotations
 
-import json
 import hashlib
+import json
 import time
 from pathlib import Path
-from typing import List
 
 import pytest
 
@@ -37,7 +36,6 @@ from core.memory_pkg.skills.experience_distiller import (
     get_experience_distiller,
     reset_experience_distiller,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -150,14 +148,18 @@ class TestStrategicPrinciple:
     def test_post_init_sets_created_at(self):
         before = time.time()
         p = StrategicPrinciple(
-            principle_id="t1", text="test", category=PrincipleCategory.STRATEGY,
+            principle_id="t1",
+            text="test",
+            category=PrincipleCategory.STRATEGY,
         )
         after = time.time()
         assert before <= p.created_at <= after
 
     def test_post_init_preserves_explicit_created_at(self):
         p = StrategicPrinciple(
-            principle_id="t1", text="test", category=PrincipleCategory.STRATEGY,
+            principle_id="t1",
+            text="test",
+            category=PrincipleCategory.STRATEGY,
             created_at=42.0,
         )
         assert p.created_at == 42.0
@@ -185,7 +187,9 @@ class TestStrategicPrinciple:
 
     def test_to_dict_truncates_source_tasks(self):
         p = StrategicPrinciple(
-            principle_id="x", text="t", category=PrincipleCategory.STRATEGY,
+            principle_id="x",
+            text="t",
+            category=PrincipleCategory.STRATEGY,
             source_tasks=[f"task{i}" for i in range(10)],
         )
         d = p.to_dict()
@@ -193,7 +197,9 @@ class TestStrategicPrinciple:
 
     def test_to_dict_truncates_keywords(self):
         p = StrategicPrinciple(
-            principle_id="x", text="t", category=PrincipleCategory.STRATEGY,
+            principle_id="x",
+            text="t",
+            category=PrincipleCategory.STRATEGY,
             keywords={f"kw{i}" for i in range(30)},
         )
         d = p.to_dict()
@@ -270,7 +276,9 @@ class TestDistillationResult:
 
     def test_creation(self):
         p = StrategicPrinciple(
-            principle_id="x", text="t", category=PrincipleCategory.STRATEGY,
+            principle_id="x",
+            text="t",
+            category=PrincipleCategory.STRATEGY,
         )
         dr = DistillationResult(
             new_principles=[p],
@@ -283,10 +291,14 @@ class TestDistillationResult:
 
     def test_to_dict(self):
         p1 = StrategicPrinciple(
-            principle_id="a", text="t1", category=PrincipleCategory.STRATEGY,
+            principle_id="a",
+            text="t1",
+            category=PrincipleCategory.STRATEGY,
         )
         p2 = StrategicPrinciple(
-            principle_id="b", text="t2", category=PrincipleCategory.DOMAIN,
+            principle_id="b",
+            text="t2",
+            category=PrincipleCategory.DOMAIN,
         )
         dr = DistillationResult(
             new_principles=[p1, p2],
@@ -298,10 +310,14 @@ class TestDistillationResult:
 
     def test_empty(self):
         dr = DistillationResult(
-            new_principles=[], updated_principles=[], total_principles=0,
+            new_principles=[],
+            updated_principles=[],
+            total_principles=0,
         )
         assert dr.to_dict() == {
-            "new_count": 0, "updated_count": 0, "total_principles": 0,
+            "new_count": 0,
+            "updated_count": 0,
+            "total_principles": 0,
         }
 
 
@@ -316,7 +332,9 @@ class TestRetrievalResult:
 
     def test_to_dict(self):
         p = StrategicPrinciple(
-            principle_id="z", text="t", category=PrincipleCategory.STRATEGY,
+            principle_id="z",
+            text="t",
+            category=PrincipleCategory.STRATEGY,
         )
         rr = RetrievalResult(principles=[p], total_scored=3, threshold_used=0.1567)
         d = rr.to_dict()
@@ -426,19 +444,25 @@ class TestDistillBasic:
     def test_duplicate_lesson_is_not_recreated(self, distiller: ExperienceDistiller):
         lesson = "Check token expiry"
         distiller.distill(
-            task_description="Fix auth", outcome="success", lessons=[lesson],
+            task_description="Fix auth",
+            outcome="success",
+            lessons=[lesson],
         )
         result2 = distiller.distill(
-            task_description="Fix auth again", outcome="success", lessons=[lesson],
+            task_description="Fix auth again",
+            outcome="success",
+            lessons=[lesson],
         )
         assert len(result2.new_principles) == 0
         assert len(result2.updated_principles) == 1
 
     def test_distill_with_no_lessons_or_tools_creates_nothing(
-        self, distiller: ExperienceDistiller,
+        self,
+        distiller: ExperienceDistiller,
     ):
         result = distiller.distill(
-            task_description="Simple task", outcome="success",
+            task_description="Simple task",
+            outcome="success",
         )
         assert len(result.new_principles) == 0
         assert result.total_principles == 0
@@ -458,10 +482,7 @@ class TestToolUsePrinciples:
             outcome="success",
             tools_used=["grep", "read"],
         )
-        tool_ps = [
-            p for p in result.new_principles
-            if p.category == PrincipleCategory.TOOL_USE
-        ]
+        tool_ps = [p for p in result.new_principles if p.category == PrincipleCategory.TOOL_USE]
         assert len(tool_ps) == 1
         assert "grep" in tool_ps[0].text
         assert "read" in tool_ps[0].text
@@ -472,21 +493,17 @@ class TestToolUsePrinciples:
             outcome="failure",
             tools_used=["grep", "read"],
         )
-        tool_ps = [
-            p for p in result.new_principles
-            if p.category == PrincipleCategory.TOOL_USE
-        ]
+        tool_ps = [p for p in result.new_principles if p.category == PrincipleCategory.TOOL_USE]
         assert len(tool_ps) == 0
 
     def test_tool_use_truncates_to_five_tools(self, distiller: ExperienceDistiller):
         tools = [f"tool_{i}" for i in range(10)]
         result = distiller.distill(
-            task_description="Big task", outcome="success", tools_used=tools,
+            task_description="Big task",
+            outcome="success",
+            tools_used=tools,
         )
-        tool_ps = [
-            p for p in result.new_principles
-            if p.category == PrincipleCategory.TOOL_USE
-        ]
+        tool_ps = [p for p in result.new_principles if p.category == PrincipleCategory.TOOL_USE]
         assert len(tool_ps) == 1
         # Text only includes first 5 tools
         text = tool_ps[0].text
@@ -504,10 +521,7 @@ class TestToolUsePrinciples:
             outcome="success",
             tools_used=["grep"],
         )
-        tool_ps = [
-            p for p in result2.new_principles
-            if p.category == PrincipleCategory.TOOL_USE
-        ]
+        tool_ps = [p for p in result2.new_principles if p.category == PrincipleCategory.TOOL_USE]
         assert len(tool_ps) == 0
 
 
@@ -525,46 +539,37 @@ class TestErrorRecoveryPrinciples:
             outcome="success after retry",
             error_messages=["ConnectionError: timeout"],
         )
-        err_ps = [
-            p for p in result.new_principles
-            if p.category == PrincipleCategory.ERROR_RECOVERY
-        ]
+        err_ps = [p for p in result.new_principles if p.category == PrincipleCategory.ERROR_RECOVERY]
         assert len(err_ps) == 1
         assert "ConnectionError" in err_ps[0].text
 
     def test_error_recovery_not_created_on_failure(self, distiller: ExperienceDistiller):
         result = distiller.distill(
-            task_description="Fix db", outcome="failure",
+            task_description="Fix db",
+            outcome="failure",
             error_messages=["ConnectionError"],
         )
-        err_ps = [
-            p for p in result.new_principles
-            if p.category == PrincipleCategory.ERROR_RECOVERY
-        ]
+        err_ps = [p for p in result.new_principles if p.category == PrincipleCategory.ERROR_RECOVERY]
         assert len(err_ps) == 0
 
     def test_error_recovery_max_three(self, distiller: ExperienceDistiller):
         errors = [f"Error{i}" for i in range(10)]
         result = distiller.distill(
-            task_description="Many errors", outcome="success",
+            task_description="Many errors",
+            outcome="success",
             error_messages=errors,
         )
-        err_ps = [
-            p for p in result.new_principles
-            if p.category == PrincipleCategory.ERROR_RECOVERY
-        ]
+        err_ps = [p for p in result.new_principles if p.category == PrincipleCategory.ERROR_RECOVERY]
         assert len(err_ps) == 3
 
     def test_error_message_truncated_in_text(self, distiller: ExperienceDistiller):
         long_error = "A" * 200
         result = distiller.distill(
-            task_description="Task", outcome="success",
+            task_description="Task",
+            outcome="success",
             error_messages=[long_error],
         )
-        err_ps = [
-            p for p in result.new_principles
-            if p.category == PrincipleCategory.ERROR_RECOVERY
-        ]
+        err_ps = [p for p in result.new_principles if p.category == PrincipleCategory.ERROR_RECOVERY]
         assert len(err_ps) == 1
         # Error text in the principle is truncated to 80 chars
         assert long_error[:80] in err_ps[0].text
@@ -665,11 +670,15 @@ class TestPrincipleUpdate:
     def test_bayesian_success_rate_after_success(self, distiller: ExperienceDistiller):
         lesson = "Validate input before processing"
         distiller.distill(
-            task_description="Task1", outcome="success", lessons=[lesson],
+            task_description="Task1",
+            outcome="success",
+            lessons=[lesson],
         )
         # First creation: success_rate = 1.0, usage_count = 0
         distiller.distill(
-            task_description="Task2", outcome="success", lessons=[lesson],
+            task_description="Task2",
+            outcome="success",
+            lessons=[lesson],
         )
         # Update: n=1, successes = 1.0*0 + 1 = 1, rate = (1+1)/(1+2) = 2/3
         principles = distiller.get_all_principles()
@@ -681,10 +690,14 @@ class TestPrincipleUpdate:
     def test_bayesian_success_rate_after_failure(self, distiller: ExperienceDistiller):
         lesson = "Check return codes"
         distiller.distill(
-            task_description="T1", outcome="success", lessons=[lesson],
+            task_description="T1",
+            outcome="success",
+            lessons=[lesson],
         )
         distiller.distill(
-            task_description="T2", outcome="failure", lessons=[lesson],
+            task_description="T2",
+            outcome="failure",
+            lessons=[lesson],
         )
         # n=1, successes=1.0*0+0=0, rate=(0+1)/(1+2) = 1/3
         p = distiller.get_all_principles()[0]
@@ -732,7 +745,9 @@ class TestPrincipleUpdate:
         distiller.distill(task_description="Init", outcome="success", lessons=[lesson])
         for i in range(15):
             distiller.distill(
-                task_description=f"Task {i}", outcome="success", lessons=[lesson],
+                task_description=f"Task {i}",
+                outcome="success",
+                lessons=[lesson],
             )
         p = distiller.get_all_principles()[0]
         assert len(p.source_tasks) <= 10
@@ -758,7 +773,8 @@ class TestRetrieval:
         assert len(result.principles) >= 1
 
     def test_retrieve_no_overlap_with_low_quality_returns_empty(
-        self, distiller: ExperienceDistiller,
+        self,
+        distiller: ExperienceDistiller,
     ):
         """When there is zero keyword overlap AND low quality scores, the
         combined relevance score should be below the retrieval threshold."""
@@ -789,7 +805,8 @@ class TestRetrieval:
                 lessons=[f"Authentication principle number {i} for login"],
             )
         result = distiller.retrieve(
-            task_description="Fix authentication login issue", top_k=3,
+            task_description="Fix authentication login issue",
+            top_k=3,
         )
         assert len(result.principles) <= 3
 
@@ -831,7 +848,8 @@ class TestRetrievalMinConfidence:
 
     def test_default_min_confidence(self, distiller: ExperienceDistiller):
         distiller.distill(
-            task_description="Auth debug", outcome="success",
+            task_description="Auth debug",
+            outcome="success",
             lessons=["Check auth tokens always"],
         )
         # Default MIN_CONFIDENCE is 0.3, principle confidence is 0.5
@@ -912,7 +930,8 @@ class TestRecordOutcome:
 
     def test_record_success_updates_principle(self, distiller: ExperienceDistiller):
         result = distiller.distill(
-            task_description="Task", outcome="success",
+            task_description="Task",
+            outcome="success",
             lessons=["Lesson one here"],
         )
         pid = result.new_principles[0].principle_id
@@ -925,7 +944,8 @@ class TestRecordOutcome:
 
     def test_record_failure_updates_principle(self, distiller: ExperienceDistiller):
         result = distiller.distill(
-            task_description="Task", outcome="success",
+            task_description="Task",
+            outcome="success",
             lessons=["Lesson two here"],
         )
         pid = result.new_principles[0].principle_id
@@ -943,7 +963,8 @@ class TestRecordOutcome:
     def test_record_outcome_persists(self, store_path: str):
         d1 = ExperienceDistiller(store_path=store_path)
         result = d1.distill(
-            task_description="Persist test", outcome="success",
+            task_description="Persist test",
+            outcome="success",
             lessons=["Persistence lesson"],
         )
         pid = result.new_principles[0].principle_id
@@ -1049,9 +1070,7 @@ class TestKeywordExtraction:
         assert "module" in keywords
 
     def test_filters_stop_words(self):
-        keywords = ExperienceDistiller._extract_keywords(
-            "The quick fox is a very fast animal"
-        )
+        keywords = ExperienceDistiller._extract_keywords("The quick fox is a very fast animal")
         assert "the" not in keywords
         assert "is" not in keywords
         assert "quick" in keywords
@@ -1151,7 +1170,8 @@ class TestPersistence:
     def test_save_creates_file(self, store_path: str):
         d = ExperienceDistiller(store_path=store_path)
         d.distill(
-            task_description="Persist task", outcome="success",
+            task_description="Persist task",
+            outcome="success",
             lessons=["Persistence lesson one"],
         )
         assert Path(store_path).exists()
@@ -1159,7 +1179,8 @@ class TestPersistence:
     def test_load_restores_principles(self, store_path: str):
         d1 = ExperienceDistiller(store_path=store_path)
         d1.distill(
-            task_description="Persist task", outcome="success",
+            task_description="Persist task",
+            outcome="success",
             lessons=["Persistence lesson two"],
         )
 
@@ -1170,7 +1191,8 @@ class TestPersistence:
     def test_persistence_multiple_principles(self, store_path: str):
         d1 = ExperienceDistiller(store_path=store_path)
         d1.distill(
-            task_description="Task A", outcome="success",
+            task_description="Task A",
+            outcome="success",
             lessons=["Lesson A", "Lesson B", "Lesson C"],
         )
 
@@ -1180,21 +1202,20 @@ class TestPersistence:
     def test_persistence_preserves_category(self, store_path: str):
         d1 = ExperienceDistiller(store_path=store_path)
         d1.distill(
-            task_description="Tool task", outcome="success",
+            task_description="Tool task",
+            outcome="success",
             tools_used=["grep", "read"],
         )
 
         d2 = ExperienceDistiller(store_path=store_path)
-        tool_ps = [
-            p for p in d2.get_all_principles()
-            if p.category == PrincipleCategory.TOOL_USE
-        ]
+        tool_ps = [p for p in d2.get_all_principles() if p.category == PrincipleCategory.TOOL_USE]
         assert len(tool_ps) == 1
 
     def test_persistence_preserves_success_rate(self, store_path: str):
         d1 = ExperienceDistiller(store_path=store_path)
         d1.distill(
-            task_description="Rate task", outcome="failure: timeout",
+            task_description="Rate task",
+            outcome="failure: timeout",
             lessons=["Set timeout correctly"],
         )
 
@@ -1205,10 +1226,11 @@ class TestPersistence:
     def test_jsonl_format(self, store_path: str):
         d = ExperienceDistiller(store_path=store_path)
         d.distill(
-            task_description="Format test", outcome="success",
+            task_description="Format test",
+            outcome="success",
             lessons=["Line one", "Line two"],
         )
-        with open(store_path, "r", encoding="utf-8") as f:
+        with open(store_path, encoding="utf-8") as f:
             lines = [line.strip() for line in f if line.strip()]
         assert len(lines) == 2
         for line in lines:
@@ -1238,7 +1260,8 @@ class TestPersistence:
         nested = str(tmp_path / "a" / "b" / "c" / "principles.jsonl")
         d = ExperienceDistiller(store_path=nested)
         d.distill(
-            task_description="Deep path", outcome="success",
+            task_description="Deep path",
+            outcome="success",
             lessons=["Test nested dirs"],
         )
         assert Path(nested).exists()
@@ -1271,7 +1294,8 @@ class TestSingleton:
         d = get_experience_distiller()
         # Modify state
         d.distill(
-            task_description="Singleton task", outcome="success",
+            task_description="Singleton task",
+            outcome="success",
             lessons=["Singleton lesson"],
         )
         reset_experience_distiller()
@@ -1300,7 +1324,8 @@ class TestStatistics:
 
     def test_distill_increments_distillation_count(self, distiller: ExperienceDistiller):
         distiller.distill(
-            task_description="Stats task", outcome="success",
+            task_description="Stats task",
+            outcome="success",
             lessons=["Stats lesson"],
         )
         stats = distiller.get_stats()
@@ -1308,7 +1333,8 @@ class TestStatistics:
 
     def test_distill_increments_principles_created(self, distiller: ExperienceDistiller):
         distiller.distill(
-            task_description="Stats task", outcome="success",
+            task_description="Stats task",
+            outcome="success",
             lessons=["Lesson alpha", "Lesson beta"],
         )
         stats = distiller.get_stats()
@@ -1348,7 +1374,8 @@ class TestStatistics:
     def test_multiple_distillations_tracked(self, distiller: ExperienceDistiller):
         for i in range(5):
             distiller.distill(
-                task_description=f"Task {i}", outcome="success",
+                task_description=f"Task {i}",
+                outcome="success",
                 lessons=[f"Lesson for multi stat {i}"],
             )
         stats = distiller.get_stats()
@@ -1357,7 +1384,8 @@ class TestStatistics:
 
     def test_reset_clears_stats(self, distiller: ExperienceDistiller):
         distiller.distill(
-            task_description="Reset test", outcome="success",
+            task_description="Reset test",
+            outcome="success",
             lessons=["Reset lesson"],
         )
         distiller.reset()
@@ -1376,29 +1404,36 @@ class TestEdgeCases:
 
     def test_empty_lessons_list(self, distiller: ExperienceDistiller):
         result = distiller.distill(
-            task_description="No lessons", outcome="success", lessons=[],
+            task_description="No lessons",
+            outcome="success",
+            lessons=[],
         )
         assert len(result.new_principles) == 0
 
     def test_none_lessons(self, distiller: ExperienceDistiller):
         result = distiller.distill(
-            task_description="None lessons", outcome="success", lessons=None,
+            task_description="None lessons",
+            outcome="success",
+            lessons=None,
         )
         assert len(result.new_principles) == 0
 
     def test_empty_task_description(self, distiller: ExperienceDistiller):
         result = distiller.distill(
-            task_description="", outcome="success",
+            task_description="",
+            outcome="success",
             lessons=["Lesson with empty task"],
         )
         assert len(result.new_principles) == 1
 
     def test_very_long_task_description_truncated_in_source_tasks(
-        self, distiller: ExperienceDistiller,
+        self,
+        distiller: ExperienceDistiller,
     ):
         long_desc = "A" * 500
         result = distiller.distill(
-            task_description=long_desc, outcome="success",
+            task_description=long_desc,
+            outcome="success",
             lessons=["Long desc lesson"],
         )
         p = result.new_principles[0]
@@ -1411,7 +1446,8 @@ class TestEdgeCases:
 
     def test_distill_outcome_case_insensitive(self, distiller: ExperienceDistiller):
         result = distiller.distill(
-            task_description="Case test", outcome="SUCCESS",
+            task_description="Case test",
+            outcome="SUCCESS",
             lessons=["Case insensitive outcome"],
         )
         p = result.new_principles[0]
@@ -1419,7 +1455,8 @@ class TestEdgeCases:
 
     def test_distill_outcome_partial_match(self, distiller: ExperienceDistiller):
         result = distiller.distill(
-            task_description="Partial", outcome="Task completed successfully",
+            task_description="Partial",
+            outcome="Task completed successfully",
             lessons=["Partial success match"],
         )
         p = result.new_principles[0]
@@ -1427,7 +1464,8 @@ class TestEdgeCases:
 
     def test_distill_outcome_failure_string(self, distiller: ExperienceDistiller):
         result = distiller.distill(
-            task_description="Fail", outcome="error: something broke",
+            task_description="Fail",
+            outcome="error: something broke",
             lessons=["Failure case"],
         )
         p = result.new_principles[0]
@@ -1435,7 +1473,8 @@ class TestEdgeCases:
 
     def test_get_all_principles_returns_copy(self, distiller: ExperienceDistiller):
         distiller.distill(
-            task_description="Copy test", outcome="success",
+            task_description="Copy test",
+            outcome="success",
             lessons=["Copy lesson"],
         )
         list1 = distiller.get_all_principles()
@@ -1444,7 +1483,8 @@ class TestEdgeCases:
 
     def test_reset_clears_principles(self, distiller: ExperienceDistiller):
         distiller.distill(
-            task_description="Reset", outcome="success",
+            task_description="Reset",
+            outcome="success",
             lessons=["Reset me"],
         )
         assert len(distiller.get_all_principles()) == 1
@@ -1474,7 +1514,8 @@ class TestEdgeCases:
         assert keywords == set()
 
     def test_relevance_score_zero_overlap_low_quality(
-        self, distiller: ExperienceDistiller,
+        self,
+        distiller: ExperienceDistiller,
     ):
         """Principles with zero keyword overlap and low quality scores should
         fall below the retrieval threshold and not be returned."""
@@ -1511,11 +1552,13 @@ class TestRelevanceScoreEdges:
     """Additional tests for relevance score computation."""
 
     def test_principle_with_no_keywords_gets_zero_score(
-        self, distiller: ExperienceDistiller,
+        self,
+        distiller: ExperienceDistiller,
     ):
         """A principle whose keywords are empty should score 0."""
         # Manually inject a principle with empty keywords
-        from core.memory_pkg.skills.experience_distiller import StrategicPrinciple, PrincipleCategory
+        from core.memory_pkg.skills.experience_distiller import PrincipleCategory, StrategicPrinciple
+
         p = StrategicPrinciple(
             principle_id="empty_kw",
             text="No keywords",
@@ -1533,7 +1576,8 @@ class TestRelevanceScoreEdges:
 
     def test_quality_boost_affects_score(self, distiller: ExperienceDistiller):
         """Higher success_rate and confidence should boost relevance."""
-        from core.memory_pkg.skills.experience_distiller import StrategicPrinciple, PrincipleCategory
+        from core.memory_pkg.skills.experience_distiller import PrincipleCategory, StrategicPrinciple
+
         p_low = StrategicPrinciple(
             principle_id="low_q",
             text="Auth token check",
@@ -1637,11 +1681,13 @@ class TestDistillCombined:
 
     def test_distill_returns_correct_total(self, distiller: ExperienceDistiller):
         distiller.distill(
-            task_description="First", outcome="success",
+            task_description="First",
+            outcome="success",
             lessons=["First lesson"],
         )
         result = distiller.distill(
-            task_description="Second", outcome="success",
+            task_description="Second",
+            outcome="success",
             lessons=["Second lesson"],
         )
         assert result.total_principles == 2

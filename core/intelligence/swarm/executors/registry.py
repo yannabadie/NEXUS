@@ -5,10 +5,9 @@ Registry of all mode executors and factory function.
 """
 
 from pathlib import Path
-from typing import Dict, Optional
 
-from .base import ModeExecutor
 from ..collaboration_modes import CollaborationMode
+from .base import ModeExecutor
 
 # Lazy imports to avoid circular dependencies
 _executor_classes = None
@@ -18,12 +17,12 @@ def _load_executor_classes():
     """Lazily load executor classes to avoid circular imports."""
     global _executor_classes
     if _executor_classes is None:
-        from .parallel_executor import ParallelExecutor
-        from .sequential_executor import SequentialExecutor
-        from .specialist_executor import SpecialistExecutor
         from .lead_support_executor import LeadSupportExecutor
+        from .parallel_executor import ParallelExecutor
         from .ping_pong_executor import PingPongExecutor
         from .red_blue_executor import RedBlueExecutor
+        from .sequential_executor import SequentialExecutor
+        from .specialist_executor import SpecialistExecutor
 
         _executor_classes = {
             CollaborationMode.PARALLEL: ParallelExecutor,
@@ -37,10 +36,10 @@ def _load_executor_classes():
 
 
 # Registry of executor instances (created lazily)
-_executor_instances: Dict[CollaborationMode, ModeExecutor] = {}
+_executor_instances: dict[CollaborationMode, ModeExecutor] = {}
 
 
-def get_executor(mode: CollaborationMode, workspace_path: Optional[Path] = None) -> ModeExecutor:
+def get_executor(mode: CollaborationMode, workspace_path: Path | None = None) -> ModeExecutor:
     """
     Get executor for a collaboration mode.
 
@@ -66,7 +65,7 @@ def get_executor(mode: CollaborationMode, workspace_path: Optional[Path] = None)
     return _executor_instances[mode]
 
 
-def get_executor_registry() -> Dict[CollaborationMode, ModeExecutor]:
+def get_executor_registry() -> dict[CollaborationMode, ModeExecutor]:
     """
     Get the full executor registry.
 

@@ -6,16 +6,14 @@ Lead agent drives (80%), support reviews (20%).
 Use case: Clear expertise dominance, complex coding tasks.
 """
 
-from typing import List
-
+from ..collaboration_modes import CollaborationMode
 from .base import (
-    ModeExecutor,
-    ExecutionStatus,
     AgentResponse,
     ExecutionContext,
     ExecutionResult,
+    ExecutionStatus,
+    ModeExecutor,
 )
-from ..collaboration_modes import CollaborationMode
 
 
 class LeadSupportExecutor(ModeExecutor):
@@ -37,7 +35,7 @@ class LeadSupportExecutor(ModeExecutor):
             lead = agents[0] if agents else None
             support = agents[1] if len(agents) > 1 else None
 
-        outputs: List[AgentResponse] = []
+        outputs: list[AgentResponse] = []
         total_tokens = 0
         total_time = 0.0
 
@@ -101,6 +99,6 @@ class LeadSupportExecutor(ModeExecutor):
                 "execution_type": "lead_support",
                 "artifacts_verified": artifact_result["verified"],
                 "artifact_successes": artifact_result["successes"],
-                "artifact_failures": artifact_result["failures"]
-            }
+                "artifact_failures": artifact_result["failures"],
+            },
         )

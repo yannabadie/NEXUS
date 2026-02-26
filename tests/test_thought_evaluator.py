@@ -15,12 +15,7 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.intelligence.reasoning.thought_evaluator import (
-    DEFAULT_NOVELTY_WEIGHT,
-    DEFAULT_RELEVANCE_WEIGHT,
-    DEFAULT_CONFIDENCE_WEIGHT,
     MAX_THOUGHTS,
     REDUNDANCY_THRESHOLD,
     EvaluationResult,
@@ -31,10 +26,10 @@ from core.intelligence.reasoning.thought_evaluator import (
     reset_thought_evaluator,
 )
 
-
 # =============================================================================
 # ThoughtScore Tests
 # =============================================================================
+
 
 class TestThoughtScore:
     """Test ThoughtScore dataclass."""
@@ -61,14 +56,18 @@ class TestThoughtScore:
 # EvaluationResult Tests
 # =============================================================================
 
+
 class TestEvaluationResult:
     """Test EvaluationResult dataclass."""
 
     def test_to_dict(self):
         r = EvaluationResult(
-            total_thoughts=10, average_score=0.75,
-            best_thought_id="t1", worst_thought_id="t5",
-            redundant_count=2, redundant_ids=["t3", "t4"],
+            total_thoughts=10,
+            average_score=0.75,
+            best_thought_id="t1",
+            worst_thought_id="t5",
+            redundant_count=2,
+            redundant_ids=["t3", "t4"],
         )
         d = r.to_dict()
         assert d["average_score"] == 0.75
@@ -79,13 +78,17 @@ class TestEvaluationResult:
 # EvaluatorStats Tests
 # =============================================================================
 
+
 class TestEvaluatorStats:
     """Test EvaluatorStats dataclass."""
 
     def test_to_dict(self):
         s = EvaluatorStats(
-            total_scored=5, total_pruned=1,
-            average_novelty=0.7, average_relevance=0.8, average_confidence=0.6,
+            total_scored=5,
+            total_pruned=1,
+            average_novelty=0.7,
+            average_relevance=0.8,
+            average_confidence=0.6,
         )
         d = s.to_dict()
         assert d["total_scored"] == 5
@@ -95,6 +98,7 @@ class TestEvaluatorStats:
 # =============================================================================
 # Scoring Tests
 # =============================================================================
+
 
 class TestScoring:
     """Test thought scoring."""
@@ -167,6 +171,7 @@ class TestScoring:
 # Redundancy Tests
 # =============================================================================
 
+
 class TestRedundancy:
     """Test redundancy detection and pruning."""
 
@@ -204,6 +209,7 @@ class TestRedundancy:
 # =============================================================================
 # Ranking Tests
 # =============================================================================
+
 
 class TestRanking:
     """Test thought ranking."""
@@ -259,6 +265,7 @@ class TestRanking:
 # Evaluation Tests
 # =============================================================================
 
+
 class TestEvaluation:
     """Test aggregate evaluation."""
 
@@ -290,6 +297,7 @@ class TestEvaluation:
 # Statistics Tests
 # =============================================================================
 
+
 class TestStatistics:
     """Test evaluator statistics."""
 
@@ -317,6 +325,7 @@ class TestStatistics:
 # =============================================================================
 # State Tests
 # =============================================================================
+
 
 class TestState:
     """Test state management."""
@@ -348,6 +357,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global thought evaluator."""
 
@@ -374,25 +384,31 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_reasoning_package(self):
         from core.intelligence.reasoning import (
-            ThoughtEvaluator, ThoughtScore,
-            EvaluationResult, EvaluatorStats,
-            get_thought_evaluator, reset_thought_evaluator,
+            EvaluationResult,
+            EvaluatorStats,
+            ThoughtEvaluator,
+            ThoughtScore,
+            get_thought_evaluator,
+            reset_thought_evaluator,
         )
-        assert all([
-            ThoughtEvaluator, ThoughtScore,
-            EvaluationResult, EvaluatorStats,
-            get_thought_evaluator, reset_thought_evaluator,
-        ])
+
+        assert all(
+            [
+                ThoughtEvaluator,
+                ThoughtScore,
+                EvaluationResult,
+                EvaluatorStats,
+                get_thought_evaluator,
+                reset_thought_evaluator,
+            ]
+        )
 
     def test_constants(self):
-        from core.intelligence.reasoning.thought_evaluator import (
-            MAX_THOUGHTS, REDUNDANCY_THRESHOLD,
-            DEFAULT_NOVELTY_WEIGHT, DEFAULT_RELEVANCE_WEIGHT,
-        )
         assert MAX_THOUGHTS == 10000
         assert REDUNDANCY_THRESHOLD == 0.4

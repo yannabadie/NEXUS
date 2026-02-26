@@ -13,23 +13,23 @@ Author: Claude (NEXUS V11.2 MEMORIA)
 Date: 2025-12-15
 """
 
-import math
-import pytest
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import MagicMock, patch, Mock
-from collections import defaultdict
+from unittest.mock import MagicMock
 
+import pytest
 
 # =============================================================================
 # Phase 0: Dense Index Bug Fix Tests
 # =============================================================================
+
 
 class TestDenseIndexFix:
     """Test suite for dense.py .tolist() bug fix."""
 
     def test_embedding_list_handling(self):
         """Verify embeddings[i] handles both list and numpy array."""
+
         # Simulate the fixed code path
         def process_embeddings(embeddings):
             """Mimics the fixed logic in dense.py."""
@@ -49,6 +49,7 @@ class TestDenseIndexFix:
         # Test with numpy array (legacy case)
         try:
             import numpy as np
+
             np_embeddings = np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]])
             result = process_embeddings(np_embeddings)
             assert len(result) == 2
@@ -62,14 +63,14 @@ class TestDenseIndexFix:
 # Phase 1: Memory Coordinator Tests
 # =============================================================================
 
+
 class TestMemoryCoordinator:
     """Test suite for MemoryCoordinator."""
 
     def test_import_coordinator(self):
         """Verify MemoryCoordinator can be imported."""
-        from core.memory_pkg.memory.coordinator import (
-            MemoryCoordinator, MemorySource, UnifiedRecommendation
-        )
+        from core.memory_pkg.memory.coordinator import MemoryCoordinator, MemorySource, UnifiedRecommendation
+
         assert MemoryCoordinator is not None
         assert MemorySource is not None
         assert UnifiedRecommendation is not None
@@ -85,7 +86,7 @@ class TestMemoryCoordinator:
 
     def test_unified_recommendation_dataclass(self):
         """Verify UnifiedRecommendation fields."""
-        from core.memory_pkg.memory.coordinator import UnifiedRecommendation, MemorySource
+        from core.memory_pkg.memory.coordinator import MemorySource, UnifiedRecommendation
 
         rec = UnifiedRecommendation(
             mode="parallel",
@@ -93,7 +94,7 @@ class TestMemoryCoordinator:
             confidence=0.8,
             source=MemorySource.BOTH,
             modes_to_avoid=["sequential"],
-            reasoning="Test reasoning"
+            reasoning="Test reasoning",
         )
 
         assert rec.mode == "parallel"
@@ -150,7 +151,7 @@ class TestMemoryCoordinator:
             "suggested_mode": "sequential",
             "suggested_lead": "claude",
             "confidence": 0.8,
-            "modes_to_avoid": []
+            "modes_to_avoid": [],
         }
 
         coordinator = MemoryCoordinator(mock_success, mock_auto)
@@ -172,7 +173,7 @@ class TestMemoryCoordinator:
             "suggested_mode": "parallel",  # Same mode!
             "suggested_lead": "gemini",
             "confidence": 0.7,
-            "modes_to_avoid": []
+            "modes_to_avoid": [],
         }
 
         coordinator = MemoryCoordinator(mock_success, mock_auto)
@@ -195,7 +196,7 @@ class TestMemoryCoordinator:
             "suggested_mode": "sequential",  # Different mode!
             "suggested_lead": "gemini",
             "confidence": 0.6,  # Lower confidence
-            "modes_to_avoid": []
+            "modes_to_avoid": [],
         }
 
         coordinator = MemoryCoordinator(mock_success, mock_auto)
@@ -209,6 +210,7 @@ class TestMemoryCoordinator:
 # =============================================================================
 # Phase 2A: RAG in TaskAnalyzer Tests
 # =============================================================================
+
 
 class TestRAGInTaskAnalyzer:
     """Test suite for RAG enrichment in TaskAnalyzer."""
@@ -303,23 +305,26 @@ class TestRAGInTaskAnalyzer:
 # Phase 3: Time Decay for AutoMemory Tests
 # =============================================================================
 
+
 class TestTimeDecayAutoMemory:
     """Test suite for time decay in AutoMemory."""
 
     def test_time_decay_method_exists(self):
         """Verify _apply_time_decay method exists."""
-        from core.memory_pkg.memory.auto_memory import AutoMemory
-
         # Create with temp path
         import tempfile
+
+        from core.memory_pkg.memory.auto_memory import AutoMemory
+
         with tempfile.TemporaryDirectory() as tmpdir:
             am = AutoMemory(Path(tmpdir))
-            assert hasattr(am, '_apply_time_decay')
+            assert hasattr(am, "_apply_time_decay")
 
     def test_time_decay_recent_entry(self):
         """Verify recent entries have minimal decay."""
-        from core.memory_pkg.memory.auto_memory import AutoMemory
         import tempfile
+
+        from core.memory_pkg.memory.auto_memory import AutoMemory
 
         with tempfile.TemporaryDirectory() as tmpdir:
             am = AutoMemory(Path(tmpdir))
@@ -333,8 +338,9 @@ class TestTimeDecayAutoMemory:
 
     def test_time_decay_old_entry(self):
         """Verify old entries have significant decay."""
-        from core.memory_pkg.memory.auto_memory import AutoMemory
         import tempfile
+
+        from core.memory_pkg.memory.auto_memory import AutoMemory
 
         with tempfile.TemporaryDirectory() as tmpdir:
             am = AutoMemory(Path(tmpdir))
@@ -349,8 +355,9 @@ class TestTimeDecayAutoMemory:
 
     def test_time_decay_invalid_timestamp(self):
         """Verify invalid timestamp returns original score."""
-        from core.memory_pkg.memory.auto_memory import AutoMemory
         import tempfile
+
+        from core.memory_pkg.memory.auto_memory import AutoMemory
 
         with tempfile.TemporaryDirectory() as tmpdir:
             am = AutoMemory(Path(tmpdir))
@@ -363,8 +370,9 @@ class TestTimeDecayAutoMemory:
 
     def test_suggest_mode_uses_decay(self):
         """Verify suggest_mode applies time decay."""
-        from core.memory_pkg.memory.auto_memory import AutoMemory
         import tempfile
+
+        from core.memory_pkg.memory.auto_memory import AutoMemory
 
         with tempfile.TemporaryDirectory() as tmpdir:
             am = AutoMemory(Path(tmpdir))
@@ -372,7 +380,11 @@ class TestTimeDecayAutoMemory:
             # Add test data to cache
             am._success_cache["coding"] = [
                 {"swarm_mode": "parallel", "score": 1.0, "timestamp": datetime.now().isoformat()},
-                {"swarm_mode": "sequential", "score": 1.0, "timestamp": (datetime.now() - timedelta(days=100)).isoformat()},
+                {
+                    "swarm_mode": "sequential",
+                    "score": 1.0,
+                    "timestamp": (datetime.now() - timedelta(days=100)).isoformat(),
+                },
             ]
 
             # With decay, "parallel" should win (more recent)
@@ -384,6 +396,7 @@ class TestTimeDecayAutoMemory:
 # Phase 4: Consolidation Tests
 # =============================================================================
 
+
 class TestConsolidation:
     """Test suite for memory consolidation."""
 
@@ -392,7 +405,7 @@ class TestConsolidation:
         from core.memory_pkg.memory.coordinator import MemoryCoordinator
 
         coordinator = MemoryCoordinator(None, None)
-        assert hasattr(coordinator, 'consolidate')
+        assert hasattr(coordinator, "consolidate")
 
     def test_consolidate_no_memory(self):
         """Verify consolidate handles no SuccessMemory gracefully."""
@@ -420,6 +433,7 @@ class TestConsolidation:
 # Integration Tests
 # =============================================================================
 
+
 class TestMemoriaIntegration:
     """Integration tests for MEMORIA features working together."""
 
@@ -430,14 +444,10 @@ class TestMemoriaIntegration:
         mock_success = MagicMock()
         mock_auto = MagicMock()
 
-        selector = ModeSelector(
-            agent_pool=None,
-            success_memory=mock_success,
-            auto_memory=mock_auto
-        )
+        selector = ModeSelector(agent_pool=None, success_memory=mock_success, auto_memory=mock_auto)
 
         # Should have coordinator
-        assert hasattr(selector, 'memory_coordinator')
+        assert hasattr(selector, "memory_coordinator")
         # If imports worked, should be initialized
         if selector.memory_coordinator:
             assert selector.memory_coordinator is not None
@@ -447,7 +457,7 @@ class TestMemoriaIntegration:
         from core.intelligence.swarm.mode_selector import ModeSelector
 
         selector = ModeSelector(agent_pool=None)
-        assert hasattr(selector, '_apply_unified_memory_boost')
+        assert hasattr(selector, "_apply_unified_memory_boost")
 
 
 # =============================================================================

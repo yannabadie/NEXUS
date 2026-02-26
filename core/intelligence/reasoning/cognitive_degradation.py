@@ -33,10 +33,9 @@ import logging
 import threading
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .reasoning_quality_scorer import (
-    ReasoningEvaluation,
     get_quality_scorer,
 )
 
@@ -47,8 +46,10 @@ _logger = logging.getLogger(__name__)
 # Types
 # =============================================================================
 
+
 class Mitigation(str, Enum):
     """Recommended mitigation action."""
+
     NONE = "none"
     CONTEXT_RESET = "context_reset"
     AGENT_SWITCH = "agent_switch"
@@ -57,6 +58,7 @@ class Mitigation(str, Enum):
 
 class DegradationReason(str, Enum):
     """Why degradation was detected."""
+
     STABLE = "stable"
     TREND_DECLINE = "trend_decline"
     SUSTAINED_LOW = "sustained_low"
@@ -67,6 +69,7 @@ class DegradationReason(str, Enum):
 @dataclass
 class DegradationSignal:
     """Result of a degradation check for a single agent."""
+
     agent_id: str = ""
     degraded: bool = False
     reason: DegradationReason = DegradationReason.STABLE
@@ -76,7 +79,7 @@ class DegradationSignal:
     window_size: int = 0
     details: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "agent_id": self.agent_id,
             "degraded": self.degraded,
@@ -92,12 +95,13 @@ class DegradationSignal:
 @dataclass
 class DetectorStats:
     """Overall detector statistics."""
+
     checks_performed: int = 0
     degradations_detected: int = 0
     agents_monitored: int = 0
-    mitigations_issued: Dict[str, int] = field(default_factory=dict)
+    mitigations_issued: dict[str, int] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "checks_performed": self.checks_performed,
             "degradations_detected": self.degradations_detected,
@@ -109,6 +113,7 @@ class DetectorStats:
 # =============================================================================
 # Detector
 # =============================================================================
+
 
 class CognitiveDegradationDetector:
     """
@@ -143,7 +148,7 @@ class CognitiveDegradationDetector:
         self._lock = threading.Lock()
         self._checks_performed = 0
         self._degradations_detected = 0
-        self._mitigations: Dict[str, int] = {}
+        self._mitigations: dict[str, int] = {}
         self._agents_checked: set = set()
 
     # =========================================================================
@@ -165,7 +170,8 @@ class CognitiveDegradationDetector:
         """
         scorer = get_quality_scorer()
         recent = scorer.get_recent_evaluations(
-            limit=self._window_size, agent_id=agent_id,
+            limit=self._window_size,
+            agent_id=agent_id,
         )
         # get_recent_evaluations returns most-recent-first; reverse to chronological
         recent = list(reversed(recent))
@@ -202,7 +208,9 @@ class CognitiveDegradationDetector:
             return signal
 
         signal = self._check_calibration_drift(
-            agent_id, calibrations, current,
+            agent_id,
+            calibrations,
+            current,
         )
         if signal.degraded:
             self._record_degradation(signal)
@@ -221,7 +229,10 @@ class CognitiveDegradationDetector:
     # =========================================================================
 
     def _check_sudden_collapse(
-        self, agent_id: str, composites: List[float], current: float,
+        self,
+        agent_id: str,
+        composites: list[float],
+        current: float,
     ) -> DegradationSignal:
         """Detect a sharp single-evaluation quality drop."""
         if len(composites) < 2:
@@ -239,19 +250,19 @@ class CognitiveDegradationDetector:
                 current_composite=current,
                 trend_slope=self._compute_slope(composites),
                 window_size=len(composites),
-                details=(
-                    f"Quality dropped {drop:.2f} in one evaluation "
-                    f"({prev:.2f} -> {current:.2f})"
-                ),
+                details=(f"Quality dropped {drop:.2f} in one evaluation ({prev:.2f} -> {current:.2f})"),
             )
 
         return DegradationSignal(agent_id=agent_id)
 
     def _check_sustained_low(
-        self, agent_id: str, composites: List[float], current: float,
+        self,
+        agent_id: str,
+        composites: list[float],
+        current: float,
     ) -> DegradationSignal:
         """Detect extended periods of low quality."""
-        tail = composites[-self._sustained_low_count:]
+        tail = composites[-self._sustained_low_count :]
         if len(tail) < self._sustained_low_count:
             return DegradationSignal(agent_id=agent_id)
 
@@ -273,7 +284,10 @@ class CognitiveDegradationDetector:
         return DegradationSignal(agent_id=agent_id)
 
     def _check_trend_decline(
-        self, agent_id: str, composites: List[float], current: float,
+        self,
+        agent_id: str,
+        composites: list[float],
+        current: float,
     ) -> DegradationSignal:
         """Detect a declining trend via linear regression slope."""
         slope = self._compute_slope(composites)
@@ -287,10 +301,7 @@ class CognitiveDegradationDetector:
                 current_composite=current,
                 trend_slope=slope,
                 window_size=len(composites),
-                details=(
-                    f"Declining trend (slope={slope:.4f}, "
-                    f"threshold={self._trend_threshold})"
-                ),
+                details=(f"Declining trend (slope={slope:.4f}, threshold={self._trend_threshold})"),
             )
 
         return DegradationSignal(agent_id=agent_id)
@@ -298,7 +309,7 @@ class CognitiveDegradationDetector:
     def _check_calibration_drift(
         self,
         agent_id: str,
-        calibrations: List[float],
+        calibrations: list[float],
         current_composite: float,
     ) -> DegradationSignal:
         """Detect confidence-outcome calibration divergence."""
@@ -314,14 +325,9 @@ class CognitiveDegradationDetector:
                 reason=DegradationReason.CALIBRATION_DRIFT,
                 mitigation=Mitigation.REDUCE_LOAD,
                 current_composite=current_composite,
-                trend_slope=self._compute_slope(
-                    [current_composite] * len(calibrations)
-                ),
+                trend_slope=self._compute_slope([current_composite] * len(calibrations)),
                 window_size=len(calibrations),
-                details=(
-                    f"Avg calibration {avg_cal:.2f} below threshold "
-                    f"{self._calibration_drift_threshold}"
-                ),
+                details=(f"Avg calibration {avg_cal:.2f} below threshold {self._calibration_drift_threshold}"),
             )
 
         return DegradationSignal(agent_id=agent_id)
@@ -331,7 +337,7 @@ class CognitiveDegradationDetector:
     # =========================================================================
 
     @staticmethod
-    def _compute_slope(values: List[float]) -> float:
+    def _compute_slope(values: list[float]) -> float:
         """Compute simple linear regression slope over ordered values."""
         n = len(values)
         if n < 2:

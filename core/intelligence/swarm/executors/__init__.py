@@ -13,26 +13,26 @@ Each executor implements one collaboration mode:
 """
 
 from .base import (
-    ExecutionStatus,
+    COMPLETION_PATTERN,
     AgentResponse,
     ExecutionContext,
-    ExecutionResult,
-    ModeExecutor,
     ExecutionError,
-    COMPLETION_PATTERN,
+    ExecutionResult,
+    ExecutionStatus,
+    ModeExecutor,
     _blackboard_lock,
 )
+from .lead_support_executor import LeadSupportExecutor
 
 # V9.6: Import all extracted executors
 from .parallel_executor import ParallelExecutor
-from .sequential_executor import SequentialExecutor
-from .specialist_executor import SpecialistExecutor
-from .lead_support_executor import LeadSupportExecutor
 from .ping_pong_executor import PingPongExecutor
 from .red_blue_executor import RedBlueExecutor
 
 # V9.6: Import registry
 from .registry import get_executor, get_executor_registry
+from .sequential_executor import SequentialExecutor
+from .specialist_executor import SpecialistExecutor
 
 __all__ = [
     # Base classes

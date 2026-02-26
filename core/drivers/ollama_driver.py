@@ -31,8 +31,9 @@ import asyncio
 import json
 import logging
 import time
-from datetime import datetime, timezone
-from typing import Any, AsyncIterator, Dict, List, Optional
+from collections.abc import AsyncIterator
+from datetime import UTC, datetime
+from typing import Any
 
 from .protocol import (
     BaseAsyncDriver,
@@ -57,6 +58,7 @@ DEFAULT_TIMEOUT = 120.0
 # =============================================================================
 # Ollama Driver
 # =============================================================================
+
 
 class OllamaDriver(BaseAsyncDriver):
     """
@@ -97,10 +99,7 @@ class OllamaDriver(BaseAsyncDriver):
             try:
                 import httpx
             except ImportError:
-                raise ImportError(
-                    "httpx package required for Ollama driver. "
-                    "Install with: pip install httpx"
-                )
+                raise ImportError("httpx package required for Ollama driver. Install with: pip install httpx") from None
             self._client = httpx.AsyncClient(
                 base_url=self._base_url,
                 timeout=self._timeout,
@@ -111,11 +110,11 @@ class OllamaDriver(BaseAsyncDriver):
         self,
         prompt: str,
         *,
-        session_id: Optional[str] = None,
-        system_prompt: Optional[str] = None,
-        tools: Optional[List[Dict[str, Any]]] = None,
-        isolated_env: Optional[Dict[str, str]] = None,
-        timeout: Optional[float] = None,
+        session_id: str | None = None,
+        system_prompt: str | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        isolated_env: dict[str, str] | None = None,
+        timeout: float | None = None,
         **kwargs: Any,
     ) -> DriverResponse:
         """
@@ -142,7 +141,7 @@ class OllamaDriver(BaseAsyncDriver):
         messages.append({"role": "user", "content": prompt})
 
         # Build request payload
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "model": self._model,
             "messages": messages,
             "stream": False,
@@ -181,7 +180,7 @@ class OllamaDriver(BaseAsyncDriver):
             data = response.json()
             return self._parse_response(data, elapsed_ms)
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return self._create_error_response(
                 error_message=f"Ollama request timed out after {timeout or self._timeout}s",
                 error_code="TIMEOUT",
@@ -200,11 +199,11 @@ class OllamaDriver(BaseAsyncDriver):
         self,
         prompt: str,
         *,
-        session_id: Optional[str] = None,
-        system_prompt: Optional[str] = None,
-        tools: Optional[List[Dict[str, Any]]] = None,
-        isolated_env: Optional[Dict[str, str]] = None,
-        timeout: Optional[float] = None,
+        session_id: str | None = None,
+        system_prompt: str | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        isolated_env: dict[str, str] | None = None,
+        timeout: float | None = None,
         **kwargs: Any,
     ) -> AsyncIterator[StreamChunk]:
         """
@@ -221,7 +220,7 @@ class OllamaDriver(BaseAsyncDriver):
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
 
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "model": self._model,
             "messages": messages,
             "stream": True,
@@ -283,7 +282,7 @@ class OllamaDriver(BaseAsyncDriver):
                 is_final=True,
             )
 
-    async def cancel(self, session_id: Optional[str] = None) -> bool:
+    async def cancel(self, session_id: str | None = None) -> bool:
         """
         Cancel ongoing request.
 
@@ -313,7 +312,7 @@ class OllamaDriver(BaseAsyncDriver):
         except Exception:
             return False
 
-    async def list_models(self) -> List[Dict[str, Any]]:
+    async def list_models(self) -> list[dict[str, Any]]:
         """
         List available models on the Ollama server.
 
@@ -340,7 +339,7 @@ class OllamaDriver(BaseAsyncDriver):
     # Internal Methods
     # =========================================================================
 
-    def _format_tools(self, tools: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _format_tools(self, tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
         Format tools for Ollama's API.
 
@@ -361,21 +360,21 @@ class OllamaDriver(BaseAsyncDriver):
                 formatted.append(tool)
             elif "name" in tool:
                 # Simple format -> OpenAI format
-                formatted.append({
-                    "type": "function",
-                    "function": {
-                        "name": tool["name"],
-                        "description": tool.get("description", ""),
-                        "parameters": tool.get("parameters", tool.get("input_schema", {})),
-                    },
-                })
+                formatted.append(
+                    {
+                        "type": "function",
+                        "function": {
+                            "name": tool["name"],
+                            "description": tool.get("description", ""),
+                            "parameters": tool.get("parameters", tool.get("input_schema", {})),
+                        },
+                    }
+                )
             else:
                 formatted.append(tool)
         return formatted
 
-    def _parse_response(
-        self, data: Dict[str, Any], elapsed_ms: float
-    ) -> DriverResponse:
+    def _parse_response(self, data: dict[str, Any], elapsed_ms: float) -> DriverResponse:
         """Parse Ollama response into DriverResponse."""
         message = data.get("message", {})
         content = message.get("content", "")
@@ -385,10 +384,12 @@ class OllamaDriver(BaseAsyncDriver):
         raw_tool_calls = message.get("tool_calls", [])
         for tc in raw_tool_calls:
             func = tc.get("function", {})
-            tool_calls.append(ToolCall(
-                name=func.get("name", ""),
-                arguments=func.get("arguments", {}),
-            ))
+            tool_calls.append(
+                ToolCall(
+                    name=func.get("name", ""),
+                    arguments=func.get("arguments", {}),
+                )
+            )
 
         # Token counts
         input_tokens = data.get("prompt_eval_count", 0)
@@ -404,7 +405,7 @@ class OllamaDriver(BaseAsyncDriver):
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             raw=data,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
 
     def __repr__(self) -> str:

@@ -24,7 +24,7 @@ Date: 2025-12-16
 import logging
 from collections import defaultdict
 from pathlib import Path
-from typing import List, Dict, Any, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from .base import MemoryBackend
 
@@ -66,7 +66,7 @@ class HybridBackend(MemoryBackend):
 
     def __init__(
         self,
-        storage_path: Optional[Path] = None,
+        storage_path: Path | None = None,
         dense_weight: float = DEFAULT_DENSE_WEIGHT,
         sparse_weight: float = DEFAULT_SPARSE_WEIGHT,
     ):
@@ -86,8 +86,8 @@ class HybridBackend(MemoryBackend):
         self._sparse_weight = sparse_weight
 
         # Sub-backends (lazy initialized)
-        self._dense_backend: Optional['MemoryBackend'] = None
-        self._sparse_backend: Optional['MemoryBackend'] = None
+        self._dense_backend: MemoryBackend | None = None
+        self._sparse_backend: MemoryBackend | None = None
 
         # State
         self._index_built = False
@@ -108,8 +108,9 @@ class HybridBackend(MemoryBackend):
     def is_available(cls) -> bool:
         """Check if Hybrid backend can be used."""
         # Available if either sub-backend is available
-        from .dense import DenseBackend
         from .bm25 import Bm25Backend
+        from .dense import DenseBackend
+
         return DenseBackend.is_available() or Bm25Backend.is_available()
 
     def _ensure_backends(self) -> bool:
@@ -122,6 +123,7 @@ class HybridBackend(MemoryBackend):
         if self._dense_backend is None:
             try:
                 from .dense import DenseBackend
+
                 if DenseBackend.is_available() and self._storage_path:
                     self._dense_backend = DenseBackend(self._storage_path)
                     self._logger.debug("Dense backend initialized")
@@ -131,6 +133,7 @@ class HybridBackend(MemoryBackend):
         if self._sparse_backend is None:
             try:
                 from .bm25 import Bm25Backend
+
                 if Bm25Backend.is_available():
                     self._sparse_backend = Bm25Backend()
                     self._logger.debug("BM25S backend initialized")
@@ -139,7 +142,7 @@ class HybridBackend(MemoryBackend):
 
         return self._dense_backend is not None or self._sparse_backend is not None
 
-    def build_index(self, chunks: List['Chunk']) -> None:
+    def build_index(self, chunks: list["Chunk"]) -> None:
         """
         Build indices for both sub-backends.
 
@@ -177,13 +180,8 @@ class HybridBackend(MemoryBackend):
         self._logger.info(f"Hybrid index built: {self._chunk_count} chunks")
 
     def retrieve(
-        self,
-        query_terms: List[str],
-        chunks: List['Chunk'],
-        limit: int,
-        min_score: float,
-        raw_query: Optional[str] = None
-    ) -> List['Chunk']:
+        self, query_terms: list[str], chunks: list["Chunk"], limit: int, min_score: float, raw_query: str | None = None
+    ) -> list["Chunk"]:
         """
         Retrieve chunks using hybrid RRF ranking.
 
@@ -203,8 +201,8 @@ class HybridBackend(MemoryBackend):
         # Retrieve from both backends (with higher limit for re-ranking)
         retrieve_limit = min(limit * 3, self._chunk_count) if self._chunk_count > 0 else limit * 3
 
-        dense_results: List['Chunk'] = []
-        sparse_results: List['Chunk'] = []
+        dense_results: list[Chunk] = []
+        sparse_results: list[Chunk] = []
 
         # Dense retrieval (semantic)
         if self._dense_backend is not None and self._dense_backend.is_ready and raw_query:
@@ -214,7 +212,7 @@ class HybridBackend(MemoryBackend):
                     chunks=chunks,
                     limit=retrieve_limit,
                     min_score=0.0,  # Don't filter here, filter after RRF
-                    raw_query=raw_query
+                    raw_query=raw_query,
                 )
             except Exception as e:
                 self._logger.warning(f"Dense retrieval failed: {e}")
@@ -227,7 +225,7 @@ class HybridBackend(MemoryBackend):
                     chunks=chunks,
                     limit=retrieve_limit,
                     min_score=0.0,  # Don't filter here, filter after RRF
-                    raw_query=raw_query
+                    raw_query=raw_query,
                 )
             except Exception as e:
                 self._logger.warning(f"Sparse retrieval failed: {e}")
@@ -244,11 +242,7 @@ class HybridBackend(MemoryBackend):
         rrf_results = self._compute_rrf_scores(dense_results, sparse_results)
 
         # Sort by RRF score descending
-        sorted_entries = sorted(
-            rrf_results.values(),
-            key=lambda entry: entry[1],
-            reverse=True
-        )
+        sorted_entries = sorted(rrf_results.values(), key=lambda entry: entry[1], reverse=True)
 
         # Return top-k chunks above min_score
         results = []
@@ -257,17 +251,12 @@ class HybridBackend(MemoryBackend):
                 results.append(chunk)
 
         self._logger.debug(
-            f"Hybrid retrieval: {len(dense_results)} dense + {len(sparse_results)} sparse "
-            f"→ {len(results)} after RRF"
+            f"Hybrid retrieval: {len(dense_results)} dense + {len(sparse_results)} sparse → {len(results)} after RRF"
         )
 
         return results
 
-    def _compute_rrf_scores(
-        self,
-        dense_results: List['Chunk'],
-        sparse_results: List['Chunk']
-    ) -> Dict[str, tuple]:
+    def _compute_rrf_scores(self, dense_results: list["Chunk"], sparse_results: list["Chunk"]) -> dict[str, tuple]:
         """
         Compute Reciprocal Rank Fusion scores.
 
@@ -284,8 +273,8 @@ class HybridBackend(MemoryBackend):
         Returns:
             Dict mapping chunk_id to (chunk, rrf_score) tuples
         """
-        rrf_scores: Dict[str, float] = defaultdict(float)
-        chunk_lookup: Dict[str, 'Chunk'] = {}
+        rrf_scores: dict[str, float] = defaultdict(float)
+        chunk_lookup: dict[str, Chunk] = {}
 
         # Process dense results
         for rank, chunk in enumerate(dense_results, start=1):
@@ -320,7 +309,7 @@ class HybridBackend(MemoryBackend):
         self._index_built = False
         self._chunk_count = 0
 
-    def get_info(self) -> Dict[str, Any]:
+    def get_info(self) -> dict[str, Any]:
         """Get Hybrid backend information."""
         dense_info = self._dense_backend.get_info() if self._dense_backend else {}
         sparse_info = self._sparse_backend.get_info() if self._sparse_backend else {}

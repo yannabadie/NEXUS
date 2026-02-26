@@ -13,22 +13,17 @@ Validates:
 - Module exports
 """
 
-import json
-from pathlib import Path
-
-import pytest
-
 from core.memory_pkg.skills.crystallizer import (
+    CrystallizedSkill,
     SkillCrystallizer,
     ToolCallRecord,
     ToolSequencePattern,
-    CrystallizedSkill,
 )
-
 
 # =============================================================================
 # ToolCallRecord Tests
 # =============================================================================
+
 
 class TestToolCallRecord:
     """Test tool call recording."""
@@ -104,6 +99,7 @@ class TestToolCallRecord:
 # ToolSequencePattern Tests
 # =============================================================================
 
+
 class TestToolSequencePattern:
     """Test pattern representation."""
 
@@ -178,6 +174,7 @@ class TestToolSequencePattern:
 # =============================================================================
 # CrystallizedSkill Tests
 # =============================================================================
+
 
 class TestCrystallizedSkill:
     """Test skill representation."""
@@ -304,6 +301,7 @@ class TestCrystallizedSkill:
 # SkillCrystallizer - Recording Tests
 # =============================================================================
 
+
 class TestCrystallizerRecording:
     """Test tool call recording."""
 
@@ -338,6 +336,7 @@ class TestCrystallizerRecording:
 # =============================================================================
 # SkillCrystallizer - Pattern Detection Tests
 # =============================================================================
+
 
 class TestPatternDetection:
     """Test pattern detection algorithm."""
@@ -448,6 +447,7 @@ class TestPatternDetection:
 # SkillCrystallizer - Crystallization Tests
 # =============================================================================
 
+
 class TestCrystallization:
     """Test skill compilation from patterns."""
 
@@ -554,6 +554,7 @@ class TestCrystallization:
 # SkillCrystallizer - Skill Management Tests
 # =============================================================================
 
+
 class TestSkillManagement:
     """Test skill CRUD and matching."""
 
@@ -628,6 +629,7 @@ class TestSkillManagement:
 # Persistence Tests
 # =============================================================================
 
+
 class TestPersistence:
     """Test skill save/load to disk."""
 
@@ -697,6 +699,7 @@ class TestPersistence:
 # State Export Tests
 # =============================================================================
 
+
 class TestStateExport:
     """Test crystallizer state export."""
 
@@ -725,6 +728,7 @@ class TestStateExport:
 # =============================================================================
 # Parameter Type Inference Tests
 # =============================================================================
+
 
 class TestParameterInference:
     """Test parameter type inference."""
@@ -755,16 +759,18 @@ class TestParameterInference:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test that skill types are importable."""
 
     def test_from_skills_package(self):
         from core.memory_pkg.skills import (
+            CrystallizedSkill,
             SkillCrystallizer,
             ToolCallRecord,
             ToolSequencePattern,
-            CrystallizedSkill,
         )
+
         assert SkillCrystallizer is not None
         assert ToolCallRecord is not None
         assert ToolSequencePattern is not None
@@ -772,9 +778,10 @@ class TestModuleExports:
 
     def test_from_crystallizer_module(self):
         from core.memory_pkg.skills.crystallizer import (
+            CrystallizedSkill,
             SkillCrystallizer,
             ToolCallRecord,
             ToolSequencePattern,
-            CrystallizedSkill,
         )
+
         assert all([SkillCrystallizer, ToolCallRecord, ToolSequencePattern, CrystallizedSkill])

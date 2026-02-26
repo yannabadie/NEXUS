@@ -1,5 +1,5 @@
-import sys
 import os
+import sys
 from pathlib import Path
 
 # Add project root to path
@@ -7,7 +7,7 @@ sys.path.append(os.getcwd())
 
 from core.config import load_config
 from core.orchestration_v7 import OrchestratorV7
-from core.intelligence.swarm.collaboration_modes import CollaborationMode
+
 
 def verify_hive_mind():
     print("[*] INITIALIZING HIVE MIND VERIFICATION...")
@@ -49,7 +49,7 @@ def verify_hive_mind():
         print("\n[TEST 2] EVOLUTION & RED TEAM CONFIG")
 
         # Check Red Team Optionality
-        is_mandatory = getattr(config, 'red_team_mandatory', True)
+        is_mandatory = getattr(config, "red_team_mandatory", True)
         print(f"[INFO] Red Team Mandatory: {is_mandatory}")
 
         if not is_mandatory:
@@ -114,14 +114,16 @@ def verify_hive_mind():
         else:
             print("[FAIL] JSON wrapping failed")
 
-        print("\n" + "="*50)
+        print("\n" + "=" * 50)
         print("HIVE MIND V7.5 VERIFICATION COMPLETE")
-        print("="*50)
+        print("=" * 50)
 
     except Exception as e:
         print(f"\n[CRITICAL] ERROR during verification: {e}")
         import traceback
+
         traceback.print_exc()
+
 
 if __name__ == "__main__":
     verify_hive_mind()

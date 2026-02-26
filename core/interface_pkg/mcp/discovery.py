@@ -22,8 +22,8 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from .protocol import MCPTool, MCPToolInputSchema
 
@@ -37,7 +37,7 @@ _logger = logging.getLogger(__name__)
 _VALID_JSON_SCHEMA_TYPES = {"object", "string", "number", "integer", "boolean", "array", "null"}
 
 
-def validate_input_schema(schema: Optional[MCPToolInputSchema]) -> List[str]:
+def validate_input_schema(schema: MCPToolInputSchema | None) -> list[str]:
     """
     Validate an MCP tool input schema for well-formedness.
 
@@ -56,7 +56,7 @@ def validate_input_schema(schema: Optional[MCPToolInputSchema]) -> List[str]:
     if schema is None:
         return []  # No schema = no constraints = valid
 
-    errors: List[str] = []
+    errors: list[str] = []
 
     # Root type must be "object" for tool input
     if schema.type != "object":
@@ -88,6 +88,7 @@ def validate_input_schema(schema: Optional[MCPToolInputSchema]) -> List[str]:
 # Data Types
 # =============================================================================
 
+
 @dataclass
 class DiscoveredTool:
     """
@@ -104,19 +105,20 @@ class DiscoveredTool:
         server_version: Server version (if known)
         discovered_at: Timestamp of discovery
     """
+
     server_name: str
     tool_name: str
     qualified_name: str
     description: str = ""
-    input_schema: Optional[Dict[str, Any]] = None
+    input_schema: dict[str, Any] | None = None
     schema_valid: bool = True
-    schema_errors: List[str] = field(default_factory=list)
+    schema_errors: list[str] = field(default_factory=list)
     server_version: str = ""
     discovered_at: str = ""
 
     def __post_init__(self):
         if not self.discovered_at:
-            self.discovered_at = datetime.now(timezone.utc).isoformat()
+            self.discovered_at = datetime.now(UTC).isoformat()
 
     @property
     def has_schema(self) -> bool:
@@ -124,20 +126,20 @@ class DiscoveredTool:
         return self.input_schema is not None and len(self.input_schema) > 0
 
     @property
-    def required_params(self) -> List[str]:
+    def required_params(self) -> list[str]:
         """Get list of required parameter names."""
         if self.input_schema is None:
             return []
         return self.input_schema.get("required", [])
 
     @property
-    def param_names(self) -> List[str]:
+    def param_names(self) -> list[str]:
         """Get list of all parameter names."""
         if self.input_schema is None:
             return []
         return list(self.input_schema.get("properties", {}).keys())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize to dict."""
         return {
             "server_name": self.server_name,
@@ -155,6 +157,7 @@ class DiscoveredTool:
 @dataclass
 class ServerDiscoveryStatus:
     """Status of discovery for a single server."""
+
     server_name: str
     success: bool
     tool_count: int = 0
@@ -177,13 +180,14 @@ class ToolDiscoveryResult:
         servers_failed: Number of servers that failed
         discovered_at: Timestamp of discovery run
     """
-    tools: List[DiscoveredTool] = field(default_factory=list)
-    server_statuses: List[ServerDiscoveryStatus] = field(default_factory=list)
+
+    tools: list[DiscoveredTool] = field(default_factory=list)
+    server_statuses: list[ServerDiscoveryStatus] = field(default_factory=list)
     discovered_at: str = ""
 
     def __post_init__(self):
         if not self.discovered_at:
-            self.discovered_at = datetime.now(timezone.utc).isoformat()
+            self.discovered_at = datetime.now(UTC).isoformat()
 
     @property
     def total_tools(self) -> int:
@@ -205,15 +209,15 @@ class ToolDiscoveryResult:
     def servers_failed(self) -> int:
         return sum(1 for s in self.server_statuses if not s.success)
 
-    def get_tools_by_server(self, server_name: str) -> List[DiscoveredTool]:
+    def get_tools_by_server(self, server_name: str) -> list[DiscoveredTool]:
         """Get tools discovered from a specific server."""
         return [t for t in self.tools if t.server_name == server_name]
 
-    def get_invalid_tools(self) -> List[DiscoveredTool]:
+    def get_invalid_tools(self) -> list[DiscoveredTool]:
         """Get tools with schema validation errors."""
         return [t for t in self.tools if not t.schema_valid]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize to dict for reporting."""
         return {
             "total_tools": self.total_tools,
@@ -238,6 +242,7 @@ class ToolDiscoveryResult:
 # =============================================================================
 # Discovery Engine
 # =============================================================================
+
 
 class MCPToolDiscovery:
     """
@@ -304,9 +309,7 @@ class MCPToolDiscovery:
 
         return result
 
-    def discover_server(
-        self, server_name: str, validate_schemas: bool = True
-    ) -> List[DiscoveredTool]:
+    def discover_server(self, server_name: str, validate_schemas: bool = True) -> list[DiscoveredTool]:
         """
         Discover tools from a specific server.
 
@@ -320,9 +323,7 @@ class MCPToolDiscovery:
         _, tools = self._discover_server(server_name, validate_schemas)
         return tools
 
-    def _discover_server(
-        self, server_name: str, validate_schemas: bool = True
-    ) -> tuple:
+    def _discover_server(self, server_name: str, validate_schemas: bool = True) -> tuple:
         """
         Internal: discover tools from a single server.
 
@@ -348,7 +349,7 @@ class MCPToolDiscovery:
             # List tools
             mcp_tools = client.list_tools()
 
-            discovered: List[DiscoveredTool] = []
+            discovered: list[DiscoveredTool] = []
             for mcp_tool in mcp_tools:
                 tool = self._process_tool(
                     server_name=server_name,
@@ -365,15 +366,11 @@ class MCPToolDiscovery:
                 server_version=server_version,
             )
 
-            _logger.info(
-                f"Discovered {len(discovered)} tools from server '{server_name}'"
-            )
+            _logger.info(f"Discovered {len(discovered)} tools from server '{server_name}'")
             return status, discovered
 
         except Exception as e:
-            _logger.warning(
-                f"Failed to discover tools from server '{server_name}': {e}"
-            )
+            _logger.warning(f"Failed to discover tools from server '{server_name}': {e}")
             status = ServerDiscoveryStatus(
                 server_name=server_name,
                 success=False,
@@ -403,22 +400,20 @@ class MCPToolDiscovery:
         qualified_name = f"mcp_{server_name}_{mcp_tool.name}"
 
         # Extract schema as dict
-        input_schema: Optional[Dict[str, Any]] = None
+        input_schema: dict[str, Any] | None = None
         if mcp_tool.inputSchema is not None:
             input_schema = mcp_tool.inputSchema.to_dict()
 
         # Validate schema
         schema_valid = True
-        schema_errors: List[str] = []
+        schema_errors: list[str] = []
 
         if validate_schema and mcp_tool.inputSchema is not None:
             schema_errors = validate_input_schema(mcp_tool.inputSchema)
             schema_valid = len(schema_errors) == 0
 
             if schema_errors:
-                _logger.debug(
-                    f"Schema validation errors for {qualified_name}: {schema_errors}"
-                )
+                _logger.debug(f"Schema validation errors for {qualified_name}: {schema_errors}")
 
         return DiscoveredTool(
             server_name=server_name,

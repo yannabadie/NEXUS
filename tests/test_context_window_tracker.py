@@ -15,12 +15,10 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.memory_pkg.memory.context_window_tracker import (
-    MAX_USAGE_RECORDS,
-    CONTEXT_WARNING_THRESHOLD,
     CONTEXT_CRITICAL_THRESHOLD,
+    CONTEXT_WARNING_THRESHOLD,
+    MAX_USAGE_RECORDS,
     CompressionEvent,
     ContextTrackerStats,
     ContextUsageRecord,
@@ -29,10 +27,10 @@ from core.memory_pkg.memory.context_window_tracker import (
     reset_context_tracker,
 )
 
-
 # =============================================================================
 # ContextUsageRecord Tests
 # =============================================================================
+
 
 class TestContextUsageRecord:
     """Test ContextUsageRecord dataclass."""
@@ -69,6 +67,7 @@ class TestContextUsageRecord:
 # CompressionEvent Tests
 # =============================================================================
 
+
 class TestCompressionEvent:
     """Test CompressionEvent dataclass."""
 
@@ -96,12 +95,12 @@ class TestCompressionEvent:
 # ContextTrackerStats Tests
 # =============================================================================
 
+
 class TestContextTrackerStats:
     """Test ContextTrackerStats dataclass."""
 
     def test_to_dict(self):
-        s = ContextTrackerStats(total_records=10, total_compressions=3,
-                                avg_utilization=0.6, peak_utilization=0.9)
+        s = ContextTrackerStats(total_records=10, total_compressions=3, avg_utilization=0.6, peak_utilization=0.9)
         d = s.to_dict()
         assert d["total_records"] == 10
 
@@ -110,13 +109,13 @@ class TestContextTrackerStats:
 # Usage Recording Tests
 # =============================================================================
 
+
 class TestUsageRecording:
     """Test usage recording."""
 
     def test_record_basic(self):
         t = ContextWindowTracker()
-        r = t.record_usage(session_id="s1", model_id="claude",
-                           total_tokens=500, max_tokens=1000)
+        r = t.record_usage(session_id="s1", model_id="claude", total_tokens=500, max_tokens=1000)
         assert r.record_id == "ctx_000000"
         assert t.record_count == 1
 
@@ -145,6 +144,7 @@ class TestUsageRecording:
 # Compression Recording Tests
 # =============================================================================
 
+
 class TestCompressionRecording:
     """Test compression recording."""
 
@@ -164,6 +164,7 @@ class TestCompressionRecording:
 # =============================================================================
 # Level Detection Tests
 # =============================================================================
+
 
 class TestLevelDetection:
     """Test current level detection."""
@@ -191,6 +192,7 @@ class TestLevelDetection:
 # =============================================================================
 # Query Tests
 # =============================================================================
+
 
 class TestQueries:
     """Test query methods."""
@@ -222,6 +224,7 @@ class TestQueries:
 # Bounded History Tests
 # =============================================================================
 
+
 class TestBoundedHistory:
     """Test bounded record history."""
 
@@ -235,6 +238,7 @@ class TestBoundedHistory:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test tracker statistics."""
@@ -263,6 +267,7 @@ class TestStatistics:
 # =============================================================================
 # State Tests
 # =============================================================================
+
 
 class TestState:
     """Test state management."""
@@ -300,6 +305,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global context tracker."""
 
@@ -326,25 +332,32 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_memory_package(self):
         from core.memory_pkg.memory import (
-            ContextWindowTracker, ContextUsageRecord, CompressionEvent,
+            CompressionEvent,
             ContextTrackerStats,
-            get_context_tracker, reset_context_tracker,
+            ContextUsageRecord,
+            ContextWindowTracker,
+            get_context_tracker,
+            reset_context_tracker,
         )
-        assert all([
-            ContextWindowTracker, ContextUsageRecord, CompressionEvent,
-            ContextTrackerStats,
-            get_context_tracker, reset_context_tracker,
-        ])
+
+        assert all(
+            [
+                ContextWindowTracker,
+                ContextUsageRecord,
+                CompressionEvent,
+                ContextTrackerStats,
+                get_context_tracker,
+                reset_context_tracker,
+            ]
+        )
 
     def test_constants(self):
-        from core.memory_pkg.memory.context_window_tracker import (
-            MAX_USAGE_RECORDS, CONTEXT_WARNING_THRESHOLD, CONTEXT_CRITICAL_THRESHOLD,
-        )
         assert MAX_USAGE_RECORDS == 50000
         assert CONTEXT_WARNING_THRESHOLD == 0.8
         assert CONTEXT_CRITICAL_THRESHOLD == 0.95

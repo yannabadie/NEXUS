@@ -12,20 +12,19 @@ Validates:
 
 import asyncio
 import json
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 from pydantic import BaseModel
-from typing import List, Optional
 
 from core.drivers.protocol import (
-    DriverResponse,
     DriverResponseStatus,
 )
-
 
 # =============================================================================
 # Pydantic Models for Testing
 # =============================================================================
+
 
 class ContactInfo(BaseModel):
     name: str
@@ -36,9 +35,9 @@ class ContactInfo(BaseModel):
 
 class TaskAnalysis(BaseModel):
     complexity: str
-    domains: List[str]
+    domains: list[str]
     estimated_turns: int
-    reasoning: Optional[str] = None
+    reasoning: str | None = None
 
 
 class SimpleResult(BaseModel):
@@ -49,6 +48,7 @@ class SimpleResult(BaseModel):
 # =============================================================================
 # Mock Response Objects
 # =============================================================================
+
 
 class MockTextBlock:
     def __init__(self, text: str):
@@ -64,6 +64,7 @@ class MockUsage:
 
 class MockParseResponse:
     """Mock for messages.parse() response with parsed_output."""
+
     def __init__(
         self,
         content_text: str = '{"answer": "4", "confidence": 1.0}',
@@ -81,6 +82,7 @@ class MockParseResponse:
 
 class MockCreateResponse:
     """Mock for messages.create() response (JSON schema mode)."""
+
     def __init__(
         self,
         content_text: str = '{"name": "John", "email": "john@example.com"}',
@@ -98,6 +100,7 @@ class MockCreateResponse:
 # Test Fixtures
 # =============================================================================
 
+
 @pytest.fixture
 def mock_anthropic_module():
     """Create a mock anthropic module."""
@@ -114,17 +117,21 @@ def driver(mock_anthropic_module):
     """Create an AnthropicSDKDriver with mocked SDK."""
     mock_module, mock_async_client = mock_anthropic_module
 
-    with patch.dict("sys.modules", {"anthropic": mock_module}):
-        with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"}):
-            from core.drivers.anthropic_sdk_driver import AnthropicSDKDriver
-            d = AnthropicSDKDriver(model="claude-sonnet-4-5-20250929")
-            d._client = mock_async_client
-            return d
+    with (
+        patch.dict("sys.modules", {"anthropic": mock_module}),
+        patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"}),
+    ):
+        from core.drivers.anthropic_sdk_driver import AnthropicSDKDriver
+
+        d = AnthropicSDKDriver(model="claude-sonnet-4-5-20250929")
+        d._client = mock_async_client
+        return d
 
 
 # =============================================================================
 # invoke_structured() Tests
 # =============================================================================
+
 
 class TestInvokeStructured:
     """Test structured output with Pydantic models."""
@@ -221,11 +228,14 @@ class TestInvokeStructured:
         """Should pass plain string system prompt when caching disabled."""
         mock_module, mock_async_client = mock_anthropic_module
 
-        with patch.dict("sys.modules", {"anthropic": mock_module}):
-            with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
-                from core.drivers.anthropic_sdk_driver import AnthropicSDKDriver
-                d = AnthropicSDKDriver(enable_caching=False)
-                d._client = mock_async_client
+        with (
+            patch.dict("sys.modules", {"anthropic": mock_module}),
+            patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}),
+        ):
+            from core.drivers.anthropic_sdk_driver import AnthropicSDKDriver
+
+            d = AnthropicSDKDriver(enable_caching=False)
+            d._client = mock_async_client
 
         mock_async_client.messages.parse = AsyncMock(
             return_value=MockParseResponse(parsed_output=SimpleResult(answer="x", confidence=0.5))
@@ -264,7 +274,7 @@ class TestInvokeStructured:
     async def test_structured_timeout(self, driver, mock_anthropic_module):
         """Should handle timeout gracefully."""
         _, mock_client = mock_anthropic_module
-        mock_client.messages.parse = AsyncMock(side_effect=asyncio.TimeoutError())
+        mock_client.messages.parse = AsyncMock(side_effect=TimeoutError())
         driver._client = mock_client
 
         response = await driver.invoke_structured("test", SimpleResult, timeout=0.001)
@@ -302,9 +312,7 @@ class TestInvokeStructured:
     async def test_structured_generic_error(self, driver, mock_anthropic_module):
         """Should handle generic errors with proper classification."""
         _, mock_client = mock_anthropic_module
-        mock_client.messages.parse = AsyncMock(
-            side_effect=ValueError("Invalid schema")
-        )
+        mock_client.messages.parse = AsyncMock(side_effect=ValueError("Invalid schema"))
         driver._client = mock_client
 
         response = await driver.invoke_structured("test", SimpleResult)
@@ -317,9 +325,7 @@ class TestInvokeStructured:
         """Should extract token usage from response."""
         _, mock_client = mock_anthropic_module
 
-        mock_resp = MockParseResponse(
-            parsed_output=SimpleResult(answer="42", confidence=0.99)
-        )
+        mock_resp = MockParseResponse(parsed_output=SimpleResult(answer="42", confidence=0.99))
         mock_resp.usage = MockUsage(input_tokens=200, output_tokens=75)
         mock_client.messages.parse = AsyncMock(return_value=mock_resp)
         driver._client = mock_client
@@ -334,9 +340,7 @@ class TestInvokeStructured:
         """Should handle response without parsed_output attribute."""
         _, mock_client = mock_anthropic_module
 
-        mock_resp = MockParseResponse(
-            content_text='{"answer": "test", "confidence": 0.5}'
-        )
+        mock_resp = MockParseResponse(content_text='{"answer": "test", "confidence": 0.5}')
         # Simulate old SDK that doesn't have parsed_output
         del mock_resp.parsed_output
         mock_client.messages.parse = AsyncMock(return_value=mock_resp)
@@ -352,6 +356,7 @@ class TestInvokeStructured:
 # invoke_json_schema() Tests
 # =============================================================================
 
+
 class TestInvokeJsonSchema:
     """Test structured output with raw JSON schemas."""
 
@@ -361,9 +366,7 @@ class TestInvokeJsonSchema:
         _, mock_client = mock_anthropic_module
 
         json_content = '{"name": "John", "email": "john@test.com", "active": true}'
-        mock_client.messages.create = AsyncMock(
-            return_value=MockCreateResponse(content_text=json_content)
-        )
+        mock_client.messages.create = AsyncMock(return_value=MockCreateResponse(content_text=json_content))
         driver._client = mock_client
 
         schema = {
@@ -392,9 +395,7 @@ class TestInvokeJsonSchema:
     async def test_json_schema_passes_output_config(self, driver, mock_anthropic_module):
         """Should include output_config.format in request."""
         _, mock_client = mock_anthropic_module
-        mock_client.messages.create = AsyncMock(
-            return_value=MockCreateResponse()
-        )
+        mock_client.messages.create = AsyncMock(return_value=MockCreateResponse())
         driver._client = mock_client
 
         schema = {
@@ -415,16 +416,12 @@ class TestInvokeJsonSchema:
     async def test_json_schema_with_system_prompt(self, driver, mock_anthropic_module):
         """Should pass system prompt through to request."""
         _, mock_client = mock_anthropic_module
-        mock_client.messages.create = AsyncMock(
-            return_value=MockCreateResponse()
-        )
+        mock_client.messages.create = AsyncMock(return_value=MockCreateResponse())
         driver._client = mock_client
 
         schema = {"type": "object", "properties": {}, "additionalProperties": False}
 
-        await driver.invoke_json_schema(
-            "test", schema, system_prompt="Extract data."
-        )
+        await driver.invoke_json_schema("test", schema, system_prompt="Extract data.")
 
         call_kwargs = mock_client.messages.create.call_args[1]
         assert "system" in call_kwargs
@@ -433,7 +430,7 @@ class TestInvokeJsonSchema:
     async def test_json_schema_timeout(self, driver, mock_anthropic_module):
         """Should handle timeout gracefully."""
         _, mock_client = mock_anthropic_module
-        mock_client.messages.create = AsyncMock(side_effect=asyncio.TimeoutError())
+        mock_client.messages.create = AsyncMock(side_effect=TimeoutError())
         driver._client = mock_client
 
         schema = {"type": "object", "properties": {}, "additionalProperties": False}
@@ -458,9 +455,7 @@ class TestInvokeJsonSchema:
     async def test_json_schema_error(self, driver, mock_anthropic_module):
         """Should handle API errors gracefully."""
         _, mock_client = mock_anthropic_module
-        mock_client.messages.create = AsyncMock(
-            side_effect=Exception("Schema too complex")
-        )
+        mock_client.messages.create = AsyncMock(side_effect=Exception("Schema too complex"))
         driver._client = mock_client
 
         schema = {"type": "object", "properties": {}, "additionalProperties": False}
@@ -473,9 +468,7 @@ class TestInvokeJsonSchema:
     async def test_json_schema_token_counts(self, driver, mock_anthropic_module):
         """Should extract token usage."""
         _, mock_client = mock_anthropic_module
-        mock_client.messages.create = AsyncMock(
-            return_value=MockCreateResponse()
-        )
+        mock_client.messages.create = AsyncMock(return_value=MockCreateResponse())
         driver._client = mock_client
 
         schema = {"type": "object", "properties": {}, "additionalProperties": False}
@@ -488,6 +481,7 @@ class TestInvokeJsonSchema:
 # =============================================================================
 # Protocol Compliance Tests
 # =============================================================================
+
 
 class TestStructuredOutputProtocol:
     """Test that structured output methods don't break existing interface."""
@@ -535,6 +529,7 @@ class TestStructuredOutputProtocol:
 # Edge Cases
 # =============================================================================
 
+
 class TestStructuredOutputEdgeCases:
     """Test edge cases and boundary conditions."""
 
@@ -562,9 +557,7 @@ class TestStructuredOutputEdgeCases:
         """Should allow max_tokens override via kwargs."""
         _, mock_client = mock_anthropic_module
         mock_client.messages.parse = AsyncMock(
-            return_value=MockParseResponse(
-                parsed_output=SimpleResult(answer="x", confidence=0.5)
-            )
+            return_value=MockParseResponse(parsed_output=SimpleResult(answer="x", confidence=0.5))
         )
         driver._client = mock_client
 

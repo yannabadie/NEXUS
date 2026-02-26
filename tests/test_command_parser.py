@@ -16,8 +16,6 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.interface_pkg.interface.command_parser import (
     Arg,
     ArgType,
@@ -27,10 +25,10 @@ from core.interface_pkg.interface.command_parser import (
     Suggestion,
 )
 
-
 # =============================================================================
 # ArgType Tests
 # =============================================================================
+
 
 class TestArgType:
     """Test ArgType enum."""
@@ -60,6 +58,7 @@ class TestArgType:
 # =============================================================================
 # Arg Tests
 # =============================================================================
+
 
 class TestArg:
     """Test Arg dataclass."""
@@ -99,6 +98,7 @@ class TestArg:
 # CommandDef Tests
 # =============================================================================
 
+
 class TestCommandDef:
     """Test CommandDef dataclass."""
 
@@ -109,19 +109,25 @@ class TestCommandDef:
         assert cmd.category == "general"
 
     def test_positional_args(self):
-        cmd = CommandDef(name="test", args=[
-            Arg("task", required=True),
-            Arg("mode", required=False),
-        ])
+        cmd = CommandDef(
+            name="test",
+            args=[
+                Arg("task", required=True),
+                Arg("mode", required=False),
+            ],
+        )
         assert len(cmd.positional_args) == 1
         assert cmd.positional_args[0].name == "task"
 
     def test_optional_args(self):
-        cmd = CommandDef(name="test", args=[
-            Arg("task", required=True),
-            Arg("mode", required=False),
-            Arg("depth", required=False),
-        ])
+        cmd = CommandDef(
+            name="test",
+            args=[
+                Arg("task", required=True),
+                Arg("mode", required=False),
+                Arg("depth", required=False),
+            ],
+        )
         assert len(cmd.optional_args) == 2
 
     def test_aliases(self):
@@ -141,6 +147,7 @@ class TestCommandDef:
 # =============================================================================
 # ParsedCommand Tests
 # =============================================================================
+
 
 class TestParsedCommand:
     """Test ParsedCommand dataclass."""
@@ -171,6 +178,7 @@ class TestParsedCommand:
 # Suggestion Tests
 # =============================================================================
 
+
 class TestSuggestion:
     """Test Suggestion dataclass."""
 
@@ -191,6 +199,7 @@ class TestSuggestion:
 # Define Tests
 # =============================================================================
 
+
 class TestDefine:
     """Test command definition."""
 
@@ -202,10 +211,14 @@ class TestDefine:
 
     def test_define_with_args(self):
         parser = CommandParser()
-        cmd = parser.define("swarm", "Launch swarm", args=[
-            Arg("task", ArgType.STRING, required=True),
-            Arg("mode", ArgType.ENUM, choices=["parallel", "sequential"]),
-        ])
+        cmd = parser.define(
+            "swarm",
+            "Launch swarm",
+            args=[
+                Arg("task", ArgType.STRING, required=True),
+                Arg("mode", ArgType.ENUM, choices=["parallel", "sequential"]),
+            ],
+        )
         assert len(cmd.args) == 2
 
     def test_define_with_aliases(self):
@@ -258,6 +271,7 @@ class TestDefine:
 # =============================================================================
 # Parse Tests - Basic
 # =============================================================================
+
 
 class TestParseBasic:
     """Test basic command parsing."""
@@ -318,6 +332,7 @@ class TestParseBasic:
 # Parse Tests - Arguments
 # =============================================================================
 
+
 class TestParseArgs:
     """Test argument parsing."""
 
@@ -366,20 +381,26 @@ class TestParseArgs:
 
     def test_extra_positional_absorbed(self):
         parser = CommandParser()
-        parser.define("test", args=[
-            Arg("a", required=True),
-            Arg("b", ArgType.STRING),
-        ])
+        parser.define(
+            "test",
+            args=[
+                Arg("a", required=True),
+                Arg("b", ArgType.STRING),
+            ],
+        )
         result = parser.parse("/test hello world")
         assert result.args["a"] == "hello"
         assert result.args["b"] == "world"
 
     def test_mixed_positional_and_named(self):
         parser = CommandParser()
-        parser.define("swarm", args=[
-            Arg("task", required=True),
-            Arg("mode", ArgType.ENUM, choices=["parallel", "sequential"]),
-        ])
+        parser.define(
+            "swarm",
+            args=[
+                Arg("task", required=True),
+                Arg("mode", ArgType.ENUM, choices=["parallel", "sequential"]),
+            ],
+        )
         result = parser.parse("/swarm 'Fix bug' --mode parallel")
         assert result.args["task"] == "Fix bug"
         assert result.args["mode"] == "parallel"
@@ -388,6 +409,7 @@ class TestParseArgs:
 # =============================================================================
 # Parse Tests - Validation
 # =============================================================================
+
 
 class TestParseValidation:
     """Test argument validation."""
@@ -401,18 +423,24 @@ class TestParseValidation:
 
     def test_invalid_enum_choice(self):
         parser = CommandParser()
-        parser.define("run", args=[
-            Arg("mode", ArgType.ENUM, choices=["fast", "slow"]),
-        ])
+        parser.define(
+            "run",
+            args=[
+                Arg("mode", ArgType.ENUM, choices=["fast", "slow"]),
+            ],
+        )
         result = parser.parse("/run --mode invalid")
         assert result.is_valid is False
         assert "Invalid value" in result.errors[0]
 
     def test_valid_enum_choice(self):
         parser = CommandParser()
-        parser.define("run", args=[
-            Arg("mode", ArgType.ENUM, choices=["fast", "slow"]),
-        ])
+        parser.define(
+            "run",
+            args=[
+                Arg("mode", ArgType.ENUM, choices=["fast", "slow"]),
+            ],
+        )
         result = parser.parse("/run --mode fast")
         assert result.is_valid is True
         assert result.args["mode"] == "fast"
@@ -421,6 +449,7 @@ class TestParseValidation:
 # =============================================================================
 # Parse Tests - Type Coercion
 # =============================================================================
+
 
 class TestTypeCoercion:
     """Test type coercion."""
@@ -484,6 +513,7 @@ class TestTypeCoercion:
 # Suggest Tests
 # =============================================================================
 
+
 class TestSuggest:
     """Test command suggestions."""
 
@@ -543,6 +573,7 @@ class TestSuggest:
 # Listing Tests
 # =============================================================================
 
+
 class TestListing:
     """Test command listing."""
 
@@ -571,10 +602,15 @@ class TestListing:
 
     def test_get_help(self):
         parser = CommandParser()
-        parser.define("swarm", "Launch swarm mode", args=[
-            Arg("task", ArgType.STRING, required=True, help="Task to run"),
-            Arg("mode", ArgType.ENUM, choices=["parallel", "sequential"]),
-        ], aliases=["sw"])
+        parser.define(
+            "swarm",
+            "Launch swarm mode",
+            args=[
+                Arg("task", ArgType.STRING, required=True, help="Task to run"),
+                Arg("mode", ArgType.ENUM, choices=["parallel", "sequential"]),
+            ],
+            aliases=["sw"],
+        )
         help_text = parser.get_help("swarm")
         assert "/swarm" in help_text
         assert "Launch swarm mode" in help_text
@@ -596,6 +632,7 @@ class TestListing:
 # =============================================================================
 # State Tests
 # =============================================================================
+
 
 class TestState:
     """Test state management."""
@@ -632,19 +669,30 @@ class TestState:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_interface_package(self):
         from core.interface_pkg.interface import (
-            Arg, ArgType, CommandDef, CommandParser,
-            ParsedCommand, Suggestion,
+            Arg,
+            ArgType,
+            CommandDef,
+            CommandParser,
+            ParsedCommand,
+            Suggestion,
         )
+
         assert all([Arg, ArgType, CommandDef, CommandParser, ParsedCommand, Suggestion])
 
     def test_from_module(self):
         from core.interface_pkg.interface.command_parser import (
-            Arg, ArgType, CommandDef, CommandParser,
-            ParsedCommand, Suggestion,
+            Arg,
+            ArgType,
+            CommandDef,
+            CommandParser,
+            ParsedCommand,
+            Suggestion,
         )
+
         assert all([Arg, ArgType, CommandDef, CommandParser, ParsedCommand, Suggestion])

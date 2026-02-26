@@ -17,9 +17,9 @@ from .app import create_cerebro_app
 # V12.4 COGNITIVE BOOST: Endpoint Analytics
 from .endpoint_analytics import (
     EndpointAnalytics,
-    EndpointRequestRecord,
-    EndpointProfile,
     EndpointAnalyticsStats,
+    EndpointProfile,
+    EndpointRequestRecord,
     get_endpoint_analytics,
     reset_endpoint_analytics,
 )

@@ -9,27 +9,28 @@ Verifies:
 5. Error handling (not found, exists)
 """
 
-import pytest
 import sys
-from pathlib import Path
 from datetime import datetime, timedelta
+from pathlib import Path
+
+import pytest
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.interface_pkg.workspace import (
-    WorkspaceManager,
-    WorkspaceInfo,
-    WorkspaceMetrics,
     WorkspaceError,
-    WorkspaceNotFoundError,
     WorkspaceExistsError,
+    WorkspaceInfo,
+    WorkspaceManager,
+    WorkspaceMetrics,
+    WorkspaceNotFoundError,
 )
-
 
 # =============================================================================
 # Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def nexus_root(tmp_path):
@@ -58,6 +59,7 @@ def manager_with_workspace(nexus_root):
 
     # Create metadata
     import json
+
     metadata = {
         "name": "test-project",
         "path": str(workspace),
@@ -68,7 +70,7 @@ def manager_with_workspace(nexus_root):
         "metrics": {
             "iterations": 5,
             "files_count": 3,
-        }
+        },
     }
     with open(nexus_dir / "workspace.json", "w") as f:
         json.dump(metadata, f)
@@ -82,6 +84,7 @@ def manager_with_workspace(nexus_root):
 # =============================================================================
 # WorkspaceMetrics Tests
 # =============================================================================
+
 
 class TestWorkspaceMetrics:
     """Tests for WorkspaceMetrics dataclass."""
@@ -110,6 +113,7 @@ class TestWorkspaceMetrics:
 # =============================================================================
 # WorkspaceInfo Tests
 # =============================================================================
+
 
 class TestWorkspaceInfo:
     """Tests for WorkspaceInfo dataclass."""
@@ -215,12 +219,13 @@ class TestWorkspaceInfo:
 # WorkspaceManager Tests
 # =============================================================================
 
+
 class TestWorkspaceManagerInit:
     """Tests for WorkspaceManager initialization."""
 
     def test_init_creates_directories(self, tmp_path):
         """Initializing creates workspace and archive directories."""
-        manager = WorkspaceManager(tmp_path)
+        WorkspaceManager(tmp_path)
 
         assert (tmp_path / "workspace").exists()
         assert (tmp_path / "workspace_archive").exists()
@@ -238,6 +243,7 @@ class TestGetCurrent:
         """No current workspace when empty."""
         # Clear workspace
         import shutil
+
         ws = nexus_root / "workspace"
         if ws.exists():
             shutil.rmtree(ws)
@@ -261,6 +267,7 @@ class TestListWorkspaces:
         """List empty workspaces."""
         # Clear workspace content
         import shutil
+
         shutil.rmtree(manager.workspace_path)
         manager.workspace_path.mkdir()
 
@@ -283,6 +290,7 @@ class TestListWorkspaces:
         (archive / ".nexus").mkdir()
 
         import json
+
         metadata = {
             "name": "old-project",
             "path": str(archive),
@@ -359,6 +367,7 @@ class TestArchiveCurrent:
         """Archiving with no current raises error."""
         # Clear workspace
         import shutil
+
         shutil.rmtree(manager.workspace_path)
         manager.workspace_path.mkdir()
 
@@ -378,6 +387,7 @@ class TestSwitchWorkspace:
         (archive / "old_file.txt").write_text("old content")
 
         import json
+
         metadata = {
             "name": "old-project",
             "path": str(archive),
@@ -443,6 +453,7 @@ class TestGetSuggestions:
 # =============================================================================
 # Error Tests
 # =============================================================================
+
 
 class TestExceptions:
     """Tests for workspace exceptions."""

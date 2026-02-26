@@ -15,14 +15,13 @@ import ipaddress
 import re
 import socket
 import subprocess
-import urllib.request
 import urllib.error
+import urllib.request
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any
 from urllib.parse import urlparse
 
 from .base import BaseHandler, ToolResult
-
 
 # =============================================================================
 # V12.4 SSRF PROTECTION - Comprehensive Blocklist
@@ -31,31 +30,33 @@ from .base import BaseHandler, ToolResult
 # https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html
 
 # Blocked hostnames (exact match, case-insensitive)
-SSRF_BLOCKED_HOSTS = frozenset([
-    # Localhost variants
-    "localhost",
-    "localhost.localdomain",
-    "localhost6",
-    "localhost6.localdomain6",
-    # Cloud metadata hostnames
-    "metadata.google.internal",
-    "metadata.google",
-    "metadata",
-    # Kubernetes
-    "kubernetes.default",
-    "kubernetes.default.svc",
-    "kubernetes.default.svc.cluster.local",
-])
+SSRF_BLOCKED_HOSTS = frozenset(
+    [
+        # Localhost variants
+        "localhost",
+        "localhost.localdomain",
+        "localhost6",
+        "localhost6.localdomain6",
+        # Cloud metadata hostnames
+        "metadata.google.internal",
+        "metadata.google",
+        "metadata",
+        # Kubernetes
+        "kubernetes.default",
+        "kubernetes.default.svc",
+        "kubernetes.default.svc.cluster.local",
+    ]
+)
 
 # Blocked hostname patterns (regex)
 SSRF_BLOCKED_HOST_PATTERNS = [
-    re.compile(r"^.*\.internal$", re.IGNORECASE),          # *.internal
-    re.compile(r"^.*\.local$", re.IGNORECASE),             # *.local
-    re.compile(r"^.*\.localhost$", re.IGNORECASE),         # *.localhost
-    re.compile(r"^169\.254\.\d+\.\d+$"),                   # Link-local IP as hostname
-    re.compile(r"^0x[0-9a-f]+$", re.IGNORECASE),           # Hex IP (0x7f000001)
-    re.compile(r"^\d{8,10}$"),                              # Decimal IP (2130706433)
-    re.compile(r"^0+\d"),                                   # Octal IP (0177.0.0.1)
+    re.compile(r"^.*\.internal$", re.IGNORECASE),  # *.internal
+    re.compile(r"^.*\.local$", re.IGNORECASE),  # *.local
+    re.compile(r"^.*\.localhost$", re.IGNORECASE),  # *.localhost
+    re.compile(r"^169\.254\.\d+\.\d+$"),  # Link-local IP as hostname
+    re.compile(r"^0x[0-9a-f]+$", re.IGNORECASE),  # Hex IP (0x7f000001)
+    re.compile(r"^\d{8,10}$"),  # Decimal IP (2130706433)
+    re.compile(r"^0+\d"),  # Octal IP (0177.0.0.1)
 ]
 
 # Private/Reserved IP ranges (will be checked via ipaddress module)
@@ -70,15 +71,17 @@ SSRF_BLOCKED_HOST_PATTERNS = [
 # - fd00:ec2::254    (AWS EC2 IPv6 metadata)
 
 # Special IPs to block explicitly (bypass attempts)
-SSRF_BLOCKED_IPS = frozenset([
-    "0.0.0.0",
-    "0",
-    "[::]",
-    "[::1]",
-    "[0:0:0:0:0:0:0:0]",
-    "[0:0:0:0:0:0:0:1]",
-    "fd00:ec2::254",      # AWS IPv6 metadata
-])
+SSRF_BLOCKED_IPS = frozenset(
+    [
+        "0.0.0.0",
+        "0",
+        "[::]",
+        "[::1]",
+        "[0:0:0:0:0:0:0:0]",
+        "[0:0:0:0:0:0:0:1]",
+        "fd00:ec2::254",  # AWS IPv6 metadata
+    ]
+)
 
 
 class WebSearchHandler(BaseHandler):
@@ -92,7 +95,7 @@ class WebSearchHandler(BaseHandler):
     def tool_name(self) -> str:
         return "web_search"
 
-    def execute(self, args: Dict[str, Any]) -> ToolResult:
+    def execute(self, args: dict[str, Any]) -> ToolResult:
         """
         Execute web search via Gemini CLI.
 
@@ -115,10 +118,11 @@ class WebSearchHandler(BaseHandler):
             # Use Gemini CLI for web search with grounding
             command = [
                 "gemini",
-                "-m", "gemini-3-pro-preview",
+                "-m",
+                "gemini-3-pro-preview",
                 "-p",
                 f"You have access to Google Search. Search for: '{query}'. "
-                f"Provide a detailed summary of the top {num_results} results including titles and URLs."
+                f"Provide a detailed summary of the top {num_results} results including titles and URLs.",
             ]
 
             result = subprocess.run(
@@ -127,7 +131,7 @@ class WebSearchHandler(BaseHandler):
                 text=True,
                 timeout=90,  # Increased for grounding latency
                 encoding="utf-8",
-                errors="replace"
+                errors="replace",
             )
 
             if result.returncode == 0:
@@ -135,16 +139,11 @@ class WebSearchHandler(BaseHandler):
                     tool_name=self.tool_name,
                     status="SUCCESS",
                     output=result.stdout or "(no results)",
-                    error=result.stderr
+                    error=result.stderr,
                 )
             else:
                 error_msg = f"Stderr: {result.stderr}\nStdout: {result.stdout}"
-                return ToolResult(
-                    tool_name=self.tool_name,
-                    status="FAILURE",
-                    output=result.stdout,
-                    error=error_msg
-                )
+                return ToolResult(tool_name=self.tool_name, status="FAILURE", output=result.stdout, error=error_msg)
 
         except subprocess.TimeoutExpired:
             return self._error("Web search timed out after 90s")
@@ -244,7 +243,7 @@ class WebFetchHandler(BaseHandler):
             # On any parsing error, block to be safe
             return True, f"URL parsing error: {e}"
 
-    def execute(self, args: Dict[str, Any]) -> ToolResult:
+    def execute(self, args: dict[str, Any]) -> ToolResult:
         """
         Fetch content from a URL.
 
@@ -278,10 +277,7 @@ class WebFetchHandler(BaseHandler):
 
         try:
             # Create request with browser user agent
-            req = urllib.request.Request(
-                url,
-                headers={"User-Agent": self.USER_AGENT}
-            )
+            req = urllib.request.Request(url, headers={"User-Agent": self.USER_AGENT})
 
             # Fetch URL
             with urllib.request.urlopen(req, timeout=30) as response:
@@ -296,15 +292,12 @@ class WebFetchHandler(BaseHandler):
 
                 # Truncate if too long
                 if len(content) > max_length:
-                    content = (
-                        content[:max_length]
-                        + f"\n\n[Content truncated at {max_length} characters]"
-                    )
+                    content = content[:max_length] + f"\n\n[Content truncated at {max_length} characters]"
 
                 return ToolResult(
                     tool_name=self.tool_name,
                     status="SUCCESS",
-                    output=f"URL: {url}\nContent-Type: {content_type}\n\n{content}"
+                    output=f"URL: {url}\nContent-Type: {content_type}\n\n{content}",
                 )
 
         except urllib.error.HTTPError as e:
@@ -328,10 +321,7 @@ class WebFetchHandler(BaseHandler):
             return content_bytes.decode("utf-8", errors="replace")
 
 
-def create_web_handlers(
-    workspace_path: Path,
-    validation_service: Any = None
-) -> Dict[str, BaseHandler]:
+def create_web_handlers(workspace_path: Path, validation_service: Any = None) -> dict[str, BaseHandler]:
     """
     Factory function to create web handlers.
 

@@ -14,7 +14,7 @@ Phases:
 
 from .brainstorm import BrainstormPhase, run_brainstorm
 from .create import CreatePhase, create_children
-from .promote import PromotePhase, promote_child, archive_child
+from .promote import PromotePhase, archive_child, promote_child
 
 __all__ = [
     "BrainstormPhase",

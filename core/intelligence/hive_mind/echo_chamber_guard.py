@@ -27,13 +27,13 @@ import logging
 import threading
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import List, Optional, Dict
 
 logger = logging.getLogger(__name__)
 
 
 class GuardActionType(str, Enum):
     """Actions the guard can recommend."""
+
     ALLOW = "ALLOW"
     FLAG_SYCOPHANCY = "FLAG_SYCOPHANCY"
     INJECT_INDEPENDENCE = "INJECT_INDEPENDENCE"
@@ -43,20 +43,22 @@ class GuardActionType(str, Enum):
 @dataclass
 class GuardAction:
     """Action recommended by the EchoChamberGuard."""
+
     action_type: GuardActionType
     reason: str
     agent_id: str
     turn_number: int
-    prompt_injection: Optional[str] = None  # Extra prompt text to inject
+    prompt_injection: str | None = None  # Extra prompt text to inject
 
 
 @dataclass
 class AgentPositionHistory:
     """Tracks an agent's position changes through debate."""
+
     agent_id: str
-    positions: List[str] = field(default_factory=list)
-    evidence_counts: List[int] = field(default_factory=list)
-    turns: List[int] = field(default_factory=list)
+    positions: list[str] = field(default_factory=list)
+    evidence_counts: list[int] = field(default_factory=list)
+    turns: list[int] = field(default_factory=list)
 
     def record(self, position: str, evidence_count: int, turn: int) -> None:
         self.positions.append(position)
@@ -64,7 +66,7 @@ class AgentPositionHistory:
         self.turns.append(turn)
 
     @property
-    def last_position(self) -> Optional[str]:
+    def last_position(self) -> str | None:
         return self.positions[-1] if self.positions else None
 
     @property
@@ -122,8 +124,8 @@ class EchoChamberGuard:
         self._checkpoint_interval = checkpoint_interval
         self._min_turns_for_consensus = min_turns_for_consensus
         self._min_evidence_for_flip = min_evidence_for_flip
-        self._agents: Dict[str, AgentPositionHistory] = {}
-        self._actions: List[GuardAction] = []
+        self._agents: dict[str, AgentPositionHistory] = {}
+        self._actions: list[GuardAction] = []
         self._devil_advocate_forced: bool = False
 
     def reset(self) -> None:
@@ -136,7 +138,7 @@ class EchoChamberGuard:
         self,
         agent_id: str,
         position: str,
-        evidence: List[str],
+        evidence: list[str],
         turn_number: int,
     ) -> GuardAction:
         """
@@ -240,7 +242,7 @@ class EchoChamberGuard:
             return self._agents[agent_id].flip_count
         return 0
 
-    def get_all_actions(self) -> List[GuardAction]:
+    def get_all_actions(self) -> list[GuardAction]:
         """Get all guard actions taken during this debate."""
         return self._actions.copy()
 
@@ -254,14 +256,8 @@ class EchoChamberGuard:
         if not self._actions:
             return 0.0
 
-        sycophancy_actions = sum(
-            1 for a in self._actions
-            if a.action_type == GuardActionType.FLAG_SYCOPHANCY
-        )
-        devil_advocate = sum(
-            1 for a in self._actions
-            if a.action_type == GuardActionType.FORCE_DEVIL_ADVOCATE
-        )
+        sycophancy_actions = sum(1 for a in self._actions if a.action_type == GuardActionType.FLAG_SYCOPHANCY)
+        devil_advocate = sum(1 for a in self._actions if a.action_type == GuardActionType.FORCE_DEVIL_ADVOCATE)
 
         # Weight: sycophancy flags count double
         weighted = sycophancy_actions * 2 + devil_advocate
@@ -272,29 +268,23 @@ class EchoChamberGuard:
 
         return min(1.0, weighted / max(total_turns, 1))
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> dict:
         """Get guard statistics."""
         return {
             "agents_tracked": len(self._agents),
             "total_actions": len(self._actions),
-            "sycophancy_flags": sum(
-                1 for a in self._actions
-                if a.action_type == GuardActionType.FLAG_SYCOPHANCY
-            ),
+            "sycophancy_flags": sum(1 for a in self._actions if a.action_type == GuardActionType.FLAG_SYCOPHANCY),
             "independence_checks": sum(
-                1 for a in self._actions
-                if a.action_type == GuardActionType.INJECT_INDEPENDENCE
+                1 for a in self._actions if a.action_type == GuardActionType.INJECT_INDEPENDENCE
             ),
             "devil_advocate_forced": self._devil_advocate_forced,
             "sycophancy_score": self.get_sycophancy_score(),
-            "agent_flips": {
-                aid: h.flip_count for aid, h in self._agents.items()
-            },
+            "agent_flips": {aid: h.flip_count for aid, h in self._agents.items()},
         }
 
 
 # Module-level singleton
-_guard: Optional[EchoChamberGuard] = None
+_guard: EchoChamberGuard | None = None
 _guard_lock = threading.Lock()
 
 

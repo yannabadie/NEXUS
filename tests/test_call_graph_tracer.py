@@ -16,8 +16,6 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.execution_pkg.orchestration.call_graph_tracer import (
     MAX_CALLS,
     CallGraphTracer,
@@ -28,17 +26,16 @@ from core.execution_pkg.orchestration.call_graph_tracer import (
     reset_call_tracer,
 )
 
-
 # =============================================================================
 # CallRecord Tests
 # =============================================================================
+
 
 class TestCallRecord:
     """Test CallRecord dataclass."""
 
     def test_to_dict(self):
-        r = CallRecord(caller="claude", callee="bash_tool",
-                       call_type="agent_to_tool", duration_ms=150.0)
+        r = CallRecord(caller="claude", callee="bash_tool", call_type="agent_to_tool", duration_ms=150.0)
         d = r.to_dict()
         assert d["caller"] == "claude"
         assert d["callee"] == "bash_tool"
@@ -47,6 +44,7 @@ class TestCallRecord:
 # =============================================================================
 # EdgeMetrics Tests
 # =============================================================================
+
 
 class TestEdgeMetrics:
     """Test EdgeMetrics dataclass."""
@@ -78,6 +76,7 @@ class TestEdgeMetrics:
 # TracerStats Tests
 # =============================================================================
 
+
 class TestTracerStats:
     """Test TracerStats dataclass."""
 
@@ -90,6 +89,7 @@ class TestTracerStats:
 # =============================================================================
 # Recording Tests
 # =============================================================================
+
 
 class TestRecording:
     """Test call recording."""
@@ -121,6 +121,7 @@ class TestRecording:
 # =============================================================================
 # Graph Query Tests
 # =============================================================================
+
 
 class TestGraphQueries:
     """Test graph query methods."""
@@ -178,6 +179,7 @@ class TestGraphQueries:
 # Listing Tests
 # =============================================================================
 
+
 class TestListing:
     """Test listing methods."""
 
@@ -198,6 +200,7 @@ class TestListing:
 # Bounded History Tests
 # =============================================================================
 
+
 class TestBoundedHistory:
     """Test bounded call history."""
 
@@ -211,6 +214,7 @@ class TestBoundedHistory:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test tracer statistics."""
@@ -240,6 +244,7 @@ class TestStatistics:
 # State Tests
 # =============================================================================
 
+
 class TestState:
     """Test state management."""
 
@@ -265,6 +270,7 @@ class TestState:
 # =============================================================================
 # Global Singleton Tests
 # =============================================================================
+
 
 class TestGlobalSingleton:
     """Test global call tracer."""
@@ -292,19 +298,30 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_orchestration_package(self):
         from core.execution_pkg.orchestration import (
-            CallGraphTracer, CallRecord, EdgeMetrics, TracerStats,
-            get_call_tracer, reset_call_tracer,
+            CallGraphTracer,
+            CallRecord,
+            EdgeMetrics,
+            TracerStats,
+            get_call_tracer,
+            reset_call_tracer,
         )
-        assert all([
-            CallGraphTracer, CallRecord, EdgeMetrics, TracerStats,
-            get_call_tracer, reset_call_tracer,
-        ])
+
+        assert all(
+            [
+                CallGraphTracer,
+                CallRecord,
+                EdgeMetrics,
+                TracerStats,
+                get_call_tracer,
+                reset_call_tracer,
+            ]
+        )
 
     def test_constants(self):
-        from core.execution_pkg.orchestration.call_graph_tracer import MAX_CALLS
         assert MAX_CALLS == 50000

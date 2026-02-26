@@ -16,7 +16,6 @@ Validates:
 """
 
 import time
-import pytest
 
 from core.execution_pkg.execution.timeout_manager import (
     DEFAULT_TIMEOUT,
@@ -30,10 +29,10 @@ from core.execution_pkg.execution.timeout_manager import (
     reset_timeout_manager,
 )
 
-
 # =============================================================================
 # TimeoutConfig Tests
 # =============================================================================
+
 
 class TestTimeoutConfig:
     """Test TimeoutConfig dataclass."""
@@ -56,6 +55,7 @@ class TestTimeoutConfig:
 # =============================================================================
 # Deadline Tests
 # =============================================================================
+
 
 class TestDeadline:
     """Test Deadline dataclass."""
@@ -92,6 +92,7 @@ class TestDeadline:
 # TimeoutEvent Tests
 # =============================================================================
 
+
 class TestTimeoutEvent:
     """Test TimeoutEvent dataclass."""
 
@@ -110,6 +111,7 @@ class TestTimeoutEvent:
 # TimeoutStats Tests
 # =============================================================================
 
+
 class TestTimeoutStats:
     """Test TimeoutStats dataclass."""
 
@@ -123,6 +125,7 @@ class TestTimeoutStats:
 # =============================================================================
 # Tool Configuration Tests
 # =============================================================================
+
 
 class TestToolConfiguration:
     """Test tool timeout configuration."""
@@ -178,6 +181,7 @@ class TestToolConfiguration:
 # =============================================================================
 # Deadline Tests
 # =============================================================================
+
 
 class TestDeadlineTracking:
     """Test deadline management."""
@@ -266,6 +270,7 @@ class TestDeadlineTracking:
 # Timeout Event Tests
 # =============================================================================
 
+
 class TestTimeoutEvents:
     """Test timeout event recording."""
 
@@ -293,6 +298,7 @@ class TestTimeoutEvents:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test timeout manager statistics."""
@@ -324,6 +330,7 @@ class TestStatistics:
 # =============================================================================
 # State Tests
 # =============================================================================
+
 
 class TestState:
     """Test state management."""
@@ -361,6 +368,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global timeout manager."""
 
@@ -387,24 +395,38 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_execution_package(self):
         from core.execution_pkg.execution import (
-            TimeoutManager, TimeoutConfig, Deadline,
-            TimeoutEvent, TimeoutStats,
-            get_timeout_manager, reset_timeout_manager,
+            Deadline,
+            TimeoutConfig,
+            TimeoutEvent,
+            TimeoutManager,
+            TimeoutStats,
+            get_timeout_manager,
+            reset_timeout_manager,
         )
-        assert all([
-            TimeoutManager, TimeoutConfig, Deadline,
-            TimeoutEvent, TimeoutStats,
-            get_timeout_manager, reset_timeout_manager,
-        ])
+
+        assert all(
+            [
+                TimeoutManager,
+                TimeoutConfig,
+                Deadline,
+                TimeoutEvent,
+                TimeoutStats,
+                get_timeout_manager,
+                reset_timeout_manager,
+            ]
+        )
 
     def test_from_module(self):
         from core.execution_pkg.execution.timeout_manager import (
-            TimeoutManager, DEFAULT_TIMEOUT, MAX_TIMEOUT,
+            DEFAULT_TIMEOUT,
+            MAX_TIMEOUT,
         )
+
         assert DEFAULT_TIMEOUT == 30.0
         assert MAX_TIMEOUT == 600.0

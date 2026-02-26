@@ -13,17 +13,18 @@ extensible, testable command dispatch system.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, TYPE_CHECKING
 from enum import Enum
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from core.orchestration_v7 import OrchestratorV7
-    from core.interface_pkg.interface.console_v7 import ConsoleV7
     from core.config import Config
+    from core.interface_pkg.interface.console_v7 import ConsoleV7
+    from core.orchestration_v7 import OrchestratorV7
 
 
 class CommandStatus(Enum):
     """Status of command execution."""
+
     SUCCESS = "success"
     ERROR = "error"
     HELP = "help"
@@ -42,9 +43,10 @@ class CommandResult:
         data: Optional structured data from command
         continue_session: If False, REPL should exit
     """
+
     status: CommandStatus
     message: str
-    data: Optional[Dict[str, Any]] = None
+    data: dict[str, Any] | None = None
     continue_session: bool = True
 
 
@@ -56,11 +58,12 @@ class CommandContext:
     Provides access to orchestrator, console, and config without
     commands needing to know about the REPL internals.
     """
+
     orchestrator: "OrchestratorV7"
     console: "ConsoleV7"
     config: "Config"
     # Optional extras that some commands may need
-    extras: Dict[str, Any] = field(default_factory=dict)
+    extras: dict[str, Any] = field(default_factory=dict)
 
 
 class Command(ABC):
@@ -103,7 +106,7 @@ class Command(ABC):
         pass
 
     @property
-    def aliases(self) -> List[str]:
+    def aliases(self) -> list[str]:
         """
         Alternative names for this command.
 
@@ -136,8 +139,8 @@ class CommandRegistry:
 
     def __init__(self):
         """Initialize empty registry."""
-        self._commands: Dict[str, Command] = {}
-        self._primary_names: List[str] = []
+        self._commands: dict[str, Command] = {}
+        self._primary_names: list[str] = []
 
     def register(self, command: Command) -> None:
         """
@@ -176,10 +179,7 @@ class CommandRegistry:
             CommandResult from command execution
         """
         if not input_str.strip():
-            return CommandResult(
-                status=CommandStatus.INVALID_ARGS,
-                message="Empty command"
-            )
+            return CommandResult(status=CommandStatus.INVALID_ARGS, message="Empty command")
 
         parts = input_str.strip().split(maxsplit=1)
         cmd_name = parts[0].lower()
@@ -188,22 +188,19 @@ class CommandRegistry:
         if cmd_name not in self._commands:
             return CommandResult(
                 status=CommandStatus.NOT_FOUND,
-                message=f"Unknown command: {cmd_name}. Type /help for available commands."
+                message=f"Unknown command: {cmd_name}. Type /help for available commands.",
             )
 
         try:
             return self._commands[cmd_name].execute(args, context)
         except Exception as e:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message=f"Command error: {e}"
-            )
+            return CommandResult(status=CommandStatus.ERROR, message=f"Command error: {e}")
 
-    def get_command(self, name: str) -> Optional[Command]:
+    def get_command(self, name: str) -> Command | None:
         """Get command by name or alias."""
         return self._commands.get(name.lower())
 
-    def list_commands(self) -> List[str]:
+    def list_commands(self) -> list[str]:
         """List all primary command names (not aliases)."""
         return sorted(self._primary_names)
 
@@ -232,9 +229,9 @@ class CommandRegistry:
 # =============================================================================
 # V10 PRISM: Multi-Tenant Command Registry Access
 # =============================================================================
-import threading
+import threading  # noqa: E402  # singleton setup after class definition
 
-_registry_instance: Optional[CommandRegistry] = None
+_registry_instance: CommandRegistry | None = None
 _registry_lock = threading.Lock()
 
 
@@ -253,8 +250,10 @@ def get_registry() -> CommandRegistry:
     # V10: Try ServiceFactory first (tenant-scoped)
     try:
         from ...context import has_active_session
+
         if has_active_session():
             from ...factory import ServiceFactory
+
             return ServiceFactory.get_command_registry()
     except ImportError:
         pass  # context module not available, use legacy
@@ -284,6 +283,7 @@ def reset_registry() -> None:
     try:
         from ...context import get_current_session_or_none
         from ...factory import ServiceFactory
+
         ctx = get_current_session_or_none()
         if ctx:
             ServiceFactory.clear_tenant_cache(ctx.tenant_id)

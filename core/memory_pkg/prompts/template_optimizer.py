@@ -36,7 +36,7 @@ import threading
 import time
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
-from typing import Any, Deque, Dict, List, Optional, Set, Tuple
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -69,16 +69,18 @@ CONFLICT_PAIRS = [
 # Types
 # =============================================================================
 
+
 @dataclass
 class PromptIssue:
     """An identified issue in a prompt."""
+
     severity: str  # "info", "warning", "error"
     category: str  # "redundancy", "conflict", "anti_pattern", "length"
     message: str
     line: int = 0
     suggestion: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "severity": self.severity,
             "category": self.category,
@@ -91,12 +93,13 @@ class PromptIssue:
 @dataclass
 class PromptAnalysis:
     """Analysis result for a prompt."""
+
     char_count: int
     word_count: int
     line_count: int
     estimated_tokens: int
-    issues: List[PromptIssue] = field(default_factory=list)
-    sections: List[str] = field(default_factory=list)
+    issues: list[PromptIssue] = field(default_factory=list)
+    sections: list[str] = field(default_factory=list)
 
     @property
     def issue_count(self) -> int:
@@ -110,7 +113,7 @@ class PromptAnalysis:
     def has_warnings(self) -> bool:
         return any(i.severity == "warning" for i in self.issues)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "char_count": self.char_count,
             "word_count": self.word_count,
@@ -127,11 +130,12 @@ class PromptAnalysis:
 @dataclass
 class PromptOutcome:
     """A recorded outcome for a prompt template."""
+
     template_name: str
     success: bool
     quality: float = 0.0  # 0.0 to 1.0
     timestamp: float = 0.0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         if self.timestamp == 0.0:
@@ -141,6 +145,7 @@ class PromptOutcome:
 @dataclass
 class PromptStats:
     """Performance statistics for a prompt template."""
+
     template_name: str
     total_uses: int = 0
     success_count: int = 0
@@ -154,7 +159,7 @@ class PromptStats:
             return 0.0
         return self.success_count / self.total_uses
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "template_name": self.template_name,
             "total_uses": self.total_uses,
@@ -169,10 +174,11 @@ class PromptStats:
 @dataclass
 class ConflictResult:
     """Result of conflict detection."""
-    has_conflicts: bool
-    conflicts: List[Dict[str, str]] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    has_conflicts: bool
+    conflicts: list[dict[str, str]] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
         return {
             "has_conflicts": self.has_conflicts,
             "conflict_count": len(self.conflicts),
@@ -183,6 +189,7 @@ class ConflictResult:
 # =============================================================================
 # Prompt Optimizer
 # =============================================================================
+
 
 class PromptOptimizer:
     """
@@ -202,10 +209,8 @@ class PromptOptimizer:
         max_outcomes: int = MAX_OUTCOMES,
         learning_rate: float = LEARNING_RATE,
     ):
-        self._outcomes: Dict[str, Deque[PromptOutcome]] = defaultdict(
-            lambda: deque(maxlen=max_outcomes)
-        )
-        self._stats: Dict[str, PromptStats] = {}
+        self._outcomes: dict[str, deque[PromptOutcome]] = defaultdict(lambda: deque(maxlen=max_outcomes))
+        self._stats: dict[str, PromptStats] = {}
         self._learning_rate = learning_rate
         self._lock = threading.Lock()
 
@@ -239,22 +244,26 @@ class PromptOptimizer:
             matches = list(re.finditer(pattern, prompt, re.IGNORECASE | re.MULTILINE))
             if matches:
                 # Find line number of first match
-                line_num = prompt[:matches[0].start()].count("\n") + 1
-                analysis.issues.append(PromptIssue(
-                    severity="info",
-                    category="anti_pattern",
-                    message=f"{message} (found {len(matches)} instance(s))",
-                    line=line_num,
-                ))
+                line_num = prompt[: matches[0].start()].count("\n") + 1
+                analysis.issues.append(
+                    PromptIssue(
+                        severity="info",
+                        category="anti_pattern",
+                        message=f"{message} (found {len(matches)} instance(s))",
+                        line=line_num,
+                    )
+                )
 
         # Check for very long prompts
         if analysis.estimated_tokens > 4000:
-            analysis.issues.append(PromptIssue(
-                severity="warning",
-                category="length",
-                message=f"Prompt is very long ({analysis.estimated_tokens} est. tokens). Consider trimming.",
-                suggestion="Remove redundant examples or consolidate instructions.",
-            ))
+            analysis.issues.append(
+                PromptIssue(
+                    severity="warning",
+                    category="length",
+                    message=f"Prompt is very long ({analysis.estimated_tokens} est. tokens). Consider trimming.",
+                    suggestion="Remove redundant examples or consolidate instructions.",
+                )
+            )
 
         # Check for duplicate lines
         seen_lines = set()
@@ -262,22 +271,26 @@ class PromptOptimizer:
             stripped = line.strip()
             if stripped and len(stripped) > 20:
                 if stripped in seen_lines:
-                    analysis.issues.append(PromptIssue(
-                        severity="warning",
-                        category="redundancy",
-                        message=f"Duplicate line detected",
-                        line=i,
-                        suggestion="Remove duplicate instruction.",
-                    ))
+                    analysis.issues.append(
+                        PromptIssue(
+                            severity="warning",
+                            category="redundancy",
+                            message="Duplicate line detected",
+                            line=i,
+                            suggestion="Remove duplicate instruction.",
+                        )
+                    )
                 seen_lines.add(stripped)
 
         # Check for empty prompt
         if not prompt.strip():
-            analysis.issues.append(PromptIssue(
-                severity="error",
-                category="empty",
-                message="Prompt is empty",
-            ))
+            analysis.issues.append(
+                PromptIssue(
+                    severity="error",
+                    category="empty",
+                    message="Prompt is empty",
+                )
+            )
 
         return analysis
 
@@ -285,7 +298,7 @@ class PromptOptimizer:
     # Conflict Detection
     # =========================================================================
 
-    def detect_conflicts(self, instructions: List[str]) -> ConflictResult:
+    def detect_conflicts(self, instructions: list[str]) -> ConflictResult:
         """
         Detect potentially conflicting instructions.
 
@@ -302,11 +315,13 @@ class PromptOptimizer:
             match_a = re.search(pattern_a, full_text, re.IGNORECASE)
             match_b = re.search(pattern_b, full_text, re.IGNORECASE)
             if match_a and match_b:
-                conflicts.append({
-                    "instruction_a": match_a.group(),
-                    "instruction_b": match_b.group(),
-                    "type": "contradictory",
-                })
+                conflicts.append(
+                    {
+                        "instruction_a": match_a.group(),
+                        "instruction_b": match_b.group(),
+                        "type": "contradictory",
+                    }
+                )
 
         return ConflictResult(
             has_conflicts=len(conflicts) > 0,
@@ -323,7 +338,7 @@ class PromptOptimizer:
         *,
         success: bool,
         quality: float = 0.0,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> None:
         """
         Record an outcome for a prompt template.
@@ -358,43 +373,37 @@ class PromptOptimizer:
 
         # EMA for efficacy
         outcome_val = 1.0 if success else 0.0
-        stats.efficacy = (
-            (1 - self._learning_rate) * stats.efficacy
-            + self._learning_rate * outcome_val
-        )
+        stats.efficacy = (1 - self._learning_rate) * stats.efficacy + self._learning_rate * outcome_val
 
         # Running average quality
         if quality > 0:
             if stats.avg_quality == 0:
                 stats.avg_quality = quality
             else:
-                stats.avg_quality = (
-                    (1 - self._learning_rate) * stats.avg_quality
-                    + self._learning_rate * quality
-                )
+                stats.avg_quality = (1 - self._learning_rate) * stats.avg_quality + self._learning_rate * quality
 
     # =========================================================================
     # Statistics
     # =========================================================================
 
-    def get_stats(self, template_name: str) -> Optional[PromptStats]:
+    def get_stats(self, template_name: str) -> PromptStats | None:
         """Get performance stats for a template."""
         with self._lock:
             return self._stats.get(template_name)
 
-    def get_all_stats(self) -> List[PromptStats]:
+    def get_all_stats(self) -> list[PromptStats]:
         """Get stats for all tracked templates."""
         with self._lock:
             return sorted(self._stats.values(), key=lambda s: s.template_name)
 
-    def get_top_templates(self, *, limit: int = 10) -> List[PromptStats]:
+    def get_top_templates(self, *, limit: int = 10) -> list[PromptStats]:
         """Get the best performing templates by efficacy."""
         with self._lock:
             stats_list = list(self._stats.values())
         stats_list.sort(key=lambda s: s.efficacy, reverse=True)
         return stats_list[:limit]
 
-    def get_worst_templates(self, *, limit: int = 10) -> List[PromptStats]:
+    def get_worst_templates(self, *, limit: int = 10) -> list[PromptStats]:
         """Get the worst performing templates by efficacy."""
         with self._lock:
             stats_list = [s for s in self._stats.values() if s.total_uses >= 3]
@@ -412,7 +421,7 @@ class PromptOptimizer:
         return int(word_count * 1.3)
 
     @staticmethod
-    def _detect_sections(text: str) -> List[str]:
+    def _detect_sections(text: str) -> list[str]:
         """Detect markdown-style sections in a prompt."""
         sections = []
         for line in text.split("\n"):
@@ -445,14 +454,11 @@ class PromptOptimizer:
             self._outcomes.clear()
             self._stats.clear()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "template_count": self.template_count,
             "total_outcomes": self.total_outcomes,
-            "templates": {
-                name: stats.to_dict()
-                for name, stats in sorted(self._stats.items())
-            },
+            "templates": {name: stats.to_dict() for name, stats in sorted(self._stats.items())},
         }
 
 
@@ -460,7 +466,7 @@ class PromptOptimizer:
 # Global Instance
 # =============================================================================
 
-_optimizer: Optional[PromptOptimizer] = None
+_optimizer: PromptOptimizer | None = None
 _optimizer_lock = threading.Lock()
 
 

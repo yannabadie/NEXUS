@@ -32,12 +32,12 @@ Usage:
 """
 
 import json
-import re
 import logging
 import os
-from pathlib import Path
+import re
 from datetime import datetime
-from typing import Dict, FrozenSet, List, Set, Optional, Any, TYPE_CHECKING
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
     from .embedding_engine import EmbeddingEngine
@@ -45,6 +45,7 @@ if TYPE_CHECKING:
 # V8.8: Spotlighter for RAG content protection (OWASP LLM01:2025)
 try:
     from core.security_pkg.security import get_spotlighter
+
     SPOTLIGHTER_AVAILABLE = True
 except ImportError:
     SPOTLIGHTER_AVAILABLE = False
@@ -52,16 +53,22 @@ except ImportError:
 # V12.4 P3.2: Load feature flag for default datamarking behavior
 from core.config import Config
 
-# V7.9 Phase 10f/10g: Import from modular types and backends
-from .types import Chunk, ScoredChunk, IndexStats
 from .backends import (
-    MemoryBackend, TfidfBackend, Bm25Backend, DenseBackend,
-    BM25S_AVAILABLE, STEMMER_AVAILABLE, LANCEDB_AVAILABLE, SENTENCE_TRANSFORMERS_AVAILABLE
+    BM25S_AVAILABLE,
+    STEMMER_AVAILABLE,
+    Bm25Backend,
+    DenseBackend,
+    MemoryBackend,
+    TfidfBackend,
 )
+
+# V7.9 Phase 10f/10g: Import from modular types and backends
+from .types import Chunk, IndexStats
 
 # V13.0 MEMORIA UNIVERSALIS: Multi-format document ingestion
 try:
-    from .ingestors import UniversalIngestor, DOCLING_AVAILABLE, DOCLING_EXTENSIONS
+    from .ingestors import DOCLING_AVAILABLE, DOCLING_EXTENSIONS, UniversalIngestor
+
     INGESTOR_AVAILABLE = True
 except ImportError:
     INGESTOR_AVAILABLE = False
@@ -77,16 +84,44 @@ except ImportError:
 # V13.0: Extended extensions including Docling formats
 DEFAULT_EXTENSIONS = [
     # Code
-    ".py", ".js", ".ts", ".tsx", ".jsx",
+    ".py",
+    ".js",
+    ".ts",
+    ".tsx",
+    ".jsx",
     # Markup & Config
-    ".md", ".txt", ".yaml", ".yml", ".json", ".toml", ".xml", ".html", ".htm",
+    ".md",
+    ".txt",
+    ".yaml",
+    ".yml",
+    ".json",
+    ".toml",
+    ".xml",
+    ".html",
+    ".htm",
     # Documents (via Docling)
-    ".pdf", ".docx", ".doc", ".pptx", ".xlsx",
+    ".pdf",
+    ".docx",
+    ".doc",
+    ".pptx",
+    ".xlsx",
     # Images (via Docling OCR)
-    ".png", ".jpg", ".jpeg",
+    ".png",
+    ".jpg",
+    ".jpeg",
 ]
-EXCLUDED_DIRS = ["__pycache__", ".git", "node_modules", ".venv", "venv",
-                 "workspace", "workspace_archive", ".pytest_cache", "dist", "build"]
+EXCLUDED_DIRS = [
+    "__pycache__",
+    ".git",
+    "node_modules",
+    ".venv",
+    "venv",
+    "workspace",
+    "workspace_archive",
+    ".pytest_cache",
+    "dist",
+    "build",
+]
 
 # V7.8.1 OV-001: MAX_CHUNKS now configurable via environment
 # Default: 5000 chunks, Max allowed: 50000 (memory safety)
@@ -101,6 +136,7 @@ LINES_OVERLAP = 10  # Overlap between chunks
 # =============================================================================
 # ProjectMemory Class (Facade)
 # =============================================================================
+
 
 class ProjectMemory:
     """
@@ -119,11 +155,7 @@ class ProjectMemory:
 
     STORAGE_FILE = "project_knowledge.json"
 
-    def __init__(
-        self,
-        nexus_root: Path,
-        embedding_engine: Optional['EmbeddingEngine'] = None
-    ):
+    def __init__(self, nexus_root: Path, embedding_engine: Optional["EmbeddingEngine"] = None):
         """
         Initialize ProjectMemory.
 
@@ -140,21 +172,21 @@ class ProjectMemory:
         self._logger = logging.getLogger("nexus.project_memory")
 
         # V10 MEMORY FORGE: Store engine for injection into DenseBackend
-        self._embedding_engine: Optional['EmbeddingEngine'] = embedding_engine
+        self._embedding_engine: EmbeddingEngine | None = embedding_engine
 
         # V13.0 MEMORIA UNIVERSALIS: Universal document ingestor
-        self._ingestor: Optional['UniversalIngestor'] = None
+        self._ingestor: UniversalIngestor | None = None
 
         # In-memory data
-        self.chunks: List[Chunk] = []
-        self.indexed_files: Set[str] = set()
+        self.chunks: list[Chunk] = []
+        self.indexed_files: set[str] = set()
 
         # V10: Backend abstraction with engine injection
         self._backend: MemoryBackend = self._select_backend()
         self._backend_dirty: bool = True  # Backend index needs rebuild
 
         # Legacy: Keep idf for backward compatibility with saved data
-        self.idf: Dict[str, float] = {}
+        self.idf: dict[str, float] = {}
 
         # Ensure storage directory exists
         self.storage_dir.mkdir(parents=True, exist_ok=True)
@@ -163,7 +195,7 @@ class ProjectMemory:
         self._load()
 
     @property
-    def ingestor(self) -> Optional['UniversalIngestor']:
+    def ingestor(self) -> Optional["UniversalIngestor"]:
         """
         V13.0 MEMORIA UNIVERSALIS: Lazy-load universal document ingestor.
 
@@ -268,8 +300,22 @@ class ProjectMemory:
 
         # V13.0 MEMORIA UNIVERSALIS: Use ingestor for non-text formats
         suffix = path.suffix.lower()
-        docling_formats = {".pdf", ".docx", ".doc", ".pptx", ".ppt", ".xlsx", ".xls",
-                          ".png", ".jpg", ".jpeg", ".tiff", ".tif", ".bmp", ".webp"}
+        docling_formats = {
+            ".pdf",
+            ".docx",
+            ".doc",
+            ".pptx",
+            ".ppt",
+            ".xlsx",
+            ".xls",
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".tiff",
+            ".tif",
+            ".bmp",
+            ".webp",
+        }
 
         if suffix in docling_formats and self.ingestor is not None:
             # Use Docling for documents and images
@@ -315,12 +361,7 @@ class ProjectMemory:
         self._logger.info(f"Indexed {rel_path}: {len(new_chunks)} chunks")
         return len(new_chunks)
 
-    def index_directory(
-        self,
-        path: Path,
-        extensions: List[str] = None,
-        recursive: bool = True
-    ) -> int:
+    def index_directory(self, path: Path, extensions: list[str] = None, recursive: bool = True) -> int:
         """
         Index all files in a directory.
 
@@ -374,7 +415,7 @@ class ProjectMemory:
     # Chunking Strategies
     # =========================================================================
 
-    def _chunk_python(self, content: str, file_path: str) -> List[Chunk]:
+    def _chunk_python(self, content: str, file_path: str) -> list[Chunk]:
         """
         Chunk Python file by function and class definitions.
 
@@ -384,7 +425,7 @@ class ProjectMemory:
         lines = content.split("\n")
 
         # Pattern to match function/class definitions
-        pattern = re.compile(r'^(class |def |async def )')
+        pattern = re.compile(r"^(class |def |async def )")
 
         current_chunk_start = 0
         current_chunk_name = None
@@ -396,31 +437,43 @@ class ProjectMemory:
                 if i > current_chunk_start:
                     chunk_content = "\n".join(lines[current_chunk_start:i])
                     if len(chunk_content.strip()) >= MIN_CHUNK_SIZE:
-                        chunks.append(self._create_chunk(
-                            file_path, current_chunk_start + 1, i,
-                            chunk_content, current_chunk_type, current_chunk_name
-                        ))
+                        chunks.append(
+                            self._create_chunk(
+                                file_path,
+                                current_chunk_start + 1,
+                                i,
+                                chunk_content,
+                                current_chunk_type,
+                                current_chunk_name,
+                            )
+                        )
 
                 # Start new chunk
                 current_chunk_start = i
                 stripped = line.lstrip()
                 if stripped.startswith("class "):
                     current_chunk_type = "class"
-                    match = re.match(r'class (\w+)', stripped)
+                    match = re.match(r"class (\w+)", stripped)
                     current_chunk_name = match.group(1) if match else None
                 else:
                     current_chunk_type = "function"
-                    match = re.match(r'(?:async )?def (\w+)', stripped)
+                    match = re.match(r"(?:async )?def (\w+)", stripped)
                     current_chunk_name = match.group(1) if match else None
 
         # Add final chunk
         if current_chunk_start < len(lines):
             chunk_content = "\n".join(lines[current_chunk_start:])
             if len(chunk_content.strip()) >= MIN_CHUNK_SIZE:
-                chunks.append(self._create_chunk(
-                    file_path, current_chunk_start + 1, len(lines),
-                    chunk_content, current_chunk_type, current_chunk_name
-                ))
+                chunks.append(
+                    self._create_chunk(
+                        file_path,
+                        current_chunk_start + 1,
+                        len(lines),
+                        chunk_content,
+                        current_chunk_type,
+                        current_chunk_name,
+                    )
+                )
 
         # If no functions/classes found, fall back to line chunking
         if not chunks:
@@ -428,7 +481,7 @@ class ProjectMemory:
 
         return chunks
 
-    def _chunk_markdown(self, content: str, file_path: str) -> List[Chunk]:
+    def _chunk_markdown(self, content: str, file_path: str) -> list[Chunk]:
         """
         Chunk Markdown file by section headers.
 
@@ -438,7 +491,7 @@ class ProjectMemory:
         lines = content.split("\n")
 
         # Pattern to match headers
-        pattern = re.compile(r'^#{1,4} ')
+        pattern = re.compile(r"^#{1,4} ")
 
         current_chunk_start = 0
         current_section_name = "Introduction"
@@ -449,10 +502,11 @@ class ProjectMemory:
                 if i > current_chunk_start:
                     chunk_content = "\n".join(lines[current_chunk_start:i])
                     if len(chunk_content.strip()) >= MIN_CHUNK_SIZE:
-                        chunks.append(self._create_chunk(
-                            file_path, current_chunk_start + 1, i,
-                            chunk_content, "section", current_section_name
-                        ))
+                        chunks.append(
+                            self._create_chunk(
+                                file_path, current_chunk_start + 1, i, chunk_content, "section", current_section_name
+                            )
+                        )
 
                 # Start new section
                 current_chunk_start = i
@@ -462,10 +516,11 @@ class ProjectMemory:
         if current_chunk_start < len(lines):
             chunk_content = "\n".join(lines[current_chunk_start:])
             if len(chunk_content.strip()) >= MIN_CHUNK_SIZE:
-                chunks.append(self._create_chunk(
-                    file_path, current_chunk_start + 1, len(lines),
-                    chunk_content, "section", current_section_name
-                ))
+                chunks.append(
+                    self._create_chunk(
+                        file_path, current_chunk_start + 1, len(lines), chunk_content, "section", current_section_name
+                    )
+                )
 
         # If no sections found, fall back to line chunking
         if not chunks:
@@ -473,7 +528,7 @@ class ProjectMemory:
 
         return chunks
 
-    def _chunk_by_lines(self, content: str, file_path: str) -> List[Chunk]:
+    def _chunk_by_lines(self, content: str, file_path: str) -> list[Chunk]:
         """
         Chunk file by fixed line count with overlap.
 
@@ -488,10 +543,7 @@ class ProjectMemory:
             chunk_content = "\n".join(lines[i:end])
 
             if len(chunk_content.strip()) >= MIN_CHUNK_SIZE:
-                chunks.append(self._create_chunk(
-                    file_path, i + 1, end,
-                    chunk_content, "lines", None
-                ))
+                chunks.append(self._create_chunk(file_path, i + 1, end, chunk_content, "lines", None))
 
             # Move forward with overlap
             i += LINES_PER_CHUNK - LINES_OVERLAP
@@ -501,13 +553,7 @@ class ProjectMemory:
         return chunks
 
     def _create_chunk(
-        self,
-        file_path: str,
-        start_line: int,
-        end_line: int,
-        content: str,
-        chunk_type: str,
-        name: Optional[str]
+        self, file_path: str, start_line: int, end_line: int, content: str, chunk_type: str, name: str | None
     ) -> Chunk:
         """Create a chunk with precomputed terms."""
         # Truncate if too large
@@ -524,10 +570,10 @@ class ProjectMemory:
             content=content,
             terms=terms,
             chunk_type=chunk_type,
-            name=name
+            name=name,
         )
 
-    def _extract_terms(self, text: str) -> FrozenSet[str]:
+    def _extract_terms(self, text: str) -> frozenset[str]:
         """
         Extract searchable terms from text.
 
@@ -535,17 +581,65 @@ class ProjectMemory:
         Lowercase, alphanumeric only, remove common stopwords.
         """
         # Tokenize: lowercase, split on non-alphanumeric
-        words = re.findall(r'[a-z_][a-z0-9_]*', text.lower())
+        words = re.findall(r"[a-z_][a-z0-9_]*", text.lower())
 
         # Filter short words and common stopwords
         stopwords = {
-            'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been',
-            'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would',
-            'could', 'should', 'may', 'might', 'must', 'shall', 'can',
-            'to', 'of', 'in', 'for', 'on', 'with', 'at', 'by', 'from',
-            'as', 'or', 'and', 'not', 'but', 'if', 'then', 'else',
-            'this', 'that', 'it', 'its', 'self', 'none', 'true', 'false',
-            'def', 'class', 'return', 'import', 'from', 'pass', 'raise'
+            "the",
+            "a",
+            "an",
+            "is",
+            "are",
+            "was",
+            "were",
+            "be",
+            "been",
+            "have",
+            "has",
+            "had",
+            "do",
+            "does",
+            "did",
+            "will",
+            "would",
+            "could",
+            "should",
+            "may",
+            "might",
+            "must",
+            "shall",
+            "can",
+            "to",
+            "of",
+            "in",
+            "for",
+            "on",
+            "with",
+            "at",
+            "by",
+            "from",
+            "as",
+            "or",
+            "and",
+            "not",
+            "but",
+            "if",
+            "then",
+            "else",
+            "this",
+            "that",
+            "it",
+            "its",
+            "self",
+            "none",
+            "true",
+            "false",
+            "def",
+            "class",
+            "return",
+            "import",
+            "pass",
+            "raise",
         }
 
         return frozenset(w for w in words if len(w) > 2 and w not in stopwords)
@@ -570,12 +664,8 @@ class ProjectMemory:
             self._backend_dirty = False
 
     def retrieve(
-        self,
-        query: str,
-        limit: int = 5,
-        min_score: float = 0.05,
-        apply_datamarking: Optional[bool] = None
-    ) -> List[Chunk]:
+        self, query: str, limit: int = 5, min_score: float = 0.05, apply_datamarking: bool | None = None
+    ) -> list[Chunk]:
         """
         Retrieve relevant chunks using the active backend.
 
@@ -627,29 +717,25 @@ class ProjectMemory:
                 self.chunks,
                 limit,
                 min_score,
-                raw_query=query  # For dense/semantic backends
+                raw_query=query,  # For dense/semantic backends
             )
 
             # If primary backend returns empty, try fallback
-            if not results and not isinstance(self._backend, TfidfBackend):
-                # Fallback to TF-IDF
-                if query_terms:  # Only if we have terms for sparse search
-                    fallback = TfidfBackend()
-                    fallback.build_index(self.chunks)
-                    results = fallback.retrieve(
-                        list(query_terms), self.chunks, limit, min_score, raw_query=query
-                    )
+            if not results and not isinstance(self._backend, TfidfBackend) and query_terms:
+                # Fallback to TF-IDF if we have terms for sparse search
+                fallback = TfidfBackend()
+                fallback.build_index(self.chunks)
+                results = fallback.retrieve(list(query_terms), self.chunks, limit, min_score, raw_query=query)
 
             # V8.8 / V12.4: Apply Spotlighter datamarking if requested
             # Uses dataclasses.replace on frozen Chunk for immutable copy
             if apply_datamarking and results and SPOTLIGHTER_AVAILABLE:
                 from dataclasses import replace as dc_replace
+
                 spotlighter = get_spotlighter()
                 marked_results = []
                 for chunk in results:
-                    marked_content = spotlighter.spotlight(
-                        chunk.content, source=chunk.file_path
-                    )
+                    marked_content = spotlighter.spotlight(chunk.content, source=chunk.file_path)
                     marked_chunk = dc_replace(chunk, content=marked_content)
                     marked_results.append(marked_chunk)
                 return marked_results
@@ -660,7 +746,7 @@ class ProjectMemory:
             self._logger.warning(f"Retrieve failed: {e}")
             return []
 
-    def get_backend_info(self) -> Dict[str, Any]:
+    def get_backend_info(self) -> dict[str, Any]:
         """
         Get information about the active retrieval backend.
 
@@ -731,7 +817,7 @@ class ProjectMemory:
             total_chunks=len(self.chunks),
             total_terms=len(all_terms),
             indexed_at=datetime.now().isoformat(),
-            storage_path=str(self.storage_path)
+            storage_path=str(self.storage_path),
         )
 
     # =========================================================================
@@ -745,14 +831,11 @@ class ProjectMemory:
             "indexed_at": datetime.now().isoformat(),
             "indexed_files": list(self.indexed_files),
             "chunks": [c.to_dict() for c in self.chunks],
-            "idf": self.idf  # Legacy: keep for backward compatibility
+            "idf": self.idf,  # Legacy: keep for backward compatibility
         }
 
         try:
-            self.storage_path.write_text(
-                json.dumps(data, indent=2, ensure_ascii=False),
-                encoding="utf-8"
-            )
+            self.storage_path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
             self._logger.debug(f"Saved {len(self.chunks)} chunks to {self.storage_path}")
         except Exception as e:
             self._logger.error(f"Failed to save project memory: {e}")
@@ -784,7 +867,7 @@ class ProjectMemory:
     # Utilities
     # =========================================================================
 
-    def format_chunks_for_context(self, chunks: List[Chunk], max_chars: int = 3000) -> str:
+    def format_chunks_for_context(self, chunks: list[Chunk], max_chars: int = 3000) -> str:
         """
         Format retrieved chunks for injection into agent context.
 

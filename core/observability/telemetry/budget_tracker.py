@@ -22,15 +22,12 @@ Pricing (Feb 2026 - OFFICIAL):
 
 import json
 import logging
-import time
-from datetime import datetime, date
+from dataclasses import asdict, dataclass
+from datetime import date, datetime
 from pathlib import Path
 from threading import Lock
-from typing import Dict, Optional, Tuple
 
 _logger = logging.getLogger(__name__)
-from dataclasses import dataclass, asdict
-
 
 # =============================================================================
 # PRICING CONSTANTS (Feb 2026)
@@ -43,75 +40,83 @@ from dataclasses import dataclass, asdict
 PRICING = {
     # Claude models (Opus 4.6, Sonnet 4.5, Haiku 4.5) - WITH PROMPT CACHING
     "claude-opus-4-6-20250116": {
-        "input": 5.00,           # $5/MTok (CORRECTED from 15.00)
-        "output": 25.00,         # $25/MTok (CORRECTED from 75.00)
+        "input": 5.00,  # $5/MTok (CORRECTED from 15.00)
+        "output": 25.00,  # $25/MTok (CORRECTED from 75.00)
         "cache_creation": 6.25,  # $6.25/MTok (25% premium over input)
-        "cache_read": 0.50,      # $0.50/MTok (90% savings vs input)
+        "cache_read": 0.50,  # $0.50/MTok (90% savings vs input)
     },
     "claude-opus-4-6": {
-        "input": 5.00, "output": 25.00,
-        "cache_creation": 6.25, "cache_read": 0.50,
+        "input": 5.00,
+        "output": 25.00,
+        "cache_creation": 6.25,
+        "cache_read": 0.50,
     },
     "claude-opus-4-5-20251101": {  # Legacy
-        "input": 5.00, "output": 25.00,
-        "cache_creation": 6.25, "cache_read": 0.50,
+        "input": 5.00,
+        "output": 25.00,
+        "cache_creation": 6.25,
+        "cache_read": 0.50,
     },
     "claude-opus": {
-        "input": 5.00, "output": 25.00,
-        "cache_creation": 6.25, "cache_read": 0.50,
+        "input": 5.00,
+        "output": 25.00,
+        "cache_creation": 6.25,
+        "cache_read": 0.50,
     },
     "claude-sonnet-4-5-20250929": {
-        "input": 1.00,           # $1/MTok (CORRECTED from 3.00)
-        "output": 5.00,          # $5/MTok (CORRECTED from 15.00)
+        "input": 1.00,  # $1/MTok (CORRECTED from 3.00)
+        "output": 5.00,  # $5/MTok (CORRECTED from 15.00)
         "cache_creation": 1.25,  # $1.25/MTok
-        "cache_read": 0.10,      # $0.10/MTok
+        "cache_read": 0.10,  # $0.10/MTok
     },
     "claude-sonnet": {
-        "input": 1.00, "output": 5.00,
-        "cache_creation": 1.25, "cache_read": 0.10,
+        "input": 1.00,
+        "output": 5.00,
+        "cache_creation": 1.25,
+        "cache_read": 0.10,
     },
     "claude-haiku-4-5-20251001": {
-        "input": 0.25,           # $0.25/MTok (CORRECTED from 1.00)
-        "output": 1.25,          # $1.25/MTok (CORRECTED from 5.00)
-        "cache_creation": 0.3125, # $0.3125/MTok
-        "cache_read": 0.025,     # $0.025/MTok
+        "input": 0.25,  # $0.25/MTok (CORRECTED from 1.00)
+        "output": 1.25,  # $1.25/MTok (CORRECTED from 5.00)
+        "cache_creation": 0.3125,  # $0.3125/MTok
+        "cache_read": 0.025,  # $0.025/MTok
     },
     "claude-haiku": {
-        "input": 0.25, "output": 1.25,
-        "cache_creation": 0.3125, "cache_read": 0.025,
+        "input": 0.25,
+        "output": 1.25,
+        "cache_creation": 0.3125,
+        "cache_read": 0.025,
     },
-
     # Gemini models (no prompt caching as of Feb 2026)
     "gemini-3-pro-preview": {
-        "input": 2.00,           # $2/MTok (CORRECTED from 1.25)
-        "output": 12.00,         # $12/MTok (CORRECTED from 5.00)
+        "input": 2.00,  # $2/MTok (CORRECTED from 1.25)
+        "output": 12.00,  # $12/MTok (CORRECTED from 5.00)
     },
     "gemini-3-pro": {"input": 2.00, "output": 12.00},
     "gemini-pro": {"input": 2.00, "output": 12.00},
     "gemini-2.5-flash": {"input": 0.15, "output": 0.60},  # Correct
     "gemini-3-flash": {
-        "input": 0.50,           # $0.50/MTok (CORRECTED from 0.075)
-        "output": 3.00,          # $3/MTok (CORRECTED from 0.30)
+        "input": 0.50,  # $0.50/MTok (CORRECTED from 0.075)
+        "output": 3.00,  # $3/MTok (CORRECTED from 0.30)
     },
     "gemini-flash": {"input": 0.15, "output": 0.60},  # Alias (2.5-flash)
-
     # Local models (zero cost)
     "ollama": {"input": 0.0, "output": 0.0},
     "llama3.1": {"input": 0.0, "output": 0.0},
-
     # Default fallback (conservative estimate)
     "default": {"input": 5.00, "output": 20.00},
 }
 
 # Warning thresholds (percentage of limit)
-BUDGET_WARNING_THRESHOLD = 0.80   # 80% -> warning
+BUDGET_WARNING_THRESHOLD = 0.80  # 80% -> warning
 BUDGET_CRITICAL_THRESHOLD = 0.90  # 90% -> critical alert
-BUDGET_LIMIT_THRESHOLD = 1.00     # 100% -> hard stop
+BUDGET_LIMIT_THRESHOLD = 1.00  # 100% -> hard stop
 
 
 # =============================================================================
 # EXCEPTIONS
 # =============================================================================
+
 
 class BudgetExceededError(Exception):
     """Raised when daily budget limit is exceeded."""
@@ -125,6 +130,7 @@ class BudgetExceededError(Exception):
 
 class BudgetWarning(Warning):
     """Warning when approaching budget limit."""
+
     pass
 
 
@@ -132,20 +138,22 @@ class BudgetWarning(Warning):
 # DATA CLASSES
 # =============================================================================
 
+
 @dataclass
 class BudgetState:
     """Persisted budget state."""
+
     spent_today_usd: float = 0.0
     reset_date: str = ""  # ISO date (YYYY-MM-DD)
     total_lifetime_usd: float = 0.0
     api_calls_today: int = 0
     last_updated: str = ""
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "BudgetState":
+    def from_dict(cls, data: dict) -> "BudgetState":
         return cls(
             spent_today_usd=data.get("spent_today_usd", 0.0),
             reset_date=data.get("reset_date", ""),
@@ -158,6 +166,7 @@ class BudgetState:
 @dataclass
 class CostRecord:
     """Record of a single API cost."""
+
     timestamp: str
     model: str
     input_tokens: int
@@ -168,6 +177,7 @@ class CostRecord:
 # =============================================================================
 # BUDGET TRACKER
 # =============================================================================
+
 
 class BudgetTracker:
     """
@@ -180,8 +190,8 @@ class BudgetTracker:
     def __init__(
         self,
         config=None,
-        workspace_path: Optional[Path] = None,
-        budget_file: Optional[Path] = None,
+        workspace_path: Path | None = None,
+        budget_file: Path | None = None,
     ):
         """
         Initialize BudgetTracker.
@@ -196,7 +206,7 @@ class BudgetTracker:
         # Get budget limit from config
         self.limit_usd = 50.0  # Default
         if config:
-            self.limit_usd = getattr(config, 'budget_limit_usd', 50.0)
+            self.limit_usd = getattr(config, "budget_limit_usd", 50.0)
 
         # Set up persistence path
         if budget_file:
@@ -219,7 +229,7 @@ class BudgetTracker:
         """Load budget state from file."""
         if self.budget_file.exists():
             try:
-                data = json.loads(self.budget_file.read_text(encoding='utf-8'))
+                data = json.loads(self.budget_file.read_text(encoding="utf-8"))
                 return BudgetState.from_dict(data)
             except (json.JSONDecodeError, KeyError):
                 pass
@@ -229,10 +239,7 @@ class BudgetTracker:
         """Save budget state to file."""
         self._state.last_updated = datetime.now().isoformat()
         try:
-            self.budget_file.write_text(
-                json.dumps(self._state.to_dict(), indent=2),
-                encoding='utf-8'
-            )
+            self.budget_file.write_text(json.dumps(self._state.to_dict(), indent=2), encoding="utf-8")
         except Exception as e:
             _logger.warning("BudgetTracker save error: %s", e)
 
@@ -264,7 +271,7 @@ class BudgetTracker:
         # Rough estimate: ~4 chars per token for English text
         return max(1, len(text) // 4)
 
-    def get_model_pricing(self, model: str) -> Dict[str, float]:
+    def get_model_pricing(self, model: str) -> dict[str, float]:
         """
         Get pricing for a model.
 
@@ -294,7 +301,7 @@ class BudgetTracker:
         input_tokens: int,
         output_tokens: int,
         cache_creation_tokens: int = 0,
-        cache_read_tokens: int = 0
+        cache_read_tokens: int = 0,
     ) -> float:
         """
         Calculate cost for an API call.
@@ -338,8 +345,8 @@ class BudgetTracker:
         model: str,
         input_tokens: int = 0,
         output_tokens: int = 0,
-        input_text: Optional[str] = None,
-        output_text: Optional[str] = None,
+        input_text: str | None = None,
+        output_text: str | None = None,
         cache_creation_tokens: int = 0,
         cache_read_tokens: int = 0,
     ) -> float:
@@ -373,13 +380,7 @@ class BudgetTracker:
             output_tokens = self.estimate_tokens(output_text)
 
         # Calculate cost (with cache metrics)
-        cost = self.calculate_cost(
-            model,
-            input_tokens,
-            output_tokens,
-            cache_creation_tokens,
-            cache_read_tokens
-        )
+        cost = self.calculate_cost(model, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens)
 
         # Update state
         with self._lock:
@@ -391,7 +392,7 @@ class BudgetTracker:
 
         return cost
 
-    def get_budget_status(self) -> Tuple[float, float, float]:
+    def get_budget_status(self) -> tuple[float, float, float]:
         """
         Get current budget status.
 
@@ -421,7 +422,7 @@ class BudgetTracker:
 
         return True
 
-    def get_warning_level(self) -> Optional[str]:
+    def get_warning_level(self) -> str | None:
         """
         Get current warning level.
 
@@ -443,7 +444,7 @@ class BudgetTracker:
         self._check_daily_reset()
         return max(0, self.limit_usd - self._state.spent_today_usd)
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> dict:
         """
         Get comprehensive budget statistics.
 
@@ -488,10 +489,10 @@ class BudgetTracker:
 # MODULE-LEVEL FUNCTIONS
 # =============================================================================
 
-_tracker: Optional[BudgetTracker] = None
+_tracker: BudgetTracker | None = None
 
 
-def get_budget_tracker(config=None, workspace_path: Optional[Path] = None) -> BudgetTracker:
+def get_budget_tracker(config=None, workspace_path: Path | None = None) -> BudgetTracker:
     """Get or create the global budget tracker."""
     global _tracker
     if _tracker is None:

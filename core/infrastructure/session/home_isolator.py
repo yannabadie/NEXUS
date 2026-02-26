@@ -25,15 +25,15 @@ Author: Claude (NEXUS V9.7.1)
 Date: 2025-12-13
 """
 
+import contextlib
+import logging
 import os
 import re
-import sys
 import shutil
-import logging
-from pathlib import Path
-from typing import Dict, Optional
-from threading import Lock
+import sys
 from datetime import datetime
+from pathlib import Path
+from threading import Lock
 
 # V11 FIX F27: Logger for security warnings
 logger = logging.getLogger(__name__)
@@ -62,7 +62,7 @@ class HomeIsolator:
     """
 
     # V11 FIX F27: Regex pattern for session_id sanitization
-    _SESSION_ID_PATTERN = re.compile(r'[^a-zA-Z0-9_-]')
+    _SESSION_ID_PATTERN = re.compile(r"[^a-zA-Z0-9_-]")
 
     # V12.4 FIX F24: Enable workspace prefix by default for collision prevention
     def __init__(self, base_path: Path, use_workspace_prefix: bool = True):
@@ -85,10 +85,10 @@ class HomeIsolator:
         self._lock = Lock()
 
         # Track creation times for cleanup
-        self._creation_times: Dict[str, datetime] = {}
+        self._creation_times: dict[str, datetime] = {}
 
         # V11 FIX F26: Reference counting for safe cleanup
-        self._active_refs: Dict[str, int] = {}
+        self._active_refs: dict[str, int] = {}
 
     def _sanitize_session_id(self, session_id: str) -> str:
         """
@@ -111,7 +111,7 @@ class HomeIsolator:
             return f"nx_{hash('empty') % 10**8:08d}"
 
         # Replace any non-alphanumeric (except _ and -) with underscore
-        sanitized = self._SESSION_ID_PATTERN.sub('_', session_id)
+        sanitized = self._SESSION_ID_PATTERN.sub("_", session_id)
 
         # Ensure reasonable length (prevent DoS via very long names)
         if len(sanitized) > 64:
@@ -119,7 +119,7 @@ class HomeIsolator:
             sanitized = sanitized[:64]
 
         # Ensure not empty after sanitization
-        if not sanitized or sanitized == '_' * len(sanitized):
+        if not sanitized or sanitized == "_" * len(sanitized):
             logger.warning(f"[SECURITY] session_id '{session_id[:20]}...' sanitized to empty, using hash")
             sanitized = f"nx_{hash(session_id) % 10**8:08d}"
 
@@ -131,7 +131,7 @@ class HomeIsolator:
 
         return sanitized
 
-    def get_isolated_env(self, session_id: str) -> Dict[str, str]:
+    def get_isolated_env(self, session_id: str) -> dict[str, str]:
         """
         Get environment dict with isolated HOME for a session.
 
@@ -162,40 +162,40 @@ class HomeIsolator:
                 self._creation_times[safe_session_id] = datetime.now()
 
             # Override HOME based on platform
-            if sys.platform == 'win32':
+            if sys.platform == "win32":
                 # Windows: Set all HOME-related variables
-                env['USERPROFILE'] = str(isolated_home)
+                env["USERPROFILE"] = str(isolated_home)
 
                 # Also set HOMEDRIVE and HOMEPATH for full Windows compat
                 # Some tools use these instead of USERPROFILE
                 drive = isolated_home.drive
                 if drive:
-                    env['HOMEDRIVE'] = drive
+                    env["HOMEDRIVE"] = drive
                     # HOMEPATH is relative to HOMEDRIVE
                     try:
-                        homepath = str(isolated_home)[len(drive):]
-                        env['HOMEPATH'] = homepath
+                        homepath = str(isolated_home)[len(drive) :]
+                        env["HOMEPATH"] = homepath
                     except Exception:
-                        env['HOMEPATH'] = str(isolated_home)
+                        env["HOMEPATH"] = str(isolated_home)
                 else:
-                    env['HOMEDRIVE'] = 'C:'
-                    env['HOMEPATH'] = str(isolated_home)
+                    env["HOMEDRIVE"] = "C:"
+                    env["HOMEPATH"] = str(isolated_home)
 
                 # V9.7.1-fix: Also override HOME on Windows
                 # HOME may be inherited from Git Bash, WSL, or MSYS2
                 # Node.js checks USERPROFILE, but Python/others may check HOME
-                env['HOME'] = str(isolated_home)
+                env["HOME"] = str(isolated_home)
 
                 # V11 FIX F28: Isolate Windows app data directories
                 appdata_dir = isolated_home / "AppData" / "Roaming"
                 localappdata_dir = isolated_home / "AppData" / "Local"
                 appdata_dir.mkdir(parents=True, exist_ok=True)
                 localappdata_dir.mkdir(parents=True, exist_ok=True)
-                env['APPDATA'] = str(appdata_dir)
-                env['LOCALAPPDATA'] = str(localappdata_dir)
+                env["APPDATA"] = str(appdata_dir)
+                env["LOCALAPPDATA"] = str(localappdata_dir)
             else:
                 # Linux/macOS: Just set HOME
-                env['HOME'] = str(isolated_home)
+                env["HOME"] = str(isolated_home)
 
                 # V11 FIX F28: Isolate XDG Base Directory paths (Linux)
                 # https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
@@ -208,14 +208,14 @@ class HomeIsolator:
                 for xdg_dir in [xdg_config, xdg_data, xdg_cache, xdg_state]:
                     xdg_dir.mkdir(parents=True, exist_ok=True)
 
-                env['XDG_CONFIG_HOME'] = str(xdg_config)
-                env['XDG_DATA_HOME'] = str(xdg_data)
-                env['XDG_CACHE_HOME'] = str(xdg_cache)
-                env['XDG_STATE_HOME'] = str(xdg_state)
+                env["XDG_CONFIG_HOME"] = str(xdg_config)
+                env["XDG_DATA_HOME"] = str(xdg_data)
+                env["XDG_CACHE_HOME"] = str(xdg_cache)
+                env["XDG_STATE_HOME"] = str(xdg_state)
 
             return env
 
-    def get_home_path(self, session_id: str) -> Optional[Path]:
+    def get_home_path(self, session_id: str) -> Path | None:
         """
         Get the isolated home path for a session.
 
@@ -236,7 +236,7 @@ class HomeIsolator:
     # V11 FIX F26: Reference Counting for Safe Cleanup
     # =========================================================================
 
-    def acquire_env(self, session_id: str) -> Dict[str, str]:
+    def acquire_env(self, session_id: str) -> dict[str, str]:
         """
         V11 FIX F26: Acquire isolated environment with reference counting.
 
@@ -373,12 +373,9 @@ class HomeIsolator:
         if not self.homes_dir.exists():
             return []
 
-        return [
-            d.name for d in self.homes_dir.iterdir()
-            if d.is_dir() and not d.name.startswith('.')
-        ]
+        return [d.name for d in self.homes_dir.iterdir() if d.is_dir() and not d.name.startswith(".")]
 
-    def get_stats(self) -> Dict[str, any]:
+    def get_stats(self) -> dict[str, any]:
         """
         Get statistics about isolated homes.
 
@@ -391,27 +388,18 @@ class HomeIsolator:
         for session_id in active:
             home_path = self.homes_dir / session_id
             if home_path.exists():
-                for f in home_path.rglob('*'):
+                for f in home_path.rglob("*"):
                     if f.is_file():
-                        try:
+                        with contextlib.suppress(Exception):
                             total_size += f.stat().st_size
-                        except Exception:
-                            pass
 
-        return {
-            "active_count": len(active),
-            "total_size_mb": round(total_size / (1024 * 1024), 2)
-        }
+        return {"active_count": len(active), "total_size_mb": round(total_size / (1024 * 1024), 2)}
 
     # =========================================================================
     # V11 FIX F29: Disk Quota Monitoring
     # =========================================================================
 
-    def check_disk_quota(
-        self,
-        quota_mb: float = 500.0,
-        warn_threshold: float = 0.8
-    ) -> Dict[str, any]:
+    def check_disk_quota(self, quota_mb: float = 500.0, warn_threshold: float = 0.8) -> dict[str, any]:
         """
         V11 FIX F29: Check disk usage against quota.
 
@@ -452,7 +440,7 @@ class HomeIsolator:
             "usage_percent": round(usage_percent, 1),
             "status": status,
             "message": message,
-            "active_sessions": stats["active_count"]
+            "active_sessions": stats["active_count"],
         }
 
     def enforce_quota(self, quota_mb: float = 500.0) -> int:
@@ -474,14 +462,11 @@ class HomeIsolator:
         if quota_check["status"] != "exceeded":
             return 0
 
-        logger.warning(f"[F29] Enforcing quota: cleaning old sessions...")
+        logger.warning("[F29] Enforcing quota: cleaning old sessions...")
 
         # Sort sessions by creation time (oldest first)
         with self._lock:
-            sorted_sessions = sorted(
-                self._creation_times.items(),
-                key=lambda x: x[1]
-            )
+            sorted_sessions = sorted(self._creation_times.items(), key=lambda x: x[1])
 
         # Clean oldest sessions until under quota
         for session_id, _ in sorted_sessions:

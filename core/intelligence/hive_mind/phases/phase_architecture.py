@@ -34,44 +34,38 @@ Key Innovation:
 - V12.4: Dual-agent architecture for better planning
 """
 
-import asyncio
 import json
 import logging
 import os
-import re
 import time
-from typing import List, Optional, Dict, Any, TYPE_CHECKING
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING, Any, Optional
+
+from core.observability.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
+
+from ..agent_registry import AgentRegistry
+from ..context_manager import HiveMindContextManager
+from ..cost_estimator import CostEstimator
+from ..prompts import ARCHITECTURE_SYSTEM_PROMPT  # V12.4.1: Static prompt for caching
+from ..session_integration import HiveMindSessionIntegration, generate_hivemind_task_id
+from ..types import (
+    AgentArchitecture,
+    AgentSpec,
+    DebateResult,
+    ExecutionPlan,
+    ExecutionStep,
+    RAGConfig,
+)
+from ..user_interaction import UserInteractionHandler
 
 # V12.4: Feature flag for collaborative architecture
 COLLABORATIVE_ARCHITECTURE = os.environ.get("NEXUS_COLLABORATIVE_ARCHITECTURE", "true").lower() == "true"
 
-from ..types import (
-    AgentSpec,
-    AgentArchitecture,
-    RAGConfig,
-    ExecutionPlan,
-    ExecutionStep,
-    DebateResult,
-    UserBreakpoint,
-    BreakpointOption,
-)
-from ..cost_estimator import CostEstimator
-from ..context_manager import HiveMindContextManager
-from ..context_scope import ContextScope
-from ..session_integration import HiveMindSessionIntegration, generate_hivemind_task_id
-from ..agent_registry import AgentRegistry
-from ..user_interaction import UserInteractionHandler
-from ..prompts import ARCHITECTURE_SYSTEM_PROMPT  # V12.4.1: Static prompt for caching
-
-# V13.0 CEREBRO LIVE: Telemetry for agent exchanges
-from core.observability.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
-
 if TYPE_CHECKING:
-    from core.intelligence.swarm.session_manager import SwarmSessionManager
     from core.drivers.protocol import BaseAsyncDriver
-    
+    from core.intelligence.swarm.session_manager import SwarmSessionManager
+
 
 logger = logging.getLogger(__name__)
 
@@ -242,10 +236,11 @@ Be constructive - improve, don't reject.
 @dataclass
 class ArchitecturePhaseResult:
     """Result of Phase 3."""
+
     architecture: AgentArchitecture
-    agents_spawned: List[str]
+    agents_spawned: list[str]
     user_approved_spawn: bool
-    spawn_skipped_reason: Optional[str] = None
+    spawn_skipped_reason: str | None = None
 
 
 class ArchitectureGenerationPhase:
@@ -266,8 +261,8 @@ class ArchitectureGenerationPhase:
         agent_registry: AgentRegistry,
         user_handler: UserInteractionHandler,
         workspace_path: Path,
-        task_id: Optional[str] = None,
-        session_manager: Optional["SwarmSessionManager"] = None
+        task_id: str | None = None,
+        session_manager: Optional["SwarmSessionManager"] = None,
     ):
         """
         Initialize Phase 3.
@@ -294,13 +289,9 @@ class ArchitectureGenerationPhase:
         # V9.2: Session isolation
         self._task_id = task_id or generate_hivemind_task_id("architecture")
         self._session_manager = session_manager
-        self._session_integration: Optional[HiveMindSessionIntegration] = None
+        self._session_integration: HiveMindSessionIntegration | None = None
 
-    async def execute(
-        self,
-        task: str,
-        debate_result: DebateResult
-    ) -> ArchitecturePhaseResult:
+    async def execute(self, task: str, debate_result: DebateResult) -> ArchitecturePhaseResult:
         """
         Execute Phase 3: Architecture Generation.
 
@@ -321,15 +312,12 @@ class ArchitectureGenerationPhase:
             phase_name="architecture",
             context_manager=self.context_manager,
             session_manager=self._session_manager,
-            complexity="MODERATE"
+            complexity="MODERATE",
         )
         self._session_integration.set_previous_phase("debate")
 
         # Check budget
-        if not self.cost_estimator.can_afford_multiple({
-            "generate_architecture": 1,
-            "check_registry": 1
-        }):
+        if not self.cost_estimator.can_afford_multiple({"generate_architecture": 1, "check_registry": 1}):
             logger.error("Cannot afford Phase 3 operations")
             raise RuntimeError("Budget exceeded for Phase 3")
 
@@ -339,8 +327,9 @@ class ArchitectureGenerationPhase:
         # V12.4: CascadedRouter pre-routing hints (arxiv:2502.11133)
         try:
             from core.execution_pkg.routing.cascaded_router import get_cascaded_router
+
             _cr = get_cascaded_router()
-            _complexity = getattr(debate_result, 'consensus_confidence', 0.5)
+            _complexity = getattr(debate_result, "consensus_confidence", 0.5)
             _domains = debate_result.final_capabilities[:3] if debate_result.final_capabilities else []
             _routing = _cr.route(task[:200], complexity=_complexity, domains=_domains)
             logger.info(
@@ -355,7 +344,7 @@ class ArchitectureGenerationPhase:
             task=task,
             approach=debate_result.final_approach,
             capabilities=debate_result.final_capabilities,
-            available_agents=available_agents
+            available_agents=available_agents,
         )
 
         # Check if spawning is needed
@@ -367,14 +356,10 @@ class ArchitectureGenerationPhase:
             if architecture.agents_to_spawn:
                 user_response = self.user_handler.before_spawn(
                     agents_to_spawn=[
-                        {
-                            "role": spec.role,
-                            "mission": spec.mission,
-                            "capabilities": spec.capabilities
-                        }
+                        {"role": spec.role, "mission": spec.mission, "capabilities": spec.capabilities}
                         for spec in architecture.agents_to_spawn
                     ],
-                    estimated_cost=architecture.estimated_cost
+                    estimated_cost=architecture.estimated_cost,
                 )
 
                 if user_response.chosen_option == "spawn_all":
@@ -382,18 +367,14 @@ class ArchitectureGenerationPhase:
                     spawned = await self._spawn_agents(architecture.agents_to_spawn)
                     self._annotate_with_graph_of_thought(architecture)
                     return ArchitecturePhaseResult(
-                        architecture=architecture,
-                        agents_spawned=spawned,
-                        user_approved_spawn=True
+                        architecture=architecture, agents_spawned=spawned, user_approved_spawn=True
                     )
 
                 elif user_response.chosen_option == "spawn_selective":
                     # TODO: Implement selective spawning UI
                     spawned = await self._spawn_agents(architecture.agents_to_spawn)
                     return ArchitecturePhaseResult(
-                        architecture=architecture,
-                        agents_spawned=spawned,
-                        user_approved_spawn=True
+                        architecture=architecture, agents_spawned=spawned, user_approved_spawn=True
                     )
 
                 elif user_response.chosen_option == "skip":
@@ -404,7 +385,7 @@ class ArchitectureGenerationPhase:
                         architecture=architecture,
                         agents_spawned=[],
                         user_approved_spawn=False,
-                        spawn_skipped_reason="User chose to skip spawning"
+                        spawn_skipped_reason="User chose to skip spawning",
                     )
 
                 else:
@@ -414,7 +395,7 @@ class ArchitectureGenerationPhase:
                         architecture=architecture,
                         agents_spawned=[],
                         user_approved_spawn=False,
-                        spawn_skipped_reason="User cancelled spawning"
+                        spawn_skipped_reason="User cancelled spawning",
                     )
 
         # No spawning needed
@@ -426,7 +407,7 @@ class ArchitectureGenerationPhase:
         return ArchitecturePhaseResult(
             architecture=architecture,
             agents_spawned=[],
-            user_approved_spawn=True  # N/A but true for flow
+            user_approved_spawn=True,  # N/A but true for flow
         )
 
     def _format_available_agents(self) -> str:
@@ -439,11 +420,7 @@ class ArchitectureGenerationPhase:
         return "\n".join(lines) if lines else "No specialized agents available"
 
     async def _generate_architecture(
-        self,
-        task: str,
-        approach: str,
-        capabilities: List[str],
-        available_agents: str
+        self, task: str, approach: str, capabilities: list[str], available_agents: str
     ) -> AgentArchitecture:
         """
         Generate architecture using collaborative or legacy approach.
@@ -457,21 +434,13 @@ class ArchitectureGenerationPhase:
         """
         if COLLABORATIVE_ARCHITECTURE:
             logger.info("Phase 3: Using COLLABORATIVE architecture (Claude → Gemini)")
-            return await self._generate_collaborative(
-                task, approach, capabilities, available_agents
-            )
+            return await self._generate_collaborative(task, approach, capabilities, available_agents)
         else:
             logger.info("Phase 3: Using LEGACY architecture (Gemini only)")
-            return await self._generate_legacy(
-                task, approach, capabilities, available_agents
-            )
+            return await self._generate_legacy(task, approach, capabilities, available_agents)
 
     async def _generate_collaborative(
-        self,
-        task: str,
-        approach: str,
-        capabilities: List[str],
-        available_agents: str
+        self, task: str, approach: str, capabilities: list[str], available_agents: str
     ) -> AgentArchitecture:
         """
         V12.4: Collaborative architecture generation.
@@ -481,20 +450,19 @@ class ArchitectureGenerationPhase:
         """
         # Phase 3a: Claude generates architecture
         logger.info("  Phase 3a: Claude generating architecture...")
-        claude_arch = await self._generate_with_claude(
-            task, approach, capabilities, available_agents
-        )
+        claude_arch = await self._generate_with_claude(task, approach, capabilities, available_agents)
 
         # V13.0 CEREBRO LIVE: Emit Claude's architecture proposal
         emit_agent_speak(
             "claude",
             f"Architecture: {claude_arch.collaboration_mode} mode, {len(claude_arch.execution_plan.steps)} steps",
-            action_type="ARCHITECTURE"
+            action_type="ARCHITECTURE",
         )
         emit_agent_exchange(
-            "claude", "gemini",
+            "claude",
+            "gemini",
             f"Proposed: {claude_arch.collaboration_mode} with {len(claude_arch.agents_to_use)} agents",
-            exchange_type="architecture"
+            exchange_type="architecture",
         )
 
         # Check budget for validation step
@@ -508,15 +476,12 @@ class ArchitectureGenerationPhase:
             final_arch = await self._validate_with_gemini(claude_arch, task, capabilities)
 
             # V13.0 CEREBRO LIVE: Emit Gemini's validation response
-            emit_agent_speak(
-                "gemini",
-                f"Validation: {final_arch.reasoning[:100]}",
-                action_type="VALIDATION"
-            )
+            emit_agent_speak("gemini", f"Validation: {final_arch.reasoning[:100]}", action_type="VALIDATION")
             emit_agent_exchange(
-                "gemini", "claude",
+                "gemini",
+                "claude",
                 f"Validated: {final_arch.collaboration_mode} mode approved",
-                exchange_type="architecture"
+                exchange_type="architecture",
             )
 
             return final_arch
@@ -525,29 +490,25 @@ class ArchitectureGenerationPhase:
             return claude_arch
 
     async def _generate_with_claude(
-        self,
-        task: str,
-        approach: str,
-        capabilities: List[str],
-        available_agents: str
+        self, task: str, approach: str, capabilities: list[str], available_agents: str
     ) -> AgentArchitecture:
         """Phase 3a: Claude generates initial architecture."""
         prompt = CLAUDE_ARCHITECTURE_PROMPT.format(
-            task=task,
-            approach=approach,
-            capabilities=", ".join(capabilities),
-            available_agents=available_agents
+            task=task, approach=approach, capabilities=", ".join(capabilities), available_agents=available_agents
         )
 
         # V12.4: TechniqueSelector - enhance prompt with adaptive techniques (arxiv:2510.18162)
         _selected_techniques = []
         try:
             from core.memory_pkg.prompts.technique_selector import get_technique_selector
+
             _tech_selector = get_technique_selector()
             _selection = _tech_selector.select(task, domains=capabilities[:3])
             _selected_techniques = _selection.techniques
             prompt = _tech_selector.compose_prompt(prompt, _selected_techniques)
-            logger.debug(f"Phase 3a: TechniqueSelector applied {[t.value for t in _selected_techniques]} ({_selection.cluster_name})")
+            logger.debug(
+                f"Phase 3a: TechniqueSelector applied {[t.value for t in _selected_techniques]} ({_selection.cluster_name})"
+            )
         except Exception:
             pass
 
@@ -571,7 +532,7 @@ class ArchitectureGenerationPhase:
                 raise RuntimeError(f"Claude architecture generation failed: {response.error_message}")
 
             # Record actual token usage
-            if hasattr(self.cost_estimator, 'record_tokens'):
+            if hasattr(self.cost_estimator, "record_tokens"):
                 self.cost_estimator.record_tokens(
                     "generate_architecture_claude",
                     input_tokens=response.input_tokens,
@@ -588,10 +549,7 @@ class ArchitectureGenerationPhase:
             return self._create_fallback_architecture(capabilities)
 
     async def _validate_with_gemini(
-        self,
-        claude_arch: AgentArchitecture,
-        task: str,
-        capabilities: List[str]
+        self, claude_arch: AgentArchitecture, task: str, capabilities: list[str]
     ) -> AgentArchitecture:
         """Phase 3b: Gemini validates and optimizes Claude's architecture."""
         # Serialize architecture to JSON for prompt
@@ -603,7 +561,7 @@ class ArchitectureGenerationPhase:
                     "mission": spec.mission,
                     "capabilities": spec.capabilities,
                     "tools_priority": spec.tools_priority,
-                    "estimated_cost": spec.estimated_cost
+                    "estimated_cost": spec.estimated_cost,
                 }
                 for spec in claude_arch.agents_to_spawn
             ],
@@ -615,7 +573,7 @@ class ArchitectureGenerationPhase:
                     "action": step.action,
                     "expected_duration": step.expected_duration,
                     "depends_on": step.depends_on,
-                    "verification_required": step.verification_required
+                    "verification_required": step.verification_required,
                 }
                 for step in claude_arch.execution_plan.steps
             ],
@@ -623,15 +581,12 @@ class ArchitectureGenerationPhase:
                 "enabled": claude_arch.rag_config.enabled,
                 "depth": claude_arch.rag_config.depth,
                 "sources": claude_arch.rag_config.sources,
-                "max_chunks": claude_arch.rag_config.max_chunks
+                "max_chunks": claude_arch.rag_config.max_chunks,
             },
-            "reasoning": claude_arch.reasoning
+            "reasoning": claude_arch.reasoning,
         }
 
-        prompt = GEMINI_VALIDATION_PROMPT.format(
-            task=task,
-            architecture_json=json.dumps(arch_dict, indent=2)
-        )
+        prompt = GEMINI_VALIDATION_PROMPT.format(task=task, architecture_json=json.dumps(arch_dict, indent=2))
 
         # Get session for Gemini
         session_uuid = None
@@ -653,7 +608,7 @@ class ArchitectureGenerationPhase:
             return claude_arch
 
         # Record actual token usage
-        if hasattr(self.cost_estimator, 'record_tokens'):
+        if hasattr(self.cost_estimator, "record_tokens"):
             self.cost_estimator.record_tokens(
                 "validate_architecture_gemini",
                 input_tokens=response.input_tokens,
@@ -665,6 +620,7 @@ class ArchitectureGenerationPhase:
 
         # Parse validation response
         from ..json_parser import parse_json_response
+
         data = parse_json_response(response.content, "validation", default=None)
 
         if data is None:
@@ -683,30 +639,22 @@ class ArchitectureGenerationPhase:
         # Parse the validated architecture
         validated_arch = self._parse_architecture_response(
             json.dumps(arch_data),  # Re-serialize for parser
-            capabilities
+            capabilities,
         )
 
         # Update reasoning to reflect collaboration
         validated_arch.reasoning = (
-            f"[Collaborative V12.4] Claude designed, Gemini {validation_status.lower()}. "
-            f"{validated_arch.reasoning}"
+            f"[Collaborative V12.4] Claude designed, Gemini {validation_status.lower()}. {validated_arch.reasoning}"
         )
 
         return validated_arch
 
     async def _generate_legacy(
-        self,
-        task: str,
-        approach: str,
-        capabilities: List[str],
-        available_agents: str
+        self, task: str, approach: str, capabilities: list[str], available_agents: str
     ) -> AgentArchitecture:
         """Legacy architecture generation using Gemini only."""
         prompt = ARCHITECTURE_PROMPT.format(
-            task=task,
-            approach=approach,
-            capabilities=", ".join(capabilities),
-            available_agents=available_agents
+            task=task, approach=approach, capabilities=", ".join(capabilities), available_agents=available_agents
         )
 
         # V9.2: Get session for architecture generation
@@ -729,7 +677,7 @@ class ArchitectureGenerationPhase:
                 raise RuntimeError(f"Legacy architecture generation failed: {response.error_message}")
 
             # Record actual token usage
-            if hasattr(self.cost_estimator, 'record_tokens'):
+            if hasattr(self.cost_estimator, "record_tokens"):
                 self.cost_estimator.record_tokens(
                     "generate_architecture",
                     input_tokens=response.input_tokens,
@@ -746,11 +694,7 @@ class ArchitectureGenerationPhase:
             logger.error(f"Architecture generation failed: {e}")
             return self._create_fallback_architecture(capabilities)
 
-    def _parse_architecture_response(
-        self,
-        response,
-        capabilities: List[str]
-    ) -> AgentArchitecture:
+    def _parse_architecture_response(self, response, capabilities: list[str]) -> AgentArchitecture:
         """Parse architecture JSON from response."""
         from ..json_parser import parse_json_response
 
@@ -759,29 +703,32 @@ class ArchitectureGenerationPhase:
             return self._create_fallback_architecture(capabilities)
 
         try:
-
             # Parse agents to spawn
             agents_to_spawn = []
             for spec_data in data.get("agents_to_spawn", []):
-                agents_to_spawn.append(AgentSpec(
-                    role=spec_data.get("role", "specialist"),
-                    mission=spec_data.get("mission", ""),
-                    capabilities=spec_data.get("capabilities", []),
-                    tools_priority=spec_data.get("tools_priority", []),
-                    estimated_cost=spec_data.get("estimated_cost", 500)
-                ))
+                agents_to_spawn.append(
+                    AgentSpec(
+                        role=spec_data.get("role", "specialist"),
+                        mission=spec_data.get("mission", ""),
+                        capabilities=spec_data.get("capabilities", []),
+                        tools_priority=spec_data.get("tools_priority", []),
+                        estimated_cost=spec_data.get("estimated_cost", 500),
+                    )
+                )
 
             # Parse execution steps
             steps = []
             for step_data in data.get("execution_steps", []):
-                steps.append(ExecutionStep(
-                    name=step_data.get("name", "step"),
-                    agent_id=step_data.get("agent_id", "claude"),
-                    action=step_data.get("action", ""),
-                    expected_duration=step_data.get("expected_duration", 30),
-                    depends_on=step_data.get("depends_on", []),
-                    verification_required=step_data.get("verification_required", False)
-                ))
+                steps.append(
+                    ExecutionStep(
+                        name=step_data.get("name", "step"),
+                        agent_id=step_data.get("agent_id", "claude"),
+                        action=step_data.get("action", ""),
+                        expected_duration=step_data.get("expected_duration", 30),
+                        depends_on=step_data.get("depends_on", []),
+                        verification_required=step_data.get("verification_required", False),
+                    )
+                )
 
             # Parse RAG config
             rag_data = data.get("rag_config", {})
@@ -789,7 +736,7 @@ class ArchitectureGenerationPhase:
                 enabled=rag_data.get("enabled", True),
                 depth=rag_data.get("depth", "standard"),
                 sources=rag_data.get("sources", ["codebase"]),
-                max_chunks=rag_data.get("max_chunks", 10)
+                max_chunks=rag_data.get("max_chunks", 10),
             )
 
             # Calculate estimated cost
@@ -809,17 +756,17 @@ class ArchitectureGenerationPhase:
                     strategy=data.get("execution_strategy", "sequential"),
                     steps=steps,
                     estimated_total_duration=sum(s.expected_duration for s in steps),
-                    estimated_total_tokens=total_cost
+                    estimated_total_tokens=total_cost,
                 ),
                 estimated_cost=total_cost,
-                reasoning=data.get("reasoning", "")
+                reasoning=data.get("reasoning", ""),
             )
 
         except Exception as e:
             logger.warning(f"Architecture parse error: {e}")
             return self._create_fallback_architecture(capabilities)
 
-    def _create_fallback_architecture(self, capabilities: List[str]) -> AgentArchitecture:
+    def _create_fallback_architecture(self, capabilities: list[str]) -> AgentArchitecture:
         """Create fallback architecture when generation fails."""
         return AgentArchitecture(
             status="READY",
@@ -834,14 +781,14 @@ class ArchitectureGenerationPhase:
                         name="main_execution",
                         agent_id="claude",
                         action="Execute task with available capabilities",
-                        expected_duration=60
+                        expected_duration=60,
                     )
                 ],
                 estimated_total_duration=60,
-                estimated_total_tokens=1000
+                estimated_total_tokens=1000,
             ),
             estimated_cost=1000,
-            reasoning="Fallback architecture due to generation failure"
+            reasoning="Fallback architecture due to generation failure",
         )
 
     def _check_for_duplicates(self, architecture: AgentArchitecture) -> AgentArchitecture:
@@ -854,10 +801,7 @@ class ArchitectureGenerationPhase:
             similar = self.registry.find_similar(spec.capabilities)
 
             if similar:
-                logger.info(
-                    f"Found similar agent '{similar.agent_id}' for '{spec.role}' - "
-                    f"skipping spawn"
-                )
+                logger.info(f"Found similar agent '{similar.agent_id}' for '{spec.role}' - skipping spawn")
                 # Add existing agent to use list
                 if similar.agent_id not in architecture.agents_to_use:
                     architecture.agents_to_use.append(similar.agent_id)
@@ -873,7 +817,7 @@ class ArchitectureGenerationPhase:
 
         return architecture
 
-    async def _spawn_agents(self, specs: List[AgentSpec]) -> List[str]:
+    async def _spawn_agents(self, specs: list[AgentSpec]) -> list[str]:
         """Spawn new agents from specifications."""
         spawned = []
 
@@ -881,6 +825,7 @@ class ArchitectureGenerationPhase:
             try:
                 # Generate unique ID
                 import hashlib
+
                 agent_id = f"{spec.role}_{hashlib.md5(spec.mission.encode()).hexdigest()[:6]}"
 
                 # Create agent file in workspace
@@ -895,20 +840,14 @@ class ArchitectureGenerationPhase:
                     "tools_priority": spec.tools_priority,
                     "created_by": "hive_mind_v8",
                     # V12.4 FIX F19: Use time.time() instead of deprecated get_event_loop().time()
-                    "created_at": str(time.time())
+                    "created_at": str(time.time()),
                 }
 
-                agent_path.write_text(
-                    json.dumps(agent_config, indent=2),
-                    encoding='utf-8'
-                )
+                agent_path.write_text(json.dumps(agent_config, indent=2), encoding="utf-8")
 
                 # Register in registry
                 self.registry.register_spawn(
-                    agent_id=agent_id,
-                    role=spec.role,
-                    capabilities=spec.capabilities,
-                    mission=spec.mission
+                    agent_id=agent_id, role=spec.role, capabilities=spec.capabilities, mission=spec.mission
                 )
 
                 # Record cost
@@ -933,7 +872,7 @@ class ArchitectureGenerationPhase:
         - Topological execution order
         """
         try:
-            from core.intelligence.reasoning.graph_of_thought import ThoughtGraph, ThoughtNode, ThoughtType
+            from core.intelligence.reasoning.graph_of_thought import ThoughtGraph, ThoughtType
 
             steps = architecture.execution_plan.steps
             if not steps:
@@ -942,11 +881,11 @@ class ArchitectureGenerationPhase:
             graph = ThoughtGraph(name="execution_plan_analysis")
 
             # Build name-to-ID mapping
-            step_node_ids: Dict[str, str] = {}
+            step_node_ids: dict[str, str] = {}
 
             for step in steps:
                 deps = []
-                for dep_name in (step.depends_on or []):
+                for dep_name in step.depends_on or []:
                     if dep_name in step_node_ids:
                         deps.append(step_node_ids[dep_name])
 
@@ -964,14 +903,12 @@ class ArchitectureGenerationPhase:
             leaf_nodes = graph.leaf_nodes
 
             # Identify parallel groups: nodes at the same depth with no mutual deps
-            depth_groups: Dict[int, List[str]] = {}
+            depth_groups: dict[int, list[str]] = {}
             for nid in exec_order:
                 depth = graph._get_depth(nid)
                 depth_groups.setdefault(depth, []).append(nid)
 
-            parallel_opportunities = sum(
-                1 for group in depth_groups.values() if len(group) > 1
-            )
+            parallel_opportunities = sum(1 for group in depth_groups.values() if len(group) > 1)
 
             # Annotate architecture reasoning with DAG analysis
             dag_info = (
@@ -991,10 +928,7 @@ class ArchitectureGenerationPhase:
         except Exception as e:
             logger.debug(f"GraphOfThought annotation failed: {e}")
 
-    def get_execution_ready_architecture(
-        self,
-        result: ArchitecturePhaseResult
-    ) -> Dict[str, Any]:
+    def get_execution_ready_architecture(self, result: ArchitecturePhaseResult) -> dict[str, Any]:
         """
         Get architecture in format ready for Phase 4 execution.
 
@@ -1016,7 +950,7 @@ class ArchitectureGenerationPhase:
                     "action": step.action,
                     "timeout": step.expected_duration,
                     "depends_on": step.depends_on,
-                    "verify": step.verification_required
+                    "verify": step.verification_required,
                 }
                 for step in arch.execution_plan.steps
             ],
@@ -1024,8 +958,8 @@ class ArchitectureGenerationPhase:
                 "enabled": arch.rag_config.enabled,
                 "depth": arch.rag_config.depth,
                 "sources": arch.rag_config.sources,
-                "max_chunks": arch.rag_config.max_chunks
+                "max_chunks": arch.rag_config.max_chunks,
             },
             "estimated_tokens": arch.estimated_cost,
-            "estimated_duration": arch.execution_plan.estimated_total_duration
+            "estimated_duration": arch.execution_plan.estimated_total_duration,
         }

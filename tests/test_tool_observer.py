@@ -19,8 +19,6 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.execution_pkg.execution.tool_observer import (
     MAX_SPANS,
     SLOW_THRESHOLD_MS,
@@ -33,10 +31,10 @@ from core.execution_pkg.execution.tool_observer import (
     reset_tool_observer,
 )
 
-
 # =============================================================================
 # ToolSpan Tests
 # =============================================================================
+
 
 class TestToolSpan:
     """Test ToolSpan dataclass."""
@@ -48,8 +46,11 @@ class TestToolSpan:
 
     def test_to_dict(self):
         s = ToolSpan(
-            tool_name="file_read", session_id="s1", agent_id="claude",
-            status="success", duration_ms=150.0,
+            tool_name="file_read",
+            session_id="s1",
+            agent_id="claude",
+            status="success",
+            duration_ms=150.0,
         )
         d = s.to_dict()
         assert d["tool_name"] == "file_read"
@@ -59,6 +60,7 @@ class TestToolSpan:
 # =============================================================================
 # ToolMetric Tests
 # =============================================================================
+
 
 class TestToolMetric:
     """Test ToolMetric dataclass."""
@@ -86,13 +88,17 @@ class TestToolMetric:
 # ObservationReport Tests
 # =============================================================================
 
+
 class TestObservationReport:
     """Test ObservationReport dataclass."""
 
     def test_to_dict(self):
         r = ObservationReport(
-            total_spans=100, total_tools=5, overall_success_rate=0.95,
-            overall_avg_duration_ms=200.0, slowest_tools=["web_fetch"],
+            total_spans=100,
+            total_tools=5,
+            overall_success_rate=0.95,
+            overall_avg_duration_ms=200.0,
+            slowest_tools=["web_fetch"],
             most_failing_tools=["bash"],
         )
         d = r.to_dict()
@@ -103,6 +109,7 @@ class TestObservationReport:
 # =============================================================================
 # ToolObserverStats Tests
 # =============================================================================
+
 
 class TestToolObserverStats:
     """Test ToolObserverStats dataclass."""
@@ -116,6 +123,7 @@ class TestToolObserverStats:
 # =============================================================================
 # Span Lifecycle Tests
 # =============================================================================
+
 
 class TestSpanLifecycle:
     """Test span start and end."""
@@ -160,6 +168,7 @@ class TestSpanLifecycle:
 # =============================================================================
 # Metric Aggregation Tests
 # =============================================================================
+
 
 class TestMetricAggregation:
     """Test metric aggregation from spans."""
@@ -210,6 +219,7 @@ class TestMetricAggregation:
 # =============================================================================
 # Span Query Tests
 # =============================================================================
+
 
 class TestSpanQueries:
     """Test span query methods."""
@@ -272,6 +282,7 @@ class TestSpanQueries:
 # Report Tests
 # =============================================================================
 
+
 class TestReport:
     """Test report generation."""
 
@@ -304,6 +315,7 @@ class TestReport:
 # Bounded History Tests
 # =============================================================================
 
+
 class TestBoundedHistory:
     """Test bounded span history."""
 
@@ -318,6 +330,7 @@ class TestBoundedHistory:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test observer statistics."""
@@ -349,6 +362,7 @@ class TestStatistics:
 # State Tests
 # =============================================================================
 
+
 class TestState:
     """Test state management."""
 
@@ -379,6 +393,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global tool observer."""
 
@@ -405,22 +420,33 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_execution_package(self):
         from core.execution_pkg.execution import (
-            ToolObserver, ToolSpan, ToolMetric,
-            ObservationReport, ToolObserverStats,
-            get_tool_observer, reset_tool_observer,
+            ObservationReport,
+            ToolMetric,
+            ToolObserver,
+            ToolObserverStats,
+            ToolSpan,
+            get_tool_observer,
+            reset_tool_observer,
         )
-        assert all([
-            ToolObserver, ToolSpan, ToolMetric,
-            ObservationReport, ToolObserverStats,
-            get_tool_observer, reset_tool_observer,
-        ])
+
+        assert all(
+            [
+                ToolObserver,
+                ToolSpan,
+                ToolMetric,
+                ObservationReport,
+                ToolObserverStats,
+                get_tool_observer,
+                reset_tool_observer,
+            ]
+        )
 
     def test_constants(self):
-        from core.execution_pkg.execution.tool_observer import MAX_SPANS, SLOW_THRESHOLD_MS
         assert MAX_SPANS == 50000
         assert SLOW_THRESHOLD_MS == 5000.0

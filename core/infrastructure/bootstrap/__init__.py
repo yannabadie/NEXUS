@@ -8,12 +8,8 @@ Components:
 - SpinoffService: Service layer for specialization/spinoff operations (V9.1)
 """
 
+from .agent_loader import SpawnedAgentConfig, SpawnedAgentLoader, discover_and_register_spawned_agents
 from .auto_bootstrap import AutoBootstrap, ProjectAnalysis
-from .agent_loader import (
-    SpawnedAgentLoader,
-    SpawnedAgentConfig,
-    discover_and_register_spawned_agents
-)
 
 # V9.1: Service Layer
 from .service import (
@@ -22,34 +18,34 @@ from .service import (
     _get_bootstrap_service,
     _get_spinoff_service,
 )
-# ServiceResult comes from core.observability.telemetry.service (single source of truth)
 
+# ServiceResult comes from core.observability.telemetry.service (single source of truth)
 # V12.4 COGNITIVE BOOST: Startup Analytics
 from .startup_analytics import (
-    StartupAnalytics,
     BootStepRecord,
     ComponentProfile,
+    StartupAnalytics,
     StartupStats,
     get_startup_analytics,
     reset_startup_analytics,
 )
 
 __all__ = [
-    'AutoBootstrap',
-    'ProjectAnalysis',
-    'SpawnedAgentLoader',
-    'SpawnedAgentConfig',
-    'discover_and_register_spawned_agents',
+    "AutoBootstrap",
+    "ProjectAnalysis",
+    "SpawnedAgentLoader",
+    "SpawnedAgentConfig",
+    "discover_and_register_spawned_agents",
     # V9.1: Service Layer
-    'BootstrapService',
-    'SpinoffService',
-    '_get_bootstrap_service',
-    '_get_spinoff_service',
+    "BootstrapService",
+    "SpinoffService",
+    "_get_bootstrap_service",
+    "_get_spinoff_service",
     # V12.4 COGNITIVE BOOST: Startup Analytics
-    'StartupAnalytics',
-    'BootStepRecord',
-    'ComponentProfile',
-    'StartupStats',
-    'get_startup_analytics',
-    'reset_startup_analytics',
+    "StartupAnalytics",
+    "BootStepRecord",
+    "ComponentProfile",
+    "StartupStats",
+    "get_startup_analytics",
+    "reset_startup_analytics",
 ]

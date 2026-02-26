@@ -39,9 +39,9 @@ from __future__ import annotations
 
 import logging
 import threading
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -56,6 +56,7 @@ MAX_EVALUATIONS = 50000
 # =============================================================================
 # Types
 # =============================================================================
+
 
 @dataclass
 class ReasoningEvaluation:
@@ -73,7 +74,7 @@ class ReasoningEvaluation:
 
     def __post_init__(self) -> None:
         if not self.timestamp:
-            self.timestamp = datetime.now(timezone.utc).isoformat()
+            self.timestamp = datetime.now(UTC).isoformat()
 
     @property
     def composite_score(self) -> float:
@@ -85,7 +86,7 @@ class ReasoningEvaluation:
         """How well calibrated the confidence is (1.0 = perfect)."""
         return 1.0 - abs(self.confidence - self.actual_outcome_quality)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "evaluation_id": self.evaluation_id,
             "agent_id": self.agent_id,
@@ -141,7 +142,7 @@ class AgentReasoningProfile:
         """Average composite across all evaluations."""
         return (self.avg_depth + self.avg_coherence + self.avg_completeness) / 3
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "agent_id": self.agent_id,
             "total_evaluations": self.total_evaluations,
@@ -163,7 +164,7 @@ class ScorerStats:
     overall_avg_calibration: float = 0.0
     best_reasoner: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_evaluations": self.total_evaluations,
             "unique_agents": self.unique_agents,
@@ -176,6 +177,7 @@ class ScorerStats:
 # =============================================================================
 # Reasoning Quality Scorer
 # =============================================================================
+
 
 class ReasoningQualityScorer:
     """
@@ -190,8 +192,8 @@ class ReasoningQualityScorer:
     """
 
     def __init__(self, max_evaluations: int = MAX_EVALUATIONS) -> None:
-        self._evaluations: List[ReasoningEvaluation] = []
-        self._profiles: Dict[str, AgentReasoningProfile] = {}
+        self._evaluations: list[ReasoningEvaluation] = []
+        self._profiles: dict[str, AgentReasoningProfile] = {}
         self._max_evaluations = max_evaluations
         self._lock = threading.Lock()
         self._counter = 0
@@ -269,7 +271,7 @@ class ReasoningQualityScorer:
         with self._lock:
             return self._profiles.get(agent_id)
 
-    def get_all_profiles(self) -> List[AgentReasoningProfile]:
+    def get_all_profiles(self) -> list[AgentReasoningProfile]:
         """Get all agent profiles sorted by avg_composite descending."""
         with self._lock:
             profiles = list(self._profiles.values())
@@ -291,7 +293,7 @@ class ReasoningQualityScorer:
         self,
         limit: int = 20,
         agent_id: str = "",
-    ) -> List[ReasoningEvaluation]:
+    ) -> list[ReasoningEvaluation]:
         """
         Get recent evaluations, optionally filtered by agent.
 
@@ -304,14 +306,12 @@ class ReasoningQualityScorer:
         """
         with self._lock:
             if agent_id:
-                filtered = [
-                    e for e in self._evaluations if e.agent_id == agent_id
-                ]
+                filtered = [e for e in self._evaluations if e.agent_id == agent_id]
             else:
                 filtered = list(self._evaluations)
         return list(reversed(filtered[-limit:]))
 
-    def get_evaluations_by_domain(self, domain: str) -> List[ReasoningEvaluation]:
+    def get_evaluations_by_domain(self, domain: str) -> list[ReasoningEvaluation]:
         """Get all evaluations for a specific task domain."""
         with self._lock:
             return [e for e in self._evaluations if e.task_domain == domain]
@@ -333,12 +333,8 @@ class ReasoningQualityScorer:
                 )
 
             profiles = list(self._profiles.values())
-            avg_composite = (
-                sum(p.avg_composite for p in profiles) / len(profiles)
-            )
-            avg_calibration = (
-                sum(p.avg_calibration for p in profiles) / len(profiles)
-            )
+            avg_composite = sum(p.avg_composite for p in profiles) / len(profiles)
+            avg_calibration = sum(p.avg_calibration for p in profiles) / len(profiles)
             best = max(profiles, key=lambda p: p.avg_composite)
 
             return ScorerStats(
@@ -358,7 +354,7 @@ class ReasoningQualityScorer:
         """Total number of stored evaluations."""
         return len(self._evaluations)
 
-    def list_agents(self) -> List[str]:
+    def list_agents(self) -> list[str]:
         """List all tracked agent IDs, sorted alphabetically."""
         with self._lock:
             return sorted(self._profiles.keys())
@@ -370,7 +366,7 @@ class ReasoningQualityScorer:
             self._profiles.clear()
             self._counter = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialise scorer state as a dict.
 
         Computes stats before acquiring the lock to avoid re-entrant

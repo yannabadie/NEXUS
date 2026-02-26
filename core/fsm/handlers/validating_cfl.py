@@ -5,16 +5,16 @@ Handles VALIDATING_CFL state - Cognitive Feedback Loop validation.
 """
 
 import sys
-from typing import Dict
-from core.fsm.states import OrchestratorState
+
 from core.execution_pkg.routing.model_router import TaskType
 from core.fsm.handlers.base import BaseHandler
+from core.fsm.states import OrchestratorState
 
 
 class ValidatingCFLHandler(BaseHandler):
     """Handler for VALIDATING_CFL state."""
 
-    def handle_validating_cfl(self) -> Dict:
+    def handle_validating_cfl(self) -> dict:
         """
         Handle VALIDATING_CFL state - validate tool execution result.
 
@@ -25,7 +25,7 @@ class ValidatingCFLHandler(BaseHandler):
         context = self._build_context_with_tool_result()
 
         try:
-            cfl_timeout = getattr(self._orch.config, 'cfl_timeout', 60)
+            cfl_timeout = getattr(self._orch.config, "cfl_timeout", 60)
 
             if self._orch.active_agent == "claude":  # V9.3: lowercase normalized
                 driver = self._get_claude_driver(TaskType.VALIDATION, timeout_override=cfl_timeout)
@@ -45,10 +45,10 @@ class ValidatingCFLHandler(BaseHandler):
 
         # Check if task finished
         task_finished = (
-            status == "FINISHED" or
-            action_type == "FINISHED" or
-            "task complete" in content.lower() or
-            "tâche terminée" in content.lower()
+            status == "FINISHED"
+            or action_type == "FINISHED"
+            or "task complete" in content.lower()
+            or "tâche terminée" in content.lower()
         )
 
         # Determine validation success
@@ -80,7 +80,10 @@ class ValidatingCFLHandler(BaseHandler):
             previous_agent = self._orch.active_agent
             self._orch.active_agent = self._registry.get_alternate(self._orch.active_agent) or self._orch.active_agent
             if self._orch.config.ui_verbose:
-                print(f"[CFL SUCCESS] {self._registry.get_display_name(previous_agent)} → {self._registry.get_display_name(self._orch.active_agent)}", file=sys.stderr)
+                print(
+                    f"[CFL SUCCESS] {self._registry.get_display_name(previous_agent)} → {self._registry.get_display_name(self._orch.active_agent)}",
+                    file=sys.stderr,
+                )
 
             self._orch._transition_to(OrchestratorState.BRAINSTORMING)
             return self._make_result("BRAINSTORMING", f"✓ {content}", previous_agent, False)

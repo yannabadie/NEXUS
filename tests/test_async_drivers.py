@@ -8,25 +8,28 @@ Tests cover:
 - Process cancellation: cancel_by_uuid, cancel_all
 """
 
-import pytest
 import asyncio
 import sys
-from pathlib import Path
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+
+import pytest
 
 # Add project root to path
-sys.path.insert(0, str(__file__).replace("\\tests\\test_async_drivers.py", "").replace("/tests/test_async_drivers.py", ""))
+sys.path.insert(
+    0, str(__file__).replace("\\tests\\test_async_drivers.py", "").replace("/tests/test_async_drivers.py", "")
+)
+
+import contextlib
 
 from core.drivers.async_claude_driver import AsyncClaudeDriver, AsyncClaudeDriverConfig
-from core.drivers.async_gemini_driver import AsyncGeminiDriver, AsyncGeminiDriverConfig
 from core.drivers.async_factory import AsyncDriverFactory
+from core.drivers.async_gemini_driver import AsyncGeminiDriver, AsyncGeminiDriverConfig
 from core.foundation.async_primitives import CancellationToken
-
 
 # ============================================================================
 # Mock Process Helper
 # ============================================================================
+
 
 def create_mock_process(output_lines: list, returncode: int = 0):
     """Create a mock asyncio.subprocess.Process."""
@@ -37,7 +40,7 @@ def create_mock_process(output_lines: list, returncode: int = 0):
     # Create async iterators for stdout/stderr
     async def stdout_iter():
         for line in output_lines:
-            yield line.encode('utf-8')
+            yield line.encode("utf-8")
         mock_proc.returncode = returncode  # Process completes after stdout ends
 
     async def stderr_read():
@@ -63,6 +66,7 @@ def create_mock_process(output_lines: list, returncode: int = 0):
 # AsyncClaudeDriver Tests
 # ============================================================================
 
+
 class TestAsyncClaudeDriver:
     """Tests for AsyncClaudeDriver."""
 
@@ -84,7 +88,7 @@ class TestAsyncClaudeDriver:
         output = ["Hello ", "World!\n"]
         mock_proc = create_mock_process(output)
 
-        with patch('asyncio.create_subprocess_exec', return_value=mock_proc):
+        with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
             chunks = []
             async for chunk in driver.invoke_stream("Test prompt"):
                 chunks.append(chunk)
@@ -98,7 +102,7 @@ class TestAsyncClaudeDriver:
         output = ["This is a response from Claude.\n"]
         mock_proc = create_mock_process(output)
 
-        with patch('asyncio.create_subprocess_exec', return_value=mock_proc):
+        with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
             result = await driver.invoke("Test prompt")
 
             assert "sender" in result
@@ -112,17 +116,18 @@ class TestAsyncClaudeDriver:
         output = ["Response\n"]
         mock_proc = create_mock_process(output)
 
-        with patch('asyncio.create_subprocess_exec', return_value=mock_proc):
+        with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
             await driver.invoke("Test", session_uuid="test-uuid-123")
 
             # Context file should use session_uuid
-            context_files = list((tmp_path / "_IO_BUFFER").glob("claude_context_test-uuid-123.md"))
+            list((tmp_path / "_IO_BUFFER").glob("claude_context_test-uuid-123.md"))
             # File is deleted after invoke, so we verify it was created via the command
             mock_proc.terminate.assert_not_called()  # Should complete normally
 
     @pytest.mark.asyncio
     async def test_cancellation_stops_stream(self, driver):
         """CancellationToken should stop streaming."""
+
         async def slow_output():
             yield b"Line 1\n"
             await asyncio.sleep(0.1)
@@ -147,7 +152,7 @@ class TestAsyncClaudeDriver:
             await asyncio.sleep(0.15)
             token.cancel()
 
-        with patch('asyncio.create_subprocess_exec', return_value=mock_proc):
+        with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
             cancel_task = asyncio.create_task(cancel_after_delay())
 
             with pytest.raises(asyncio.CancelledError):
@@ -155,23 +160,21 @@ class TestAsyncClaudeDriver:
                     pass
 
             cancel_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await cancel_task
-            except asyncio.CancelledError:
-                pass
 
     @pytest.mark.asyncio
     async def test_parse_tool_use(self, driver):
         """Should parse XML tool_use blocks."""
         output = [
-            'Let me read the file.\n',
+            "Let me read the file.\n",
             '<tool_use name="read">\n',
             '{"file_path": "/test.py"}\n',
-            '</tool_use>\n',
+            "</tool_use>\n",
         ]
         mock_proc = create_mock_process(output)
 
-        with patch('asyncio.create_subprocess_exec', return_value=mock_proc):
+        with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
             result = await driver.invoke("Read test.py")
 
             assert result["action_type"] == "TOOL_USE"
@@ -197,6 +200,7 @@ class TestAsyncClaudeDriver:
 # AsyncGeminiDriver Tests
 # ============================================================================
 
+
 class TestAsyncGeminiDriver:
     """Tests for AsyncGeminiDriver."""
 
@@ -218,7 +222,7 @@ class TestAsyncGeminiDriver:
         output = ['{"response": "Hello"}\n']
         mock_proc = create_mock_process(output)
 
-        with patch('asyncio.create_subprocess_exec', return_value=mock_proc):
+        with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
             chunks = []
             async for chunk in driver.invoke_stream("Test prompt"):
                 chunks.append(chunk)
@@ -232,7 +236,7 @@ class TestAsyncGeminiDriver:
         output = [json_response]
         mock_proc = create_mock_process(output)
 
-        with patch('asyncio.create_subprocess_exec', return_value=mock_proc):
+        with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
             result = await driver.invoke("Test prompt")
 
             # Should have sender field (even if JSON extraction fails, we normalize)
@@ -253,7 +257,7 @@ class TestAsyncGeminiDriver:
         # V9.7.1: --resume latest only added when isolated_env is provided
         isolated_env = {"HOME": "/tmp/isolated", "PATH": "/usr/bin"}
 
-        with patch('asyncio.create_subprocess_exec', side_effect=capture_args):
+        with patch("asyncio.create_subprocess_exec", side_effect=capture_args):
             await driver.invoke("Test", session_uuid="session-123", isolated_env=isolated_env)
 
             # Check that --resume latest was in the command
@@ -273,7 +277,7 @@ class TestAsyncGeminiDriver:
             called_args.extend(args)
             return mock_proc
 
-        with patch('asyncio.create_subprocess_exec', side_effect=capture_args):
+        with patch("asyncio.create_subprocess_exec", side_effect=capture_args):
             await driver.invoke("Test", session_uuid="session-123")  # No isolated_env
 
             # V9.7.1: --resume should NOT be in command (shared HOME = no resume)
@@ -284,6 +288,7 @@ class TestAsyncGeminiDriver:
 # ============================================================================
 # AsyncDriverFactory Tests
 # ============================================================================
+
 
 class TestAsyncDriverFactory:
     """Tests for AsyncDriverFactory."""
@@ -352,6 +357,7 @@ class TestAsyncDriverFactory:
 # Integration Tests
 # ============================================================================
 
+
 class TestAsyncDriverIntegration:
     """Integration tests for async drivers."""
 
@@ -384,13 +390,9 @@ class TestAsyncDriverIntegration:
                 return claude_proc
             return gemini_proc
 
-        with patch('asyncio.create_subprocess_exec', side_effect=mock_subprocess):
+        with patch("asyncio.create_subprocess_exec", side_effect=mock_subprocess):
             # Run both concurrently
-            results = await asyncio.gather(
-                claude.invoke("Test 1"),
-                gemini.invoke("Test 2"),
-                return_exceptions=True
-            )
+            results = await asyncio.gather(claude.invoke("Test 1"), gemini.invoke("Test 2"), return_exceptions=True)
 
             # Both should complete
             assert len(results) == 2

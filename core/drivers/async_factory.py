@@ -34,22 +34,23 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, Optional, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+
+from core.foundation.async_primitives.process_handle import get_process_registry
+from core.infrastructure.resilience.circuit_breaker import get_hierarchical_breaker
+from core.observability.telemetry.budget_tracker import get_budget_tracker
 
 from .async_claude_driver import AsyncClaudeDriver, AsyncClaudeDriverConfig
 from .async_gemini_driver import AsyncGeminiDriver, AsyncGeminiDriverConfig
-from .response_cache import ResponseCache
 from .driver_health_monitor import get_health_monitor
 from .failover_manager import get_failover_manager
-from core.foundation.async_primitives.process_handle import get_process_registry
-from core.infrastructure.resilience.circuit_breaker import get_hierarchical_breaker, CircuitOpenError
-from core.observability.telemetry.budget_tracker import get_budget_tracker
+from .response_cache import ResponseCache
 
 if TYPE_CHECKING:
     from .anthropic_sdk_driver import AnthropicSDKDriver
-    from .google_genai_sdk_driver import GoogleGenAISDKDriver
     from .deepseek_sdk_driver import DeepSeekSDKDriver
-    from .protocol import BaseAsyncDriver
+    from .google_genai_sdk_driver import GoogleGenAISDKDriver
+    from .kimi_sdk_driver import KimiSDKDriver
 
 logger = logging.getLogger(__name__)
 
@@ -75,18 +76,18 @@ class AsyncDriverFactory:
         self._registry = get_process_registry()
 
         # Driver mode: "auto", "sdk", "cli"
-        self._driver_mode: str = getattr(config, 'driver_mode', 'auto')
+        self._driver_mode: str = getattr(config, "driver_mode", "auto")
 
         # API keys for SDK drivers
-        self._anthropic_api_key: Optional[str] = getattr(config, 'anthropic_api_key', None)
-        self._google_api_key: Optional[str] = getattr(config, 'google_api_key', None)
-        self._deepseek_api_key: Optional[str] = getattr(config, 'deepseek_api_key', None)
-        self._kimi_api_key: Optional[str] = getattr(config, 'kimi_api_key', None)
+        self._anthropic_api_key: str | None = getattr(config, "anthropic_api_key", None)
+        self._google_api_key: str | None = getattr(config, "google_api_key", None)
+        self._deepseek_api_key: str | None = getattr(config, "deepseek_api_key", None)
+        self._kimi_api_key: str | None = getattr(config, "kimi_api_key", None)
 
         # Shared response cache for SDK drivers (deduplication)
         self._response_cache = ResponseCache(
-            max_size=getattr(config, 'response_cache_size', 500),
-            ttl_seconds=getattr(config, 'response_cache_ttl', 300.0),
+            max_size=getattr(config, "response_cache_size", 500),
+            ttl_seconds=getattr(config, "response_cache_ttl", 300.0),
             enabled=self._driver_mode != "cli",
         )
 
@@ -99,23 +100,20 @@ class AsyncDriverFactory:
         self._circuit_breaker = get_hierarchical_breaker()
 
         # Lazy-initialized CLI drivers
-        self._claude_driver: Optional[AsyncClaudeDriver] = None
-        self._gemini_driver: Optional[AsyncGeminiDriver] = None
+        self._claude_driver: AsyncClaudeDriver | None = None
+        self._gemini_driver: AsyncGeminiDriver | None = None
 
         # Lazy-initialized SDK drivers (V12.4)
-        self._claude_sdk: Optional["AnthropicSDKDriver"] = None
-        self._gemini_sdk: Optional["GoogleGenAISDKDriver"] = None
-        self._deepseek_sdk: Optional["DeepSeekSDKDriver"] = None
-        self._kimi_sdk: Optional["KimiSDKDriver"] = None
+        self._claude_sdk: AnthropicSDKDriver | None = None
+        self._gemini_sdk: GoogleGenAISDKDriver | None = None
+        self._deepseek_sdk: DeepSeekSDKDriver | None = None
+        self._kimi_sdk: KimiSDKDriver | None = None
 
     # =========================================================================
     # CLI Drivers (backward compatible)
     # =========================================================================
 
-    def get_claude_driver(
-        self,
-        model: Optional[str] = None
-    ) -> AsyncClaudeDriver:
+    def get_claude_driver(self, model: str | None = None) -> AsyncClaudeDriver:
         """
         Get or create the Claude CLI driver.
 
@@ -127,11 +125,11 @@ class AsyncDriverFactory:
         """
         if self._claude_driver is None:
             config = AsyncClaudeDriverConfig(
-                cli_path=getattr(self.config, 'claude_cli_path', 'claude'),
-                timeout=getattr(self.config, 'timeout', 300.0),
-                model=model or getattr(self.config, 'claude_sonnet_model', 'claude-sonnet-4-5-20250929'),
+                cli_path=getattr(self.config, "claude_cli_path", "claude"),
+                timeout=getattr(self.config, "timeout", 300.0),
+                model=model or getattr(self.config, "claude_sonnet_model", "claude-sonnet-4-5-20250929"),
                 workspace_path=self.workspace_path,
-                verbose=getattr(self.config, 'verbose', False),
+                verbose=getattr(self.config, "verbose", False),
             )
             self._claude_driver = AsyncClaudeDriver(config)
         elif model:
@@ -139,10 +137,7 @@ class AsyncDriverFactory:
 
         return self._claude_driver
 
-    def get_gemini_driver(
-        self,
-        model: Optional[str] = None
-    ) -> AsyncGeminiDriver:
+    def get_gemini_driver(self, model: str | None = None) -> AsyncGeminiDriver:
         """
         Get or create the Gemini CLI driver.
 
@@ -154,12 +149,12 @@ class AsyncDriverFactory:
         """
         if self._gemini_driver is None:
             config = AsyncGeminiDriverConfig(
-                cli_path=getattr(self.config, 'gemini_cli_path', 'gemini'),
-                timeout=getattr(self.config, 'timeout', 300.0),
-                model=model or getattr(self.config, 'gemini_default_model', 'gemini-3-pro-preview'),
+                cli_path=getattr(self.config, "gemini_cli_path", "gemini"),
+                timeout=getattr(self.config, "timeout", 300.0),
+                model=model or getattr(self.config, "gemini_default_model", "gemini-3-pro-preview"),
                 workspace_path=self.workspace_path,
-                verbose=getattr(self.config, 'verbose', False),
-                use_session_resume=getattr(self.config, 'gemini_persistent_mode', True),
+                verbose=getattr(self.config, "verbose", False),
+                use_session_resume=getattr(self.config, "gemini_persistent_mode", True),
             )
             self._gemini_driver = AsyncGeminiDriver(config)
         elif model:
@@ -173,8 +168,8 @@ class AsyncDriverFactory:
 
     def get_claude_sdk(
         self,
-        model: Optional[str] = None,
-    ) -> "AnthropicSDKDriver":
+        model: str | None = None,
+    ) -> AnthropicSDKDriver:
         """
         Get or create the Claude SDK driver (API-first).
 
@@ -189,34 +184,31 @@ class AsyncDriverFactory:
         """
         if self._claude_sdk is None:
             if not self._anthropic_api_key:
-                raise RuntimeError(
-                    "AnthropicSDKDriver requires ANTHROPIC_API_KEY. "
-                    "Set it in .env or environment."
-                )
+                raise RuntimeError("AnthropicSDKDriver requires ANTHROPIC_API_KEY. Set it in .env or environment.")
             from .anthropic_sdk_driver import AnthropicSDKDriver
 
             self._claude_sdk = AnthropicSDKDriver(
-                model=model or getattr(self.config, 'claude_sonnet_model', 'claude-sonnet-4-5-20250929'),
+                model=model or getattr(self.config, "claude_sonnet_model", "claude-sonnet-4-5-20250929"),
                 api_key=self._anthropic_api_key,
-                max_tokens=getattr(self.config, 'max_tokens', 8192),
-                timeout=float(getattr(self.config, 'timeout', 300)),
+                max_tokens=getattr(self.config, "max_tokens", 8192),
+                timeout=float(getattr(self.config, "timeout", 300)),
                 enable_caching=True,
                 response_cache=self._response_cache,
             )
             self._claude_sdk._budget_tracker = self._budget_tracker
             self._claude_sdk._health_monitor = self._health_monitor
-            sdk_model = getattr(self._claude_sdk, '_model', 'unknown')
+            sdk_model = getattr(self._claude_sdk, "_model", "unknown")
             self._failover.register_driver(f"claude/{sdk_model}", priority=0)
             logger.info(f"Created AnthropicSDKDriver (model={sdk_model})")
-        elif model and hasattr(self._claude_sdk, '_model'):
+        elif model and hasattr(self._claude_sdk, "_model"):
             self._claude_sdk._model = model
 
         return self._claude_sdk
 
     def get_gemini_sdk(
         self,
-        model: Optional[str] = None,
-    ) -> "GoogleGenAISDKDriver":
+        model: str | None = None,
+    ) -> GoogleGenAISDKDriver:
         """
         Get or create the Gemini SDK driver (API-first).
 
@@ -232,23 +224,22 @@ class AsyncDriverFactory:
         if self._gemini_sdk is None:
             if not self._google_api_key:
                 raise RuntimeError(
-                    "GoogleGenAISDKDriver requires GOOGLE_API_KEY or GEMINI_API_KEY. "
-                    "Set it in .env or environment."
+                    "GoogleGenAISDKDriver requires GOOGLE_API_KEY or GEMINI_API_KEY. Set it in .env or environment."
                 )
             from .google_genai_sdk_driver import GoogleGenAISDKDriver
 
             self._gemini_sdk = GoogleGenAISDKDriver(
-                model=model or getattr(self.config, 'gemini_default_model', 'gemini-3-pro-preview'),
+                model=model or getattr(self.config, "gemini_default_model", "gemini-3-pro-preview"),
                 api_key=self._google_api_key,
-                timeout=float(getattr(self.config, 'timeout', 300)),
+                timeout=float(getattr(self.config, "timeout", 300)),
                 response_cache=self._response_cache,
             )
             self._gemini_sdk._budget_tracker = self._budget_tracker
             self._gemini_sdk._health_monitor = self._health_monitor
-            sdk_model = getattr(self._gemini_sdk, '_model', 'unknown')
+            sdk_model = getattr(self._gemini_sdk, "_model", "unknown")
             self._failover.register_driver(f"gemini/{sdk_model}", priority=1)
             logger.info(f"Created GoogleGenAISDKDriver (model={sdk_model})")
-        elif model and hasattr(self._gemini_sdk, '_model'):
+        elif model and hasattr(self._gemini_sdk, "_model"):
             self._gemini_sdk._model = model
 
         return self._gemini_sdk
@@ -256,7 +247,7 @@ class AsyncDriverFactory:
     def get_deepseek_sdk(
         self,
         model: str | None = None,
-    ) -> "DeepSeekSDKDriver":
+    ) -> DeepSeekSDKDriver:
         """
         Get or create the DeepSeek SDK driver (cost-effective alternative).
 
@@ -283,19 +274,19 @@ class AsyncDriverFactory:
             from .deepseek_sdk_driver import DeepSeekSDKDriver
 
             self._deepseek_sdk = DeepSeekSDKDriver(
-                model=model or getattr(self.config, 'deepseek_model', 'deepseek-chat'),
+                model=model or getattr(self.config, "deepseek_model", "deepseek-chat"),
                 api_key=self._deepseek_api_key,
-                max_tokens=getattr(self.config, 'max_tokens', 8192),
-                timeout=float(getattr(self.config, 'timeout', 300)),
+                max_tokens=getattr(self.config, "max_tokens", 8192),
+                timeout=float(getattr(self.config, "timeout", 300)),
                 enable_caching=True,
                 response_cache=self._response_cache,
             )
             self._deepseek_sdk.set_budget_tracker(self._budget_tracker)
             self._deepseek_sdk.set_health_monitor(self._health_monitor)
-            sdk_model = getattr(self._deepseek_sdk, '_model', 'unknown')
+            sdk_model = getattr(self._deepseek_sdk, "_model", "unknown")
             self._failover.register_driver(f"deepseek/{sdk_model}", priority=2)
             logger.info(f"Created DeepSeekSDKDriver (model={sdk_model})")
-        elif model and hasattr(self._deepseek_sdk, '_model'):
+        elif model and hasattr(self._deepseek_sdk, "_model"):
             self._deepseek_sdk._model = model
 
         return self._deepseek_sdk
@@ -303,7 +294,7 @@ class AsyncDriverFactory:
     def get_kimi_sdk(
         self,
         model: str | None = None,
-    ) -> "KimiSDKDriver":
+    ) -> KimiSDKDriver:
         """
         Get or create the Kimi SDK driver (Moonshot AI K2.5).
 
@@ -330,19 +321,19 @@ class AsyncDriverFactory:
             from .kimi_sdk_driver import KimiSDKDriver
 
             self._kimi_sdk = KimiSDKDriver(
-                model=model or getattr(self.config, 'kimi_model', 'kimi-k2.5'),
+                model=model or getattr(self.config, "kimi_model", "kimi-k2.5"),
                 api_key=self._kimi_api_key,
-                max_tokens=getattr(self.config, 'max_tokens', 8192),
-                timeout=float(getattr(self.config, 'timeout', 300)),
+                max_tokens=getattr(self.config, "max_tokens", 8192),
+                timeout=float(getattr(self.config, "timeout", 300)),
                 enable_caching=True,
                 response_cache=self._response_cache,
             )
             self._kimi_sdk.set_budget_tracker(self._budget_tracker)
             self._kimi_sdk.set_health_monitor(self._health_monitor)
-            sdk_model = getattr(self._kimi_sdk, '_model', 'unknown')
+            sdk_model = getattr(self._kimi_sdk, "_model", "unknown")
             self._failover.register_driver(f"kimi/{sdk_model}", priority=2)
             logger.info(f"Created KimiSDKDriver (model={sdk_model})")
-        elif model and hasattr(self._kimi_sdk, '_model'):
+        elif model and hasattr(self._kimi_sdk, "_model"):
             self._kimi_sdk._model = model
 
         return self._kimi_sdk
@@ -371,7 +362,7 @@ class AsyncDriverFactory:
         """Check if Kimi SDK driver can be created (API key present)."""
         return bool(self._kimi_api_key) and self._driver_mode != "cli"
 
-    def get_best_claude(self, model: Optional[str] = None) -> Any:
+    def get_best_claude(self, model: str | None = None) -> Any:
         """
         Get the best available Claude driver based on driver_mode.
 
@@ -385,6 +376,7 @@ class AsyncDriverFactory:
         if self._driver_mode == "auto" and self._anthropic_api_key:
             # Skip SDK if circuit breaker is open for claude
             from core.infrastructure.resilience.circuit_breaker import CircuitState
+
             if self._circuit_breaker.get_provider_state("claude") == CircuitState.OPEN:
                 logger.warning("Claude SDK circuit open, using CLI fallback")
                 return self.get_claude_driver(model)
@@ -395,7 +387,7 @@ class AsyncDriverFactory:
 
         return self.get_claude_driver(model)
 
-    def get_best_gemini(self, model: Optional[str] = None) -> Any:
+    def get_best_gemini(self, model: str | None = None) -> Any:
         """
         Get the best available Gemini driver based on driver_mode.
 
@@ -409,6 +401,7 @@ class AsyncDriverFactory:
         if self._driver_mode == "auto" and self._google_api_key:
             # Skip SDK if circuit breaker is open for gemini
             from core.infrastructure.resilience.circuit_breaker import CircuitState
+
             if self._circuit_breaker.get_provider_state("gemini") == CircuitState.OPEN:
                 logger.warning("Gemini SDK circuit open, using CLI fallback")
                 return self.get_gemini_driver(model)
@@ -422,7 +415,7 @@ class AsyncDriverFactory:
     def get_driver(
         self,
         agent_id: str,
-        model: Optional[str] = None,
+        model: str | None = None,
         prefer_sdk: bool = False,
     ) -> Any:
         """
@@ -458,7 +451,7 @@ class AsyncDriverFactory:
     # Driver Info (V12.4)
     # =========================================================================
 
-    def get_driver_info(self) -> Dict[str, Any]:
+    def get_driver_info(self) -> dict[str, Any]:
         """
         Get information about available drivers and their status.
 
@@ -498,7 +491,7 @@ class AsyncDriverFactory:
         count = await self._registry.cancel_all()
         return count
 
-    async def list_active_processes(self) -> list[Dict[str, Any]]:
+    async def list_active_processes(self) -> list[dict[str, Any]]:
         """List all active processes across all drivers."""
         return await self._registry.list_active()
 
@@ -514,10 +507,10 @@ class AsyncDriverFactory:
 
 
 # Global factory instance for convenience
-_global_factory: Optional[AsyncDriverFactory] = None
+_global_factory: AsyncDriverFactory | None = None
 
 
-def get_driver_factory() -> Optional[AsyncDriverFactory]:
+def get_driver_factory() -> AsyncDriverFactory | None:
     """Get the global driver factory instance."""
     return _global_factory
 

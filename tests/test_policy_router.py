@@ -16,16 +16,15 @@ import pytest
 
 from core.execution_pkg.routing.model_router import (
     ModelRouter,
-    TaskType,
-    RoutingDecision,
-    RoutingPolicy,
     ModelTier,
+    RoutingPolicy,
+    TaskType,
 )
-
 
 # =============================================================================
 # RoutingPolicy Tests
 # =============================================================================
+
 
 class TestRoutingPolicy:
     """Test routing policy enum."""
@@ -74,6 +73,7 @@ class TestModelTier:
 # BALANCED Policy (V7 compatibility)
 # =============================================================================
 
+
 class TestBalancedPolicy:
     """Test that BALANCED policy preserves V7 behavior."""
 
@@ -102,6 +102,7 @@ class TestBalancedPolicy:
 # =============================================================================
 # COST_OPTIMIZED Policy (SLM Triage)
 # =============================================================================
+
 
 class TestCostOptimizedPolicy:
     """Test cost-optimized routing with SLM triage."""
@@ -146,6 +147,7 @@ class TestCostOptimizedPolicy:
 # QUALITY_OPTIMIZED Policy
 # =============================================================================
 
+
 class TestQualityOptimizedPolicy:
     """Test quality-optimized routing (always heaviest model)."""
 
@@ -169,6 +171,7 @@ class TestQualityOptimizedPolicy:
 # =============================================================================
 # Direct Tier Selection
 # =============================================================================
+
 
 class TestTierSelection:
     """Test direct tier-based model selection."""
@@ -199,6 +202,7 @@ class TestTierSelection:
 # =============================================================================
 # RoutingDecision Enrichment
 # =============================================================================
+
 
 class TestRoutingDecision:
     """Test enriched routing decisions."""
@@ -235,6 +239,7 @@ class TestRoutingDecision:
 # Stats
 # =============================================================================
 
+
 class TestRoutingStats:
     """Test routing statistics output."""
 
@@ -265,17 +270,21 @@ class TestRoutingStats:
 # Module Exports
 # =============================================================================
 
+
 class TestModuleExports:
     """Test that new types are exported from routing module."""
 
     def test_routing_policy_importable(self):
         from core.execution_pkg.routing import RoutingPolicy
+
         assert RoutingPolicy.BALANCED is not None
 
     def test_model_tier_importable(self):
         from core.execution_pkg.routing import ModelTier
+
         assert ModelTier.LIGHT is not None
 
     def test_routing_decision_importable(self):
         from core.execution_pkg.routing import RoutingDecision
+
         assert RoutingDecision is not None

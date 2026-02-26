@@ -15,12 +15,11 @@ Date: 2026-02-17
 import json
 import time
 from pathlib import Path
-from typing import Any, Dict
 
 import pytest
 
 from core.fsm.event_sourcing import FSMEventStore, TransitionEvent
-from core.fsm.snapshot_manager import Snapshot, SnapshotManager
+from core.fsm.snapshot_manager import SnapshotManager
 
 
 @pytest.fixture
@@ -76,7 +75,7 @@ class TestSnapshotCreation:
         assert snapshot_file.exists()
 
         # Verify file content
-        with open(snapshot_file, "r") as f:
+        with open(snapshot_file) as f:
             data = json.load(f)
             assert data["sequence_number"] == 200
             assert data["fsm_state"]["current_state"] == "IDLE"
@@ -109,7 +108,7 @@ class TestSnapshotRecovery:
     ):
         """Test basic recovery from latest snapshot."""
         # Create some events
-        for i in range(150):
+        for _i in range(150):
             event = TransitionEvent(
                 from_state="IDLE",
                 to_state="BRAINSTORMING",
@@ -136,10 +135,8 @@ class TestSnapshotRecovery:
     ):
         """Test recovery when no snapshot exists."""
         # Create events
-        for i in range(50):
-            event_store.append(
-                TransitionEvent(from_state="IDLE", to_state="EXECUTING", trigger="test")
-            )
+        for _i in range(50):
+            event_store.append(TransitionEvent(from_state="IDLE", to_state="EXECUTING", trigger="test"))
 
         # Recover without snapshot
         snapshot, delta_events = snapshot_manager.recover(event_store)
@@ -267,7 +264,7 @@ class TestPerformance:
         """
         # Create 10,000 events (no snapshots)
         print("\nCreating 10,000 events (no snapshots)...")
-        for i in range(10000):
+        for _i in range(10000):
             event_store.append(
                 TransitionEvent(
                     from_state="IDLE",

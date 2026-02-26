@@ -32,10 +32,10 @@ from core.memory_pkg.memory.plan_context_filter import (
     reset_plan_context_filter,
 )
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(autouse=True)
 def _reset_singleton():
@@ -54,6 +54,7 @@ def pcf() -> PlanContextFilter:
 # ===========================================================================
 # 1. ScoredItem dataclass
 # ===========================================================================
+
 
 class TestScoredItem:
     def test_construction(self):
@@ -86,6 +87,7 @@ class TestScoredItem:
 # 2. FilterResult dataclass
 # ===========================================================================
 
+
 class TestFilterResult:
     def test_construction(self):
         kept = [ScoredItem("x", 0.9, [], 0.5, 0.5)]
@@ -117,6 +119,7 @@ class TestFilterResult:
 # 3. FilterStats dataclass
 # ===========================================================================
 
+
 class TestFilterStats:
     def test_construction(self):
         stats = FilterStats(
@@ -140,6 +143,7 @@ class TestFilterStats:
 # ===========================================================================
 # 4. _extract_keywords
 # ===========================================================================
+
 
 class TestExtractKeywords:
     def test_basic_extraction(self):
@@ -198,11 +202,47 @@ class TestExtractKeywords:
 
     def test_stop_words_comprehensive(self):
         # Verify several stop words from the list
-        stops = ["the", "and", "for", "that", "this", "with", "from", "are",
-                 "was", "were", "been", "have", "has", "had", "will", "would",
-                 "could", "should", "not", "but", "can", "all", "each", "which",
-                 "their", "said", "its", "into", "than", "other", "some",
-                 "them", "these", "then", "her", "two", "how", "our", "out"]
+        stops = [
+            "the",
+            "and",
+            "for",
+            "that",
+            "this",
+            "with",
+            "from",
+            "are",
+            "was",
+            "were",
+            "been",
+            "have",
+            "has",
+            "had",
+            "will",
+            "would",
+            "could",
+            "should",
+            "not",
+            "but",
+            "can",
+            "all",
+            "each",
+            "which",
+            "their",
+            "said",
+            "its",
+            "into",
+            "than",
+            "other",
+            "some",
+            "them",
+            "these",
+            "then",
+            "her",
+            "two",
+            "how",
+            "our",
+            "out",
+        ]
         for word in stops:
             kw = _extract_keywords(word)
             assert word not in kw, f"Stop word '{word}' should be filtered"
@@ -211,6 +251,7 @@ class TestExtractKeywords:
 # ===========================================================================
 # 5. _keyword_overlap
 # ===========================================================================
+
 
 class TestKeywordOverlap:
     def test_full_overlap(self):
@@ -256,6 +297,7 @@ class TestKeywordOverlap:
 # 6. _estimate_tokens
 # ===========================================================================
 
+
 class TestEstimateTokens:
     def test_basic_estimate(self):
         assert _estimate_tokens("hello world") == max(1, len("hello world") // 4)
@@ -278,6 +320,7 @@ class TestEstimateTokens:
 # ===========================================================================
 # 7. score_context_items - empty / no steps
 # ===========================================================================
+
 
 class TestScoreContextItemsBasic:
     def test_empty_context_items(self, pcf):
@@ -308,6 +351,7 @@ class TestScoreContextItemsBasic:
 # ===========================================================================
 # 8. score_context_items - matching keywords
 # ===========================================================================
+
 
 class TestScoreContextItemsMatching:
     def test_matching_item_scores_higher(self, pcf):
@@ -361,6 +405,7 @@ class TestScoreContextItemsMatching:
 # 9. Position scoring
 # ===========================================================================
 
+
 class TestPositionScoring:
     def test_closer_step_gives_higher_position_score(self, pcf):
         items = ["implement authentication"]
@@ -380,7 +425,7 @@ class TestPositionScoring:
         scored = pcf.score_context_items(items, steps)
         # "deploy" and "service" match step 2 => position_score = 0.8^2 = 0.64
         if scored[0].matched_steps:
-            assert scored[0].position_score <= 0.8 ** 1
+            assert scored[0].position_score <= 0.8**1
 
     def test_no_match_gives_zero_position_score(self, pcf):
         items = ["completely unrelated content xyz"]
@@ -403,6 +448,7 @@ class TestPositionScoring:
 # ===========================================================================
 # 10. filter - budget_ratio
 # ===========================================================================
+
 
 class TestFilterBudget:
     def test_default_budget_used(self, pcf):
@@ -450,6 +496,7 @@ class TestFilterBudget:
 # 11. filter - relevance ordering
 # ===========================================================================
 
+
 class TestFilterRelevanceOrdering:
     def test_most_relevant_kept(self, pcf):
         items = [
@@ -485,6 +532,7 @@ class TestFilterRelevanceOrdering:
 # ===========================================================================
 # 12. filter - compression ratio
 # ===========================================================================
+
 
 class TestFilterCompression:
     def test_compression_ratio_range(self, pcf):
@@ -523,6 +571,7 @@ class TestFilterCompression:
 # 13. filter - empty input
 # ===========================================================================
 
+
 class TestFilterEmpty:
     def test_empty_items(self, pcf):
         result = pcf.filter([], ["step"])
@@ -548,6 +597,7 @@ class TestFilterEmpty:
 # ===========================================================================
 # 14. get_stats tracking
 # ===========================================================================
+
 
 class TestGetStats:
     def test_initial_stats_zero(self, pcf):
@@ -593,6 +643,7 @@ class TestGetStats:
 # 15. Singleton pattern
 # ===========================================================================
 
+
 class TestSingleton:
     def test_get_returns_instance(self):
         instance = get_plan_context_filter()
@@ -637,6 +688,7 @@ class TestSingleton:
 # ===========================================================================
 # 16. Edge cases
 # ===========================================================================
+
 
 class TestEdgeCases:
     def test_single_item_kept(self, pcf):

@@ -18,7 +18,7 @@ Note: Use require_auth() for protected routes, get_current_user_optional() for o
 import logging
 from dataclasses import dataclass
 
-from fastapi import WebSocket, HTTPException, Header, status
+from fastapi import Header, HTTPException, WebSocket, status
 
 logger = logging.getLogger(__name__)
 
@@ -43,14 +43,10 @@ def _decode_token(token: str) -> dict | None:
     """Decode JWT token and return claims."""
     try:
         from jose import jwt
-        from .middleware import JWT_SECRET, JWT_ALGORITHM
 
-        return jwt.decode(
-            token,
-            JWT_SECRET,
-            algorithms=[JWT_ALGORITHM],
-            options={"verify_exp": True}
-        )
+        from .middleware import JWT_ALGORITHM, JWT_SECRET
+
+        return jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM], options={"verify_exp": True})
     except Exception as e:
         logger.debug(f"Token decode failed: {e}")
         return None
@@ -150,6 +146,7 @@ def create_ws_url(
 # V11.6 KEYMAKER - HTTP Authentication Dependencies
 # =============================================================================
 
+
 @dataclass
 class AuthenticatedUser:
     """
@@ -168,9 +165,7 @@ class AuthenticatedUser:
         return f"AuthenticatedUser(user={self.user_id}, tenant={self.tenant_id}, role={self.role})"
 
 
-async def require_auth(
-    authorization: str | None = Header(None, description="Bearer <jwt>")
-) -> AuthenticatedUser:
+async def require_auth(authorization: str | None = Header(None, description="Bearer <jwt>")) -> AuthenticatedUser:
     """
     Dependency that requires authentication.
 
@@ -222,7 +217,7 @@ async def require_auth(
 
 
 async def get_current_user_optional(
-    authorization: str | None = Header(None, description="Bearer <jwt>")
+    authorization: str | None = Header(None, description="Bearer <jwt>"),
 ) -> AuthenticatedUser | None:
     """
     Dependency that optionally extracts authentication.

@@ -4,13 +4,14 @@ Tests for TaskRouter - P5.1 Phase 2 Extraction
 Validates task routing logic extracted from OrchestratorV7.
 """
 
-import pytest
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.execution_pkg.orchestration.task_router import TaskRouter, RouteDecision, RouteType
+from core.execution_pkg.orchestration.task_router import RouteDecision, RouteType, TaskRouter
 from core.fsm.states import OrchestratorState
 
 
@@ -148,10 +149,7 @@ class TestTaskRouter:
 
     def test_determine_route_complex_task(self, router):
         """Complex task should return MODERATE route (pending analysis)."""
-        decision = router.determine_route(
-            "implement authentication",
-            OrchestratorState.IDLE
-        )
+        decision = router.determine_route("implement authentication", OrchestratorState.IDLE)
         assert decision.route_type == RouteType.MODERATE
         assert not decision.is_fast_path
 

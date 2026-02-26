@@ -29,10 +29,8 @@ Usage:
 import logging
 import math
 import threading
-import time
 from collections import Counter
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -41,13 +39,15 @@ logger = logging.getLogger(__name__)
 # Data Structures
 # =============================================================================
 
+
 @dataclass
 class AnomalyScore:
     """Result of step-level anomaly scoring."""
-    reconstruction_distance: float   # Distance from predicted embedding
-    prototype_distance: float        # Distance from learned prototype
-    composite_score: float           # Weighted combination (higher = more anomalous)
-    step_output_preview: str = ""    # First 100 chars of step output
+
+    reconstruction_distance: float  # Distance from predicted embedding
+    prototype_distance: float  # Distance from learned prototype
+    composite_score: float  # Weighted combination (higher = more anomalous)
+    step_output_preview: str = ""  # First 100 chars of step output
     task_type: str = ""
 
     @property
@@ -59,11 +59,12 @@ class AnomalyScore:
 @dataclass
 class StepPrototype:
     """Running average representation of 'normal' steps per task type."""
-    term_frequencies: Dict[str, float] = field(default_factory=dict)
+
+    term_frequencies: dict[str, float] = field(default_factory=dict)
     observation_count: int = 0
     avg_length: float = 0.0
 
-    def update(self, tf_vector: Dict[str, float], text_length: int) -> None:
+    def update(self, tf_vector: dict[str, float], text_length: int) -> None:
         """Update prototype with a new observation via running average."""
         self.observation_count += 1
         n = self.observation_count
@@ -78,9 +79,10 @@ class StepPrototype:
 @dataclass
 class MonitorStats:
     """Statistics for the metacognitive monitor."""
+
     total_steps_scored: int
     anomalies_detected: int
-    task_types_tracked: List[str]
+    task_types_tracked: list[str]
     avg_composite_score: float
 
 
@@ -88,13 +90,14 @@ class MonitorStats:
 # TF-IDF Lightweight Embedding
 # =============================================================================
 
-def _tokenize(text: str) -> List[str]:
+
+def _tokenize(text: str) -> list[str]:
     """Simple whitespace + punctuation tokenizer."""
     # Lowercase and split on non-alphanumeric
     tokens = []
     current = []
     for ch in text.lower():
-        if ch.isalnum() or ch == '_':
+        if ch.isalnum() or ch == "_":
             current.append(ch)
         else:
             if current:
@@ -105,14 +108,14 @@ def _tokenize(text: str) -> List[str]:
     return tokens
 
 
-def _term_frequency(tokens: List[str]) -> Dict[str, float]:
+def _term_frequency(tokens: list[str]) -> dict[str, float]:
     """Compute normalized term frequency vector."""
     counts = Counter(tokens)
     total = len(tokens) if tokens else 1
     return {term: count / total for term, count in counts.items()}
 
 
-def _cosine_similarity(a: Dict[str, float], b: Dict[str, float]) -> float:
+def _cosine_similarity(a: dict[str, float], b: dict[str, float]) -> float:
     """Cosine similarity between two sparse TF vectors."""
     if not a or not b:
         return 0.0
@@ -134,6 +137,7 @@ def _cosine_similarity(a: Dict[str, float], b: Dict[str, float]) -> float:
 # Metacognitive Monitor
 # =============================================================================
 
+
 class MetacognitiveMonitor:
     """
     Unsupervised step-level anomaly detection for multi-agent execution.
@@ -143,17 +147,17 @@ class MetacognitiveMonitor:
     Architecture-agnostic: works across all swarm modes.
     """
 
-    DEFAULT_THRESHOLD = 2.0     # Standard deviations for anomaly
-    HISTORY_WEIGHT = 0.6        # Weight for reconstruction vs prototype
+    DEFAULT_THRESHOLD = 2.0  # Standard deviations for anomaly
+    HISTORY_WEIGHT = 0.6  # Weight for reconstruction vs prototype
     PROTOTYPE_WEIGHT = 0.4
-    MIN_PROTOTYPE_SAMPLES = 3   # Minimum samples before prototype is reliable
+    MIN_PROTOTYPE_SAMPLES = 3  # Minimum samples before prototype is reliable
 
     def __init__(self, threshold: float = 0.0):
         self._threshold = threshold or self.DEFAULT_THRESHOLD
-        self._prototypes: Dict[str, StepPrototype] = {}
+        self._prototypes: dict[str, StepPrototype] = {}
         self._total_scored = 0
         self._anomalies_detected = 0
-        self._score_history: List[float] = []  # For computing z-scores
+        self._score_history: list[float] = []  # For computing z-scores
         self._lock = threading.Lock()
 
     # -------------------------------------------------------------------------
@@ -163,7 +167,7 @@ class MetacognitiveMonitor:
     def score_step(
         self,
         step_output: str,
-        history: Optional[List[str]] = None,
+        history: list[str] | None = None,
         task_type: str = "general",
     ) -> AnomalyScore:
         """
@@ -196,10 +200,7 @@ class MetacognitiveMonitor:
         prototype_dist = self._prototype_distance(tf, task_type, len(step_output))
 
         # 3. Composite score (higher = more anomalous)
-        composite = (
-            self.HISTORY_WEIGHT * reconstruction_dist +
-            self.PROTOTYPE_WEIGHT * prototype_dist
-        )
+        composite = self.HISTORY_WEIGHT * reconstruction_dist + self.PROTOTYPE_WEIGHT * prototype_dist
 
         # Convert to z-score relative to historical scores
         with self._lock:
@@ -225,8 +226,7 @@ class MetacognitiveMonitor:
             with self._lock:
                 self._anomalies_detected += 1
             logger.warning(
-                f"MASC: Anomalous step detected (z={z_score:.2f}) "
-                f"for task_type={task_type}: {step_output[:80]}"
+                f"MASC: Anomalous step detected (z={z_score:.2f}) for task_type={task_type}: {step_output[:80]}"
             )
 
         return score
@@ -264,9 +264,7 @@ class MetacognitiveMonitor:
     # Internal: Reconstruction
     # -------------------------------------------------------------------------
 
-    def _reconstruction_distance(
-        self, current_tf: Dict[str, float], history: List[str]
-    ) -> float:
+    def _reconstruction_distance(self, current_tf: dict[str, float], history: list[str]) -> float:
         """
         Predict expected step embedding from history, measure distance.
 
@@ -278,7 +276,7 @@ class MetacognitiveMonitor:
 
         # Build predicted TF as average of history
         history_tfs = [_term_frequency(_tokenize(h)) for h in history[-5:]]  # Last 5 steps
-        predicted_tf: Dict[str, float] = {}
+        predicted_tf: dict[str, float] = {}
         n = len(history_tfs)
         for tf in history_tfs:
             for term, freq in tf.items():
@@ -293,7 +291,7 @@ class MetacognitiveMonitor:
 
     def _prototype_distance(
         self,
-        current_tf: Dict[str, float],
+        current_tf: dict[str, float],
         task_type: str,
         text_length: int,
     ) -> float:
@@ -318,9 +316,7 @@ class MetacognitiveMonitor:
 
         return 1.0 - similarity
 
-    def _update_prototype(
-        self, tf: Dict[str, float], task_type: str, text_length: int
-    ) -> None:
+    def _update_prototype(self, tf: dict[str, float], task_type: str, text_length: int) -> None:
         """Update the prototype for a task type with new observation."""
         with self._lock:
             if task_type not in self._prototypes:
@@ -351,7 +347,7 @@ class MetacognitiveMonitor:
 # Singleton
 # =============================================================================
 
-_instance: Optional[MetacognitiveMonitor] = None
+_instance: MetacognitiveMonitor | None = None
 _instance_lock = threading.Lock()
 
 

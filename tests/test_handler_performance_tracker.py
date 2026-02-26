@@ -16,31 +16,26 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.execution_pkg.execution.handler_performance_tracker import (
     MAX_EXECUTIONS,
-    HandlerPerformanceTracker,
     HandlerExecution,
+    HandlerPerformanceTracker,
     HandlerTypeMetrics,
     TrackerStats,
     get_handler_tracker,
     reset_handler_tracker,
 )
 
-
 # =============================================================================
 # HandlerExecution Tests
 # =============================================================================
+
 
 class TestHandlerExecution:
     """Test HandlerExecution dataclass."""
 
     def test_to_dict(self):
-        e = HandlerExecution(
-            execution_id="he_000001", handler_type="bash",
-            tool_name="pytest", duration_ms=150.0
-        )
+        e = HandlerExecution(execution_id="he_000001", handler_type="bash", tool_name="pytest", duration_ms=150.0)
         d = e.to_dict()
         assert d["handler_type"] == "bash"
         assert d["tool_name"] == "pytest"
@@ -49,6 +44,7 @@ class TestHandlerExecution:
 # =============================================================================
 # HandlerTypeMetrics Tests
 # =============================================================================
+
 
 class TestHandlerTypeMetrics:
     """Test HandlerTypeMetrics dataclass."""
@@ -80,6 +76,7 @@ class TestHandlerTypeMetrics:
 # TrackerStats Tests
 # =============================================================================
 
+
 class TestTrackerStats:
     """Test TrackerStats dataclass."""
 
@@ -92,6 +89,7 @@ class TestTrackerStats:
 # =============================================================================
 # Recording Tests
 # =============================================================================
+
 
 class TestRecording:
     """Test execution recording."""
@@ -124,6 +122,7 @@ class TestRecording:
 # =============================================================================
 # Query Tests
 # =============================================================================
+
 
 class TestQueries:
     """Test query methods."""
@@ -161,7 +160,7 @@ class TestQueries:
 
     def test_recent_executions(self):
         t = HandlerPerformanceTracker()
-        for i in range(5):
+        for _i in range(5):
             t.record_execution("bash")
         recent = t.get_recent_executions(limit=3)
         assert len(recent) == 3
@@ -185,12 +184,13 @@ class TestQueries:
 # Bounded History Tests
 # =============================================================================
 
+
 class TestBoundedHistory:
     """Test bounded execution history."""
 
     def test_eviction(self):
         t = HandlerPerformanceTracker(max_executions=5)
-        for i in range(10):
+        for _i in range(10):
             t.record_execution("bash")
         assert t.execution_count == 5
 
@@ -198,6 +198,7 @@ class TestBoundedHistory:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test tracker statistics."""
@@ -226,6 +227,7 @@ class TestStatistics:
 # State Tests
 # =============================================================================
 
+
 class TestState:
     """Test state management."""
 
@@ -251,6 +253,7 @@ class TestState:
 # =============================================================================
 # Global Singleton Tests
 # =============================================================================
+
 
 class TestGlobalSingleton:
     """Test global handler tracker."""
@@ -278,21 +281,30 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_execution_package(self):
         from core.execution_pkg.execution import (
-            HandlerPerformanceTracker, HandlerExecution,
-            HandlerTypeMetrics, HandlerTrackerStats,
-            get_handler_tracker, reset_handler_tracker,
+            HandlerExecution,
+            HandlerPerformanceTracker,
+            HandlerTrackerStats,
+            HandlerTypeMetrics,
+            get_handler_tracker,
+            reset_handler_tracker,
         )
-        assert all([
-            HandlerPerformanceTracker, HandlerExecution,
-            HandlerTypeMetrics, HandlerTrackerStats,
-            get_handler_tracker, reset_handler_tracker,
-        ])
+
+        assert all(
+            [
+                HandlerPerformanceTracker,
+                HandlerExecution,
+                HandlerTypeMetrics,
+                HandlerTrackerStats,
+                get_handler_tracker,
+                reset_handler_tracker,
+            ]
+        )
 
     def test_constants(self):
-        from core.execution_pkg.execution.handler_performance_tracker import MAX_EXECUTIONS
         assert MAX_EXECUTIONS == 50000

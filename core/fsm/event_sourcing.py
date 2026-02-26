@@ -42,9 +42,9 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import uuid4
 
 logger = logging.getLogger(__name__)
@@ -59,20 +59,21 @@ class TransitionEvent:
     The append-only log of TransitionEvents is the source of truth
     for crash recovery.
     """
+
     from_state: str
     to_state: str
-    trigger: str                                    # What caused the transition
-    session_id: Optional[str] = None                # Session UUID
-    task_summary: Optional[str] = None              # Human-readable task context
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    trigger: str  # What caused the transition
+    session_id: str | None = None  # Session UUID
+    task_summary: str | None = None  # Human-readable task context
+    metadata: dict[str, Any] = field(default_factory=dict)
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     event_id: str = field(default_factory=lambda: uuid4().hex[:12])
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "TransitionEvent":
+    def from_dict(cls, data: dict[str, Any]) -> TransitionEvent:
         return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
 
     def to_json(self) -> str:
@@ -93,7 +94,7 @@ class FSMEventStore:
 
     def __init__(
         self,
-        workspace_path: Optional[Path] = None,
+        workspace_path: Path | None = None,
         max_events: int = 1000,
     ):
         self._workspace = workspace_path or Path("workspace")
@@ -124,13 +125,14 @@ class FSMEventStore:
         if self._redis:
             try:
                 import asyncio
+
                 loop = asyncio.get_event_loop()
                 if loop.is_running():
                     task = asyncio.ensure_future(self._append_redis(event))
                     task.add_done_callback(
-                        lambda t: logger.warning(
-                            "Redis FSM event write failed: %s", t.exception()
-                        ) if t.exception() else None
+                        lambda t: logger.warning("Redis FSM event write failed: %s", t.exception())
+                        if t.exception()
+                        else None
                     )
                 else:
                     loop.run_until_complete(self._append_redis(event))
@@ -143,6 +145,7 @@ class FSMEventStore:
         # V12.4: Emit OTel span for FSM transition
         try:
             from core.observability.telemetry.otel_provider import trace_fsm_transition
+
             trace_fsm_transition(
                 from_state=event.from_state,
                 to_state=event.to_state,
@@ -152,9 +155,7 @@ class FSMEventStore:
         except Exception:
             pass  # Never block FSM for telemetry
 
-        logger.debug(
-            f"FSM event: {event.from_state} -> {event.to_state} [{event.trigger}]"
-        )
+        logger.debug(f"FSM event: {event.from_state} -> {event.to_state} [{event.trigger}]")
 
     async def _append_redis(self, event: TransitionEvent) -> None:
         """Append event to Redis Stream."""
@@ -172,8 +173,8 @@ class FSMEventStore:
     def _publish_to_cerebro(self, event: TransitionEvent) -> None:
         """Fire-and-forget publish to CEREBRO event bus."""
         try:
-            from core.observability.events.types import CerebroEvent, CerebroEventType
             from core.observability.events.redis_bus import get_redis_bus
+            from core.observability.events.types import CerebroEvent, CerebroEventType
 
             cerebro_event = CerebroEvent(
                 event_type=CerebroEventType.STATE_CHANGE,
@@ -190,15 +191,16 @@ class FSMEventStore:
             bus = get_redis_bus()
             # Don't await - fire-and-forget
             import asyncio
+
             try:
-                loop = asyncio.get_running_loop()
+                asyncio.get_running_loop()
                 asyncio.ensure_future(bus.publish(cerebro_event))
             except RuntimeError:
                 pass  # No running event loop - skip
         except Exception:
             pass  # Never block FSM for telemetry
 
-    def replay(self, session_id: Optional[str] = None) -> List[TransitionEvent]:
+    def replay(self, session_id: str | None = None) -> list[TransitionEvent]:
         """
         Replay all events from the store.
 
@@ -217,7 +219,7 @@ class FSMEventStore:
             return events
 
         try:
-            with open(self._events_file, "r", encoding="utf-8") as f:
+            with open(self._events_file, encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     if not line:
@@ -234,7 +236,7 @@ class FSMEventStore:
 
         return events
 
-    def get_last_state(self, session_id: Optional[str] = None) -> Optional[str]:
+    def get_last_state(self, session_id: str | None = None) -> str | None:
         """
         Get the last known FSM state from the event log.
 
@@ -248,7 +250,7 @@ class FSMEventStore:
             return events[-1].to_state
         return None
 
-    def get_interrupted_sessions(self) -> List[Dict[str, Any]]:
+    def get_interrupted_sessions(self) -> list[dict[str, Any]]:
         """
         Find sessions that were interrupted (not cleanly closed).
 
@@ -261,7 +263,7 @@ class FSMEventStore:
         terminal_states = {"IDLE", "WAITING_USER", "ERROR", "PANIC"}
 
         # Group events by session
-        sessions: Dict[str, List[TransitionEvent]] = {}
+        sessions: dict[str, list[TransitionEvent]] = {}
         for event in self.replay():
             sid = event.session_id or "unknown"
             sessions.setdefault(sid, []).append(event)
@@ -270,17 +272,19 @@ class FSMEventStore:
         for sid, events in sessions.items():
             last_event = events[-1]
             if last_event.to_state not in terminal_states:
-                interrupted.append({
-                    "session_id": sid,
-                    "last_state": last_event.to_state,
-                    "last_trigger": last_event.trigger,
-                    "last_timestamp": last_event.timestamp,
-                    "event_count": len(events),
-                })
+                interrupted.append(
+                    {
+                        "session_id": sid,
+                        "last_state": last_event.to_state,
+                        "last_trigger": last_event.trigger,
+                        "last_timestamp": last_event.timestamp,
+                        "event_count": len(events),
+                    }
+                )
 
         return interrupted
 
-    def trim(self, keep_last: Optional[int] = None) -> int:
+    def trim(self, keep_last: int | None = None) -> int:
         """
         Trim the event store to keep only recent events.
 
@@ -321,6 +325,7 @@ class FSMEventStore:
         """
         try:
             import redis.asyncio as aioredis
+
             self._redis = aioredis.from_url(redis_url)
             await self._redis.ping()
             logger.info(f"FSM EventStore connected to Redis: {redis_url}")
@@ -335,10 +340,10 @@ class FSMEventStore:
 # Module-level singleton
 # =============================================================================
 
-_global_store: Optional[FSMEventStore] = None
+_global_store: FSMEventStore | None = None
 
 
-def get_event_store(workspace_path: Optional[Path] = None) -> FSMEventStore:
+def get_event_store(workspace_path: Path | None = None) -> FSMEventStore:
     """Get or create the global FSM event store."""
     global _global_store
     if _global_store is None:
@@ -350,7 +355,7 @@ def record_transition(
     from_state: str,
     to_state: str,
     trigger: str,
-    session_id: Optional[str] = None,
+    session_id: str | None = None,
     **kwargs: Any,
 ) -> None:
     """

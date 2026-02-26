@@ -9,7 +9,7 @@ Phase 10g: Dense embeddings support (raw_query parameter)
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from ..types import Chunk
@@ -31,7 +31,7 @@ class MemoryBackend(ABC):
     """
 
     @abstractmethod
-    def build_index(self, chunks: List['Chunk']) -> None:
+    def build_index(self, chunks: list["Chunk"]) -> None:
         """
         Build the retrieval index from chunks.
 
@@ -44,13 +44,8 @@ class MemoryBackend(ABC):
 
     @abstractmethod
     def retrieve(
-        self,
-        query_terms: List[str],
-        chunks: List['Chunk'],
-        limit: int,
-        min_score: float,
-        raw_query: Optional[str] = None
-    ) -> List['Chunk']:
+        self, query_terms: list[str], chunks: list["Chunk"], limit: int, min_score: float, raw_query: str | None = None
+    ) -> list["Chunk"]:
         """
         Retrieve relevant chunks for a query.
 
@@ -77,7 +72,7 @@ class MemoryBackend(ABC):
         pass
 
     @abstractmethod
-    def get_info(self) -> Dict[str, Any]:
+    def get_info(self) -> dict[str, Any]:
         """
         Get information about the backend.
 

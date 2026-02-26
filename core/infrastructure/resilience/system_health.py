@@ -21,19 +21,19 @@ Usage:
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional, Any
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
 class HealthStatus(Enum):
     """Health status levels."""
+
     HEALTHY = "healthy"
     DEGRADED = "degraded"
     UNHEALTHY = "unhealthy"
@@ -43,13 +43,14 @@ class HealthStatus(Enum):
 @dataclass
 class ComponentHealth:
     """Health status of a single component."""
+
     name: str
     status: HealthStatus
     message: str = ""
-    details: Dict[str, Any] = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
     checked_at: datetime = field(default_factory=datetime.now)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "status": self.status.value,
@@ -62,7 +63,8 @@ class ComponentHealth:
 @dataclass
 class HealthReport:
     """Aggregated health report for all components."""
-    components: List[ComponentHealth]
+
+    components: list[ComponentHealth]
     overall_status: HealthStatus
     checked_at: datetime = field(default_factory=datetime.now)
 
@@ -92,7 +94,7 @@ class HealthReport:
 
         return "\n".join(lines)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "overall_status": self.overall_status.value,
             "healthy_count": self.healthy_count,
@@ -115,10 +117,10 @@ class SystemHealth:
     - CircuitBreaker healthy
     """
 
-    def __init__(self, workspace_path: Optional[Path] = None):
+    def __init__(self, workspace_path: Path | None = None):
         """Initialize health monitor."""
         self.workspace_path = workspace_path or Path.cwd()
-        self._last_report: Optional[HealthReport] = None
+        self._last_report: HealthReport | None = None
 
     async def check_all(self) -> HealthReport:
         """
@@ -156,10 +158,9 @@ class SystemHealth:
         """Check constants module."""
         try:
             from core.constants import (
-                TIMEOUTS,
-                RETRY_LIMITS,
-                SAGA_LIMITS,
                 CONSTANTS_VERSION,
+                SAGA_LIMITS,
+                TIMEOUTS,
             )
 
             # Verify critical values
@@ -197,7 +198,6 @@ class SystemHealth:
         try:
             from core.foundation.async_primitives.safe_task_manager import (
                 SafeTaskManager,
-                create_safe_task,
             )
 
             stats = SafeTaskManager.get_stats()
@@ -230,15 +230,15 @@ class SystemHealth:
         """Check EventBus."""
         try:
             from core.foundation.async_primitives.event_bus import (
-                get_event_bus,
                 SyncEvent,
+                get_event_bus,
             )
 
             bus = get_event_bus()
             stats = bus.get_stats()
 
             # Test publish
-            test_event = SyncEvent(
+            SyncEvent(
                 event_type="health_check",
                 source="system_health",
                 task_id="health_test",
@@ -300,7 +300,6 @@ class SystemHealth:
         try:
             from core.infrastructure.resilience.circuit_breaker import (
                 get_circuit_breaker,
-                CircuitState,
             )
 
             breaker = get_circuit_breaker("default")
@@ -328,16 +327,16 @@ class SystemHealth:
             )
 
     @property
-    def last_report(self) -> Optional[HealthReport]:
+    def last_report(self) -> HealthReport | None:
         """Get last health report."""
         return self._last_report
 
 
 # Singleton instance
-_health_instance: Optional[SystemHealth] = None
+_health_instance: SystemHealth | None = None
 
 
-def get_system_health(workspace_path: Optional[Path] = None) -> SystemHealth:
+def get_system_health(workspace_path: Path | None = None) -> SystemHealth:
     """
     Get the system health monitor for the current tenant context.
 
@@ -353,8 +352,10 @@ def get_system_health(workspace_path: Optional[Path] = None) -> SystemHealth:
     # V10: Try ServiceFactory first (tenant-scoped)
     try:
         from ..context import has_active_session
+
         if has_active_session():
             from ..factory import ServiceFactory
+
             return ServiceFactory.get_system_health()
     except ImportError:
         pass  # context module not available, use legacy
@@ -379,6 +380,7 @@ def reset_system_health() -> None:
     try:
         from ..context import get_current_session_or_none
         from ..factory import ServiceFactory
+
         ctx = get_current_session_or_none()
         if ctx:
             ServiceFactory.clear_tenant_cache(ctx.tenant_id)

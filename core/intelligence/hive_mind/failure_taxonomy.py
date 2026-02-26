@@ -36,7 +36,6 @@ import logging
 import threading
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Set
 
 logger = logging.getLogger(__name__)
 
@@ -45,8 +44,10 @@ logger = logging.getLogger(__name__)
 # MAST Failure Taxonomy (arxiv:2503.13657)
 # =============================================================================
 
+
 class MastCategory(str, Enum):
     """Top-level MAST failure categories."""
+
     SYSTEM_DESIGN = "system_design"
     INTER_AGENT = "inter_agent"
     TASK_VERIFICATION = "task_verification"
@@ -58,29 +59,30 @@ class MastCode(str, Enum):
 
     System Design Issues (5):
     """
+
     # System Design Issues
-    DISOBEY_TASK_SPEC = "disobey_task_spec"           # Agent doesn't follow task specification
-    DISOBEY_ROLE_SPEC = "disobey_role_spec"           # Agent acts outside assigned role
-    STEP_REPETITION = "step_repetition"               # Repeating the same step/action
-    CONTEXT_LOSS = "context_loss"                     # Lost conversation history
-    UNAWARE_TERMINATION = "unaware_termination"       # Doesn't know when to stop
+    DISOBEY_TASK_SPEC = "disobey_task_spec"  # Agent doesn't follow task specification
+    DISOBEY_ROLE_SPEC = "disobey_role_spec"  # Agent acts outside assigned role
+    STEP_REPETITION = "step_repetition"  # Repeating the same step/action
+    CONTEXT_LOSS = "context_loss"  # Lost conversation history
+    UNAWARE_TERMINATION = "unaware_termination"  # Doesn't know when to stop
 
     # Inter-Agent Misalignment
-    CONVERSATION_RESET = "conversation_reset"         # Agent starts over unexpectedly
-    FAIL_CLARIFY = "fail_clarify"                     # Doesn't ask for needed clarification
-    TASK_DERAILMENT = "task_derailment"               # Goes off-track from original task
-    INFORMATION_WITHHOLDING = "info_withholding"      # Agent withholds useful information
-    IGNORED_INPUT = "ignored_input"                   # Ignores other agent's input
+    CONVERSATION_RESET = "conversation_reset"  # Agent starts over unexpectedly
+    FAIL_CLARIFY = "fail_clarify"  # Doesn't ask for needed clarification
+    TASK_DERAILMENT = "task_derailment"  # Goes off-track from original task
+    INFORMATION_WITHHOLDING = "info_withholding"  # Agent withholds useful information
+    IGNORED_INPUT = "ignored_input"  # Ignores other agent's input
     REASONING_ACTION_MISMATCH = "reasoning_mismatch"  # Says one thing, does another
 
     # Task Verification
-    PREMATURE_TERMINATION = "premature_termination"   # Stops before task is complete
-    NO_VERIFICATION = "no_verification"               # Doesn't verify the result
-    INCORRECT_VERIFICATION = "incorrect_verification" # Verifies but gets it wrong
+    PREMATURE_TERMINATION = "premature_termination"  # Stops before task is complete
+    NO_VERIFICATION = "no_verification"  # Doesn't verify the result
+    INCORRECT_VERIFICATION = "incorrect_verification"  # Verifies but gets it wrong
 
 
 # Category mapping
-MAST_CATEGORIES: Dict[MastCode, MastCategory] = {
+MAST_CATEGORIES: dict[MastCode, MastCategory] = {
     MastCode.DISOBEY_TASK_SPEC: MastCategory.SYSTEM_DESIGN,
     MastCode.DISOBEY_ROLE_SPEC: MastCategory.SYSTEM_DESIGN,
     MastCode.STEP_REPETITION: MastCategory.SYSTEM_DESIGN,
@@ -98,7 +100,7 @@ MAST_CATEGORIES: Dict[MastCode, MastCategory] = {
 }
 
 # Keyword detection patterns for each MAST code
-MAST_PATTERNS: Dict[MastCode, List[str]] = {
+MAST_PATTERNS: dict[MastCode, list[str]] = {
     MastCode.DISOBEY_TASK_SPEC: ["wrong task", "not what was asked", "misunderstood", "off-spec"],
     MastCode.DISOBEY_ROLE_SPEC: ["wrong role", "not its job", "role violation", "unauthorized"],
     MastCode.STEP_REPETITION: ["repeated", "loop", "stuck", "same step", "again"],
@@ -116,7 +118,7 @@ MAST_PATTERNS: Dict[MastCode, List[str]] = {
 }
 
 # FailureType to likely MAST codes mapping
-FAILURE_TYPE_MAST_MAP: Dict[str, List[MastCode]] = {
+FAILURE_TYPE_MAST_MAP: dict[str, list[MastCode]] = {
     "timeout": [MastCode.STEP_REPETITION, MastCode.UNAWARE_TERMINATION],
     "capability_missing": [MastCode.DISOBEY_ROLE_SPEC, MastCode.FAIL_CLARIFY],
     "hallucination": [MastCode.REASONING_ACTION_MISMATCH, MastCode.INCORRECT_VERIFICATION],
@@ -133,18 +135,19 @@ FAILURE_TYPE_MAST_MAP: Dict[str, List[MastCode]] = {
 @dataclass
 class MastClassification:
     """Result of MAST classification."""
-    codes: List[MastCode]
+
+    codes: list[MastCode]
     primary_category: MastCategory
     confidence: float
-    evidence: List[str]
+    evidence: list[str]
 
-    def get_categories(self) -> Set[MastCategory]:
+    def get_categories(self) -> set[MastCategory]:
         return {MAST_CATEGORIES[code] for code in self.codes}
 
     def has_inter_agent_issues(self) -> bool:
         return MastCategory.INTER_AGENT in self.get_categories()
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "codes": [c.value for c in self.codes],
             "primary_category": self.primary_category.value,
@@ -160,7 +163,7 @@ class MastClassifier:
         self,
         failure_context: str,
         failure_type: str = "unknown",
-        agent_diagnoses: Optional[List[str]] = None,
+        agent_diagnoses: list[str] | None = None,
     ) -> MastClassification:
         """
         Classify a failure into MAST codes.
@@ -177,8 +180,8 @@ class MastClassifier:
         if agent_diagnoses:
             combined += " " + " ".join(str(d).lower() for d in agent_diagnoses)
 
-        matched_codes: List[MastCode] = []
-        evidence: List[str] = []
+        matched_codes: list[MastCode] = []
+        evidence: list[str] = []
 
         # Pattern-based detection
         for code, patterns in MAST_PATTERNS.items():
@@ -202,7 +205,7 @@ class MastClassifier:
             evidence = ["No specific pattern matched; defaulting to no_verification"]
 
         # Determine primary category
-        category_counts: Dict[MastCategory, int] = {}
+        category_counts: dict[MastCategory, int] = {}
         for code in matched_codes:
             cat = MAST_CATEGORIES[code]
             category_counts[cat] = category_counts.get(cat, 0) + 1
@@ -223,16 +226,18 @@ class MastClassifier:
 # MARS Triple-Pathway Reflection (arxiv:2601.11974)
 # =============================================================================
 
+
 @dataclass
 class TriplePathwayResult:
     """Result of MARS triple-pathway reflection."""
-    principle: str    # What rule was violated
-    procedure: str    # What steps should have been taken
-    synthesis: str    # Unified actionable fix
-    failure_type: str
-    mast_codes: List[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict:
+    principle: str  # What rule was violated
+    procedure: str  # What steps should have been taken
+    synthesis: str  # Unified actionable fix
+    failure_type: str
+    mast_codes: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict:
         return {
             "principle": self.principle,
             "procedure": self.procedure,
@@ -252,7 +257,7 @@ class TriplePathwayReflector:
     """
 
     # Principle templates by failure type
-    PRINCIPLE_MAP: Dict[str, str] = {
+    PRINCIPLE_MAP: dict[str, str] = {
         "timeout": "Always set explicit timeouts and implement progressive fallback strategies",
         "capability_missing": "Verify all required capabilities exist before starting execution",
         "hallucination": "Never trust LLM output without verification against ground truth",
@@ -266,7 +271,7 @@ class TriplePathwayReflector:
     }
 
     # Procedure templates by failure type
-    PROCEDURE_MAP: Dict[str, str] = {
+    PROCEDURE_MAP: dict[str, str] = {
         "timeout": "1. Reduce operation scope. 2. Add aggressive timeouts (10s default). 3. Implement exponential backoff retry. 4. If still timing out, switch to simpler approach.",
         "capability_missing": "1. Identify the exact missing capability. 2. Check if an existing agent has it. 3. If not, spawn a specialist. 4. Verify capability before re-executing.",
         "hallucination": "1. Identify the hallucinated content. 2. Add explicit verification step. 3. Cross-validate with second agent. 4. Use tool-based grounding where possible.",
@@ -284,7 +289,7 @@ class TriplePathwayReflector:
         failure_context: str,
         diagnosis: str,
         failure_type: str = "unknown",
-        mast_codes: Optional[List[str]] = None,
+        mast_codes: list[str] | None = None,
     ) -> TriplePathwayResult:
         """
         Generate triple-pathway reflection for a failure.
@@ -346,8 +351,8 @@ class TriplePathwayReflector:
 # Module-level singletons
 # =============================================================================
 
-_classifier: Optional[MastClassifier] = None
-_reflector: Optional[TriplePathwayReflector] = None
+_classifier: MastClassifier | None = None
+_reflector: TriplePathwayReflector | None = None
 _lock = threading.Lock()
 
 

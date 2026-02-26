@@ -26,43 +26,43 @@ Usage:
     )
 """
 
+from .blackboard import AsyncBlackboard
 from .cancellation import CancellationToken
+from .event_bus import EventBus, EventType, SyncEvent, get_event_bus
 from .process_handle import AsyncProcessHandle
 from .rwlock import AsyncRWLock
-from .blackboard import AsyncBlackboard
 from .safe_task_manager import SafeTaskManager, create_safe_task
-from .event_bus import EventBus, SyncEvent, EventType, get_event_bus
 
 # V12.4 COGNITIVE BOOST: Task Metrics Collector
 from .task_metrics_collector import (
+    CollectorStats,
     TaskMetricsCollector,
     TaskRecord,
     TaskTypeMetrics,
-    CollectorStats,
     get_task_metrics_collector,
     reset_task_metrics_collector,
 )
 
 __all__ = [
     # Original V9.0
-    'CancellationToken',
-    'AsyncProcessHandle',
-    'AsyncRWLock',
-    'AsyncBlackboard',
+    "CancellationToken",
+    "AsyncProcessHandle",
+    "AsyncRWLock",
+    "AsyncBlackboard",
     # V9.5 additions
-    'SafeTaskManager',
-    'create_safe_task',
-    'EventBus',
-    'SyncEvent',
-    'EventType',
-    'get_event_bus',
+    "SafeTaskManager",
+    "create_safe_task",
+    "EventBus",
+    "SyncEvent",
+    "EventType",
+    "get_event_bus",
     # V12.4 COGNITIVE BOOST: Task Metrics Collector
-    'TaskMetricsCollector',
-    'TaskRecord',
-    'TaskTypeMetrics',
-    'CollectorStats',
-    'get_task_metrics_collector',
-    'reset_task_metrics_collector',
+    "TaskMetricsCollector",
+    "TaskRecord",
+    "TaskTypeMetrics",
+    "CollectorStats",
+    "get_task_metrics_collector",
+    "reset_task_metrics_collector",
 ]
 
 __version__ = "9.5.0"

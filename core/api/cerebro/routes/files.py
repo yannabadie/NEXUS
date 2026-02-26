@@ -24,14 +24,14 @@ Date: 2025-12-16
 
 import logging
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 
 from ..deps import AuthenticatedUser
-from ..rbac import require_permission, Permission
+from ..rbac import Permission, require_permission
 
 logger = logging.getLogger(__name__)
 
@@ -48,8 +48,10 @@ MAX_FILE_SIZE = 1_000_000  # 1MB limit (pattern from tool_executor.py:152)
 # Request Models
 # =============================================================================
 
+
 class FileWriteRequest(BaseModel):
     """Request body for file write operations."""
+
     path: str
     content: str
 
@@ -57,6 +59,7 @@ class FileWriteRequest(BaseModel):
 # =============================================================================
 # Helper Functions
 # =============================================================================
+
 
 def _get_guardian():
     """
@@ -76,7 +79,7 @@ def _get_guardian():
         return PathGuardian(workspace, nexus_root)
     except Exception as e:
         logger.error(f"Failed to create PathGuardian: {e}")
-        raise HTTPException(500, f"Security configuration error: {e}")
+        raise HTTPException(500, f"Security configuration error: {e}") from e
 
 
 async def _audit_file_access(
@@ -97,7 +100,7 @@ async def _audit_file_access(
         request: Optional FastAPI request for IP/user-agent
     """
     try:
-        from core.observability.audit import AuditLogger, AuditAction
+        from core.observability.audit import AuditAction, AuditLogger
 
         action_map = {
             "read": AuditAction.FILE_READ,
@@ -121,6 +124,7 @@ async def _audit_file_access(
 # =============================================================================
 # Endpoints
 # =============================================================================
+
 
 @router.get("/content")
 async def read_file(
@@ -178,15 +182,13 @@ async def read_file(
     try:
         file_size = resolved_path.stat().st_size
     except OSError as e:
-        raise HTTPException(500, f"Cannot stat file: {e}")
+        raise HTTPException(500, f"Cannot stat file: {e}") from e
 
     if file_size > MAX_FILE_SIZE:
-        logger.warning(
-            f"[CORTEX] File too large: {path} ({file_size} bytes > {MAX_FILE_SIZE})"
-        )
+        logger.warning(f"[CORTEX] File too large: {path} ({file_size} bytes > {MAX_FILE_SIZE})")
         raise HTTPException(
             413,  # Payload Too Large
-            f"File too large: {file_size:,} bytes exceeds {MAX_FILE_SIZE:,} byte limit"
+            f"File too large: {file_size:,} bytes exceeds {MAX_FILE_SIZE:,} byte limit",
         )
 
     # Read file content
@@ -200,11 +202,11 @@ async def read_file(
             "content": content,
             "size": len(content),
         }
-    except UnicodeDecodeError:
-        raise HTTPException(400, f"File is not valid UTF-8 text: {path}")
+    except UnicodeDecodeError as e:
+        raise HTTPException(400, f"File is not valid UTF-8 text: {path}") from e
     except Exception as e:
         logger.error(f"[CORTEX] Read failed: {path} - {e}")
-        raise HTTPException(500, f"Read failed: {e}")
+        raise HTTPException(500, f"Read failed: {e}") from e
 
 
 @router.post("/save")
@@ -265,7 +267,7 @@ async def save_file(
 
     except Exception as e:
         logger.error(f"[CORTEX] Write failed: {body.path} - {e}")
-        raise HTTPException(500, f"Write failed: {e}")
+        raise HTTPException(500, f"Write failed: {e}") from e
 
 
 @router.get("/tree")
@@ -307,9 +309,20 @@ async def file_tree(
 
     # Directories to exclude (performance + security)
     EXCLUDED_DIRS = {
-        '.git', '__pycache__', 'node_modules', 'venv', '.venv',
-        'site-packages', 'dist', 'build', '.nexus', '.pytest_cache',
-        '.mypy_cache', '.ruff_cache', 'egg-info', '.eggs'
+        ".git",
+        "__pycache__",
+        "node_modules",
+        "venv",
+        ".venv",
+        "site-packages",
+        "dist",
+        "build",
+        ".nexus",
+        ".pytest_cache",
+        ".mypy_cache",
+        ".ruff_cache",
+        "egg-info",
+        ".eggs",
     }
 
     def build_tree(p: Path, current_depth: int, base_path: Path) -> dict[str, Any] | None:
@@ -340,11 +353,11 @@ async def file_tree(
         try:
             for child in sorted(p.iterdir(), key=lambda x: (x.is_file(), x.name.lower())):
                 # Skip hidden and excluded
-                if child.name.startswith('.') and child.name not in {'.env.example'}:
+                if child.name.startswith(".") and child.name not in {".env.example"}:
                     continue
                 if child.name in EXCLUDED_DIRS:
                     continue
-                if child.name.endswith('.egg-info'):
+                if child.name.endswith(".egg-info"):
                     continue
 
                 subtree = build_tree(child, current_depth + 1, base_path)

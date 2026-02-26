@@ -34,8 +34,8 @@ import logging
 import math
 import threading
 import time
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -43,11 +43,12 @@ _logger = logging.getLogger(__name__)
 @dataclass
 class AccessRecord:
     """Tracks access patterns for a single chunk."""
+
     chunk_id: str = ""
     access_count: int = 0
-    first_access: float = 0.0   # timestamp
-    last_access: float = 0.0    # timestamp
-    total_score: float = 0.0    # sum of retrieval scores over accesses
+    first_access: float = 0.0  # timestamp
+    last_access: float = 0.0  # timestamp
+    total_score: float = 0.0  # sum of retrieval scores over accesses
 
     @property
     def avg_score(self) -> float:
@@ -69,7 +70,7 @@ class AccessRecord:
         days = self.days_since_last
         return 1.0 - math.exp(-self.access_count / (days + 1.0))
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "chunk_id": self.chunk_id,
             "access_count": self.access_count,
@@ -82,12 +83,13 @@ class AccessRecord:
 @dataclass
 class DecayScorerStats:
     """Statistics for the decay scorer."""
+
     tracked_chunks: int = 0
     total_accesses: int = 0
     avg_retention: float = 0.0
     stale_chunks: int = 0  # retention < 0.3
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "tracked_chunks": self.tracked_chunks,
             "total_accesses": self.total_accesses,
@@ -114,7 +116,7 @@ class MemoryDecayScorer:
         max_tracked: int = 50000,
         stale_threshold: float = 0.3,
     ) -> None:
-        self._records: Dict[str, AccessRecord] = {}
+        self._records: dict[str, AccessRecord] = {}
         self._decay_weight = decay_weight
         self._max_tracked = max_tracked
         self._stale_threshold = stale_threshold
@@ -122,7 +124,9 @@ class MemoryDecayScorer:
         self._total_accesses = 0
 
     def record_access(
-        self, chunk_id: str, score: float = 0.0,
+        self,
+        chunk_id: str,
+        score: float = 0.0,
     ) -> AccessRecord:
         """Record that a chunk was accessed (retrieved and used).
 
@@ -172,8 +176,10 @@ class MemoryDecayScorer:
         return base_score * (w * retention + (1.0 - w))
 
     def apply_decay_to_scored(
-        self, scored_chunks: List, record: bool = True,
-    ) -> List:
+        self,
+        scored_chunks: list,
+        record: bool = True,
+    ) -> list:
         """Apply decay scoring to a list of ScoredChunk objects.
 
         Adjusts each ScoredChunk.score with the decay curve and
@@ -215,7 +221,7 @@ class MemoryDecayScorer:
             stale_chunks=stale,
         )
 
-    def get_stale_chunks(self, limit: int = 20) -> List[AccessRecord]:
+    def get_stale_chunks(self, limit: int = 20) -> list[AccessRecord]:
         """Get chunks with lowest retention (candidates for cleanup)."""
         with self._lock:
             records = list(self._records.values())

@@ -10,48 +10,53 @@ Architecture FSM (Finite State Machine):
 États: IDLE → BRAINSTORMING → EXECUTING_TOOL → VALIDATING_CFL → IDLE
 États spéciaux: EVOLUTION_BRAINSTORM (débat émergent 30 tours max)
 """
+
+import asyncio
+import json
+from collections.abc import Callable
 from pathlib import Path
-from typing import Dict, Optional, Callable
-from core.fsm.states import OrchestratorState, TransitionGuard
-from core.fsm.stagnation_detector import StagnationDetector
-from core.fsm.plan_health import PlanHealthMonitor
-from core.fsm.panic_system import PanicSystem
-from core.fsm.context import TaskExecutionContext
-from core.drivers.async_factory import create_driver_factory, AsyncDriverFactory
-from core.execution_pkg.routing.model_router import ModelRouter, TaskType
-from core.synapse.protocol_v7 import LightMessageV7, HeavyMessageV7, ToolUse
-from core.synapse.memory_v7 import MemoryManagerV7
-from core.execution_pkg.execution.tool_manager import ToolManager
+
+import tiktoken
+
+from core.drivers.async_factory import create_driver_factory
 from core.execution_pkg.execution.agent_tools import AgentToolRegistry  # V7.8 Phase 15: Agent-as-Tool
-from core.observability.logging import init_logger, get_logger
-from core.intelligence.swarm import AgentPool, AgentInvocationResult, create_default_pool
-from core.infrastructure.bootstrap import discover_and_register_spawned_agents, SpawnedAgentLoader
+from core.execution_pkg.execution.tool_manager import ToolManager
+from core.execution_pkg.orchestration import (  # V7.8 Phase 14c.2
+    AgentInvoker,
+    ContextBuilder,
+    MutationDetector,
+    SwarmBridge,
+)
+from core.execution_pkg.routing.model_router import ModelRouter
+from core.foundation.agents.unified_registry import get_registry  # V8.4.0: Centralized agent registry
+from core.fsm.context import TaskExecutionContext
+from core.fsm.handlers import FSMHandlers  # V12.4 P1.3: Modular handlers
+from core.fsm.panic_system import PanicSystem
+from core.fsm.plan_health import PlanHealthMonitor
+from core.fsm.stagnation_detector import StagnationDetector
+from core.fsm.states import OrchestratorState
+from core.infrastructure.bootstrap import SpawnedAgentLoader, discover_and_register_spawned_agents
+from core.intelligence.hive_mind.swarm_bridge import (
+    SwarmBridge as HiveMindSwarmBridge,  # V8.3.1: For swarm_delegate tool
+)
 from core.intelligence.swarm import (
-    HybridSwarmEngine,
-    SwarmPhase,
+    AgentInvocationResult,
     CollaborationMode,
+    HybridSwarmEngine,
     TaskAnalysis,
     TaskAnalyzer,  # V7 FIX: For trivial input detection
-    TaskComplexity  # V7 FIX: For complexity-based routing
+    TaskComplexity,  # V7 FIX: For complexity-based routing
+    create_default_pool,
 )
-from core.observability.telemetry import TelemetryCollector, BudgetExceededError
-from core.security_pkg.governance.sandbox_policy import SandboxPolicy
-from core.memory_pkg.memory import get_auto_memory, ProjectMemory  # V7.5 HIVE MIND + V7.8 Phase 10c
-from core.memory_pkg.prompts import load_prompt  # V7.5 HIVE MIND: Prompt loader with includes
-from core.execution_pkg.orchestration import ContextBuilder, MutationDetector, AgentInvoker, SwarmBridge  # V7.8 Phase 14c.2
-from core.fsm.handlers import FSMHandlers  # V12.4 P1.3: Modular handlers
-from core.intelligence.hive_mind.swarm_bridge import SwarmBridge as HiveMindSwarmBridge  # V8.3.1: For swarm_delegate tool
-from core.foundation.agents.unified_registry import get_registry  # V8.4.0: Centralized agent registry
-from pydantic import ValidationError
-import asyncio
-import time
-import json
-import sys
-import tiktoken
+from core.memory_pkg.memory import ProjectMemory, get_auto_memory  # V7.5 HIVE MIND + V7.8 Phase 10c
+from core.observability.logging import get_logger, init_logger
+from core.observability.telemetry import TelemetryCollector
+from core.synapse.memory_v7 import MemoryManagerV7
 
 # KERNEL import - path set by nexus7.py bootstrap
 try:
     from KERNEL import runtime_integrity_check
+
     KERNEL_AVAILABLE = True
 except ImportError:
     KERNEL_AVAILABLE = False
@@ -71,7 +76,7 @@ class OrchestratorV7:
     3. Ne se détruit JAMAIS (sauf panic ou user quit)
     """
 
-    def __init__(self, workspace_path: Path, config, gemini_info: Dict, claude_info: Dict):
+    def __init__(self, workspace_path: Path, config, gemini_info: dict, claude_info: dict):
         # Configuration
         self.workspace_path = workspace_path
         self.config = config
@@ -80,10 +85,9 @@ class OrchestratorV7:
         init_logger(workspace_path, config.log_level)
         self.logger = get_logger()
 
-        self.logger.debug("Initializing OrchestratorV7", {
-            "workspace": str(workspace_path),
-            "log_level": config.log_level
-        })
+        self.logger.debug(
+            "Initializing OrchestratorV7", {"workspace": str(workspace_path), "log_level": config.log_level}
+        )
 
         # État FSM (en RAM !)
         self.state = OrchestratorState.IDLE
@@ -94,7 +98,7 @@ class OrchestratorV7:
         # Replaces mutable self.active_agent string to prevent race conditions in PARALLEL mode
         self._task_context: TaskExecutionContext = TaskExecutionContext.create(
             objective="",
-            initial_agent="gemini"  # V8.4.0: lowercase normalized
+            initial_agent="gemini",  # V8.4.0: lowercase normalized
         )
 
         # Memory Manager (charge blackboard UNE FOIS)
@@ -103,22 +107,14 @@ class OrchestratorV7:
 
         # Stagnation detector
         self.stagnation_detector = StagnationDetector(
-            similarity_threshold=config.stagnation_similarity_threshold,
-            window_size=3
+            similarity_threshold=config.stagnation_similarity_threshold, window_size=3
         )
 
         # Plan Health Monitor (NEW!)
-        self.plan_health = PlanHealthMonitor(
-            warning_threshold=10,
-            stagnant_threshold=20,
-            zombie_threshold=30
-        )
+        self.plan_health = PlanHealthMonitor(warning_threshold=10, stagnant_threshold=20, zombie_threshold=30)
 
         # Panic System (NEW!)
-        self.panic_system = PanicSystem(
-            workspace_path=workspace_path,
-            max_stalemate=config.max_stalemate_count
-        )
+        self.panic_system = PanicSystem(workspace_path=workspace_path, max_stalemate=config.max_stalemate_count)
 
         # V7: Model Router for intelligent model selection
         self.model_router = ModelRouter(config)
@@ -135,7 +131,7 @@ class OrchestratorV7:
         self._registry.register_driver("gemini", self.gemini_driver)
         self.drivers = {
             "gemini": self.gemini_driver,  # V8.4.0: lowercase keys
-            "claude": None  # Created dynamically via AgentInvoker.get_claude_driver()
+            "claude": None,  # Created dynamically via AgentInvoker.get_claude_driver()
         }
 
         # Tool manager
@@ -150,13 +146,13 @@ class OrchestratorV7:
 
         # V7.7 Phase 15: Streaming callback
         # Set by REPL to receive real-time tokens during agent invocations
-        self.on_token: Optional[Callable[[str], None]] = None
+        self.on_token: Callable[[str], None] | None = None
 
         # Stalemate counter
         self.stalemate_counter = 0
 
         # V7.7 Phase 14e: Force Chain-of-Thought for EXPERT tasks
-        self._current_complexity: Optional[TaskComplexity] = None
+        self._current_complexity: TaskComplexity | None = None
 
         # Metrics
         self.gemini_info = gemini_info
@@ -171,25 +167,24 @@ class OrchestratorV7:
             self.agent_pool.enable_persistence(
                 path=str(dylan_persistence_path),
                 auto_save=True,
-                save_interval=5  # Save every 5 invocations
+                save_interval=5,  # Save every 5 invocations
             )
 
-            self.logger.debug("AgentPool initialized", {
-                "agents": list(self.agent_pool.agents.keys()),
-                "persistence": str(dylan_persistence_path)
-            })
+            self.logger.debug(
+                "AgentPool initialized",
+                {"agents": list(self.agent_pool.agents.keys()), "persistence": str(dylan_persistence_path)},
+            )
 
             # V7.5 HIVE MIND: Discover and register spawned agents from workspace/agents/
             self.spawned_agent_loader = SpawnedAgentLoader(self.workspace_path)
             spawned_count = discover_and_register_spawned_agents(
-                workspace_path=self.workspace_path,
-                agent_pool=self.agent_pool
+                workspace_path=self.workspace_path, agent_pool=self.agent_pool
             )
             if spawned_count > 0:
-                self.logger.info("Spawned agents registered", {
-                    "count": spawned_count,
-                    "agents": [a.agent_id for a in self.agent_pool.get_spawned_agents()]
-                })
+                self.logger.info(
+                    "Spawned agents registered",
+                    {"count": spawned_count, "agents": [a.agent_id for a in self.agent_pool.get_spawned_agents()]},
+                )
         else:
             self.agent_pool = None
             self.spawned_agent_loader = None
@@ -206,34 +201,35 @@ class OrchestratorV7:
         self.fsm_handlers = FSMHandlers(self)
 
         # V7 Sprint 9: Hybrid Swarm Engine for dynamic multi-agent collaboration
-        if getattr(self.config, 'swarm_enabled', False):
+        if getattr(self.config, "swarm_enabled", False):
             # P5.1 Phase 5: Use agent_invoker directly (delegation wrappers removed)
             self.swarm_engine = HybridSwarmEngine(
                 agent_pool=self.agent_pool,
                 model_router=self.model_router,
                 config=self.config,
-                invoke_agent=self.agent_invoker.invoke_for_swarm
+                invoke_agent=self.agent_invoker.invoke_for_swarm,
             )
-            self.logger.debug("HybridSwarmEngine initialized", {
-                "negotiation_enabled": getattr(self.config, 'swarm_negotiation_enabled', True),
-                "default_mode": getattr(self.config, 'swarm_default_mode', 'ping_pong')
-            })
+            self.logger.debug(
+                "HybridSwarmEngine initialized",
+                {
+                    "negotiation_enabled": getattr(self.config, "swarm_negotiation_enabled", True),
+                    "default_mode": getattr(self.config, "swarm_default_mode", "ping_pong"),
+                },
+            )
 
             # V8.3.1: Wire SwarmBridge to ToolManager for swarm_delegate tool
             self.tool_manager.swarm_bridge = HiveMindSwarmBridge(
                 swarm_engine=self.swarm_engine,
-                context_manager=None  # Context manager is per-task, set dynamically
+                context_manager=None,  # Context manager is per-task, set dynamically
             )
             self.logger.debug("SwarmBridge wired to ToolManager for swarm_delegate tool")
         else:
             self.swarm_engine = None
 
         # V7 Sprint 10: Telemetry for metrics tracking
-        if getattr(self.config, 'telemetry_enabled', True):
+        if getattr(self.config, "telemetry_enabled", True):
             self.telemetry = TelemetryCollector(self.config)
-            self.logger.debug("TelemetryCollector initialized", {
-                "output_file": str(self.telemetry.output_file)
-            })
+            self.logger.debug("TelemetryCollector initialized", {"output_file": str(self.telemetry.output_file)})
         else:
             self.telemetry = None
 
@@ -243,31 +239,33 @@ class OrchestratorV7:
         self._current_task_type: str = "unknown"
         self._current_task_description: str = ""
         self._current_swarm_mode: str = "brainstorming"
-        self.logger.debug("AutoMemory initialized", {
-            "memory_dir": str(self.auto_memory.memory_dir)
-        })
+        self.logger.debug("AutoMemory initialized", {"memory_dir": str(self.auto_memory.memory_dir)})
 
         # P5.1 Phase 1: GuardPipeline for security validation
         self.guard_pipeline = GuardPipeline()
 
         # P5.1 Phase 2: TaskRouter for routing logic
         from core.execution_pkg.orchestration.task_router import TaskRouter
+
         self.task_router = TaskRouter()
 
         # P5.1 Phase 3: ResultHandler for result creation and validation
         from core.execution_pkg.orchestration.result_handler import ResultHandler
+
         self.result_handler = ResultHandler(self)
 
         # P5.1 Phase 4: StateHandler for FSM state management
         from core.execution_pkg.orchestration.state_handler import StateHandler
+
         self.state_handler = StateHandler(self)
 
         # V9.4 ISSUE-003: Sync bridge for HiveMind/Swarm state synchronization
         from core.execution_pkg.orchestration.sync_bridge import get_sync_bridge
+
         self._sync_bridge = get_sync_bridge()
         self._sync_bridge._workspace = self.workspace_path
         # Wire up swarm session manager if available
-        if self.swarm_engine and hasattr(self.swarm_engine, 'session_manager'):
+        if self.swarm_engine and hasattr(self.swarm_engine, "session_manager"):
             self._sync_bridge.set_session_manager(self.swarm_engine.session_manager)
 
         # V7.8 Phase 10c: Project Memory RAG
@@ -280,17 +278,21 @@ class OrchestratorV7:
         # Recovery: Load snapshot + replay delta events (vs replaying all events)
         from core.fsm.event_sourcing import get_event_store
         from core.fsm.snapshot_manager import get_snapshot_manager
+
         self._event_store = get_event_store(workspace_path)
         self._snapshot_manager = get_snapshot_manager(
             workspace_path,
-            snapshot_interval=100  # Snapshot every 100 FSM transitions
+            snapshot_interval=100,  # Snapshot every 100 FSM transitions
         )
         self._event_count = len(self._event_store.replay())  # Count existing events
-        self.logger.debug("FSM Snapshot Manager initialized", {
-            "event_count": self._event_count,
-            "snapshot_interval": 100,
-            "snapshot_stats": self._snapshot_manager.get_snapshot_stats()
-        })
+        self.logger.debug(
+            "FSM Snapshot Manager initialized",
+            {
+                "event_count": self._event_count,
+                "snapshot_interval": 100,
+                "snapshot_stats": self._snapshot_manager.get_snapshot_stats(),
+            },
+        )
 
         # V7.8 Phase 15: Agent-as-Tool Registry (Vision Fractale)
         # Exposes spawned agents as callable tools for fractal invocation
@@ -298,27 +300,33 @@ class OrchestratorV7:
             workspace_path=self.workspace_path,
             agent_pool=self.agent_pool,
             agent_invoker=self.agent_invoker,
-            agent_loader=self.spawned_agent_loader
+            agent_loader=self.spawned_agent_loader,
         )
         # Refresh to discover existing spawned agents
         agent_tools_count = self.agent_tool_registry.refresh()
         if agent_tools_count > 0:
             # Register agent tools with ToolManager
             self.agent_tool_registry.register_with_tool_manager(self.tool_manager)
-            self.logger.info("Agent-as-Tool enabled", {
-                "agent_tools": agent_tools_count,
-                "tools": [t.tool_name for t in self.agent_tool_registry.list_agent_tools()]
-            })
+            self.logger.info(
+                "Agent-as-Tool enabled",
+                {
+                    "agent_tools": agent_tools_count,
+                    "tools": [t.tool_name for t in self.agent_tool_registry.list_agent_tools()],
+                },
+            )
 
-        self.logger.debug("OrchestratorV7 initialized", {
-            "gemini_model": gemini_info.get("model"),
-            "claude_model": claude_info.get("model"),
-            "agent_metrics": self.config.agent_metrics_enabled,
-            "swarm_enabled": self.swarm_engine is not None,
-            "telemetry_enabled": self.telemetry is not None,
-            "auto_memory": True,
-            "project_memory": self.project_memory.get_stats().total_chunks
-        })
+        self.logger.debug(
+            "OrchestratorV7 initialized",
+            {
+                "gemini_model": gemini_info.get("model"),
+                "claude_model": claude_info.get("model"),
+                "agent_metrics": self.config.agent_metrics_enabled,
+                "swarm_enabled": self.swarm_engine is not None,
+                "telemetry_enabled": self.telemetry is not None,
+                "auto_memory": True,
+                "project_memory": self.project_memory.get_stats().total_chunks,
+            },
+        )
 
     # =========================================================================
     # V9.3: Thread-Safe Agent Tracking via Immutable Context
@@ -376,8 +384,7 @@ class OrchestratorV7:
             Immutable TaskExecutionContext
         """
         return TaskExecutionContext.create(
-            objective=objective or self.blackboard.get("objective", ""),
-            initial_agent=self.active_agent
+            objective=objective or self.blackboard.get("objective", ""), initial_agent=self.active_agent
         )
 
     @property
@@ -405,10 +412,9 @@ class OrchestratorV7:
     # Model Routing & Agent Drivers
     # =========================================================================
 
-
     # === Project Context Methods (Sprint 11) ===
 
-    def check_project_context(self, project_path: Optional[Path] = None) -> Dict:
+    def check_project_context(self, project_path: Path | None = None) -> dict:
         """
         Check project context and suggest bootstrap if NEXUS.md is missing.
 
@@ -436,13 +442,12 @@ class OrchestratorV7:
             "has_nexus_md": has_nexus_md,
             "project_path": str(project_path),
             "suggestion": None,
-            "tech_hint": None
+            "tech_hint": None,
         }
 
         if not has_nexus_md:
             result["suggestion"] = (
-                f"No NEXUS.md found in {project_path}. "
-                "Use /bootstrap to auto-generate project context."
+                f"No NEXUS.md found in {project_path}. Use /bootstrap to auto-generate project context."
             )
 
             # Quick tech detection
@@ -483,7 +488,7 @@ class OrchestratorV7:
 
         return hints
 
-    def process_turn(self, user_input: Optional[str] = None) -> Dict:
+    def process_turn(self, user_input: str | None = None) -> dict:
         """
         Process un tour de l'orchestration
 
@@ -514,13 +519,14 @@ class OrchestratorV7:
                     "Invariants may have been modified in memory. Immediate shutdown required.",
                     None,
                     True,
-                    error="KERNEL_INTEGRITY_VIOLATION"
+                    error="KERNEL_INTEGRITY_VIOLATION",
                 )
 
         # V12.4: Memory pressure monitoring (periodic, every 25 iterations)
         if self.iteration % 25 == 0:
             try:
                 from core.memory_pkg.memory.memory_pressure_monitor import get_pressure_monitor
+
                 monitor = get_pressure_monitor()
                 history_len = len(self.blackboard.get("recent_history", []))
                 bb_bytes = len(json.dumps(self.blackboard, default=str))
@@ -536,13 +542,10 @@ class OrchestratorV7:
                 if level.level == "critical":
                     self.logger.warning(
                         "Memory pressure critical",
-                        {"utilization": level.utilization, "recommendation": level.recommendation}
+                        {"utilization": level.utilization, "recommendation": level.recommendation},
                     )
                 elif level.level == "warning":
-                    self.logger.info(
-                        "Memory pressure elevated",
-                        {"utilization": level.utilization}
-                    )
+                    self.logger.info("Memory pressure elevated", {"utilization": level.utilization})
             except Exception:
                 pass  # Non-blocking advisory check
 
@@ -556,7 +559,7 @@ class OrchestratorV7:
                 "Your request was flagged as a potential prompt injection attack.",
                 None,
                 False,
-                error="PROMPT_INJECTION_BLOCKED"
+                error="PROMPT_INJECTION_BLOCKED",
             )
 
         # V7.8 Phase 14c.2d: FSM State Dispatcher
@@ -578,13 +581,15 @@ class OrchestratorV7:
         if handler:
             return handler()
 
-        return self.result_handler.make_result("ERROR", f"Unknown state: {self.state}", None, False, error="UNKNOWN_STATE")
+        return self.result_handler.make_result(
+            "ERROR", f"Unknown state: {self.state}", None, False, error="UNKNOWN_STATE"
+        )
 
     # =========================================================================
     # V9 CYBORG: Async Process Turn
     # =========================================================================
 
-    async def process_turn_async(self, user_input: Optional[str] = None) -> Dict:
+    async def process_turn_async(self, user_input: str | None = None) -> dict:
         """
         V9 Cyborg Async version of process_turn().
 
@@ -612,7 +617,9 @@ class OrchestratorV7:
                 return self.result_handler.make_result(
                     "PANIC",
                     "[SECURITY VIOLATION] KERNEL runtime integrity check FAILED.",
-                    None, True, error="KERNEL_INTEGRITY_VIOLATION"
+                    None,
+                    True,
+                    error="KERNEL_INTEGRITY_VIOLATION",
                 )
 
         # P5.1: INPUT GUARD - Prompt Injection Prevention (async path)
@@ -622,24 +629,25 @@ class OrchestratorV7:
             return self.result_handler.make_result(
                 self.state.name,
                 f"[SECURITY] Input blocked: {guard_result.reason}",
-                None, False, error="PROMPT_INJECTION_BLOCKED"
+                None,
+                False,
+                error="PROMPT_INJECTION_BLOCKED",
             )
 
         # P5.1 Phase 2: FAST PATH - Bypass HiveMind for trivial inputs
         # Extracted to TaskRouter for modularity
-        if user_input and self.state in (OrchestratorState.IDLE, OrchestratorState.WAITING_USER):
-            if self.task_router.is_fast_path(user_input):
-                self.logger.debug("Fast path activated (trivial input)", {"input_length": len(user_input)})
+        if (
+            user_input
+            and self.state in (OrchestratorState.IDLE, OrchestratorState.WAITING_USER)
+            and self.task_router.is_fast_path(user_input)
+        ):
+            self.logger.debug("Fast path activated (trivial input)", {"input_length": len(user_input)})
 
-                # Get direct response from TaskRouter
-                response = self.task_router.handle_fast_path(user_input)
-                self.state_handler.transition_to(OrchestratorState.WAITING_USER)
+            # Get direct response from TaskRouter
+            response = self.task_router.handle_fast_path(user_input)
+            self.state_handler.transition_to(OrchestratorState.WAITING_USER)
 
-                return self.result_handler.make_result(
-                    self.state.name,
-                    response,
-                    None, False, metadata={"fast_path": True}
-                )
+            return self.result_handler.make_result(self.state.name, response, None, False, metadata={"fast_path": True})
 
         # States that benefit from async LLM calls
         async_states = {
@@ -653,7 +661,7 @@ class OrchestratorV7:
             # Non-LLM states: use sync handlers (fast, no I/O blocking)
             return self.process_turn(user_input)
 
-    async def _handle_async_state(self, user_input: Optional[str] = None) -> Dict:
+    async def _handle_async_state(self, user_input: str | None = None) -> dict:
         """
         Handle states that require async LLM invocation.
 
@@ -662,6 +670,7 @@ class OrchestratorV7:
         """
         try:
             from core.drivers.async_factory import get_driver_factory
+
             factory = get_driver_factory()
         except ImportError:
             factory = None
@@ -677,7 +686,7 @@ class OrchestratorV7:
         else:
             return self.process_turn(user_input)
 
-    async def _handle_brainstorming_async(self, factory, user_input: Optional[str]) -> Dict:
+    async def _handle_brainstorming_async(self, factory, user_input: str | None) -> dict:
         """
         Async brainstorming with streaming output.
 
@@ -689,7 +698,7 @@ class OrchestratorV7:
             blackboard=self.blackboard,
             active_agent=self.active_agent,
             current_task=self.current_task,
-            objective=self.objective
+            objective=self.objective,
         )
 
         session_uuid = f"brain_{self.iteration}"
@@ -702,9 +711,7 @@ class OrchestratorV7:
 
                 # V9: Stream tokens in real-time
                 async for token in driver.invoke_stream(
-                    context,
-                    session_uuid=session_uuid,
-                    on_token=lambda t: print(t, end="", flush=True)
+                    context, session_uuid=session_uuid, on_token=lambda t: print(t, end="", flush=True)
                 ):
                     response_parts.append(token)
 
@@ -717,9 +724,7 @@ class OrchestratorV7:
                 response_parts = []
 
                 async for token in driver.invoke_stream(
-                    context,
-                    session_uuid=session_uuid,
-                    on_token=lambda t: print(t, end="", flush=True)
+                    context, session_uuid=session_uuid, on_token=lambda t: print(t, end="", flush=True)
                 ):
                     response_parts.append(token)
 
@@ -739,7 +744,7 @@ class OrchestratorV7:
             # Fallback to sync on error
             return self.fsm_handlers.handle_brainstorming()
 
-    async def _handle_cfl_async(self, factory) -> Dict:
+    async def _handle_cfl_async(self, factory) -> dict:
         """
         Async CFL (Cognitive Feedback Loop) validation.
 
@@ -750,7 +755,7 @@ class OrchestratorV7:
             history=self.memory.history,
             blackboard=self.blackboard,
             active_agent=self.active_agent,
-            tool_result=self.blackboard.get("last_tool_result")
+            tool_result=self.blackboard.get("last_tool_result"),
         )
 
         session_uuid = f"cfl_{self.iteration}"
@@ -760,21 +765,15 @@ class OrchestratorV7:
                 # V12.4: Use SDK-first driver (auto-selects SDK or CLI)
                 driver = factory.get_best_claude()
                 # CFL needs faster response - use non-streaming
-                response = await asyncio.wait_for(
-                    driver.invoke(context, session_uuid=session_uuid),
-                    timeout=30.0
-                )
+                response = await asyncio.wait_for(driver.invoke(context, session_uuid=session_uuid), timeout=30.0)
             else:
                 # V12.4: Use SDK-first driver
                 driver = factory.get_best_gemini()
-                response = await asyncio.wait_for(
-                    driver.invoke(context, session_uuid=session_uuid),
-                    timeout=30.0
-                )
+                response = await asyncio.wait_for(driver.invoke(context, session_uuid=session_uuid), timeout=30.0)
 
             return self.fsm_handlers._process_cfl_response(response)
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             self.logger.warning("CFL validation timed out, falling back to sync")
             return self.fsm_handlers.handle_validating_cfl()
 
@@ -797,44 +796,33 @@ class OrchestratorV7:
         """Build lightweight context for SIMPLE task. V7.8: Delegates to ContextBuilder."""
         return self.context_builder.build_simple_context(user_input, task_analysis)
 
-
-
     def _detect_mutation_complete(self, content: str) -> bool:
         """Detect valid mutation proposal. V7.8: Delegates to MutationDetector."""
         return self.mutation_detector.detect_mutation_complete(content)
 
-    def _handle_stagnation(self) -> Dict:
+    def _handle_stagnation(self) -> dict:
         """Handle stagnation détectée"""
-        warning = self.stagnation_detector.get_stagnation_message()
+        self.stagnation_detector.get_stagnation_message()
 
         # Force Gemini to decide (V8.4.0: use normalized ID)
         self.active_agent = "gemini"
         self.stagnation_detector.reset()
 
         return self.result_handler.make_result(
-            "BRAINSTORMING",
-            "⚠️ Stagnation detected. Forcing decision...",
-            "Gemini",
-            False,
-            error="STAGNATION"
+            "BRAINSTORMING", "⚠️ Stagnation detected. Forcing decision...", "Gemini", False, error="STAGNATION"
         )
 
-    def _handle_error(self, error_msg: str) -> Dict:
+    def _handle_error(self, error_msg: str) -> dict:
         """Handle recoverable error"""
         self.state_handler.transition_to(OrchestratorState.ERROR)
         return self.result_handler.make_result("ERROR", f"[ERROR] {error_msg}", None, False, error=error_msg)
 
-    def _trigger_panic(self, reason: str) -> Dict:
+    def _trigger_panic(self, reason: str) -> dict:
         """Trigger panic state"""
         self.state_handler.transition_to(OrchestratorState.PANIC)
         return self.result_handler.make_result("PANIC", f"[PANIC] {reason}", None, True, error=reason)
 
-    def _calculate_quality_score(
-        self,
-        message: dict,
-        validation_ok: bool,
-        is_stagnant: bool
-    ) -> float:
+    def _calculate_quality_score(self, message: dict, validation_ok: bool, is_stagnant: bool) -> float:
         """
         Calculate DyLAN quality score for agent invocation.
 
@@ -883,7 +871,7 @@ class OrchestratorV7:
         success: bool,
         duration: float,
         quality_score: float = 0.5,
-        response_text: Optional[str] = None
+        response_text: str | None = None,
     ):
         """
         Record agent invocation for DyLAN-style metrics (V7 Sprint 3).
@@ -919,18 +907,21 @@ class OrchestratorV7:
             success=success,
             quality_score=quality_score,
             tokens_used=estimated_tokens,
-            time_seconds=duration
+            time_seconds=duration,
         )
         self.agent_pool.record_invocation(invocation)
 
-        self.logger.debug("Agent invocation recorded", {
-            "agent_id": agent_id,
-            "task_type": task_type,
-            "success": success,
-            "duration": f"{duration:.2f}s",
-            "tokens": estimated_tokens,
-            "importance": f"{invocation.importance_score:.4f}"
-        })
+        self.logger.debug(
+            "Agent invocation recorded",
+            {
+                "agent_id": agent_id,
+                "task_type": task_type,
+                "success": success,
+                "duration": f"{duration:.2f}s",
+                "tokens": estimated_tokens,
+                "importance": f"{invocation.importance_score:.4f}",
+            },
+        )
 
     def _build_context(self) -> str:
         """Build context markdown for agent. V7.8: Delegates to ContextBuilder."""
@@ -944,7 +935,7 @@ class OrchestratorV7:
         """Format tool result for display. P5.1: Delegates to ResultHandler."""
         return self.result_handler.format_tool_result(result)
 
-    def _validate_message(self, response: Dict, expect_heavy: bool = False) -> Dict:
+    def _validate_message(self, response: dict, expect_heavy: bool = False) -> dict:
         """Validate and parse message with Pydantic V2. P5.1: Delegates to ResultHandler."""
         return self.result_handler.validate_message(response, expect_heavy)
 
@@ -956,13 +947,20 @@ class OrchestratorV7:
         """Transition to new FSM state. P5.1: Delegates to StateHandler for backward compatibility."""
         return self.state_handler.transition_to(new_state)
 
-    def _make_result(self, state: str, output: Optional[str], agent: Optional[str],
-                     finished: bool, error: Optional[str] = None, tool: Optional[str] = None,
-                     metadata: Optional[Dict] = None) -> Dict:
+    def _make_result(
+        self,
+        state: str,
+        output: str | None,
+        agent: str | None,
+        finished: bool,
+        error: str | None = None,
+        tool: str | None = None,
+        metadata: dict | None = None,
+    ) -> dict:
         """Create result dict. P5.1: Delegates to ResultHandler for backward compatibility."""
         return self.result_handler.make_result(state, output, agent, finished, error, tool, metadata)
 
-    def get_system_status(self) -> Dict:
+    def get_system_status(self) -> dict:
         """Get comprehensive system status (for /status command)"""
         current_plan = self.blackboard.get("strategic_plan", [])
         plan_health = self.plan_health.check_health(current_plan, self.iteration)
@@ -979,16 +977,16 @@ class OrchestratorV7:
             "panic_system": panic_status,
             "stagnation": {
                 "is_stagnant": self.stagnation_detector.is_stagnant(),
-                "window_size": self.stagnation_detector.window_size
+                "window_size": self.stagnation_detector.window_size,
             },
             "backups": {
                 "available": len(self.memory.list_backups()),
-                "latest": self.memory.list_backups()[0] if self.memory.list_backups() else None
+                "latest": self.memory.list_backups()[0] if self.memory.list_backups() else None,
             },
             "swarm": {
                 "enabled": self.swarm_engine is not None,
-                "stats": self.swarm_engine.get_stats() if self.swarm_engine else None
-            }
+                "stats": self.swarm_engine.get_stats() if self.swarm_engine else None,
+            },
         }
 
     def rollback_to_backup(self, backup_file: Path = None) -> bool:
@@ -1019,7 +1017,7 @@ class OrchestratorV7:
     # V11.2 MEMORIA: Memory Consolidation
     # =========================================================================
 
-    def consolidate_memory(self) -> Dict:
+    def consolidate_memory(self) -> dict:
         """
         V11.2 MEMORIA: Consolidate episodic patterns into procedural memory.
 
@@ -1031,17 +1029,13 @@ class OrchestratorV7:
         Returns:
             Dict with consolidation results
         """
-        results = {
-            "success": False,
-            "patterns_found": 0,
-            "message": ""
-        }
+        results = {"success": False, "patterns_found": 0, "message": ""}
 
         # Try to access MemoryCoordinator through SwarmEngine's ModeSelector
         coordinator = None
-        if self.swarm_engine and hasattr(self.swarm_engine, 'mode_selector'):
+        if self.swarm_engine and hasattr(self.swarm_engine, "mode_selector"):
             mode_selector = self.swarm_engine.mode_selector
-            if hasattr(mode_selector, 'memory_coordinator') and mode_selector.memory_coordinator:
+            if hasattr(mode_selector, "memory_coordinator") and mode_selector.memory_coordinator:
                 coordinator = mode_selector.memory_coordinator
 
         if not coordinator:
@@ -1054,32 +1048,26 @@ class OrchestratorV7:
             results["success"] = True
             results["patterns_found"] = patterns
             results["message"] = f"Consolidated {patterns} patterns from episodic to procedural memory"
-            self.logger.info("[MEMORIA] Memory consolidation completed", {
-                "patterns": patterns
-            })
+            self.logger.info("[MEMORIA] Memory consolidation completed", {"patterns": patterns})
         except Exception as e:
             results["message"] = f"Consolidation failed: {e}"
             self.logger.warning(f"[MEMORIA] Consolidation error: {e}")
 
         return results
 
-
-    def start_swarm_mode(self, objective: str, force_mode: Optional[CollaborationMode] = None) -> Dict:
+    def start_swarm_mode(self, objective: str, force_mode: CollaborationMode | None = None) -> dict:
         """Start Hybrid Swarm mode. V7.8: Delegates to SwarmBridge."""
         return self.swarm_bridge.start_swarm_mode(objective, force_mode)
 
     def process_with_swarm(
         self,
         task_input: str,
-        force_mode: Optional[CollaborationMode] = None,
+        force_mode: CollaborationMode | None = None,
         skip_negotiation: bool = False,
-        on_negotiation_turn: Optional[Callable] = None,
-        on_execution_round: Optional[Callable] = None
-    ) -> Dict:
+        on_negotiation_turn: Callable | None = None,
+        on_execution_round: Callable | None = None,
+    ) -> dict:
         """Process task with swarm. V7.8: Delegates to SwarmBridge."""
         return self.swarm_bridge.process_with_swarm(
-            task_input, force_mode, skip_negotiation,
-            on_negotiation_turn, on_execution_round
+            task_input, force_mode, skip_negotiation, on_negotiation_turn, on_execution_round
         )
-
-

@@ -32,7 +32,7 @@ import logging
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -50,6 +50,7 @@ MAX_TRACES = 10_000
 # Helpers
 # =============================================================================
 
+
 def compute_fingerprint(
     content: str,
     sender: str = "",
@@ -64,9 +65,11 @@ def compute_fingerprint(
 # Types
 # =============================================================================
 
+
 @dataclass
 class MessageFingerprint:
     """A recorded message fingerprint for deduplication."""
+
     fingerprint: str
     sender: str = ""
     message_type: str = ""
@@ -74,7 +77,7 @@ class MessageFingerprint:
     last_seen: float = field(default_factory=time.monotonic)
     count: int = 1
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "fingerprint": self.fingerprint,
             "sender": self.sender,
@@ -88,12 +91,13 @@ class MessageFingerprint:
 @dataclass
 class MessageTrace:
     """Traces a message's journey through agents via correlation ID."""
+
     correlation_id: str
-    hops: List[str] = field(default_factory=list)
+    hops: list[str] = field(default_factory=list)
     started_at: float = field(default_factory=time.monotonic)
     ended_at: float = 0.0
     status: str = "active"  # active, completed, expired
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     @property
     def hop_count(self) -> int:
@@ -105,7 +109,7 @@ class MessageTrace:
             return (self.ended_at - self.started_at) * 1000
         return 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "correlation_id": self.correlation_id,
             "hops": list(self.hops),
@@ -121,6 +125,7 @@ class MessageTrace:
 @dataclass
 class DeduplicationStats:
     """Statistics for message deduplication."""
+
     total_checked: int = 0
     total_duplicates: int = 0
     total_unique: int = 0
@@ -133,7 +138,7 @@ class DeduplicationStats:
             return self.total_duplicates / self.total_checked
         return 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_checked": self.total_checked,
             "total_duplicates": self.total_duplicates,
@@ -147,6 +152,7 @@ class DeduplicationStats:
 # =============================================================================
 # Message Deduplicator
 # =============================================================================
+
 
 class MessageDeduplicator:
     """
@@ -168,8 +174,8 @@ class MessageDeduplicator:
         ttl: float = DEFAULT_TTL,
         max_traces: int = MAX_TRACES,
     ):
-        self._fingerprints: Dict[str, MessageFingerprint] = {}
-        self._traces: Dict[str, MessageTrace] = {}
+        self._fingerprints: dict[str, MessageFingerprint] = {}
+        self._traces: dict[str, MessageTrace] = {}
         self._max_fingerprints = max_fingerprints
         self._ttl = ttl
         self._max_traces = max_traces
@@ -239,7 +245,7 @@ class MessageDeduplicator:
         *,
         sender: str = "",
         message_type: str = "",
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """
         Check for duplicate and return the fingerprint string.
 
@@ -280,7 +286,7 @@ class MessageDeduplicator:
             self._evict_fingerprints_if_needed()
             return False, fp
 
-    def get_fingerprint(self, fingerprint: str) -> Optional[MessageFingerprint]:
+    def get_fingerprint(self, fingerprint: str) -> MessageFingerprint | None:
         """Get a fingerprint entry by its hash string."""
         with self._lock:
             return self._fingerprints.get(fingerprint)
@@ -294,10 +300,7 @@ class MessageDeduplicator:
         """
         now = time.monotonic()
         with self._lock:
-            expired = [
-                fp for fp, entry in self._fingerprints.items()
-                if (now - entry.first_seen) > self._ttl
-            ]
+            expired = [fp for fp, entry in self._fingerprints.items() if (now - entry.first_seen) > self._ttl]
             for fp in expired:
                 del self._fingerprints[fp]
         return len(expired)
@@ -323,7 +326,7 @@ class MessageDeduplicator:
         correlation_id: str,
         *,
         initial_hop: str = "",
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> MessageTrace:
         """
         Start a new message trace.
@@ -336,7 +339,7 @@ class MessageDeduplicator:
         Returns:
             The created MessageTrace.
         """
-        hops: List[str] = []
+        hops: list[str] = []
         if initial_hop:
             hops.append(initial_hop)
 
@@ -370,7 +373,7 @@ class MessageDeduplicator:
             trace.hops.append(agent_id)
             return True
 
-    def end_trace(self, correlation_id: str) -> Optional[MessageTrace]:
+    def end_trace(self, correlation_id: str) -> MessageTrace | None:
         """
         End a trace, marking it as completed.
 
@@ -388,7 +391,7 @@ class MessageDeduplicator:
             trace.status = "completed"
             return trace
 
-    def get_trace(self, correlation_id: str) -> Optional[MessageTrace]:
+    def get_trace(self, correlation_id: str) -> MessageTrace | None:
         """Get a trace by its correlation ID."""
         with self._lock:
             return self._traces.get(correlation_id)
@@ -396,9 +399,9 @@ class MessageDeduplicator:
     def list_traces(
         self,
         *,
-        status: Optional[str] = None,
+        status: str | None = None,
         limit: int = 50,
-    ) -> List[MessageTrace]:
+    ) -> list[MessageTrace]:
         """
         List traces, optionally filtered by status.
 
@@ -471,7 +474,7 @@ class MessageDeduplicator:
             self._total_checked = 0
             self._total_duplicates = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         # Call get_stats() BEFORE acquiring the lock to avoid deadlock,
         # since get_stats() itself acquires the lock.
         stats = self.get_stats()
@@ -486,7 +489,7 @@ class MessageDeduplicator:
 # Global Instance
 # =============================================================================
 
-_deduplicator: Optional[MessageDeduplicator] = None
+_deduplicator: MessageDeduplicator | None = None
 _dedup_lock = threading.Lock()
 
 

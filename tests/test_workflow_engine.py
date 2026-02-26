@@ -19,21 +19,19 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.execution_pkg.execution.workflow_engine import (
-    WorkflowEngine,
-    Workflow,
-    WorkflowStep,
-    WorkflowStatus,
-    StepStatus,
     ExecutionResult,
+    StepStatus,
+    Workflow,
+    WorkflowEngine,
+    WorkflowStatus,
+    WorkflowStep,
 )
-
 
 # =============================================================================
 # WorkflowStep Tests
 # =============================================================================
+
 
 class TestWorkflowStep:
     """Test WorkflowStep dataclass."""
@@ -58,6 +56,7 @@ class TestWorkflowStep:
 # =============================================================================
 # Workflow Tests
 # =============================================================================
+
 
 class TestWorkflow:
     """Test Workflow dataclass."""
@@ -116,6 +115,7 @@ class TestWorkflow:
 # Simple Execution Tests
 # =============================================================================
 
+
 class TestSimpleExecution:
     """Test basic workflow execution."""
 
@@ -123,9 +123,12 @@ class TestSimpleExecution:
         engine = WorkflowEngine()
         wf = engine.create_workflow("simple")
         wf.add_step(WorkflowStep(name="greet", handler="greet_handler"))
-        result = engine.execute(wf, handlers={
-            "greet_handler": lambda ctx: "Hello!",
-        })
+        result = engine.execute(
+            wf,
+            handlers={
+                "greet_handler": lambda ctx: "Hello!",
+            },
+        )
         assert result.success is True
         assert result.completed_steps == 1
         assert result.context["greet"] == "Hello!"
@@ -136,9 +139,12 @@ class TestSimpleExecution:
         wf.add_step(WorkflowStep(name="a", handler="h"))
         wf.add_step(WorkflowStep(name="b", handler="h"))
         wf.add_step(WorkflowStep(name="c", handler="h"))
-        result = engine.execute(wf, handlers={
-            "h": lambda ctx: "done",
-        })
+        result = engine.execute(
+            wf,
+            handlers={
+                "h": lambda ctx: "done",
+            },
+        )
         assert result.success is True
         assert result.total_steps == 3
         assert result.completed_steps == 3
@@ -160,6 +166,7 @@ class TestSimpleExecution:
 # Dependency Tests
 # =============================================================================
 
+
 class TestDependencies:
     """Test dependency-based execution order."""
 
@@ -171,13 +178,17 @@ class TestDependencies:
         wf.add_step(WorkflowStep(name="deploy", handler="h", depends_on=["test"]))
 
         order = []
+
         def track(ctx, name=None):
             order.append(name)
             return name
 
-        result = engine.execute(wf, handlers={
-            "h": lambda ctx: order.append("step") or "ok",
-        })
+        result = engine.execute(
+            wf,
+            handlers={
+                "h": lambda ctx: order.append("step") or "ok",
+            },
+        )
         assert result.success is True
         # All 3 should complete
         assert result.completed_steps == 3
@@ -188,10 +199,13 @@ class TestDependencies:
         wf.add_step(WorkflowStep(name="first", handler="h_first"))
         wf.add_step(WorkflowStep(name="second", handler="h_second", depends_on=["first"]))
 
-        result = engine.execute(wf, handlers={
-            "h_first": lambda ctx: {"value": 10},
-            "h_second": lambda ctx: ctx["first"]["value"] * 2,
-        })
+        result = engine.execute(
+            wf,
+            handlers={
+                "h_first": lambda ctx: {"value": 10},
+                "h_second": lambda ctx: ctx["first"]["value"] * 2,
+            },
+        )
         assert result.success is True
         assert result.context["second"] == 20
 
@@ -202,10 +216,13 @@ class TestDependencies:
         wf.add_step(WorkflowStep(name="b", handler="h"))
         wf.add_step(WorkflowStep(name="merge", handler="h_merge", depends_on=["a", "b"]))
 
-        result = engine.execute(wf, handlers={
-            "h": lambda ctx: "done",
-            "h_merge": lambda ctx: f"merged: {ctx.get('a')}, {ctx.get('b')}",
-        })
+        result = engine.execute(
+            wf,
+            handlers={
+                "h": lambda ctx: "done",
+                "h_merge": lambda ctx: f"merged: {ctx.get('a')}, {ctx.get('b')}",
+            },
+        )
         assert result.success is True
         assert "merged" in result.context["merge"]
 
@@ -215,10 +232,14 @@ class TestDependencies:
         wf.add_step(WorkflowStep(name="first", handler="h_fail"))
         wf.add_step(WorkflowStep(name="second", handler="h", depends_on=["first"]))
 
-        result = engine.execute(wf, handlers={
-            "h_fail": lambda ctx: (_ for _ in ()).throw(ValueError("boom")),
-            "h": lambda ctx: "ok",
-        }, stop_on_failure=False)
+        engine.execute(
+            wf,
+            handlers={
+                "h_fail": lambda ctx: (_ for _ in ()).throw(ValueError("boom")),
+                "h": lambda ctx: "ok",
+            },
+            stop_on_failure=False,
+        )
         # second should be skipped because first failed
         step2 = wf.get_step("second")
         assert step2.status == StepStatus.SKIPPED
@@ -227,6 +248,7 @@ class TestDependencies:
 # =============================================================================
 # Conditional Execution Tests
 # =============================================================================
+
 
 class TestConditionalExecution:
     """Test skip_if and run_if conditions."""
@@ -248,7 +270,7 @@ class TestConditionalExecution:
         engine = WorkflowEngine()
         wf = engine.create_workflow("cond")
         wf.add_step(WorkflowStep(name="maybe", handler="h", skip_if="should_skip"))
-        result = engine.execute(
+        engine.execute(
             wf,
             handlers={"h": lambda ctx: "ran"},
             initial_context={"should_skip": False},
@@ -260,7 +282,7 @@ class TestConditionalExecution:
         engine = WorkflowEngine()
         wf = engine.create_workflow("cond")
         wf.add_step(WorkflowStep(name="maybe", handler="h", run_if="is_enabled"))
-        result = engine.execute(
+        engine.execute(
             wf,
             handlers={"h": lambda ctx: "ran"},
             initial_context={"is_enabled": True},
@@ -272,7 +294,7 @@ class TestConditionalExecution:
         engine = WorkflowEngine()
         wf = engine.create_workflow("cond")
         wf.add_step(WorkflowStep(name="maybe", handler="h", run_if="is_enabled"))
-        result = engine.execute(
+        engine.execute(
             wf,
             handlers={"h": lambda ctx: "ran"},
             initial_context={"is_enabled": False},
@@ -284,7 +306,7 @@ class TestConditionalExecution:
         engine = WorkflowEngine()
         wf = engine.create_workflow("cond")
         wf.add_step(WorkflowStep(name="maybe", handler="h", run_if="nonexistent"))
-        result = engine.execute(
+        engine.execute(
             wf,
             handlers={"h": lambda ctx: "ran"},
         )
@@ -296,6 +318,7 @@ class TestConditionalExecution:
 # Error Handling Tests
 # =============================================================================
 
+
 class TestErrorHandling:
     """Test error handling and retries."""
 
@@ -303,9 +326,12 @@ class TestErrorHandling:
         engine = WorkflowEngine()
         wf = engine.create_workflow("fail")
         wf.add_step(WorkflowStep(name="boom", handler="h"))
-        result = engine.execute(wf, handlers={
-            "h": lambda ctx: (_ for _ in ()).throw(RuntimeError("kaboom")),
-        })
+        result = engine.execute(
+            wf,
+            handlers={
+                "h": lambda ctx: (_ for _ in ()).throw(RuntimeError("kaboom")),
+            },
+        )
         assert result.success is False
         assert result.failed_steps == 1
         assert "kaboom" in result.errors[0]
@@ -315,10 +341,14 @@ class TestErrorHandling:
         wf = engine.create_workflow("stop")
         wf.add_step(WorkflowStep(name="a", handler="h_fail"))
         wf.add_step(WorkflowStep(name="b", handler="h_ok"))
-        result = engine.execute(wf, handlers={
-            "h_fail": lambda ctx: (_ for _ in ()).throw(RuntimeError("fail")),
-            "h_ok": lambda ctx: "ok",
-        }, stop_on_failure=True)
+        result = engine.execute(
+            wf,
+            handlers={
+                "h_fail": lambda ctx: (_ for _ in ()).throw(RuntimeError("fail")),
+                "h_ok": lambda ctx: "ok",
+            },
+            stop_on_failure=True,
+        )
         assert result.failed_steps == 1
         # b should remain pending (not executed)
         step_b = wf.get_step("b")
@@ -329,10 +359,14 @@ class TestErrorHandling:
         wf = engine.create_workflow("continue")
         wf.add_step(WorkflowStep(name="a", handler="h_fail"))
         wf.add_step(WorkflowStep(name="b", handler="h_ok"))
-        result = engine.execute(wf, handlers={
-            "h_fail": lambda ctx: (_ for _ in ()).throw(RuntimeError("fail")),
-            "h_ok": lambda ctx: "ok",
-        }, stop_on_failure=False)
+        result = engine.execute(
+            wf,
+            handlers={
+                "h_fail": lambda ctx: (_ for _ in ()).throw(RuntimeError("fail")),
+                "h_ok": lambda ctx: "ok",
+            },
+            stop_on_failure=False,
+        )
         assert result.failed_steps == 1
         assert result.completed_steps == 1
 
@@ -350,6 +384,7 @@ class TestErrorHandling:
         wf.add_step(WorkflowStep(name="flaky", handler="h_flaky", retries=2))
 
         call_count = [0]
+
         def flaky_handler(ctx):
             call_count[0] += 1
             if call_count[0] < 3:
@@ -365,9 +400,12 @@ class TestErrorHandling:
         engine = WorkflowEngine()
         wf = engine.create_workflow("retry_fail")
         wf.add_step(WorkflowStep(name="always_fail", handler="h", retries=1))
-        result = engine.execute(wf, handlers={
-            "h": lambda ctx: (_ for _ in ()).throw(RuntimeError("nope")),
-        })
+        result = engine.execute(
+            wf,
+            handlers={
+                "h": lambda ctx: (_ for _ in ()).throw(RuntimeError("nope")),
+            },
+        )
         assert result.success is False
         step = wf.get_step("always_fail")
         assert step.attempts == 2  # 1 original + 1 retry
@@ -376,6 +414,7 @@ class TestErrorHandling:
 # =============================================================================
 # Template Tests
 # =============================================================================
+
 
 class TestTemplates:
     """Test workflow template registration."""
@@ -410,6 +449,7 @@ class TestTemplates:
 # History Tests
 # =============================================================================
 
+
 class TestHistory:
     """Test execution history."""
 
@@ -443,33 +483,50 @@ class TestHistory:
 # ExecutionResult Tests
 # =============================================================================
 
+
 class TestExecutionResult:
     """Test ExecutionResult dataclass."""
 
     def test_success(self):
         r = ExecutionResult(
-            workflow_id="w1", workflow_name="test",
+            workflow_id="w1",
+            workflow_name="test",
             status=WorkflowStatus.COMPLETED,
-            total_steps=3, completed_steps=3, failed_steps=0, skipped_steps=0,
-            total_duration=1.5, context={},
+            total_steps=3,
+            completed_steps=3,
+            failed_steps=0,
+            skipped_steps=0,
+            total_duration=1.5,
+            context={},
         )
         assert r.success is True
 
     def test_failure(self):
         r = ExecutionResult(
-            workflow_id="w1", workflow_name="test",
+            workflow_id="w1",
+            workflow_name="test",
             status=WorkflowStatus.FAILED,
-            total_steps=3, completed_steps=1, failed_steps=1, skipped_steps=1,
-            total_duration=0.5, context={}, errors=["step failed"],
+            total_steps=3,
+            completed_steps=1,
+            failed_steps=1,
+            skipped_steps=1,
+            total_duration=0.5,
+            context={},
+            errors=["step failed"],
         )
         assert r.success is False
 
     def test_to_dict(self):
         r = ExecutionResult(
-            workflow_id="w1", workflow_name="test",
+            workflow_id="w1",
+            workflow_name="test",
             status=WorkflowStatus.COMPLETED,
-            total_steps=2, completed_steps=2, failed_steps=0, skipped_steps=0,
-            total_duration=1.0, context={},
+            total_steps=2,
+            completed_steps=2,
+            failed_steps=0,
+            skipped_steps=0,
+            total_duration=1.0,
+            context={},
         )
         d = r.to_dict()
         assert d["success"] is True
@@ -479,6 +536,7 @@ class TestExecutionResult:
 # =============================================================================
 # State Export Tests
 # =============================================================================
+
 
 class TestStateExport:
     """Test state export."""
@@ -501,29 +559,30 @@ class TestStateExport:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_execution_package(self):
         from core.execution_pkg.execution import (
-            WorkflowEngine,
-            Workflow,
-            WorkflowStep,
-            WorkflowStatus,
-            StepStatus,
             ExecutionResult,
+            StepStatus,
+            Workflow,
+            WorkflowEngine,
+            WorkflowStatus,
+            WorkflowStep,
         )
-        assert all([WorkflowEngine, Workflow, WorkflowStep,
-                     WorkflowStatus, StepStatus, ExecutionResult])
+
+        assert all([WorkflowEngine, Workflow, WorkflowStep, WorkflowStatus, StepStatus, ExecutionResult])
 
     def test_from_module(self):
         from core.execution_pkg.execution.workflow_engine import (
-            WorkflowEngine,
-            Workflow,
-            WorkflowStep,
-            WorkflowStatus,
-            StepStatus,
             ExecutionResult,
+            StepStatus,
+            Workflow,
+            WorkflowEngine,
+            WorkflowStatus,
+            WorkflowStep,
         )
-        assert all([WorkflowEngine, Workflow, WorkflowStep,
-                     WorkflowStatus, StepStatus, ExecutionResult])
+
+        assert all([WorkflowEngine, Workflow, WorkflowStep, WorkflowStatus, StepStatus, ExecutionResult])

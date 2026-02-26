@@ -12,9 +12,10 @@ Extraction Priority:
 
 import json
 import re
-from typing import Optional, Dict, Any, Tuple
+from typing import Any
 
-def extract_json_safe(text: str, verbose: bool = False) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+
+def extract_json_safe(text: str, verbose: bool = False) -> tuple[dict[str, Any] | None, str | None]:
     """
     Extract JSON from text using multiple strategies.
 
@@ -50,11 +51,11 @@ def extract_json_safe(text: str, verbose: bool = False) -> Tuple[Optional[Dict[s
 
     # Strategy 3: Brute force brace detection
     # Find first '{' and last '}'
-    start_idx = text.find('{')
-    end_idx = text.rfind('}')
+    start_idx = text.find("{")
+    end_idx = text.rfind("}")
 
     if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
-        candidate = text[start_idx:end_idx+1]
+        candidate = text[start_idx : end_idx + 1]
         try:
             return json.loads(candidate), None
         except json.JSONDecodeError:
@@ -63,7 +64,8 @@ def extract_json_safe(text: str, verbose: bool = False) -> Tuple[Optional[Dict[s
 
     return None, "No valid JSON found with any strategy"
 
-def extract_code_block(text: str, language: str = None) -> Optional[str]:
+
+def extract_code_block(text: str, language: str = None) -> str | None:
     """Extract content of a specific markdown code block."""
     if language:
         pattern = f"```{language}(.*?)```"
@@ -76,7 +78,7 @@ def extract_code_block(text: str, language: str = None) -> Optional[str]:
     return None
 
 
-def extract_json(text: str, required_keys: set = None) -> Optional[Dict[str, Any]]:
+def extract_json(text: str, required_keys: set = None) -> dict[str, Any] | None:
     """
     Convenience wrapper for extract_json_safe.
 
@@ -93,9 +95,8 @@ def extract_json(text: str, required_keys: set = None) -> Optional[Dict[str, Any
         return None
 
     # Validate required keys if specified
-    if required_keys and isinstance(result, dict):
-        if not required_keys.issubset(result.keys()):
-            return None
+    if required_keys and isinstance(result, dict) and not required_keys.issubset(result.keys()):
+        return None
 
     return result
 

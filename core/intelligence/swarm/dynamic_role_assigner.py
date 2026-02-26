@@ -21,7 +21,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +30,10 @@ logger = logging.getLogger(__name__)
 # Data types
 # ---------------------------------------------------------------------------
 
+
 class RoleType(str, Enum):
     """Roles available for assignment."""
+
     LEAD = "lead"
     SUPPORT = "support"
     EQUAL = "equal"
@@ -41,18 +43,19 @@ class RoleType(str, Enum):
 @dataclass
 class CapabilityProposal:
     """Agent's capability claim for a specific role."""
+
     agent_id: str
     role: RoleType
-    domain_strengths: List[str] = field(default_factory=list)
+    domain_strengths: list[str] = field(default_factory=list)
     confidence: float = 0.5
-    evidence: List[str] = field(default_factory=list)
+    evidence: list[str] = field(default_factory=list)
     timestamp: float = 0.0
 
     def __post_init__(self) -> None:
         if self.timestamp == 0.0:
             self.timestamp = time.time()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "agent_id": self.agent_id,
             "role": self.role.value,
@@ -65,15 +68,16 @@ class CapabilityProposal:
 @dataclass
 class RoleScore:
     """Scored assignment for an agent-role pair."""
+
     agent_id: str
     role: RoleType
-    domain_match: float = 0.0       # 0-1: how well domains match task
+    domain_match: float = 0.0  # 0-1: how well domains match task
     historical_success: float = 0.5  # 0-1: past success in this role
     confidence_alignment: float = 0.5  # 0-1: calibration quality
-    peer_score: float = 0.5         # 0-1: other agent's assessment
+    peer_score: float = 0.5  # 0-1: other agent's assessment
     total_score: float = 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "agent_id": self.agent_id,
             "role": self.role.value,
@@ -86,13 +90,14 @@ class RoleScore:
 @dataclass
 class RoleAssignmentResult:
     """Final role assignment from Meta-Debate."""
-    assignments: Dict[str, RoleType]  # agent_id → role
-    scores: List[RoleScore] = field(default_factory=list)
-    method: str = "meta_debate"       # meta_debate | fallback | history
+
+    assignments: dict[str, RoleType]  # agent_id → role
+    scores: list[RoleScore] = field(default_factory=list)
+    method: str = "meta_debate"  # meta_debate | fallback | history
     confidence: float = 0.5
     reasoning: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "assignments": {k: v.value for k, v in self.assignments.items()},
             "method": self.method,
@@ -104,14 +109,15 @@ class RoleAssignmentResult:
 @dataclass
 class AssignerStats:
     """Aggregate statistics."""
+
     total_assignments: int = 0
     meta_debate_count: int = 0
     fallback_count: int = 0
-    lead_counts: Dict[str, int] = field(default_factory=dict)
+    lead_counts: dict[str, int] = field(default_factory=dict)
     avg_confidence: float = 0.0
-    outcomes: List[Tuple[str, bool]] = field(default_factory=list)  # (agent_as_lead, success)
+    outcomes: list[tuple[str, bool]] = field(default_factory=list)  # (agent_as_lead, success)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_assignments": self.total_assignments,
             "meta_debate_count": self.meta_debate_count,
@@ -126,22 +132,32 @@ class AssignerStats:
 # ---------------------------------------------------------------------------
 
 # Scoring weights
-W_DOMAIN: float = 0.35     # Domain match weight
-W_HISTORY: float = 0.30    # Historical success weight
+W_DOMAIN: float = 0.35  # Domain match weight
+W_HISTORY: float = 0.30  # Historical success weight
 W_CONFIDENCE: float = 0.15  # Confidence calibration weight
-W_PEER: float = 0.20       # Peer assessment weight
+W_PEER: float = 0.20  # Peer assessment weight
 
 # Domain capability profiles (default priors based on model strengths)
-DEFAULT_DOMAIN_PROFILES: Dict[str, Dict[str, float]] = {
+DEFAULT_DOMAIN_PROFILES: dict[str, dict[str, float]] = {
     "claude": {
-        "coding": 0.85, "analysis": 0.80, "security": 0.85,
-        "architecture": 0.80, "writing": 0.90, "research": 0.75,
-        "debugging": 0.80, "review": 0.85,
+        "coding": 0.85,
+        "analysis": 0.80,
+        "security": 0.85,
+        "architecture": 0.80,
+        "writing": 0.90,
+        "research": 0.75,
+        "debugging": 0.80,
+        "review": 0.85,
     },
     "gemini": {
-        "coding": 0.80, "analysis": 0.85, "security": 0.75,
-        "architecture": 0.75, "writing": 0.80, "research": 0.90,
-        "debugging": 0.75, "review": 0.80,
+        "coding": 0.80,
+        "analysis": 0.85,
+        "security": 0.75,
+        "architecture": 0.75,
+        "writing": 0.80,
+        "research": 0.90,
+        "debugging": 0.75,
+        "review": 0.80,
     },
 }
 
@@ -155,6 +171,7 @@ HISTORY_WINDOW: int = 20
 # ---------------------------------------------------------------------------
 # Core: DynamicRoleAssigner
 # ---------------------------------------------------------------------------
+
 
 class DynamicRoleAssigner:
     """
@@ -174,22 +191,22 @@ class DynamicRoleAssigner:
 
     def __init__(
         self,
-        domain_profiles: Optional[Dict[str, Dict[str, float]]] = None,
+        domain_profiles: dict[str, dict[str, float]] | None = None,
         history_window: int = HISTORY_WINDOW,
     ) -> None:
         self._profiles = domain_profiles or dict(DEFAULT_DOMAIN_PROFILES)
         self._history_window = history_window
         self._lock = threading.Lock()
         self._stats = AssignerStats()
-        self._outcome_history: List[Tuple[str, str, bool]] = []  # (task_type, lead_agent, success)
+        self._outcome_history: list[tuple[str, str, bool]] = []  # (task_type, lead_agent, success)
 
     # -- public API --
 
     def assign_roles(
         self,
-        task_domains: List[str],
-        agent_ids: List[str],
-        proposals: Optional[Dict[str, CapabilityProposal]] = None,
+        task_domains: list[str],
+        agent_ids: list[str],
+        proposals: dict[str, CapabilityProposal] | None = None,
         task_complexity: str = "moderate",
     ) -> RoleAssignmentResult:
         """
@@ -215,7 +232,7 @@ class DynamicRoleAssigner:
             )
 
         # Score each agent for lead and support roles
-        all_scores: List[RoleScore] = []
+        all_scores: list[RoleScore] = []
 
         for agent_id in agent_ids:
             proposal = proposals.get(agent_id) if proposals else None
@@ -243,14 +260,10 @@ class DynamicRoleAssigner:
 
             for agent_id, role in result.assignments.items():
                 if role == RoleType.LEAD:
-                    self._stats.lead_counts[agent_id] = (
-                        self._stats.lead_counts.get(agent_id, 0) + 1
-                    )
+                    self._stats.lead_counts[agent_id] = self._stats.lead_counts.get(agent_id, 0) + 1
 
             n = self._stats.total_assignments
-            self._stats.avg_confidence = (
-                (self._stats.avg_confidence * (n - 1) + result.confidence) / n
-            )
+            self._stats.avg_confidence = (self._stats.avg_confidence * (n - 1) + result.confidence) / n
 
         logger.debug(
             "DynamicRoleAssigner: %s (confidence=%.2f, method=%s)",
@@ -271,7 +284,7 @@ class DynamicRoleAssigner:
         with self._lock:
             self._outcome_history.append((task_type, lead_agent, success))
             if len(self._outcome_history) > self._history_window * 2:
-                self._outcome_history = self._outcome_history[-self._history_window:]
+                self._outcome_history = self._outcome_history[-self._history_window :]
             self._stats.outcomes.append((lead_agent, success))
 
     def get_stats(self) -> AssignerStats:
@@ -297,9 +310,9 @@ class DynamicRoleAssigner:
         self,
         agent_id: str,
         role: RoleType,
-        task_domains: List[str],
-        proposal: Optional[CapabilityProposal],
-        other_agents: List[str],
+        task_domains: list[str],
+        proposal: CapabilityProposal | None,
+        other_agents: list[str],
     ) -> RoleScore:
         """Score an agent for a specific role."""
         score = RoleScore(agent_id=agent_id, role=role)
@@ -307,10 +320,7 @@ class DynamicRoleAssigner:
         # 1. Domain match
         profile = self._profiles.get(agent_id, {})
         if task_domains and profile:
-            domain_scores = [
-                profile.get(d.lower(), 0.5)
-                for d in task_domains
-            ]
+            domain_scores = [profile.get(d.lower(), 0.5) for d in task_domains]
             score.domain_match = sum(domain_scores) / len(domain_scores)
         else:
             score.domain_match = 0.5
@@ -318,8 +328,7 @@ class DynamicRoleAssigner:
         # Boost from proposal evidence
         if proposal and proposal.domain_strengths:
             proposal_match = sum(
-                1 for d in proposal.domain_strengths
-                if d.lower() in {td.lower() for td in task_domains}
+                1 for d in proposal.domain_strengths if d.lower() in {td.lower() for td in task_domains}
             ) / max(len(task_domains), 1)
             score.domain_match = (score.domain_match + proposal_match) / 2
 
@@ -351,9 +360,8 @@ class DynamicRoleAssigner:
         with self._lock:
             relevant = [
                 success
-                for _, lead, success in self._outcome_history[-self._history_window:]
-                if (role == RoleType.LEAD and lead == agent_id)
-                or (role == RoleType.SUPPORT and lead != agent_id)
+                for _, lead, success in self._outcome_history[-self._history_window :]
+                if (role == RoleType.LEAD and lead == agent_id) or (role == RoleType.SUPPORT and lead != agent_id)
             ]
 
         if not relevant:
@@ -365,8 +373,8 @@ class DynamicRoleAssigner:
         self,
         agent_id: str,
         role: RoleType,
-        other_agents: List[str],
-        task_domains: List[str],
+        other_agents: list[str],
+        task_domains: list[str],
     ) -> float:
         """
         Compute complementarity: if this agent takes `role`, how well
@@ -376,15 +384,12 @@ class DynamicRoleAssigner:
             return 0.5
 
         # If agent is lead, check if others are good supports (and vice versa)
-        complement_role = RoleType.SUPPORT if role == RoleType.LEAD else RoleType.LEAD
 
         total_complement = 0.0
         for other in other_agents:
             other_profile = self._profiles.get(other, {})
             if task_domains and other_profile:
-                avg_fit = sum(
-                    other_profile.get(d.lower(), 0.5) for d in task_domains
-                ) / len(task_domains)
+                avg_fit = sum(other_profile.get(d.lower(), 0.5) for d in task_domains) / len(task_domains)
             else:
                 avg_fit = 0.5
             total_complement += avg_fit
@@ -393,13 +398,13 @@ class DynamicRoleAssigner:
 
     def _select_assignment(
         self,
-        agent_ids: List[str],
-        scores: List[RoleScore],
+        agent_ids: list[str],
+        scores: list[RoleScore],
         task_complexity: str,
     ) -> RoleAssignmentResult:
         """Select the optimal assignment from scored options."""
         # Find best lead score per agent
-        lead_scores: Dict[str, float] = {}
+        lead_scores: dict[str, float] = {}
         for s in scores:
             if s.role == RoleType.LEAD:
                 lead_scores[s.agent_id] = s.total_score
@@ -435,7 +440,7 @@ class DynamicRoleAssigner:
             )
 
         # Assign lead to best scorer, support to others
-        assignments: Dict[str, RoleType] = {}
+        assignments: dict[str, RoleType] = {}
         for agent_id in agent_ids:
             if agent_id == best_lead:
                 assignments[agent_id] = RoleType.LEAD
@@ -458,7 +463,7 @@ class DynamicRoleAssigner:
 # Singleton
 # ---------------------------------------------------------------------------
 
-_instance: Optional[DynamicRoleAssigner] = None
+_instance: DynamicRoleAssigner | None = None
 _instance_lock = threading.Lock()
 
 

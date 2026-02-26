@@ -8,22 +8,21 @@ Used when Rust extension is not compiled.
 import hashlib
 import hmac
 from collections import defaultdict
-from typing import Dict, List, Tuple
 
 
 def compute_rrf(
-    dense_ids: List[str],
-    sparse_ids: List[str],
+    dense_ids: list[str],
+    sparse_ids: list[str],
     k: int = 60,
     dense_weight: float = 0.6,
     sparse_weight: float = 0.4,
-) -> List[Tuple[str, float]]:
+) -> list[tuple[str, float]]:
     """
     Compute Reciprocal Rank Fusion scores for two ranked lists.
 
     Pure Python implementation matching Rust nexus_core::compute_rrf.
     """
-    scores: Dict[str, float] = defaultdict(float)
+    scores: dict[str, float] = defaultdict(float)
 
     for rank, chunk_id in enumerate(dense_ids, start=1):
         scores[chunk_id] += dense_weight / (k + rank)
@@ -51,10 +50,10 @@ def verify_kernel_hash(kernel_content: bytes, expected_hash: str) -> bool:
 
 
 def batch_tfidf_score(
-    query_terms: List[str],
-    chunk_terms_list: List[List[str]],
-    idf: Dict[str, float],
-) -> List[float]:
+    query_terms: list[str],
+    chunk_terms_list: list[list[str]],
+    idf: dict[str, float],
+) -> list[float]:
     """
     Batch compute TF-IDF weighted Jaccard similarity scores.
 
@@ -68,9 +67,7 @@ def batch_tfidf_score(
 
     scores = []
     for chunk_terms in chunk_terms_list:
-        intersection_weight = sum(
-            idf.get(t, 0.0) for t in chunk_terms if t in query_set
-        )
+        intersection_weight = sum(idf.get(t, 0.0) for t in chunk_terms if t in query_set)
         scores.append(intersection_weight / query_weight)
 
     return scores

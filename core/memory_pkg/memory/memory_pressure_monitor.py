@@ -40,7 +40,7 @@ import logging
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -51,7 +51,7 @@ _logger = logging.getLogger(__name__)
 
 MAX_SNAPSHOTS = 10000
 MAX_EVICTIONS = 50000
-PRESSURE_THRESHOLD_WARNING = 0.7   # 70% utilization
+PRESSURE_THRESHOLD_WARNING = 0.7  # 70% utilization
 PRESSURE_THRESHOLD_CRITICAL = 0.9  # 90% utilization
 
 
@@ -59,9 +59,11 @@ PRESSURE_THRESHOLD_CRITICAL = 0.9  # 90% utilization
 # Types
 # =============================================================================
 
+
 @dataclass
 class MemorySnapshot:
     """A point-in-time capture of memory utilization."""
+
     snapshot_id: str = ""
     cache_items: int = 0
     cache_bytes: int = 0
@@ -78,7 +80,7 @@ class MemorySnapshot:
             return self.total_bytes / self.max_bytes
         return 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "snapshot_id": self.snapshot_id,
             "cache_items": self.cache_items,
@@ -95,13 +97,14 @@ class MemorySnapshot:
 @dataclass
 class EvictionEvent:
     """Record of an eviction from a cache or store."""
+
     reason: str = ""
     items_evicted: int = 0
     bytes_freed: int = 0
     source: str = ""
     timestamp: float = field(default_factory=time.monotonic)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "reason": self.reason,
             "items_evicted": self.items_evicted,
@@ -114,11 +117,12 @@ class EvictionEvent:
 @dataclass
 class PressureLevel:
     """Current memory pressure classification with recommendation."""
+
     level: str
     utilization: float
     recommendation: str
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "level": self.level,
             "utilization": round(self.utilization, 4),
@@ -129,6 +133,7 @@ class PressureLevel:
 @dataclass
 class PressureStats:
     """Aggregate statistics for the pressure monitor."""
+
     total_snapshots: int
     total_evictions: int
     total_bytes_freed: int
@@ -136,7 +141,7 @@ class PressureStats:
     avg_utilization: float
     peak_utilization: float
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_snapshots": self.total_snapshots,
             "total_evictions": self.total_evictions,
@@ -150,6 +155,7 @@ class PressureStats:
 # =============================================================================
 # Memory Pressure Monitor
 # =============================================================================
+
 
 class MemoryPressureMonitor:
     """
@@ -170,8 +176,8 @@ class MemoryPressureMonitor:
         max_snapshots: int = MAX_SNAPSHOTS,
         max_evictions: int = MAX_EVICTIONS,
     ):
-        self._snapshots: List[MemorySnapshot] = []
-        self._evictions: List[EvictionEvent] = []
+        self._snapshots: list[MemorySnapshot] = []
+        self._evictions: list[EvictionEvent] = []
         self._counter: int = 0
         self._max_snapshots = max_snapshots
         self._max_evictions = max_evictions
@@ -274,7 +280,7 @@ class MemoryPressureMonitor:
             recommendation="No action needed",
         )
 
-    def get_trend(self, *, window: int = 10) -> Dict[str, Any]:
+    def get_trend(self, *, window: int = 10) -> dict[str, Any]:
         """Analyse utilization trend over the last *window* snapshots.
 
         Returns a dict with:
@@ -329,12 +335,12 @@ class MemoryPressureMonitor:
             "growth_rate_bytes_per_sec": round(growth_rate, 2),
         }
 
-    def get_eviction_summary(self) -> Dict[str, int]:
+    def get_eviction_summary(self) -> dict[str, int]:
         """Count evictions grouped by reason."""
         with self._lock:
             evictions = list(self._evictions)
 
-        summary: Dict[str, int] = {}
+        summary: dict[str, int] = {}
         for ev in evictions:
             key = ev.reason or "unknown"
             summary[key] = summary.get(key, 0) + 1
@@ -344,19 +350,19 @@ class MemoryPressureMonitor:
     # Queries
     # =========================================================================
 
-    def get_recent_snapshots(self, *, limit: int = 20) -> List[MemorySnapshot]:
+    def get_recent_snapshots(self, *, limit: int = 20) -> list[MemorySnapshot]:
         """Return the most recent snapshots (newest first)."""
         with self._lock:
             tail = self._snapshots[-limit:]
         return list(reversed(tail))
 
-    def get_recent_evictions(self, *, limit: int = 50) -> List[EvictionEvent]:
+    def get_recent_evictions(self, *, limit: int = 50) -> list[EvictionEvent]:
         """Return the most recent eviction events (newest first)."""
         with self._lock:
             tail = self._evictions[-limit:]
         return list(reversed(tail))
 
-    def get_evictions_by_source(self, source: str, *, limit: int = 50) -> List[EvictionEvent]:
+    def get_evictions_by_source(self, source: str, *, limit: int = 50) -> list[EvictionEvent]:
         """Return recent evictions filtered by source (newest first)."""
         with self._lock:
             matched = [e for e in self._evictions if e.source == source]
@@ -414,7 +420,7 @@ class MemoryPressureMonitor:
             self._evictions.clear()
             self._counter = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialise monitor state as a dict.
 
         Computes stats before acquiring the lock to avoid re-entrant
@@ -433,7 +439,7 @@ class MemoryPressureMonitor:
 # Global Instance
 # =============================================================================
 
-_monitor: Optional[MemoryPressureMonitor] = None
+_monitor: MemoryPressureMonitor | None = None
 _monitor_lock = threading.Lock()
 
 

@@ -20,10 +20,9 @@ from __future__ import annotations
 
 import logging
 import threading
-import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -32,39 +31,43 @@ logger = logging.getLogger(__name__)
 # Data types
 # ---------------------------------------------------------------------------
 
+
 class CoordinationType(str, Enum):
     """Recommended coordination strategy."""
-    CENTRALIZED = "centralized"      # One lead, others support
+
+    CENTRALIZED = "centralized"  # One lead, others support
     DECENTRALIZED = "decentralized"  # Agents coordinate autonomously
-    SINGLE_AGENT = "single_agent"    # Use only one agent (SPECIALIST)
-    PARALLEL = "parallel"            # Independent parallel work
-    SEQUENTIAL = "sequential"        # Ordered pipeline
+    SINGLE_AGENT = "single_agent"  # Use only one agent (SPECIALIST)
+    PARALLEL = "parallel"  # Independent parallel work
+    SEQUENTIAL = "sequential"  # Ordered pipeline
 
 
 class TaskCharacteristic(str, Enum):
     """Task characteristics that influence scaling behavior."""
-    PARALLELIZABLE = "parallelizable"    # Can be split into independent parts
+
+    PARALLELIZABLE = "parallelizable"  # Can be split into independent parts
     SEQUENTIAL_REASONING = "sequential"  # Requires chain-of-thought
-    WEB_NAVIGATION = "web_navigation"    # Web browsing/research
+    WEB_NAVIGATION = "web_navigation"  # Web browsing/research
     CODE_GENERATION = "code_generation"  # Writing code
-    CODE_REVIEW = "code_review"          # Reviewing/debugging code
-    CREATIVE = "creative"                # Creative/brainstorming tasks
-    ANALYTICAL = "analytical"            # Data analysis/reasoning
-    MIXED = "mixed"                      # Combination of characteristics
+    CODE_REVIEW = "code_review"  # Reviewing/debugging code
+    CREATIVE = "creative"  # Creative/brainstorming tasks
+    ANALYTICAL = "analytical"  # Data analysis/reasoning
+    MIXED = "mixed"  # Combination of characteristics
 
 
 @dataclass
 class ScalingRecommendation:
     """Recommendation from scaling heuristics."""
+
     coordination: CoordinationType
     max_agents: int = 2
     confidence: float = 0.5
     reasoning: str = ""
     characteristic: TaskCharacteristic = TaskCharacteristic.MIXED
-    expected_benefit_pct: float = 0.0    # Expected improvement from multi-agent
-    degradation_risk: float = 0.0        # Risk of multi-agent degradation
+    expected_benefit_pct: float = 0.0  # Expected improvement from multi-agent
+    degradation_risk: float = 0.0  # Risk of multi-agent degradation
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "coordination": self.coordination.value,
             "max_agents": self.max_agents,
@@ -79,13 +82,14 @@ class ScalingRecommendation:
 @dataclass
 class ScalingStats:
     """Aggregate statistics."""
+
     total_recommendations: int = 0
-    coordination_counts: Dict[str, int] = field(default_factory=dict)
+    coordination_counts: dict[str, int] = field(default_factory=dict)
     single_agent_overrides: int = 0
     avg_confidence: float = 0.0
-    outcomes: List[Tuple[str, bool]] = field(default_factory=list)
+    outcomes: list[tuple[str, bool]] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_recommendations": self.total_recommendations,
             "coordination_counts": dict(self.coordination_counts),
@@ -99,19 +103,19 @@ class ScalingStats:
 # ---------------------------------------------------------------------------
 
 # Task characteristic → expected multi-agent benefit (positive = benefit)
-SCALING_BENEFIT: Dict[TaskCharacteristic, float] = {
-    TaskCharacteristic.PARALLELIZABLE: 0.808,       # +80.8% for parallelizable
-    TaskCharacteristic.WEB_NAVIGATION: 0.092,        # +9.2% for web nav
-    TaskCharacteristic.CODE_REVIEW: 0.45,            # +45% for reviews (adversarial)
-    TaskCharacteristic.CREATIVE: 0.35,               # +35% for brainstorming
-    TaskCharacteristic.ANALYTICAL: 0.20,             # +20% for analysis
-    TaskCharacteristic.CODE_GENERATION: 0.10,        # +10% marginal for code gen
+SCALING_BENEFIT: dict[TaskCharacteristic, float] = {
+    TaskCharacteristic.PARALLELIZABLE: 0.808,  # +80.8% for parallelizable
+    TaskCharacteristic.WEB_NAVIGATION: 0.092,  # +9.2% for web nav
+    TaskCharacteristic.CODE_REVIEW: 0.45,  # +45% for reviews (adversarial)
+    TaskCharacteristic.CREATIVE: 0.35,  # +35% for brainstorming
+    TaskCharacteristic.ANALYTICAL: 0.20,  # +20% for analysis
+    TaskCharacteristic.CODE_GENERATION: 0.10,  # +10% marginal for code gen
     TaskCharacteristic.SEQUENTIAL_REASONING: -0.50,  # -50% DEGRADATION for sequential
-    TaskCharacteristic.MIXED: 0.15,                  # +15% average for mixed
+    TaskCharacteristic.MIXED: 0.15,  # +15% average for mixed
 }
 
 # Degradation risk per characteristic
-DEGRADATION_RISK: Dict[TaskCharacteristic, float] = {
+DEGRADATION_RISK: dict[TaskCharacteristic, float] = {
     TaskCharacteristic.PARALLELIZABLE: 0.05,
     TaskCharacteristic.WEB_NAVIGATION: 0.15,
     TaskCharacteristic.CODE_REVIEW: 0.10,
@@ -123,7 +127,7 @@ DEGRADATION_RISK: Dict[TaskCharacteristic, float] = {
 }
 
 # Recommended coordination per characteristic
-COORDINATION_MAP: Dict[TaskCharacteristic, CoordinationType] = {
+COORDINATION_MAP: dict[TaskCharacteristic, CoordinationType] = {
     TaskCharacteristic.PARALLELIZABLE: CoordinationType.PARALLEL,
     TaskCharacteristic.WEB_NAVIGATION: CoordinationType.DECENTRALIZED,
     TaskCharacteristic.CODE_REVIEW: CoordinationType.CENTRALIZED,
@@ -135,40 +139,95 @@ COORDINATION_MAP: Dict[TaskCharacteristic, CoordinationType] = {
 }
 
 # Keywords for task characteristic detection
-CHARACTERISTIC_KEYWORDS: Dict[TaskCharacteristic, List[str]] = {
+CHARACTERISTIC_KEYWORDS: dict[TaskCharacteristic, list[str]] = {
     TaskCharacteristic.PARALLELIZABLE: [
-        "parallel", "independent", "simultaneously", "each", "all",
-        "separate", "multiple", "batch", "concurrent",
+        "parallel",
+        "independent",
+        "simultaneously",
+        "each",
+        "all",
+        "separate",
+        "multiple",
+        "batch",
+        "concurrent",
     ],
     TaskCharacteristic.SEQUENTIAL_REASONING: [
-        "step by step", "chain", "sequence", "derive", "prove",
-        "calculate", "solve", "reason", "deduce", "logic",
-        "mathematical", "theorem", "infer",
+        "step by step",
+        "chain",
+        "sequence",
+        "derive",
+        "prove",
+        "calculate",
+        "solve",
+        "reason",
+        "deduce",
+        "logic",
+        "mathematical",
+        "theorem",
+        "infer",
     ],
     TaskCharacteristic.WEB_NAVIGATION: [
-        "search", "browse", "find online", "web", "url", "website",
-        "internet", "google", "look up", "fetch",
+        "search",
+        "browse",
+        "find online",
+        "web",
+        "url",
+        "website",
+        "internet",
+        "google",
+        "look up",
+        "fetch",
     ],
     TaskCharacteristic.CODE_GENERATION: [
-        "write", "implement", "create", "build", "code", "develop",
-        "function", "class", "module", "feature",
+        "write",
+        "implement",
+        "create",
+        "build",
+        "code",
+        "develop",
+        "function",
+        "class",
+        "module",
+        "feature",
     ],
     TaskCharacteristic.CODE_REVIEW: [
-        "review", "check", "audit", "security", "bug", "fix",
-        "debug", "test", "validate", "verify",
+        "review",
+        "check",
+        "audit",
+        "security",
+        "bug",
+        "fix",
+        "debug",
+        "test",
+        "validate",
+        "verify",
     ],
     TaskCharacteristic.CREATIVE: [
-        "brainstorm", "design", "ideate", "creative", "innovate",
-        "propose", "suggest", "imagine", "architect",
+        "brainstorm",
+        "design",
+        "ideate",
+        "creative",
+        "innovate",
+        "propose",
+        "suggest",
+        "imagine",
+        "architect",
     ],
     TaskCharacteristic.ANALYTICAL: [
-        "analyze", "compare", "evaluate", "assess", "measure",
-        "benchmark", "profile", "optimize", "performance",
+        "analyze",
+        "compare",
+        "evaluate",
+        "assess",
+        "measure",
+        "benchmark",
+        "profile",
+        "optimize",
+        "performance",
     ],
 }
 
 # Complexity → agent count recommendation
-COMPLEXITY_AGENT_MAP: Dict[str, int] = {
+COMPLEXITY_AGENT_MAP: dict[str, int] = {
     "trivial": 1,
     "simple": 1,
     "moderate": 2,
@@ -183,6 +242,7 @@ SINGLE_AGENT_THRESHOLD: float = 0.05
 # ---------------------------------------------------------------------------
 # Core: ScalingHeuristicEvaluator
 # ---------------------------------------------------------------------------
+
 
 class ScalingHeuristicEvaluator:
     """
@@ -204,7 +264,7 @@ class ScalingHeuristicEvaluator:
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._stats = ScalingStats()
-        self._outcome_history: List[Tuple[TaskCharacteristic, CoordinationType, bool]] = []
+        self._outcome_history: list[tuple[TaskCharacteristic, CoordinationType, bool]] = []
 
     # -- public API --
 
@@ -212,7 +272,7 @@ class ScalingHeuristicEvaluator:
         self,
         task_text: str,
         complexity: str = "moderate",
-        domains: Optional[List[str]] = None,
+        domains: list[str] | None = None,
     ) -> ScalingRecommendation:
         """
         Evaluate a task and recommend scaling strategy.
@@ -235,12 +295,11 @@ class ScalingHeuristicEvaluator:
         max_agents = COMPLEXITY_AGENT_MAP.get(complexity.lower(), 2)
 
         # 3. Adjust based on complexity
-        if complexity.lower() in ("trivial", "simple"):
+        if complexity.lower() in ("trivial", "simple") and benefit < 0.30:
             # Simple tasks don't benefit from multi-agent
-            if benefit < 0.30:
-                base_coordination = CoordinationType.SINGLE_AGENT
-                max_agents = 1
-                benefit = 0.0
+            base_coordination = CoordinationType.SINGLE_AGENT
+            max_agents = 1
+            benefit = 0.0
 
         # 4. Override to single agent if benefit too low
         if benefit < SINGLE_AGENT_THRESHOLD:
@@ -254,9 +313,7 @@ class ScalingHeuristicEvaluator:
         # 6. Compute confidence
         confidence = self._compute_confidence(characteristic, complexity, adjusted_benefit, risk)
 
-        reasoning = self._build_reasoning(
-            characteristic, base_coordination, adjusted_benefit, risk, complexity
-        )
+        reasoning = self._build_reasoning(characteristic, base_coordination, adjusted_benefit, risk, complexity)
 
         result = ScalingRecommendation(
             coordination=base_coordination,
@@ -272,20 +329,19 @@ class ScalingHeuristicEvaluator:
         with self._lock:
             self._stats.total_recommendations += 1
             key = base_coordination.value
-            self._stats.coordination_counts[key] = (
-                self._stats.coordination_counts.get(key, 0) + 1
-            )
+            self._stats.coordination_counts[key] = self._stats.coordination_counts.get(key, 0) + 1
             if base_coordination == CoordinationType.SINGLE_AGENT:
                 self._stats.single_agent_overrides += 1
             n = self._stats.total_recommendations
-            self._stats.avg_confidence = (
-                (self._stats.avg_confidence * (n - 1) + confidence) / n
-            )
+            self._stats.avg_confidence = (self._stats.avg_confidence * (n - 1) + confidence) / n
 
         logger.debug(
             "ScalingHeuristic: %s → %s (benefit=%.1f%%, risk=%.1f%%, confidence=%.2f)",
-            characteristic.value, base_coordination.value,
-            adjusted_benefit * 100, risk * 100, confidence,
+            characteristic.value,
+            base_coordination.value,
+            adjusted_benefit * 100,
+            risk * 100,
+            confidence,
         )
 
         return result
@@ -351,11 +407,11 @@ class ScalingHeuristicEvaluator:
     def _classify_characteristic(
         self,
         task_text: str,
-        domains: Optional[List[str]],
+        domains: list[str] | None,
     ) -> TaskCharacteristic:
         """Classify task by its dominant characteristic."""
         text_lower = task_text.lower()
-        scores: Dict[TaskCharacteristic, float] = {}
+        scores: dict[TaskCharacteristic, float] = {}
 
         for char, keywords in CHARACTERISTIC_KEYWORDS.items():
             score = 0.0
@@ -390,11 +446,7 @@ class ScalingHeuristicEvaluator:
     ) -> float:
         """Get adjustment based on historical outcomes."""
         with self._lock:
-            relevant = [
-                success
-                for char, coord, success in self._outcome_history
-                if char == characteristic
-            ]
+            relevant = [success for char, coord, success in self._outcome_history if char == characteristic]
 
         if len(relevant) < 3:
             return 0.0
@@ -446,13 +498,9 @@ class ScalingHeuristicEvaluator:
         ]
 
         if benefit > 0:
-            parts.append(
-                f"Expected multi-agent benefit: +{benefit * 100:.1f}%."
-            )
+            parts.append(f"Expected multi-agent benefit: +{benefit * 100:.1f}%.")
         else:
-            parts.append(
-                f"Multi-agent expected to DEGRADE performance by {abs(benefit) * 100:.1f}%."
-            )
+            parts.append(f"Multi-agent expected to DEGRADE performance by {abs(benefit) * 100:.1f}%.")
 
         if risk > 0.3:
             parts.append(f"High degradation risk ({risk * 100:.0f}%).")
@@ -469,7 +517,7 @@ class ScalingHeuristicEvaluator:
 # Singleton
 # ---------------------------------------------------------------------------
 
-_instance: Optional[ScalingHeuristicEvaluator] = None
+_instance: ScalingHeuristicEvaluator | None = None
 _instance_lock = threading.Lock()
 
 

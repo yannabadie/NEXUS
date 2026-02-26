@@ -9,18 +9,16 @@ Date: 2026-02-17
 Epic: 1.2 (Structured Outputs)
 """
 
-import pytest
-from pydantic import BaseModel, Field
-from typing import List
+from pydantic import BaseModel
 
 # Validates that the imports work
 from core.drivers.google_genai_sdk_driver import GoogleGenAISDKDriver
-from core.drivers.protocol import DriverResponse
 from core.intelligence.hive_mind.schemas import AnalysisOutput
 
 
 class SimpleTestModel(BaseModel):
     """Simple model for API validation."""
+
     result: str
     score: float
 
@@ -31,12 +29,12 @@ class TestGoogleGenAIStructuredOutputsAPI:
     def test_driver_has_invoke_structured_method(self):
         """Driver should expose invoke_structured method."""
         assert hasattr(GoogleGenAISDKDriver, "invoke_structured")
-        assert callable(getattr(GoogleGenAISDKDriver, "invoke_structured"))
+        assert callable(GoogleGenAISDKDriver.invoke_structured)
 
     def test_driver_has_invoke_json_schema_method(self):
         """Driver should expose invoke_json_schema method."""
         assert hasattr(GoogleGenAISDKDriver, "invoke_json_schema")
-        assert callable(getattr(GoogleGenAISDKDriver, "invoke_json_schema"))
+        assert callable(GoogleGenAISDKDriver.invoke_json_schema)
 
     def test_invoke_structured_signature(self):
         """invoke_structured should have correct signature."""
@@ -70,18 +68,18 @@ class TestGoogleGenAIStructuredOutputsAPI:
 
     def test_schemas_are_importable(self):
         """HiveMind schemas should be importable for use with structured outputs."""
-        from core.intelligence.hive_mind.schemas import (
-            AnalysisOutput,
-            DebateOutput,
-            ArchitectureOutput,
-            ExecutionOutput,
-            DiagnosisOutput,
-            ConsolidationOutput,
-            get_schema_for_phase,
-        )
-
         # All schemas should be Pydantic BaseModels
         from pydantic import BaseModel
+
+        from core.intelligence.hive_mind.schemas import (
+            AnalysisOutput,
+            ArchitectureOutput,
+            ConsolidationOutput,
+            DebateOutput,
+            DiagnosisOutput,
+            ExecutionOutput,
+            get_schema_for_phase,
+        )
 
         assert issubclass(AnalysisOutput, BaseModel)
         assert issubclass(DebateOutput, BaseModel)

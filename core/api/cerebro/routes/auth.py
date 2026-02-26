@@ -19,10 +19,8 @@ Date: 2025-12-16
 
 import logging
 import os
-from typing import Any
-from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Header, status
+from fastapi import APIRouter, Header, HTTPException, status
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -49,6 +47,7 @@ if FALLBACK_ADMIN_PASSWORD == "nexus":
 # Database Authentication (V12.2 IRONCLAD)
 # =============================================================================
 
+
 def authenticate_user_db(username: str, password: str) -> tuple[bool, dict | None]:
     """
     Authenticate user against database.
@@ -63,21 +62,19 @@ def authenticate_user_db(username: str, password: str) -> tuple[bool, dict | Non
     """
     try:
         from sqlmodel import select
-        from core.infrastructure.db import get_session, User
+
+        from core.infrastructure.db import User, get_session
         from core.security_pkg.security.password import verify_password
 
         with get_session() as session:
-            statement = select(User).where(
-                User.username == username,
-                User.is_active == True
-            )
+            statement = select(User).where(User.username == username, User.is_active)
             user = session.exec(statement).first()
 
             if user and verify_password(password, user.hashed_password):
                 return True, {
                     "user_id": str(user.id),
                     "tenant_id": str(user.tenant_id),
-                    "role": user.role.value if hasattr(user.role, 'value') else str(user.role),
+                    "role": user.role.value if hasattr(user.role, "value") else str(user.role),
                 }
 
         return False, None
@@ -150,14 +147,17 @@ def authenticate_user(username: str, password: str) -> tuple[bool, dict]:
 # Request/Response Models
 # =============================================================================
 
+
 class LoginRequest(BaseModel):
     """Login request body."""
+
     username: str
     password: str
 
 
 class TokenResponse(BaseModel):
     """Login response with JWT token."""
+
     access_token: str
     token_type: str = "bearer"
     expires_in: int  # seconds
@@ -167,6 +167,7 @@ class TokenResponse(BaseModel):
 
 class UserInfo(BaseModel):
     """Current user info response."""
+
     user_id: str
     tenant_id: str
     workspace_id: str
@@ -176,6 +177,7 @@ class UserInfo(BaseModel):
 # =============================================================================
 # Endpoints
 # =============================================================================
+
 
 @router.post("/login", response_model=TokenResponse)
 async def login(body: LoginRequest) -> TokenResponse:
@@ -226,19 +228,17 @@ async def login(body: LoginRequest) -> TokenResponse:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Authentication service unavailable (python-jose not installed)",
-        )
+        ) from e
     except Exception as e:
         logger.error(f"[KEYMAKER] Token generation failed: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Token generation failed",
-        )
+        ) from e
 
 
 @router.get("/me", response_model=UserInfo)
-async def get_current_user(
-    authorization: str | None = Header(None, description="Bearer token")
-) -> UserInfo:
+async def get_current_user(authorization: str | None = Header(None, description="Bearer token")) -> UserInfo:
     """
     Verify token and return current user info.
 
@@ -299,7 +299,7 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token verification failed",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from e
 
 
 @router.post("/logout")
@@ -320,9 +320,7 @@ async def logout() -> dict:
 
 
 @router.post("/refresh", response_model=TokenResponse)
-async def refresh_token(
-    authorization: str | None = Header(None, description="Bearer token")
-) -> TokenResponse:
+async def refresh_token(authorization: str | None = Header(None, description="Bearer token")) -> TokenResponse:
     """
     V12.1 RETINA: Refresh JWT token before expiration.
 
@@ -364,7 +362,7 @@ async def refresh_token(
     token = authorization[7:]
 
     try:
-        from ..middleware import decode_jwt, create_jwt_token
+        from ..middleware import create_jwt_token, decode_jwt
 
         claims = decode_jwt(token)
 
@@ -401,4 +399,4 @@ async def refresh_token(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token refresh failed",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from e

@@ -11,10 +11,9 @@ import logging
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Set
 
 from .ast_parser import parse_python_file
-from .code_graph import CodeGraph, Symbol, Dependency
+from .code_graph import CodeGraph, Dependency, Symbol
 
 logger = logging.getLogger(__name__)
 
@@ -22,12 +21,13 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ScanStats:
     """Statistics from codebase scan."""
+
     files_scanned: int = 0
     files_failed: int = 0
     symbols_found: int = 0
     dependencies_found: int = 0
     scan_time_ms: float = 0.0
-    failed_files: List[str] = None
+    failed_files: list[str] = None
 
     def __post_init__(self):
         if self.failed_files is None:
@@ -36,7 +36,7 @@ class ScanStats:
 
 def scan_codebase(
     root_path: str | Path,
-    exclude_patterns: Set[str] | None = None,
+    exclude_patterns: set[str] | None = None,
     include_tests: bool = False,
 ) -> tuple[CodeGraph, ScanStats]:
     """
@@ -112,9 +112,9 @@ def scan_codebase(
 
 def _find_python_files(
     root_path: Path,
-    exclude_patterns: Set[str],
+    exclude_patterns: set[str],
     include_tests: bool,
-) -> List[Path]:
+) -> list[Path]:
     """
     Find all Python files in directory tree.
 
@@ -142,7 +142,7 @@ def _find_python_files(
     return python_files
 
 
-def scan_file(file_path: str | Path) -> tuple[List[Symbol], List[Dependency]]:
+def scan_file(file_path: str | Path) -> tuple[list[Symbol], list[Dependency]]:
     """
     Scan a single file and return symbols and dependencies.
 
@@ -153,7 +153,7 @@ def scan_file(file_path: str | Path) -> tuple[List[Symbol], List[Dependency]]:
 
 def incremental_update(
     graph: CodeGraph,
-    changed_files: List[str | Path],
+    changed_files: list[str | Path],
 ) -> ScanStats:
     """
     Incrementally update graph with changed files.

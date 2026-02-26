@@ -19,11 +19,9 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.workflow.dependency_graph import (
-    MAX_NODES,
     MAX_EDGES,
+    MAX_NODES,
     ExecutionOrder,
     GraphStats,
     WorkflowDependencyGraph,
@@ -33,10 +31,10 @@ from core.workflow.dependency_graph import (
     reset_dependency_graph,
 )
 
-
 # =============================================================================
 # WorkflowNode Tests
 # =============================================================================
+
 
 class TestWorkflowNode:
     """Test WorkflowNode dataclass."""
@@ -57,6 +55,7 @@ class TestWorkflowNode:
 # WorkflowEdge Tests
 # =============================================================================
 
+
 class TestWorkflowEdge:
     """Test WorkflowEdge dataclass."""
 
@@ -71,13 +70,16 @@ class TestWorkflowEdge:
 # ExecutionOrder Tests
 # =============================================================================
 
+
 class TestExecutionOrder:
     """Test ExecutionOrder dataclass."""
 
     def test_to_dict(self):
         o = ExecutionOrder(
-            steps=["a", "b"], parallel_groups=[["a"], ["b"]],
-            critical_path=["a", "b"], critical_path_duration=10.0,
+            steps=["a", "b"],
+            parallel_groups=[["a"], ["b"]],
+            critical_path=["a", "b"],
+            critical_path_duration=10.0,
         )
         d = o.to_dict()
         assert d["steps"] == ["a", "b"]
@@ -87,6 +89,7 @@ class TestExecutionOrder:
 # =============================================================================
 # GraphStats Tests
 # =============================================================================
+
 
 class TestGraphStats:
     """Test GraphStats dataclass."""
@@ -101,6 +104,7 @@ class TestGraphStats:
 # =============================================================================
 # Node Operations Tests
 # =============================================================================
+
 
 class TestNodeOperations:
     """Test node add, remove, has, get, list."""
@@ -173,6 +177,7 @@ class TestNodeOperations:
 # Edge Operations Tests
 # =============================================================================
 
+
 class TestEdgeOperations:
     """Test edge operations."""
 
@@ -233,6 +238,7 @@ class TestEdgeOperations:
 # Graph Analysis Tests
 # =============================================================================
 
+
 class TestGraphAnalysis:
     """Test graph analysis methods."""
 
@@ -272,7 +278,8 @@ class TestGraphAnalysis:
 # Execution Order Tests
 # =============================================================================
 
-class TestExecutionOrder:
+
+class TestExecutionOrderGraph:
     """Test topological sort and execution order."""
 
     def test_linear_chain(self):
@@ -336,6 +343,7 @@ class TestExecutionOrder:
 # Critical Path Tests
 # =============================================================================
 
+
 class TestCriticalPath:
     """Test critical path computation."""
 
@@ -369,6 +377,7 @@ class TestCriticalPath:
 # =============================================================================
 # Depth Tests
 # =============================================================================
+
 
 class TestDepth:
     """Test depth calculation."""
@@ -405,6 +414,7 @@ class TestDepth:
 # Statistics Tests
 # =============================================================================
 
+
 class TestStatistics:
     """Test graph statistics."""
 
@@ -436,6 +446,7 @@ class TestStatistics:
 # =============================================================================
 # State Tests
 # =============================================================================
+
 
 class TestState:
     """Test state management."""
@@ -472,6 +483,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global dependency graph."""
 
@@ -498,22 +510,33 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_workflow_package(self):
         from core.workflow import (
-            WorkflowDependencyGraph, WorkflowNode, WorkflowEdge,
-            ExecutionOrder, GraphStats,
-            get_dependency_graph, reset_dependency_graph,
+            ExecutionOrder,
+            GraphStats,
+            WorkflowDependencyGraph,
+            WorkflowEdge,
+            WorkflowNode,
+            get_dependency_graph,
+            reset_dependency_graph,
         )
-        assert all([
-            WorkflowDependencyGraph, WorkflowNode, WorkflowEdge,
-            ExecutionOrder, GraphStats,
-            get_dependency_graph, reset_dependency_graph,
-        ])
+
+        assert all(
+            [
+                WorkflowDependencyGraph,
+                WorkflowNode,
+                WorkflowEdge,
+                ExecutionOrder,
+                GraphStats,
+                get_dependency_graph,
+                reset_dependency_graph,
+            ]
+        )
 
     def test_constants(self):
-        from core.workflow.dependency_graph import MAX_NODES, MAX_EDGES
         assert MAX_NODES == 10000
         assert MAX_EDGES == 50000

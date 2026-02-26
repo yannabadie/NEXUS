@@ -25,65 +25,41 @@ Usage:
     result = await hive.process_task("Complex task here")
 """
 
-from .types import (
-    # Enums
-    HiveMindState,
-    UserBreakpoint,
-    RetentionDecision,
-
-    # Analysis
-    IndependentAnalysis,
-    AnalysisComparison,
-    Disagreement,
-
-    # Debate
-    DebateArgument,
-    DebateResult,
-
-    # Architecture
-    AgentSpec,
-    AgentArchitecture,
-
-    # Execution
-    ExecutionIssue,
-    MonitoredStepResult,
-
-    # Diagnosis
-    FailureDiagnosis,
-
-    # Retry
-    RetryDecision,
-
-    # Consolidation
-    KnowledgeConsolidation,
-    AgentRetention,
-
-    # Breakpoints
-    BreakpointOption,
-    BreakpointRequest,
-    BreakpointResponse,
-)
-
-from .agent_registry import AgentRegistry
-from .cost_estimator import CostEstimator
-from .context_manager import HiveMindContextManager
-from .strategy_blacklist import StrategyBlacklist
-from .user_interaction import UserInteractionHandler
 from .adaptive_debate import AdaptiveDebateConfig, DebateParams, TaskComplexity
-from .orchestrator import TrueHiveMind, HiveMindResult
-from .swarm_bridge import (
-    SwarmBridge,
-    SwarmDelegationResult,
-    HivePhase,
-    suggest_mode_for_subtask,
-    create_bridge_for_phase,
+from .agent_registry import AgentRegistry
+
+# V12.4: Consensus Tracker
+from .consensus_tracker import (
+    ConsensusReport,
+    ConsensusTracker,
+    TopicConsensus,
+    get_consensus_tracker,
+    reset_consensus_tracker,
 )
-from .saga_manager import (
-    SagaManager,
-    PhaseCheckpoint,
-    SagaContext,
-    PHASE_ORDER,
-    PHASE_GUARDS,
+from .context_manager import HiveMindContextManager
+from .cost_estimator import CostEstimator
+
+# V12.4 COGNITIVE BOOST: Multi-Agent Reflexion (arxiv:2512.20845)
+from .multi_agent_reflexion import (
+    AgentReflection,
+    MultiAgentReflexion,
+    ReflexionMode,
+    ReflexionStats,
+    ReflexionSynthesis,
+    get_multi_agent_reflexion,
+    reset_multi_agent_reflexion,
+)
+from .orchestrator import HiveMindResult, TrueHiveMind
+
+# V12.4 COGNITIVE BOOST: Phase Audit Logger
+from .phase_audit_logger import (
+    AuditPattern,
+    AuditStats,
+    DecisionAudit,
+    PhaseAuditLogger,
+    PhaseAuditReport,
+    get_phase_audit_logger,
+    reset_phase_audit_logger,
 )
 
 # V12.4: Phase Coordinator
@@ -95,44 +71,58 @@ from .phase_coordinator import (
     get_phase_coordinator,
     reset_phase_coordinator,
 )
-
-# V12.4: Consensus Tracker
-from .consensus_tracker import (
-    ConsensusTracker,
-    TopicConsensus,
-    ConsensusReport,
-    get_consensus_tracker,
-    reset_consensus_tracker,
+from .saga_manager import (
+    PHASE_GUARDS,
+    PHASE_ORDER,
+    PhaseCheckpoint,
+    SagaContext,
+    SagaManager,
 )
-
-# V12.4 COGNITIVE BOOST: Phase Audit Logger
-from .phase_audit_logger import (
-    PhaseAuditLogger,
-    DecisionAudit,
-    PhaseAuditReport,
-    AuditPattern,
-    AuditStats,
-    get_phase_audit_logger,
-    reset_phase_audit_logger,
+from .strategy_blacklist import StrategyBlacklist
+from .swarm_bridge import (
+    HivePhase,
+    SwarmBridge,
+    SwarmDelegationResult,
+    create_bridge_for_phase,
+    suggest_mode_for_subtask,
 )
-
-# V12.4 COGNITIVE BOOST: Multi-Agent Reflexion (arxiv:2512.20845)
-from .multi_agent_reflexion import (
-    MultiAgentReflexion,
-    AgentReflection,
-    ReflexionSynthesis,
-    ReflexionMode,
-    ReflexionStats,
-    get_multi_agent_reflexion,
-    reset_multi_agent_reflexion,
+from .types import (
+    AgentArchitecture,
+    AgentRetention,
+    # Architecture
+    AgentSpec,
+    AnalysisComparison,
+    # Breakpoints
+    BreakpointOption,
+    BreakpointRequest,
+    BreakpointResponse,
+    # Debate
+    DebateArgument,
+    DebateResult,
+    Disagreement,
+    # Execution
+    ExecutionIssue,
+    # Diagnosis
+    FailureDiagnosis,
+    # Enums
+    HiveMindState,
+    # Analysis
+    IndependentAnalysis,
+    # Consolidation
+    KnowledgeConsolidation,
+    MonitoredStepResult,
+    RetentionDecision,
+    # Retry
+    RetryDecision,
+    UserBreakpoint,
 )
+from .user_interaction import UserInteractionHandler
 
 __all__ = [
     # Enums
     "HiveMindState",
     "UserBreakpoint",
     "RetentionDecision",
-
     # Types
     "IndependentAnalysis",
     "AnalysisComparison",
@@ -150,7 +140,6 @@ __all__ = [
     "BreakpointOption",
     "BreakpointRequest",
     "BreakpointResponse",
-
     # Components
     "AgentRegistry",
     "CostEstimator",
@@ -160,25 +149,21 @@ __all__ = [
     "AdaptiveDebateConfig",
     "DebateParams",
     "TaskComplexity",
-
     # Orchestrator
     "TrueHiveMind",
     "HiveMindResult",
-
     # V8.3 SwarmBridge - Hive Mind → Swarm Delegation
     "SwarmBridge",
     "SwarmDelegationResult",
     "HivePhase",
     "suggest_mode_for_subtask",
     "create_bridge_for_phase",
-
     # V8.4.4 SagaManager - Checkpoint/Recovery
     "SagaManager",
     "PhaseCheckpoint",
     "SagaContext",
     "PHASE_ORDER",
     "PHASE_GUARDS",
-
     # V12.4: Phase Coordinator
     "PhaseCoordinator",
     "PhaseState",
@@ -186,14 +171,12 @@ __all__ = [
     "TransitionResult",
     "get_phase_coordinator",
     "reset_phase_coordinator",
-
     # V12.4: Consensus Tracker
     "ConsensusTracker",
     "TopicConsensus",
     "ConsensusReport",
     "get_consensus_tracker",
     "reset_consensus_tracker",
-
     # V12.4 COGNITIVE BOOST: Phase Audit Logger
     "PhaseAuditLogger",
     "DecisionAudit",
@@ -202,7 +185,6 @@ __all__ = [
     "AuditStats",
     "get_phase_audit_logger",
     "reset_phase_audit_logger",
-
     # V12.4 COGNITIVE BOOST: Multi-Agent Reflexion (arxiv:2512.20845)
     "MultiAgentReflexion",
     "AgentReflection",

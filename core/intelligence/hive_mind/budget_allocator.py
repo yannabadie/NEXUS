@@ -21,8 +21,7 @@ Usage:
 
 import logging
 import threading
-from dataclasses import dataclass, field
-from typing import Dict, Optional, List
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
@@ -30,12 +29,12 @@ logger = logging.getLogger(__name__)
 # Base budget proportions per phase (sum = 1.0)
 # These represent the fraction of total budget allocated to each phase
 PHASE_PROPORTIONS = {
-    "analysis": 0.12,       # Phase 1: Two LLM calls (gemini + claude analysis)
-    "debate": 0.15,         # Phase 2: Variable turns of debate
-    "architecture": 0.08,   # Phase 3: Architecture generation
-    "execution": 0.35,      # Phase 4: Most expensive - actual tool execution
-    "diagnosis": 0.12,      # Phase 5: Failure analysis (if needed)
-    "retry": 0.08,          # Phase 6: Retry logic (lightweight)
+    "analysis": 0.12,  # Phase 1: Two LLM calls (gemini + claude analysis)
+    "debate": 0.15,  # Phase 2: Variable turns of debate
+    "architecture": 0.08,  # Phase 3: Architecture generation
+    "execution": 0.35,  # Phase 4: Most expensive - actual tool execution
+    "diagnosis": 0.12,  # Phase 5: Failure analysis (if needed)
+    "retry": 0.08,  # Phase 6: Retry logic (lightweight)
     "consolidation": 0.10,  # Phase 7: Knowledge archival
 }
 
@@ -55,10 +54,11 @@ PHASE_ORDER = ["analysis", "debate", "architecture", "execution", "diagnosis", "
 @dataclass
 class PhaseBudget:
     """Budget tracking for a single phase."""
+
     phase: str
-    allocated: int          # Initial allocation
-    adjusted: int           # After redistributions
-    actual: Optional[int] = None  # Actual tokens used
+    allocated: int  # Initial allocation
+    adjusted: int  # After redistributions
+    actual: int | None = None  # Actual tokens used
     completed: bool = False
 
     @property
@@ -79,12 +79,13 @@ class PhaseBudget:
 @dataclass
 class BudgetReport:
     """Summary report of budget allocation and usage."""
+
     total_budget: int
     total_allocated: int
     total_spent: int
     total_savings: int
     redistributed: int
-    phases: Dict[str, PhaseBudget]
+    phases: dict[str, PhaseBudget]
     utilization: float  # Overall utilization
 
 
@@ -101,15 +102,15 @@ class PhaseBudgetAllocator:
     def __init__(
         self,
         total_budget: int = 50000,
-        proportions: Optional[Dict[str, float]] = None,
+        proportions: dict[str, float] | None = None,
     ):
         self._total_budget = total_budget
         self._proportions = proportions or PHASE_PROPORTIONS.copy()
-        self._budgets: Dict[str, PhaseBudget] = {}
+        self._budgets: dict[str, PhaseBudget] = {}
         self._redistributed: int = 0
         self._complexity: str = "MODERATE"
 
-    def allocate(self, complexity: str = "MODERATE") -> Dict[str, int]:
+    def allocate(self, complexity: str = "MODERATE") -> dict[str, int]:
         """
         Allocate budget across phases based on complexity.
 
@@ -166,24 +167,17 @@ class PhaseBudgetAllocator:
         savings = budget.savings
         if savings <= 0:
             if savings < 0:
-                logger.warning(
-                    f"PhaseBudgetAllocator: Phase '{phase}' over-budget by {-savings} tokens"
-                )
+                logger.warning(f"PhaseBudgetAllocator: Phase '{phase}' over-budget by {-savings} tokens")
             return 0
 
         # Redistribute savings to remaining incomplete phases
-        remaining = [
-            p for p in PHASE_ORDER
-            if p in self._budgets and not self._budgets[p].completed
-        ]
+        remaining = [p for p in PHASE_ORDER if p in self._budgets and not self._budgets[p].completed]
 
         if not remaining:
             return 0
 
         # Proportional redistribution based on original proportions
-        total_remaining_proportion = sum(
-            self._proportions.get(p, 0) for p in remaining
-        )
+        total_remaining_proportion = sum(self._proportions.get(p, 0) for p in remaining)
         if total_remaining_proportion == 0:
             return 0
 
@@ -224,9 +218,7 @@ class PhaseBudgetAllocator:
         """Generate a full budget report."""
         total_allocated = sum(b.allocated for b in self._budgets.values())
         total_spent = sum(b.actual or 0 for b in self._budgets.values())
-        total_savings = sum(
-            b.savings for b in self._budgets.values() if b.completed
-        )
+        total_savings = sum(b.savings for b in self._budgets.values() if b.completed)
 
         return BudgetReport(
             total_budget=self._total_budget,
@@ -238,7 +230,7 @@ class PhaseBudgetAllocator:
             utilization=total_spent / total_allocated if total_allocated > 0 else 0.0,
         )
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> dict:
         """Get allocator statistics."""
         report = self.get_report()
         return {
@@ -261,7 +253,7 @@ class PhaseBudgetAllocator:
 
 
 # Module-level singleton
-_allocator: Optional[PhaseBudgetAllocator] = None
+_allocator: PhaseBudgetAllocator | None = None
 _allocator_lock = threading.Lock()
 
 

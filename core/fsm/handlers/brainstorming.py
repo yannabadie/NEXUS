@@ -6,10 +6,10 @@ Handles BRAINSTORMING state - agent debate and tool consensus.
 
 import sys
 import time
-from typing import Dict
-from core.fsm.states import OrchestratorState
+
 from core.execution_pkg.routing.model_router import TaskType
 from core.fsm.handlers.base import BaseHandler
+from core.fsm.states import OrchestratorState
 
 # V13.0 CEREBRO LIVE: Agent exchange telemetry
 from core.observability.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
@@ -18,7 +18,7 @@ from core.observability.events.telemetry_bridge import emit_agent_exchange, emit
 class BrainstormingHandler(BaseHandler):
     """Handler for BRAINSTORMING state."""
 
-    def handle_brainstorming(self) -> Dict:
+    def handle_brainstorming(self) -> dict:
         """
         Handle BRAINSTORMING state - agent debate and tool consensus.
 
@@ -31,10 +31,7 @@ class BrainstormingHandler(BaseHandler):
 
         if health["status"] == "ZOMBIE":
             # Plan zombie → Trigger panic
-            self._orch.panic_system.trigger_panic_explicit(
-                reason="ZOMBIE_PLAN",
-                details=health["message"]
-            )
+            self._orch.panic_system.trigger_panic_explicit(reason="ZOMBIE_PLAN", details=health["message"])
             return self._orch._trigger_panic(f"Plan zombie: {health['message']}")
 
         elif health["status"] in ["STAGNANT", "WARNING"]:
@@ -60,16 +57,12 @@ class BrainstormingHandler(BaseHandler):
             # Calculate quality score
             is_stagnant = self._orch.stagnation_detector.is_stagnant()
             quality = self._calculate_quality_score(message, True, is_stagnant)
-            self._record_invocation(
-                self._orch.active_agent, "brainstorm", True, invoke_duration, quality
-            )
+            self._record_invocation(self._orch.active_agent, "brainstorm", True, invoke_duration, quality)
 
         except Exception as e:
             invoke_duration = time.time() - invoke_start
             self._orch.json_parse_failures += 1
-            self._record_invocation(
-                self._orch.active_agent, "brainstorm", False, invoke_duration, 0.0
-            )
+            self._record_invocation(self._orch.active_agent, "brainstorm", False, invoke_duration, 0.0)
 
             if self._orch.panic_system.record_error("AGENT_INVOCATION", str(e)):
                 return self._orch._trigger_panic(f"Too many consecutive errors: {e}")
@@ -109,7 +102,10 @@ class BrainstormingHandler(BaseHandler):
             self._orch.active_agent = self._registry.get_alternate(self._orch.active_agent) or self._orch.active_agent
             self._orch.stagnation_detector.reset()
             if self._orch.config.ui_verbose:
-                print(f"[BRAINSTORM] {self._registry.get_display_name(previous_agent)} → {self._registry.get_display_name(self._orch.active_agent)}", file=sys.stderr)
+                print(
+                    f"[BRAINSTORM] {self._registry.get_display_name(previous_agent)} → {self._registry.get_display_name(self._orch.active_agent)}",
+                    file=sys.stderr,
+                )
 
             return self._make_result("BRAINSTORMING", content, sender, False)
 

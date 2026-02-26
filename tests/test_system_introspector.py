@@ -16,8 +16,6 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.meta.system_introspector import (
     CATEGORIES,
     MAX_COMPONENTS,
@@ -29,10 +27,10 @@ from core.meta.system_introspector import (
     reset_introspector,
 )
 
-
 # =============================================================================
 # ComponentInfo Tests
 # =============================================================================
+
 
 class TestComponentInfo:
     """Test ComponentInfo dataclass."""
@@ -44,8 +42,10 @@ class TestComponentInfo:
 
     def test_to_dict(self):
         c = ComponentInfo(
-            component_id="swarm", category="orchestration",
-            version="12.4", capabilities=["parallel", "sequential"],
+            component_id="swarm",
+            category="orchestration",
+            version="12.4",
+            capabilities=["parallel", "sequential"],
         )
         d = c.to_dict()
         assert d["version"] == "12.4"
@@ -56,13 +56,17 @@ class TestComponentInfo:
 # SystemSnapshot Tests
 # =============================================================================
 
+
 class TestSystemSnapshot:
     """Test SystemSnapshot dataclass."""
 
     def test_to_dict(self):
         s = SystemSnapshot(
-            total_components=5, active_components=3, degraded_components=1,
-            inactive_components=1, categories={"orchestration": 2, "memory": 3},
+            total_components=5,
+            active_components=3,
+            degraded_components=1,
+            inactive_components=1,
+            categories={"orchestration": 2, "memory": 3},
             total_capabilities=10,
         )
         d = s.to_dict()
@@ -73,6 +77,7 @@ class TestSystemSnapshot:
 # =============================================================================
 # IntrospectorStats Tests
 # =============================================================================
+
 
 class TestIntrospectorStats:
     """Test IntrospectorStats dataclass."""
@@ -86,6 +91,7 @@ class TestIntrospectorStats:
 # =============================================================================
 # Registration Tests
 # =============================================================================
+
 
 class TestRegistration:
     """Test component registration."""
@@ -133,6 +139,7 @@ class TestRegistration:
 # Status Tests
 # =============================================================================
 
+
 class TestStatus:
     """Test status updates."""
 
@@ -151,6 +158,7 @@ class TestStatus:
 # =============================================================================
 # Capability Tests
 # =============================================================================
+
 
 class TestCapabilities:
     """Test capability management."""
@@ -193,6 +201,7 @@ class TestCapabilities:
 # =============================================================================
 # Query Tests
 # =============================================================================
+
 
 class TestQueries:
     """Test query methods."""
@@ -266,6 +275,7 @@ class TestQueries:
 # Snapshot Tests
 # =============================================================================
 
+
 class TestSnapshot:
     """Test system snapshot generation."""
 
@@ -297,6 +307,7 @@ class TestSnapshot:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test introspector statistics."""
@@ -332,6 +343,7 @@ class TestStatistics:
 # State Tests
 # =============================================================================
 
+
 class TestState:
     """Test state management."""
 
@@ -362,6 +374,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global introspector."""
 
@@ -388,20 +401,31 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_meta_package(self):
         from core.meta import (
-            SystemIntrospector, ComponentInfo, SystemSnapshot,
-            IntrospectorStats, get_introspector, reset_introspector,
+            ComponentInfo,
+            IntrospectorStats,
+            SystemIntrospector,
+            SystemSnapshot,
+            get_introspector,
+            reset_introspector,
         )
-        assert all([
-            SystemIntrospector, ComponentInfo, SystemSnapshot,
-            IntrospectorStats, get_introspector, reset_introspector,
-        ])
+
+        assert all(
+            [
+                SystemIntrospector,
+                ComponentInfo,
+                SystemSnapshot,
+                IntrospectorStats,
+                get_introspector,
+                reset_introspector,
+            ]
+        )
 
     def test_constants(self):
-        from core.meta.system_introspector import MAX_COMPONENTS, CATEGORIES
         assert MAX_COMPONENTS == 1000
         assert "orchestration" in CATEGORIES

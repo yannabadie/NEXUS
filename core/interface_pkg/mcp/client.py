@@ -5,54 +5,57 @@ Zero-dependency implementation using JSON-RPC 2.0 over stdio.
 Manages server subprocess lifecycle and message exchange.
 """
 
-import subprocess
+import contextlib
 import json
-import threading
-import queue
-import time
 import logging
-from pathlib import Path
-from typing import Dict, Any, List, Optional, Tuple
+import queue
+import subprocess
+import threading
+import time
 from dataclasses import dataclass, field
-
-# V9 Cyborg Hardening: Logger for MCP debugging
-_logger = logging.getLogger(__name__)
+from pathlib import Path
+from typing import Any
 
 from .protocol import (
+    MCPCapabilities,
+    MCPError,
+    MCPInitializeResult,
+    MCPMethod,
     MCPRequest,
     MCPResponse,
     MCPTool,
     MCPToolResult,
-    MCPError,
-    MCPCapabilities,
-    MCPInitializeResult,
-    MCPMethod,
-    MCPErrorCode,
-    MCPContent,
 )
 
+# V9 Cyborg Hardening: Logger for MCP debugging
+_logger = logging.getLogger(__name__)
 
 # =============================================================================
 # Exceptions
 # =============================================================================
 
+
 class MCPClientError(Exception):
     """Base exception for MCP client errors."""
+
     pass
 
 
 class MCPConnectionError(MCPClientError):
     """Failed to connect to MCP server."""
+
     pass
 
 
 class MCPTimeoutError(MCPClientError):
     """Request timed out."""
+
     pass
 
 
 class MCPServerError(MCPClientError):
     """Server returned an error."""
+
     def __init__(self, error: MCPError):
         self.error = error
         super().__init__(f"MCP Error {error.code}: {error.message}")
@@ -62,18 +65,21 @@ class MCPServerError(MCPClientError):
 # Client State
 # =============================================================================
 
+
 @dataclass
 class MCPClientState:
     """Internal state of MCP client."""
+
     initialized: bool = False
-    server_info: Optional[Dict] = None
-    capabilities: Optional[MCPCapabilities] = None
-    available_tools: List[MCPTool] = field(default_factory=list)
+    server_info: dict | None = None
+    capabilities: MCPCapabilities | None = None
+    available_tools: list[MCPTool] = field(default_factory=list)
 
 
 # =============================================================================
 # MCP Client
 # =============================================================================
+
 
 class MCPClient:
     """
@@ -104,9 +110,9 @@ class MCPClient:
 
     def __init__(
         self,
-        command: List[str],
-        env: Optional[Dict[str, str]] = None,
-        cwd: Optional[Path] = None,
+        command: list[str],
+        env: dict[str, str] | None = None,
+        cwd: Path | None = None,
         timeout: float = DEFAULT_TIMEOUT,
     ):
         """
@@ -124,16 +130,16 @@ class MCPClient:
         self.timeout = timeout
 
         # Internal state
-        self._process: Optional[subprocess.Popen] = None
+        self._process: subprocess.Popen | None = None
         self._state = MCPClientState()
         self._request_id = 0
         self._lock = threading.Lock()
 
         # Response queue for async reading
         self._response_queue: queue.Queue = queue.Queue()
-        self._reader_thread: Optional[threading.Thread] = None
+        self._reader_thread: threading.Thread | None = None
         self._reader_stop = threading.Event()
-        self._stderr_thread: Optional[threading.Thread] = None
+        self._stderr_thread: threading.Thread | None = None
         self._stderr_stop = threading.Event()
 
     def __enter__(self) -> "MCPClient":
@@ -198,15 +204,12 @@ class MCPClient:
             if self._process.poll() is not None:
                 stderr = self._process.stderr.read() if self._process.stderr else ""
                 raise MCPConnectionError(
-                    f"Server process exited immediately. "
-                    f"Command: {' '.join(self.command)}\n"
-                    f"Stderr: {stderr}"
+                    f"Server process exited immediately. Command: {' '.join(self.command)}\nStderr: {stderr}"
                 )
 
         except FileNotFoundError as e:
             raise MCPConnectionError(
-                f"Command not found: {self.command[0]}. "
-                f"Make sure the MCP server is installed."
+                f"Command not found: {self.command[0]}. Make sure the MCP server is installed."
             ) from e
         except Exception as e:
             raise MCPConnectionError(f"Failed to start MCP server: {e}") from e
@@ -264,10 +267,8 @@ class MCPClient:
             try:
                 # Try graceful shutdown
                 if self._state.initialized:
-                    try:
+                    with contextlib.suppress(Exception):
                         self._send_request(MCPMethod.SHUTDOWN, {}, timeout=2.0)
-                    except Exception:
-                        pass  # Ignore shutdown errors
 
                 # Close pipes
                 if self._process.stdin:
@@ -308,7 +309,7 @@ class MCPClient:
     # Tool Operations
     # =========================================================================
 
-    def list_tools(self) -> List[MCPTool]:
+    def list_tools(self) -> list[MCPTool]:
         """
         List available tools from server.
 
@@ -337,8 +338,8 @@ class MCPClient:
     def call_tool(
         self,
         name: str,
-        arguments: Optional[Dict[str, Any]] = None,
-        timeout: Optional[float] = None,
+        arguments: dict[str, Any] | None = None,
+        timeout: float | None = None,
     ) -> MCPToolResult:
         """
         Call a tool on the server.
@@ -371,7 +372,7 @@ class MCPClient:
         # Parse result
         return MCPToolResult.from_dict(response.result or {})
 
-    def get_tool(self, name: str) -> Optional[MCPTool]:
+    def get_tool(self, name: str) -> MCPTool | None:
         """
         Get a specific tool by name.
 
@@ -407,8 +408,8 @@ class MCPClient:
     def _send_request(
         self,
         method: str,
-        params: Optional[Dict[str, Any]] = None,
-        timeout: Optional[float] = None,
+        params: dict[str, Any] | None = None,
+        timeout: float | None = None,
     ) -> MCPResponse:
         """
         Send a request and wait for response.
@@ -445,7 +446,7 @@ class MCPClient:
         try:
             response_data = self._response_queue.get(timeout=timeout)
         except queue.Empty:
-            raise MCPTimeoutError(f"Request timed out after {timeout}s")
+            raise MCPTimeoutError(f"Request timed out after {timeout}s") from None
 
         # Parse response
         if isinstance(response_data, Exception):
@@ -453,7 +454,7 @@ class MCPClient:
 
         return MCPResponse.from_dict(response_data)
 
-    def _send_notification(self, method: str, params: Optional[Dict[str, Any]] = None) -> None:
+    def _send_notification(self, method: str, params: dict[str, Any] | None = None) -> None:
         """
         Send a notification (no response expected).
 
@@ -465,11 +466,16 @@ class MCPClient:
             return
 
         # Notifications have no id
-        message = json.dumps({
-            "jsonrpc": "2.0",
-            "method": method,
-            "params": params or {},
-        }) + "\n"
+        message = (
+            json.dumps(
+                {
+                    "jsonrpc": "2.0",
+                    "method": method,
+                    "params": params or {},
+                }
+            )
+            + "\n"
+        )
 
         try:
             self._process.stdin.write(message)
@@ -505,9 +511,7 @@ class MCPClient:
                         self._response_queue.put(data)
                     except json.JSONDecodeError as e:
                         # V9: Log JSON parse errors for debugging
-                        _logger.warning(
-                            f"[MCP] JSON parse error: {e} | Line preview: {line[:100]}"
-                        )
+                        _logger.warning(f"[MCP] JSON parse error: {e} | Line preview: {line[:100]}")
 
                 except Exception as e:
                     if not self._reader_stop.is_set():
@@ -542,10 +546,11 @@ class MCPClient:
 # Convenience Functions
 # =============================================================================
 
+
 def create_mcp_client(
-    command: List[str],
-    env: Optional[Dict[str, str]] = None,
-    cwd: Optional[Path] = None,
+    command: list[str],
+    env: dict[str, str] | None = None,
+    cwd: Path | None = None,
     auto_initialize: bool = True,
 ) -> MCPClient:
     """

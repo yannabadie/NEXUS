@@ -11,12 +11,13 @@ Author: Claude (NEXUS V12.2 IRONCLAD)
 Date: 2025-12-16
 """
 
-import pytest
+import sys
 from pathlib import Path
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock
 from uuid import uuid4
 
-import sys
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
@@ -28,11 +29,18 @@ class TestPermissionEnum:
         from core.api.cerebro.rbac import Permission
 
         expected = [
-            "FILE_READ", "FILE_WRITE", "FILE_DELETE",
-            "WORKSPACE_CREATE", "WORKSPACE_DELETE",
-            "USER_INVITE", "USER_REMOVE", "USER_CHANGE_ROLE",
-            "WORKFLOW_START", "WORKFLOW_STOP",
-            "AUDIT_VIEW", "SETTINGS_MANAGE",
+            "FILE_READ",
+            "FILE_WRITE",
+            "FILE_DELETE",
+            "WORKSPACE_CREATE",
+            "WORKSPACE_DELETE",
+            "USER_INVITE",
+            "USER_REMOVE",
+            "USER_CHANGE_ROLE",
+            "WORKFLOW_START",
+            "WORKFLOW_STOP",
+            "AUDIT_VIEW",
+            "SETTINGS_MANAGE",
         ]
 
         for perm_name in expected:
@@ -52,7 +60,7 @@ class TestRolePermissions:
 
     def test_owner_has_all_permissions(self):
         """Verify owner role has all permissions."""
-        from core.api.cerebro.rbac import Permission, ROLE_PERMISSIONS
+        from core.api.cerebro.rbac import ROLE_PERMISSIONS, Permission
 
         owner_perms = ROLE_PERMISSIONS.get("owner", set())
 
@@ -61,7 +69,7 @@ class TestRolePermissions:
 
     def test_admin_permissions(self):
         """Verify admin has expected permissions (not owner-only ones)."""
-        from core.api.cerebro.rbac import Permission, ROLE_PERMISSIONS
+        from core.api.cerebro.rbac import ROLE_PERMISSIONS, Permission
 
         admin_perms = ROLE_PERMISSIONS.get("admin", set())
 
@@ -77,7 +85,7 @@ class TestRolePermissions:
 
     def test_member_permissions(self):
         """Verify member has limited permissions."""
-        from core.api.cerebro.rbac import Permission, ROLE_PERMISSIONS
+        from core.api.cerebro.rbac import ROLE_PERMISSIONS, Permission
 
         member_perms = ROLE_PERMISSIONS.get("member", set())
 
@@ -93,7 +101,7 @@ class TestRolePermissions:
 
     def test_viewer_permissions(self):
         """Verify viewer has read-only permissions."""
-        from core.api.cerebro.rbac import Permission, ROLE_PERMISSIONS
+        from core.api.cerebro.rbac import ROLE_PERMISSIONS, Permission
 
         viewer_perms = ROLE_PERMISSIONS.get("viewer", set())
 
@@ -122,7 +130,7 @@ class TestRequirePermission:
 
     def test_require_permission_returns_callable(self):
         """Verify require_permission returns a dependency function."""
-        from core.api.cerebro.rbac import require_permission, Permission
+        from core.api.cerebro.rbac import Permission, require_permission
 
         dep = require_permission(Permission.FILE_READ, "file")
 
@@ -131,8 +139,8 @@ class TestRequirePermission:
     @pytest.mark.asyncio
     async def test_permission_granted_for_correct_role(self):
         """Test that permission is granted when user has required role."""
-        from core.api.cerebro.rbac import require_permission, Permission
         from core.api.cerebro.deps import AuthenticatedUser
+        from core.api.cerebro.rbac import Permission, require_permission
 
         dep = require_permission(Permission.FILE_READ, "file")
 
@@ -152,8 +160,9 @@ class TestRequirePermission:
     async def test_permission_denied_for_insufficient_role(self):
         """Test that permission is denied when user lacks required role."""
         from fastapi import HTTPException
-        from core.api.cerebro.rbac import require_permission, Permission
+
         from core.api.cerebro.deps import AuthenticatedUser
+        from core.api.cerebro.rbac import Permission, require_permission
 
         dep = require_permission(Permission.USER_INVITE, "user")
 
@@ -173,8 +182,8 @@ class TestRequirePermission:
     @pytest.mark.asyncio
     async def test_owner_can_do_everything(self):
         """Test that owner role passes all permission checks."""
-        from core.api.cerebro.rbac import require_permission, Permission
         from core.api.cerebro.deps import AuthenticatedUser
+        from core.api.cerebro.rbac import Permission, require_permission
 
         mock_request = MagicMock()
         mock_user = AuthenticatedUser(
@@ -200,8 +209,7 @@ class TestRBACIntegration:
         for route in router.routes:
             if hasattr(route, "path") and route.path == "/content":
                 deps = getattr(route, "dependencies", [])
-                assert len(deps) > 0 or hasattr(route, "dependant"), \
-                    "Files route should have RBAC dependency"
+                assert len(deps) > 0 or hasattr(route, "dependant"), "Files route should have RBAC dependency"
 
     def test_users_route_uses_rbac(self):
         """Verify users routes have RBAC dependencies."""
@@ -210,5 +218,5 @@ class TestRBACIntegration:
         for route in router.routes:
             if hasattr(route, "path"):
                 deps = getattr(route, "dependencies", [])
-                has_deps = len(deps) > 0 or hasattr(route, "dependant")
+                len(deps) > 0 or hasattr(route, "dependant")
                 # All user management routes should have RBAC

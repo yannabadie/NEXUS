@@ -17,17 +17,18 @@ Usage:
 """
 
 import json
+import math
+from collections import defaultdict
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Any
-from dataclasses import dataclass, asdict
-from collections import defaultdict
-import math
+from typing import Any
 
 
 @dataclass
 class MemoryEntry:
     """A single memory entry (success or failure)."""
+
     timestamp: str
     task_type: str
     task_description: str
@@ -35,8 +36,8 @@ class MemoryEntry:
     lead_agent: str
     duration_seconds: float
     outcome: str  # "success" or "failure"
-    reason: Optional[str] = None  # For failures
-    score: Optional[float] = None  # Quality score 0-1
+    reason: str | None = None  # For failures
+    score: float | None = None  # Quality score 0-1
 
 
 class AutoMemory:
@@ -59,15 +60,15 @@ class AutoMemory:
         self.fitness_file = self.memory_dir / "fitness_scores.json"
 
         # In-memory cache for quick lookups
-        self._success_cache: Dict[str, List[Dict]] = defaultdict(list)
-        self._failure_cache: Dict[str, List[Dict]] = defaultdict(list)
+        self._success_cache: dict[str, list[dict]] = defaultdict(list)
+        self._failure_cache: dict[str, list[dict]] = defaultdict(list)
         self._load_cache()
 
     def _load_cache(self):
         """Load existing memory into cache."""
         if self.successes_file.exists():
             try:
-                with open(self.successes_file, 'r', encoding='utf-8') as f:
+                with open(self.successes_file, encoding="utf-8") as f:
                     for line in f:
                         entry = json.loads(line.strip())
                         self._success_cache[entry.get("task_type", "unknown")].append(entry)
@@ -76,7 +77,7 @@ class AutoMemory:
 
         if self.failures_file.exists():
             try:
-                with open(self.failures_file, 'r', encoding='utf-8') as f:
+                with open(self.failures_file, encoding="utf-8") as f:
                     for line in f:
                         entry = json.loads(line.strip())
                         self._failure_cache[entry.get("task_type", "unknown")].append(entry)
@@ -90,7 +91,7 @@ class AutoMemory:
         swarm_mode: str,
         lead_agent: str,
         duration_seconds: float,
-        score: float = 1.0
+        score: float = 1.0,
     ):
         """
         Record a successful task completion.
@@ -111,7 +112,7 @@ class AutoMemory:
             lead_agent=lead_agent,
             duration_seconds=duration_seconds,
             outcome="success",
-            score=score
+            score=score,
         )
 
         self._append_to_file(self.successes_file, asdict(entry))
@@ -125,7 +126,7 @@ class AutoMemory:
         swarm_mode: str,
         lead_agent: str,
         duration_seconds: float,
-        reason: str
+        reason: str,
     ):
         """
         Record a failed task attempt.
@@ -147,24 +148,24 @@ class AutoMemory:
             duration_seconds=duration_seconds,
             outcome="failure",
             reason=reason,
-            score=0.0
+            score=0.0,
         )
 
         self._append_to_file(self.failures_file, asdict(entry))
         self._failure_cache[task_type].append(asdict(entry))
         self._update_fitness(lead_agent, task_type, 0.0)
 
-    def _append_to_file(self, filepath: Path, entry: Dict):
+    def _append_to_file(self, filepath: Path, entry: dict):
         """Append entry to JSONL file."""
-        with open(filepath, 'a', encoding='utf-8') as f:
-            f.write(json.dumps(entry, ensure_ascii=False) + '\n')
+        with open(filepath, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
     def _update_fitness(self, agent: str, task_type: str, score: float):
         """Update fitness scores for agent."""
         fitness_data = {}
         if self.fitness_file.exists():
             try:
-                with open(self.fitness_file, 'r', encoding='utf-8') as f:
+                with open(self.fitness_file, encoding="utf-8") as f:
                     fitness_data = json.load(f)
             except Exception:
                 pass
@@ -187,15 +188,10 @@ class AutoMemory:
         all_avgs = [t["avg"] for t in fitness_data[agent]["tasks"].values()]
         fitness_data[agent]["overall"] = sum(all_avgs) / len(all_avgs) if all_avgs else 0.7
 
-        with open(self.fitness_file, 'w', encoding='utf-8') as f:
+        with open(self.fitness_file, "w", encoding="utf-8") as f:
             json.dump(fitness_data, f, indent=2, ensure_ascii=False)
 
-    def _apply_time_decay(
-        self,
-        score: float,
-        timestamp_str: str,
-        decay_coefficient: float = 0.003
-    ) -> float:
+    def _apply_time_decay(self, score: float, timestamp_str: str, decay_coefficient: float = 0.003) -> float:
         """
         V11.2 MEMORIA: Apply exponential time decay to score.
 
@@ -226,7 +222,7 @@ class AutoMemory:
             # If timestamp parsing fails, return original score
             return score
 
-    def suggest_mode(self, task_type: str, apply_decay: bool = True) -> Optional[str]:
+    def suggest_mode(self, task_type: str, apply_decay: bool = True) -> str | None:
         """
         Suggest best swarm mode for a task type based on history.
 
@@ -268,7 +264,7 @@ class AutoMemory:
         best_mode = max(mode_avg, key=mode_avg.get)
         return best_mode
 
-    def suggest_lead(self, task_type: str, apply_decay: bool = True) -> Optional[str]:
+    def suggest_lead(self, task_type: str, apply_decay: bool = True) -> str | None:
         """
         Suggest best lead agent for a task type based on history.
 
@@ -313,10 +309,8 @@ class AutoMemory:
 
         Returns True if mode has >50% failure rate for this task type.
         """
-        failures = [e for e in self._failure_cache.get(task_type, [])
-                    if e.get("swarm_mode") == swarm_mode]
-        successes = [e for e in self._success_cache.get(task_type, [])
-                     if e.get("swarm_mode") == swarm_mode]
+        failures = [e for e in self._failure_cache.get(task_type, []) if e.get("swarm_mode") == swarm_mode]
+        successes = [e for e in self._success_cache.get(task_type, []) if e.get("swarm_mode") == swarm_mode]
 
         total = len(failures) + len(successes)
         if total < 3:  # Not enough data
@@ -325,7 +319,7 @@ class AutoMemory:
         failure_rate = len(failures) / total
         return failure_rate > 0.5
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get memory statistics."""
         total_successes = sum(len(v) for v in self._success_cache.values())
         total_failures = sum(len(v) for v in self._failure_cache.values())
@@ -334,19 +328,17 @@ class AutoMemory:
             "total_successes": total_successes,
             "total_failures": total_failures,
             "success_rate": total_successes / (total_successes + total_failures)
-                           if (total_successes + total_failures) > 0 else 0,
-            "task_types_tracked": list(set(
-                list(self._success_cache.keys()) +
-                list(self._failure_cache.keys())
-            )),
+            if (total_successes + total_failures) > 0
+            else 0,
+            "task_types_tracked": list(set(list(self._success_cache.keys()) + list(self._failure_cache.keys()))),
             "memory_files": {
                 "successes": str(self.successes_file),
                 "failures": str(self.failures_file),
-                "fitness": str(self.fitness_file)
-            }
+                "fitness": str(self.fitness_file),
+            },
         }
 
-    def get_recommendation(self, task_type: str, task_description: str = "") -> Dict[str, Any]:
+    def get_recommendation(self, task_type: str, task_description: str = "") -> dict[str, Any]:
         """
         Get full recommendation for a task based on memory.
 
@@ -375,7 +367,7 @@ class AutoMemory:
             "suggested_lead": self.suggest_lead(task_type),
             "modes_to_avoid": modes_to_avoid,
             "confidence": confidence,
-            "based_on_samples": total_samples
+            "based_on_samples": total_samples,
         }
 
 
@@ -383,7 +375,7 @@ class AutoMemory:
 # V10 PRISM: Multi-Tenant Auto Memory Access
 # =============================================================================
 
-_auto_memory: Optional[AutoMemory] = None
+_auto_memory: AutoMemory | None = None
 
 
 def get_auto_memory(workspace_path: Path = None) -> AutoMemory:
@@ -402,8 +394,10 @@ def get_auto_memory(workspace_path: Path = None) -> AutoMemory:
     # V10: Try ServiceFactory first (tenant-scoped)
     try:
         from ..context import has_active_session
+
         if has_active_session():
             from ..factory import ServiceFactory
+
             return ServiceFactory.get_auto_memory()
     except ImportError:
         pass  # context module not available, use legacy
@@ -428,6 +422,7 @@ def reset_auto_memory() -> None:
     try:
         from ..context import get_current_session_or_none
         from ..factory import ServiceFactory
+
         ctx = get_current_session_or_none()
         if ctx:
             ServiceFactory.clear_tenant_cache(ctx.tenant_id)

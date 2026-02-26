@@ -299,6 +299,7 @@ Respond in this EXACT JSON format:
 # Utility Function
 # =============================================================================
 
+
 def get_phase_system_prompt(phase_number: int) -> str:
     """
     Get the static system prompt for a given HiveMind phase.

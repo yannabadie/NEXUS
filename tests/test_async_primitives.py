@@ -8,29 +8,33 @@ Tests cover:
 - AsyncBlackboard: Thread-safe shared state
 """
 
-import pytest
 import asyncio
 import sys
-from datetime import datetime
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock, Mock
+
+import pytest
 
 # Add project root to path
-sys.path.insert(0, str(__file__).replace("\\tests\\test_async_primitives.py", "").replace("/tests/test_async_primitives.py", ""))
+sys.path.insert(
+    0, str(__file__).replace("\\tests\\test_async_primitives.py", "").replace("/tests/test_async_primitives.py", "")
+)
+
+import contextlib
 
 from core.foundation.async_primitives import (
-    CancellationToken,
+    AsyncBlackboard,
     AsyncProcessHandle,
     AsyncRWLock,
-    AsyncBlackboard,
+    CancellationToken,
 )
 from core.foundation.async_primitives.cancellation import CancellationTokenSource
-from core.foundation.async_primitives.process_handle import ProcessState, ProcessHandleRegistry, get_process_registry
-from core.foundation.async_primitives.rwlock import AsyncRWLockWithTimeout, InstrumentedAsyncRWLock
-
+from core.foundation.async_primitives.process_handle import ProcessHandleRegistry, ProcessState
+from core.foundation.async_primitives.rwlock import AsyncRWLockWithTimeout
 
 # ============================================================================
 # CancellationToken Tests
 # ============================================================================
+
 
 class TestCancellationToken:
     """Tests for CancellationToken."""
@@ -190,6 +194,7 @@ class TestCancellationTokenSource:
 # AsyncProcessHandle Tests
 # ============================================================================
 
+
 class TestAsyncProcessHandle:
     """Tests for AsyncProcessHandle."""
 
@@ -200,10 +205,7 @@ class TestAsyncProcessHandle:
         mock_proc = Mock()
         mock_proc.returncode = None  # Running
 
-        handle = AsyncProcessHandle(
-            proc=mock_proc,
-            session_uuid="test-uuid-123"
-        )
+        handle = AsyncProcessHandle(proc=mock_proc, session_uuid="test-uuid-123")
 
         assert handle.is_running
 
@@ -213,10 +215,7 @@ class TestAsyncProcessHandle:
         mock_proc = Mock()
         mock_proc.returncode = 0  # Completed
 
-        handle = AsyncProcessHandle(
-            proc=mock_proc,
-            session_uuid="test-uuid-123"
-        )
+        handle = AsyncProcessHandle(proc=mock_proc, session_uuid="test-uuid-123")
 
         assert not handle.is_running
 
@@ -226,10 +225,7 @@ class TestAsyncProcessHandle:
         mock_proc = Mock()
         mock_proc.returncode = 0  # Already completed
 
-        handle = AsyncProcessHandle(
-            proc=mock_proc,
-            session_uuid="test-uuid-123"
-        )
+        handle = AsyncProcessHandle(proc=mock_proc, session_uuid="test-uuid-123")
 
         result = await handle.terminate_gracefully()
         assert result is False
@@ -249,10 +245,7 @@ class TestAsyncProcessHandle:
         mock_proc.wait = mock_wait
         mock_proc.terminate = Mock()
 
-        handle = AsyncProcessHandle(
-            proc=mock_proc,
-            session_uuid="test-uuid-123"
-        )
+        handle = AsyncProcessHandle(proc=mock_proc, session_uuid="test-uuid-123")
 
         result = await handle.terminate_gracefully(timeout=1.0)
 
@@ -268,12 +261,7 @@ class TestAsyncProcessHandle:
         mock_proc.returncode = None
         mock_proc.pid = 12345
 
-        handle = AsyncProcessHandle(
-            proc=mock_proc,
-            session_uuid="test-uuid-123",
-            task_id="task-456",
-            agent_id="gemini"
-        )
+        handle = AsyncProcessHandle(proc=mock_proc, session_uuid="test-uuid-123", task_id="task-456", agent_id="gemini")
 
         data = handle.to_dict()
 
@@ -296,10 +284,7 @@ class TestProcessHandleRegistry:
         mock_proc = Mock()
         mock_proc.returncode = None
 
-        handle = AsyncProcessHandle(
-            proc=mock_proc,
-            session_uuid="uuid-1"
-        )
+        handle = AsyncProcessHandle(proc=mock_proc, session_uuid="uuid-1")
 
         await registry.register(handle)
         retrieved = await registry.get("uuid-1")
@@ -314,10 +299,7 @@ class TestProcessHandleRegistry:
         mock_proc = Mock()
         mock_proc.returncode = None
 
-        handle = AsyncProcessHandle(
-            proc=mock_proc,
-            session_uuid="uuid-1"
-        )
+        handle = AsyncProcessHandle(proc=mock_proc, session_uuid="uuid-1")
 
         await registry.register(handle)
         unregistered = await registry.unregister("uuid-1")
@@ -329,6 +311,7 @@ class TestProcessHandleRegistry:
 # ============================================================================
 # AsyncRWLock Tests
 # ============================================================================
+
 
 class TestAsyncRWLock:
     """Tests for AsyncRWLock."""
@@ -435,15 +418,14 @@ class TestAsyncRWLockWithTimeout:
                 pass
 
         task.cancel()
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             await task
-        except asyncio.CancelledError:
-            pass
 
 
 # ============================================================================
 # AsyncBlackboard Tests
 # ============================================================================
+
 
 class TestAsyncBlackboard:
     """Tests for AsyncBlackboard."""
@@ -542,12 +524,7 @@ class TestAsyncBlackboard:
                 await asyncio.sleep(0.001)
 
         # Run multiple readers and a writer concurrently
-        await asyncio.gather(
-            writer(),
-            reader(),
-            reader(),
-            reader()
-        )
+        await asyncio.gather(writer(), reader(), reader(), reader())
 
         # Should complete without deadlock or errors
         final = await bb.get("counter")
@@ -621,6 +598,7 @@ class TestAsyncBlackboard:
 # Integration Tests
 # ============================================================================
 
+
 class TestAsyncPrimitivesIntegration:
     """Integration tests combining multiple primitives."""
 
@@ -652,6 +630,7 @@ class TestAsyncPrimitivesIntegration:
 # ============================================================================
 # V8.4.7 CAS Tests (GROK-001 Fix)
 # ============================================================================
+
 
 class TestAsyncBlackboardCAS:
     """Tests for Compare-And-Set operations (GROK-001 fix)."""
@@ -811,6 +790,7 @@ class TestAsyncBlackboardCAS:
 # Chaos Tests for PARALLEL Mode (GROK-001 Validation)
 # ============================================================================
 
+
 class TestAsyncBlackboardChaos:
     """Chaos tests simulating PARALLEL swarm mode with 50 concurrent agents."""
 
@@ -881,6 +861,7 @@ class TestAsyncBlackboardChaos:
         async def chaotic_agent(agent_id: int):
             """Agent performing random operations."""
             import random
+
             for _ in range(10):
                 op = random.choice(["read", "write", "cas"])
 
@@ -896,9 +877,7 @@ class TestAsyncBlackboardChaos:
                     else:  # cas
                         key = f"key_{random.randint(0, 9)}"
                         value, version = await bb.get_with_version(key)
-                        success, _ = await bb.compare_and_set(
-                            key, version, f"cas_{agent_id}"
-                        )
+                        success, _ = await bb.compare_and_set(key, version, f"cas_{agent_id}")
                         if success:
                             operations_count["cas_success"] += 1
                         else:
@@ -974,10 +953,7 @@ class TestAsyncBlackboardChaos:
                     continue
 
                 # Add self to contributors
-                new_value = {
-                    "count": value["count"] + 1,
-                    "contributors": value["contributors"] + [agent_id]
-                }
+                new_value = {"count": value["count"] + 1, "contributors": value["contributors"] + [agent_id]}
 
                 success, _ = await bb.compare_and_set("hot_key", version, new_value)
                 if success:

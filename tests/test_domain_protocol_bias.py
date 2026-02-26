@@ -7,12 +7,10 @@ Verifies that ModeSelector applies domain-specific protocol biases:
 - SECURITY domains → RED_BLUE mode boosted
 """
 
-import pytest
-
-from core.intelligence.swarm.mode_selector import ModeSelector, ModeProposal
-from core.intelligence.swarm.task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
-from core.intelligence.swarm.collaboration_modes import CollaborationMode
 from core.intelligence.swarm.agent_metrics import AgentProfile
+from core.intelligence.swarm.collaboration_modes import CollaborationMode
+from core.intelligence.swarm.mode_selector import ModeSelector
+from core.intelligence.swarm.task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
 
 
 def _make_agents():
@@ -96,7 +94,7 @@ class TestModeSelectorWithBias:
 
         # Score PARALLEL and another mode
         parallel_score = selector._score_mode(CollaborationMode.PARALLEL, analysis, agents)
-        sequential_score = selector._score_mode(CollaborationMode.SEQUENTIAL, analysis, agents)
+        selector._score_mode(CollaborationMode.SEQUENTIAL, analysis, agents)
 
         # PARALLEL should get +0.08 bias for coding, SEQUENTIAL gets 0
         # This doesn't guarantee PARALLEL > SEQUENTIAL overall but the bias is additive
@@ -156,15 +154,17 @@ class TestModeSelectorWithBias:
         coding_analysis = _make_analysis(TaskDomain.CODING)
         research_analysis = _make_analysis(TaskDomain.RESEARCH)
 
-        coding_parallel = selector._score_mode(CollaborationMode.PARALLEL, coding_analysis, agents)
-        research_parallel = selector._score_mode(CollaborationMode.PARALLEL, research_analysis, agents)
+        selector._score_mode(CollaborationMode.PARALLEL, coding_analysis, agents)
+        selector._score_mode(CollaborationMode.PARALLEL, research_analysis, agents)
 
-        coding_ping_pong = selector._score_mode(CollaborationMode.PING_PONG, coding_analysis, agents)
-        research_ping_pong = selector._score_mode(CollaborationMode.PING_PONG, research_analysis, agents)
+        selector._score_mode(CollaborationMode.PING_PONG, coding_analysis, agents)
+        selector._score_mode(CollaborationMode.PING_PONG, research_analysis, agents)
 
         # Coding should get more PARALLEL bias than research
         coding_parallel_bias = ModeSelector.DOMAIN_PROTOCOL_BIAS.get("coding", {}).get(CollaborationMode.PARALLEL, 0)
-        research_parallel_bias = ModeSelector.DOMAIN_PROTOCOL_BIAS.get("research", {}).get(CollaborationMode.PARALLEL, 0)
+        research_parallel_bias = ModeSelector.DOMAIN_PROTOCOL_BIAS.get("research", {}).get(
+            CollaborationMode.PARALLEL, 0
+        )
         assert coding_parallel_bias > research_parallel_bias
 
         # Research should get more PING_PONG bias than coding

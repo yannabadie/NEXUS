@@ -25,9 +25,9 @@ Date: 2025-12-15
 
 import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
 from ..deps import AuthenticatedUser, require_auth
 
@@ -73,6 +73,7 @@ async def get_state_snapshot(
 
     try:
         from core.observability.events.redis_bus import get_redis_bus
+
         bus = get_redis_bus()
     except Exception as e:
         logger.error(f"Failed to get Redis bus: {e}")
@@ -181,8 +182,9 @@ def _get_pending_interactions() -> list[dict[str, Any]]:
     """Get pending interactions from HeadlessProvider."""
     try:
         from core.security_pkg.interaction import get_interaction_provider
+
         provider = get_interaction_provider()
-        if hasattr(provider, 'get_pending_requests'):
+        if hasattr(provider, "get_pending_requests"):
             return provider.get_pending_requests()
     except Exception as e:
         logger.debug(f"Could not get pending interactions: {e}")
@@ -218,6 +220,7 @@ async def clear_state_snapshot(
 
     try:
         from core.observability.events.redis_bus import get_redis_bus
+
         bus = get_redis_bus()
     except Exception as e:
         logger.error(f"Failed to get Redis bus: {e}")
@@ -232,11 +235,7 @@ async def clear_state_snapshot(
         base_key = f"nexus:{tenant_id}:{workspace_id}:state"
 
         try:
-            await redis.delete(
-                f"{base_key}:phase",
-                f"{base_key}:nodes",
-                f"{base_key}:logs"
-            )
+            await redis.delete(f"{base_key}:phase", f"{base_key}:nodes", f"{base_key}:logs")
         except Exception as e:
             logger.warning(f"Redis clear failed (continuing): {e}")
 

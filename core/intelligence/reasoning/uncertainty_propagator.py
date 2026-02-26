@@ -35,13 +35,10 @@ Usage:
 """
 
 import logging
-import math
 import threading
-import time
 from collections import deque
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -50,25 +47,28 @@ logger = logging.getLogger(__name__)
 # Data Structures
 # =============================================================================
 
+
 class UncertaintyLevel(Enum):
     """Confidence classification for control flow decisions."""
-    CONFIDENT = "confident"          # > 0.8 — proceed normally
-    MODERATE = "moderate"            # 0.5-0.8 — proceed with caution
-    UNCERTAIN = "uncertain"          # 0.3-0.5 — consider reflection
+
+    CONFIDENT = "confident"  # > 0.8 — proceed normally
+    MODERATE = "moderate"  # 0.5-0.8 — proceed with caution
+    UNCERTAIN = "uncertain"  # 0.3-0.5 — consider reflection
     HIGHLY_UNCERTAIN = "highly_uncertain"  # < 0.3 — trigger reflection
 
 
 @dataclass
 class PropagationSignal:
     """Result of propagating uncertainty through a step."""
+
     step_name: str
-    raw_confidence: float            # Stated confidence for this step
-    propagated_confidence: float     # Adjusted for upstream uncertainty
+    raw_confidence: float  # Stated confidence for this step
+    propagated_confidence: float  # Adjusted for upstream uncertainty
     uncertainty_level: UncertaintyLevel
-    needs_reflection: bool           # Should trigger System 2?
-    cascade_risk: float              # Risk of hallucination cascade (0-1)
-    upstream_uncertainty: float      # Accumulated upstream uncertainty
-    chain_position: int              # Position in the execution chain
+    needs_reflection: bool  # Should trigger System 2?
+    cascade_risk: float  # Risk of hallucination cascade (0-1)
+    upstream_uncertainty: float  # Accumulated upstream uncertainty
+    chain_position: int  # Position in the execution chain
 
     @property
     def confidence_drop(self) -> float:
@@ -79,19 +79,21 @@ class PropagationSignal:
 @dataclass
 class ChainSummary:
     """Summary of uncertainty across the execution chain."""
+
     total_steps: int
     avg_confidence: float
     min_confidence: float
     max_confidence: float
-    cascade_risk: float              # Overall cascade risk
-    reflection_triggers: int         # How many steps triggered reflection
-    weakest_step: str                # Step with lowest propagated confidence
-    uncertainty_trend: str           # "increasing", "decreasing", "stable"
+    cascade_risk: float  # Overall cascade risk
+    reflection_triggers: int  # How many steps triggered reflection
+    weakest_step: str  # Step with lowest propagated confidence
+    uncertainty_trend: str  # "increasing", "decreasing", "stable"
 
 
 @dataclass
 class PropagatorStats:
     """Statistics for the uncertainty propagator."""
+
     total_propagations: int
     total_reflections_triggered: int
     avg_cascade_risk: float
@@ -101,6 +103,7 @@ class PropagatorStats:
 # =============================================================================
 # Uncertainty Propagator
 # =============================================================================
+
 
 class UncertaintyPropagator:
     """
@@ -117,14 +120,14 @@ class UncertaintyPropagator:
     """
 
     # Thresholds
-    REFLECTION_THRESHOLD = 0.4       # Below this → trigger reflection
-    CASCADE_WARNING = 0.6            # Cascade risk above this → warning
-    CASCADE_CRITICAL = 0.8           # Cascade risk above this → critical
+    REFLECTION_THRESHOLD = 0.4  # Below this → trigger reflection
+    CASCADE_WARNING = 0.6  # Cascade risk above this → warning
+    CASCADE_CRITICAL = 0.8  # Cascade risk above this → critical
 
     # Propagation parameters
-    DECAY_FACTOR = 0.85              # Upstream uncertainty decay per step
-    MAX_CHAIN_LENGTH = 50            # Maximum steps to track
-    RECOVERY_BOOST = 0.1            # Confidence boost after successful reflection
+    DECAY_FACTOR = 0.85  # Upstream uncertainty decay per step
+    MAX_CHAIN_LENGTH = 50  # Maximum steps to track
+    RECOVERY_BOOST = 0.1  # Confidence boost after successful reflection
 
     def __init__(self, reflection_threshold: float = 0.0):
         self._threshold = reflection_threshold or self.REFLECTION_THRESHOLD
@@ -325,15 +328,9 @@ class UncertaintyPropagator:
 
         # Count recent low-confidence steps
         recent = list(self._chain)[-5:]
-        low_conf_ratio = sum(
-            1 for s in recent if s.propagated_confidence < 0.5
-        ) / max(len(recent), 1)
+        low_conf_ratio = sum(1 for s in recent if s.propagated_confidence < 0.5) / max(len(recent), 1)
 
-        risk = (
-            0.4 * confidence_factor +
-            0.3 * length_factor +
-            0.3 * low_conf_ratio
-        )
+        risk = 0.4 * confidence_factor + 0.3 * length_factor + 0.3 * low_conf_ratio
 
         return min(1.0, risk)
 
@@ -348,7 +345,7 @@ class UncertaintyPropagator:
         else:
             return UncertaintyLevel.HIGHLY_UNCERTAIN
 
-    def _compute_trend(self, values: List[float]) -> str:
+    def _compute_trend(self, values: list[float]) -> str:
         """Compute trend direction from a series of values."""
         if len(values) < 3:
             return "stable"
@@ -371,7 +368,7 @@ class UncertaintyPropagator:
 # Singleton
 # =============================================================================
 
-_instance: Optional[UncertaintyPropagator] = None
+_instance: UncertaintyPropagator | None = None
 _instance_lock = threading.Lock()
 
 

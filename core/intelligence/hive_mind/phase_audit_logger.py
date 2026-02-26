@@ -39,7 +39,7 @@ import threading
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ _logger = logging.getLogger(__name__)
 
 MAX_AUDITS = 50000
 
-PHASES: Set[str] = {
+PHASES: set[str] = {
     "ANALYSIS",
     "DEBATE",
     "ARCHITECTURE",
@@ -65,6 +65,7 @@ PHASES: Set[str] = {
 # Types
 # =============================================================================
 
+
 @dataclass
 class DecisionAudit:
     """A single recorded decision from a HiveMind phase."""
@@ -73,14 +74,14 @@ class DecisionAudit:
     session_id: str = ""
     phase: str = ""
     decision: str = ""
-    options_considered: List[str] = field(default_factory=list)
+    options_considered: list[str] = field(default_factory=list)
     reasoning: str = ""
     agent_id: str = ""
     duration_ms: float = 0.0
     timestamp: float = field(default_factory=time.monotonic)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "audit_id": self.audit_id,
             "session_id": self.session_id,
@@ -104,9 +105,9 @@ class PhaseAuditReport:
     avg_duration_ms: float
     unique_agents: int
     most_common_decision: str
-    decision_distribution: Dict[str, int]
+    decision_distribution: dict[str, int]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "phase": self.phase,
             "total_decisions": self.total_decisions,
@@ -127,7 +128,7 @@ class AuditPattern:
     frequency: float
     sample_count: int
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "pattern_type": self.pattern_type,
             "phase": self.phase,
@@ -142,11 +143,11 @@ class AuditStats:
     """Overall statistics for the audit logger."""
 
     total_audits: int
-    audits_by_phase: Dict[str, int]
+    audits_by_phase: dict[str, int]
     unique_sessions: int
     unique_agents: int
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_audits": self.total_audits,
             "audits_by_phase": dict(self.audits_by_phase),
@@ -158,6 +159,7 @@ class AuditStats:
 # =============================================================================
 # Phase Audit Logger
 # =============================================================================
+
 
 class PhaseAuditLogger:
     """
@@ -173,7 +175,7 @@ class PhaseAuditLogger:
     """
 
     def __init__(self, *, max_audits: int = MAX_AUDITS):
-        self._audits: List[DecisionAudit] = []
+        self._audits: list[DecisionAudit] = []
         self._counter: int = 0
         self._max_audits: int = max_audits
         self._lock = threading.Lock()
@@ -188,11 +190,11 @@ class PhaseAuditLogger:
         session_id: str = "",
         phase: str = "",
         decision: str = "",
-        options_considered: Optional[List[str]] = None,
+        options_considered: list[str] | None = None,
         reasoning: str = "",
         agent_id: str = "",
         duration_ms: float = 0.0,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> DecisionAudit:
         """
         Record a decision made during a HiveMind phase.
@@ -230,11 +232,14 @@ class PhaseAuditLogger:
 
             # Evict oldest if at capacity
             if len(self._audits) > self._max_audits:
-                self._audits = self._audits[-self._max_audits:]
+                self._audits = self._audits[-self._max_audits :]
 
         _logger.debug(
             "Recorded decision %s: phase=%s decision=%s agent=%s",
-            audit_id, phase, decision, agent_id,
+            audit_id,
+            phase,
+            decision,
+            agent_id,
         )
         return audit
 
@@ -247,7 +252,7 @@ class PhaseAuditLogger:
         session_id: str,
         *,
         limit: int = 100,
-    ) -> List[DecisionAudit]:
+    ) -> list[DecisionAudit]:
         """
         Query audits by session ID, most recent first.
 
@@ -268,7 +273,7 @@ class PhaseAuditLogger:
         phase: str,
         *,
         limit: int = 100,
-    ) -> List[DecisionAudit]:
+    ) -> list[DecisionAudit]:
         """
         Query audits by phase, most recent first.
 
@@ -289,7 +294,7 @@ class PhaseAuditLogger:
         agent_id: str,
         *,
         limit: int = 100,
-    ) -> List[DecisionAudit]:
+    ) -> list[DecisionAudit]:
         """
         Query audits by agent ID, most recent first.
 
@@ -305,7 +310,7 @@ class PhaseAuditLogger:
         matched.reverse()
         return matched[:limit]
 
-    def get_recent(self, *, limit: int = 50) -> List[DecisionAudit]:
+    def get_recent(self, *, limit: int = 50) -> list[DecisionAudit]:
         """
         Get most recent audits.
 
@@ -324,7 +329,7 @@ class PhaseAuditLogger:
     # Analytics
     # =========================================================================
 
-    def get_phase_report(self, phase: str) -> Optional[PhaseAuditReport]:
+    def get_phase_report(self, phase: str) -> PhaseAuditReport | None:
         """
         Generate an aggregate report for a specific phase.
 
@@ -347,13 +352,13 @@ class PhaseAuditLogger:
         avg_duration = sum(durations) / total
 
         # Unique agents
-        agents: Set[str] = set()
+        agents: set[str] = set()
         for a in phase_audits:
             if a.agent_id:
                 agents.add(a.agent_id)
 
         # Decision distribution
-        distribution: Dict[str, int] = defaultdict(int)
+        distribution: dict[str, int] = defaultdict(int)
         for a in phase_audits:
             if a.decision:
                 distribution[a.decision] += 1
@@ -376,7 +381,7 @@ class PhaseAuditLogger:
         self,
         *,
         min_frequency: float = 0.6,
-    ) -> List[AuditPattern]:
+    ) -> list[AuditPattern]:
         """
         Detect decision patterns across phases.
 
@@ -394,10 +399,10 @@ class PhaseAuditLogger:
         with self._lock:
             snapshot = list(self._audits)
 
-        patterns: List[AuditPattern] = []
+        patterns: list[AuditPattern] = []
 
         # Group audits by phase
-        by_phase: Dict[str, List[DecisionAudit]] = defaultdict(list)
+        by_phase: dict[str, list[DecisionAudit]] = defaultdict(list)
         for a in snapshot:
             if a.phase:
                 by_phase[a.phase].append(a)
@@ -407,7 +412,7 @@ class PhaseAuditLogger:
             if not audits:
                 continue
 
-            distribution: Dict[str, int] = defaultdict(int)
+            distribution: dict[str, int] = defaultdict(int)
             for a in audits:
                 if a.decision:
                     distribution[a.decision] += 1
@@ -416,36 +421,35 @@ class PhaseAuditLogger:
             for decision, count in distribution.items():
                 freq = count / total
                 if freq >= min_frequency:
-                    patterns.append(AuditPattern(
-                        pattern_type="consistent_routing",
-                        phase=phase,
-                        description=(
-                            f"Decision '{decision}' occurs {freq:.0%} "
-                            f"of the time in {phase}"
-                        ),
-                        frequency=freq,
-                        sample_count=total,
-                    ))
+                    patterns.append(
+                        AuditPattern(
+                            pattern_type="consistent_routing",
+                            phase=phase,
+                            description=(f"Decision '{decision}' occurs {freq:.0%} of the time in {phase}"),
+                            frequency=freq,
+                            sample_count=total,
+                        )
+                    )
 
         # Check for frequent retry
         retry_audits = by_phase.get("RETRY", [])
         if len(retry_audits) >= 3:
-            patterns.append(AuditPattern(
-                pattern_type="frequent_retry",
-                phase="RETRY",
-                description=(
-                    f"RETRY phase has {len(retry_audits)} audit entries"
-                ),
-                frequency=1.0,
-                sample_count=len(retry_audits),
-            ))
+            patterns.append(
+                AuditPattern(
+                    pattern_type="frequent_retry",
+                    phase="RETRY",
+                    description=(f"RETRY phase has {len(retry_audits)} audit entries"),
+                    frequency=1.0,
+                    sample_count=len(retry_audits),
+                )
+            )
 
         return patterns
 
     def get_session_timeline(
         self,
         session_id: str,
-    ) -> List[DecisionAudit]:
+    ) -> list[DecisionAudit]:
         """
         Get all audits for a session ordered by timestamp ascending.
 
@@ -466,9 +470,9 @@ class PhaseAuditLogger:
 
     def _get_stats_unlocked(self) -> AuditStats:
         """Compute stats without acquiring the lock (caller must hold lock)."""
-        by_phase: Dict[str, int] = defaultdict(int)
-        sessions: Set[str] = set()
-        agents: Set[str] = set()
+        by_phase: dict[str, int] = defaultdict(int)
+        sessions: set[str] = set()
+        agents: set[str] = set()
 
         for a in self._audits:
             if a.phase:
@@ -507,7 +511,7 @@ class PhaseAuditLogger:
             self._audits.clear()
             self._counter = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize logger state to a dictionary."""
         stats = self.get_stats()
         with self._lock:
@@ -522,7 +526,7 @@ class PhaseAuditLogger:
 # Global Instance
 # =============================================================================
 
-_logger_instance: Optional[PhaseAuditLogger] = None
+_logger_instance: PhaseAuditLogger | None = None
 _logger_instance_lock = threading.Lock()
 
 

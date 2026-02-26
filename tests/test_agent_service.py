@@ -4,11 +4,12 @@ Tests for AgentService (V9.1 Service Layer)
 These tests verify the AgentService extracted from repl.py works correctly.
 """
 
-import pytest
 import json
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 
 class TestAgentService:
@@ -43,11 +44,8 @@ class TestAgentService:
     def agent_service(self, mock_orchestrator, temp_workspace, mock_console):
         """Create an AgentService instance."""
         from core.foundation.agents.service import AgentService
-        return AgentService(
-            orchestrator=mock_orchestrator,
-            workspace_path=temp_workspace,
-            console=mock_console
-        )
+
+        return AgentService(orchestrator=mock_orchestrator, workspace_path=temp_workspace, console=mock_console)
 
     def test_detect_domains_python(self, agent_service):
         """Test domain detection for Python role."""
@@ -103,22 +101,14 @@ class TestAgentService:
 
     def test_static_template_includes_role(self, agent_service):
         """Test static template includes role."""
-        template = agent_service._static_agent_template(
-            "SQL Expert",
-            "uuid-1234",
-            ["data"]
-        )
+        template = agent_service._static_agent_template("SQL Expert", "uuid-1234", ["data"])
         assert "SQL Expert" in template
         assert "uuid-1234" in template
         assert "data" in template
 
     def test_static_template_markdown_format(self, agent_service):
         """Test static template is valid markdown."""
-        template = agent_service._static_agent_template(
-            "Test Agent",
-            "uuid-5678",
-            []
-        )
+        template = agent_service._static_agent_template("Test Agent", "uuid-5678", [])
         assert template.startswith("# Test Agent")
         assert "## Identity" in template
         assert "## Mission" in template
@@ -141,7 +131,7 @@ class TestAgentService:
             "agent_id": "test_agent",
             "role": "Test Agent",
             "created_at": "2025-01-01T00:00:00",
-            "uuid": "test-uuid-1234"
+            "uuid": "test-uuid-1234",
         }
         (agent_dir / "BIRTH_CERTIFICATE.json").write_text(json.dumps(cert))
 
@@ -164,7 +154,7 @@ class TestAgentService:
             "agents": 2,
             "total_invocations": 10,
             "average_pool_importance": 0.5,
-            "agents_detail": {}
+            "agents_detail": {},
         }
         mock_orchestrator.agent_pool = mock_pool
 
@@ -205,7 +195,7 @@ class TestAgentService:
         (agents_dir / "test_role" / "old_file.txt").write_text("old")
 
         # Mock brainstorm to return None (use static template)
-        with patch.object(agent_service, '_brainstorm_agent_prompt', return_value=None):
+        with patch.object(agent_service, "_brainstorm_agent_prompt", return_value=None):
             result = agent_service.spawn("Test Role", force=True)
 
         assert result.success
@@ -221,7 +211,7 @@ class TestAgentService:
             role="Test Agent",
             domains=["coding"],
             inference_config={"provider": "claude", "model": "sonnet"},
-            generated_prompt="# Test Prompt"
+            generated_prompt="# Test Prompt",
         )
 
         assert config["agent_id"] == "test_agent"
@@ -240,7 +230,7 @@ provider: gemini
 model: gemini-2.0-flash
 reasoning: Fast for simple tasks
 """
-        with patch('core.foundation.agents.get_registry') as mock_registry:
+        with patch("core.foundation.agents.get_registry") as mock_registry:
             mock_registry.return_value.get.return_value = MagicMock()  # Provider exists
             config = agent_service._extract_inference_config(prompt)
 
@@ -261,7 +251,7 @@ class TestAgentServiceIntegration:
 
     def test_command_uses_service(self):
         """Test that AgentCommand uses AgentService."""
-        from core.interface_pkg.interface.commands.agents import SpawnCommand, _get_agent_service
+        from core.interface_pkg.interface.commands.agents import _get_agent_service
         from core.interface_pkg.interface.commands.registry import CommandContext
 
         mock_orchestrator = MagicMock()
@@ -269,12 +259,10 @@ class TestAgentServiceIntegration:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             context = CommandContext(
-                orchestrator=mock_orchestrator,
-                console=mock_console,
-                config={},
-                extras={"workspace_path": Path(tmpdir)}
+                orchestrator=mock_orchestrator, console=mock_console, config={}, extras={"workspace_path": Path(tmpdir)}
             )
 
             service = _get_agent_service(context)
             from core.foundation.agents.service import AgentService
+
             assert isinstance(service, AgentService)

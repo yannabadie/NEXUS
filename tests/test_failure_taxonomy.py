@@ -1,25 +1,24 @@
 """Tests for MAST Failure Taxonomy + MARS Triple-Pathway Reflection."""
 
-import pytest
 from core.intelligence.hive_mind.failure_taxonomy import (
-    MastCategory,
-    MastCode,
-    MastClassification,
-    MastClassifier,
-    TriplePathwayResult,
-    TriplePathwayReflector,
+    FAILURE_TYPE_MAST_MAP,
     MAST_CATEGORIES,
     MAST_PATTERNS,
-    FAILURE_TYPE_MAST_MAP,
+    MastCategory,
+    MastClassification,
+    MastClassifier,
+    MastCode,
+    TriplePathwayReflector,
+    TriplePathwayResult,
     get_mast_classifier,
     get_triple_reflector,
     reset_failure_taxonomy,
 )
 
-
 # =============================================================================
 # MastCode & Category Mapping
 # =============================================================================
+
 
 class TestMastCodeMapping:
     def test_all_codes_have_category(self):
@@ -48,9 +47,16 @@ class TestMastCodeMapping:
 
     def test_failure_type_map_covers_all_types(self):
         expected_types = [
-            "timeout", "capability_missing", "hallucination", "strategy_wrong",
-            "tool_error", "context_lost", "budget_exceeded", "memory_error",
-            "planning_error", "unknown",
+            "timeout",
+            "capability_missing",
+            "hallucination",
+            "strategy_wrong",
+            "tool_error",
+            "context_lost",
+            "budget_exceeded",
+            "memory_error",
+            "planning_error",
+            "unknown",
         ]
         for ft in expected_types:
             assert ft in FAILURE_TYPE_MAST_MAP
@@ -59,6 +65,7 @@ class TestMastCodeMapping:
 # =============================================================================
 # MastClassification Dataclass
 # =============================================================================
+
 
 class TestMastClassification:
     def test_get_categories(self):
@@ -108,6 +115,7 @@ class TestMastClassification:
 # MastClassifier - Pattern Detection
 # =============================================================================
 
+
 class TestMastClassifierPatterns:
     def setup_method(self):
         self.classifier = MastClassifier()
@@ -156,6 +164,7 @@ class TestMastClassifierPatterns:
 # MastClassifier - FailureType Mapping
 # =============================================================================
 
+
 class TestMastClassifierFailureType:
     def setup_method(self):
         self.classifier = MastClassifier()
@@ -194,6 +203,7 @@ class TestMastClassifierFailureType:
 # MastClassifier - Agent Diagnoses
 # =============================================================================
 
+
 class TestMastClassifierDiagnoses:
     def setup_method(self):
         self.classifier = MastClassifier()
@@ -219,6 +229,7 @@ class TestMastClassifierDiagnoses:
 # =============================================================================
 # MastClassifier - Confidence & Category
 # =============================================================================
+
 
 class TestMastClassifierConfidence:
     def setup_method(self):
@@ -255,6 +266,7 @@ class TestMastClassifierConfidence:
 # TriplePathwayResult Dataclass
 # =============================================================================
 
+
 class TestTriplePathwayResult:
     def test_to_dict(self):
         r = TriplePathwayResult(
@@ -271,7 +283,10 @@ class TestTriplePathwayResult:
 
     def test_default_mast_codes(self):
         r = TriplePathwayResult(
-            principle="p", procedure="proc", synthesis="s", failure_type="unknown",
+            principle="p",
+            procedure="proc",
+            synthesis="s",
+            failure_type="unknown",
         )
         assert r.mast_codes == []
 
@@ -279,6 +294,7 @@ class TestTriplePathwayResult:
 # =============================================================================
 # TriplePathwayReflector - Principle Extraction
 # =============================================================================
+
 
 class TestTriplePathwayPrinciple:
     def setup_method(self):
@@ -298,14 +314,16 @@ class TestTriplePathwayPrinciple:
 
     def test_enriches_with_agent_ignored(self):
         result = self.reflector.reflect(
-            "Agent ignored the other agent's work", "Collaboration failed",
+            "Agent ignored the other agent's work",
+            "Collaboration failed",
             failure_type="strategy_wrong",
         )
         assert "agent" in result.principle.lower()
 
     def test_enriches_with_loop_detection(self):
         result = self.reflector.reflect(
-            "Got stuck in a repeated loop", "Infinite loop",
+            "Got stuck in a repeated loop",
+            "Infinite loop",
             failure_type="timeout",
         )
         assert "loop" in result.principle.lower() or "repetition" in result.principle.lower()
@@ -314,6 +332,7 @@ class TestTriplePathwayPrinciple:
 # =============================================================================
 # TriplePathwayReflector - Procedure
 # =============================================================================
+
 
 class TestTriplePathwayProcedure:
     def setup_method(self):
@@ -338,6 +357,7 @@ class TestTriplePathwayProcedure:
 # TriplePathwayReflector - Synthesis
 # =============================================================================
 
+
 class TestTriplePathwaySynthesis:
     def setup_method(self):
         self.reflector = TriplePathwayReflector()
@@ -356,7 +376,9 @@ class TestTriplePathwaySynthesis:
 
     def test_mast_codes_passed_through(self):
         result = self.reflector.reflect(
-            "error", "cause", failure_type="timeout",
+            "error",
+            "cause",
+            failure_type="timeout",
             mast_codes=["step_repetition", "unaware_termination"],
         )
         assert result.mast_codes == ["step_repetition", "unaware_termination"]
@@ -370,14 +392,24 @@ class TestTriplePathwaySynthesis:
 # All FailureTypes Covered
 # =============================================================================
 
+
 class TestAllFailureTypes:
     def setup_method(self):
         self.reflector = TriplePathwayReflector()
 
     def test_all_types_have_principle(self):
-        for ft in ["timeout", "capability_missing", "hallucination", "strategy_wrong",
-                    "tool_error", "context_lost", "budget_exceeded", "memory_error",
-                    "planning_error", "unknown"]:
+        for ft in [
+            "timeout",
+            "capability_missing",
+            "hallucination",
+            "strategy_wrong",
+            "tool_error",
+            "context_lost",
+            "budget_exceeded",
+            "memory_error",
+            "planning_error",
+            "unknown",
+        ]:
             result = self.reflector.reflect("failure", "cause", failure_type=ft)
             assert result.principle != ""
             assert result.procedure != ""
@@ -391,6 +423,7 @@ class TestAllFailureTypes:
 # =============================================================================
 # Singletons
 # =============================================================================
+
 
 class TestSingletons:
     def test_classifier_singleton(self):

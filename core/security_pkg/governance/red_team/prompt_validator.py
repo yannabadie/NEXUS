@@ -16,34 +16,35 @@ Date: 2025-12-09
 
 import re
 from dataclasses import dataclass, field
-from typing import List, Dict, Tuple
 from enum import Enum
 
 
 class RiskLevel(Enum):
     """Risk level for detected patterns."""
+
     CRITICAL = "critical"  # Block spawn
-    HIGH = "high"          # Warn, may block
-    MEDIUM = "medium"      # Warn only
-    LOW = "low"            # Log only
+    HIGH = "high"  # Warn, may block
+    MEDIUM = "medium"  # Warn only
+    LOW = "low"  # Log only
 
 
 @dataclass
 class ValidationResult:
     """Result of prompt validation."""
+
     passed: bool
     score: float  # 0.0-1.0 (1.0 = clean)
     risk_level: RiskLevel
-    warnings: List[str] = field(default_factory=list)
-    details: Dict[str, List[str]] = field(default_factory=dict)
+    warnings: list[str] = field(default_factory=list)
+    details: dict[str, list[str]] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "passed": self.passed,
             "score": round(self.score, 3),
             "risk_level": self.risk_level.value,
             "warnings": self.warnings,
-            "details": self.details
+            "details": self.details,
         }
 
 
@@ -59,7 +60,7 @@ DANGEROUS_PATTERNS = {
             r"circumvent.*control",
         ],
         "level": RiskLevel.CRITICAL,
-        "description": "Security bypass instructions"
+        "description": "Security bypass instructions",
     },
     "malware_generation": {
         "patterns": [
@@ -70,7 +71,7 @@ DANGEROUS_PATTERNS = {
             r"build.*trojan",
         ],
         "level": RiskLevel.CRITICAL,
-        "description": "Malware generation"
+        "description": "Malware generation",
     },
     "creator_override": {
         "patterns": [
@@ -81,9 +82,8 @@ DANGEROUS_PATTERNS = {
             r"disable.*red.*team",
         ],
         "level": RiskLevel.CRITICAL,
-        "description": "Creator authority override"
+        "description": "Creator authority override",
     },
-
     # HIGH: Warn and may block
     "unrestricted_access": {
         "patterns": [
@@ -93,7 +93,7 @@ DANGEROUS_PATTERNS = {
             r"unlimited.*permission",
         ],
         "level": RiskLevel.HIGH,
-        "description": "Unrestricted access claims"
+        "description": "Unrestricted access claims",
     },
     "deception": {
         "patterns": [
@@ -104,7 +104,7 @@ DANGEROUS_PATTERNS = {
             r"mislead.*user",
         ],
         "level": RiskLevel.HIGH,
-        "description": "Deception instructions"
+        "description": "Deception instructions",
     },
     "data_exfiltration": {
         "patterns": [
@@ -114,9 +114,8 @@ DANGEROUS_PATTERNS = {
             r"collect.*without.*consent",
         ],
         "level": RiskLevel.HIGH,
-        "description": "Data exfiltration"
+        "description": "Data exfiltration",
     },
-
     # MEDIUM: Warn only
     "aggressive_autonomy": {
         "patterns": [
@@ -126,7 +125,7 @@ DANGEROUS_PATTERNS = {
             r"skip.*confirmation",
         ],
         "level": RiskLevel.MEDIUM,
-        "description": "Aggressive autonomy"
+        "description": "Aggressive autonomy",
     },
     "authority_claim": {
         "patterns": [
@@ -136,7 +135,7 @@ DANGEROUS_PATTERNS = {
             r"superior.*to",
         ],
         "level": RiskLevel.MEDIUM,
-        "description": "Authority claims over other agents"
+        "description": "Authority claims over other agents",
     },
 }
 
@@ -177,7 +176,7 @@ class SpawnPromptValidator:
     without invoking the agent. Fast (<10ms) and deterministic.
     """
 
-    def __init__(self, custom_patterns: Dict = None):
+    def __init__(self, custom_patterns: dict = None):
         """
         Initialize validator with optional custom patterns.
 
@@ -205,7 +204,7 @@ class SpawnPromptValidator:
 
         # Check dangerous patterns
         highest_risk = RiskLevel.LOW
-        for category, config in self.dangerous.items():
+        for _category, config in self.dangerous.items():
             for pattern in config["patterns"]:
                 if re.search(pattern, prompt_lower, re.IGNORECASE):
                     level = config["level"]
@@ -232,26 +231,17 @@ class SpawnPromptValidator:
         # Start at 1.0, deduct for each issue
         score = 1.0
         score -= len(details["critical"]) * 0.5  # Critical: -50% each
-        score -= len(details["high"]) * 0.2      # High: -20% each
-        score -= len(details["medium"]) * 0.1   # Medium: -10% each
-        score += positive_matches * 0.05         # Positive: +5% each (max boost)
+        score -= len(details["high"]) * 0.2  # High: -20% each
+        score -= len(details["medium"]) * 0.1  # Medium: -10% each
+        score += positive_matches * 0.05  # Positive: +5% each (max boost)
         score = max(0.0, min(1.0, score))
 
         # Determine pass/fail
-        passed = (
-            len(details["critical"]) == 0 and
-            score >= 0.6
-        )
+        passed = len(details["critical"]) == 0 and score >= 0.6
 
-        return ValidationResult(
-            passed=passed,
-            score=score,
-            risk_level=highest_risk,
-            warnings=warnings,
-            details=details
-        )
+        return ValidationResult(passed=passed, score=score, risk_level=highest_risk, warnings=warnings, details=details)
 
-    def quick_check(self, prompt: str) -> Tuple[bool, str]:
+    def quick_check(self, prompt: str) -> tuple[bool, str]:
         """
         Quick pass/fail check without detailed analysis.
 

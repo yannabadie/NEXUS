@@ -14,8 +14,8 @@ Usage:
 Phase 3 extraction (medium risk, well-defined result structure).
 """
 
-from typing import Dict, Optional
 import time
+
 from pydantic import ValidationError
 
 # Deferred imports to avoid circular dependency
@@ -49,13 +49,13 @@ class ResultHandler:
     def make_result(
         self,
         state: str,
-        output: Optional[str],
-        agent: Optional[str],
+        output: str | None,
+        agent: str | None,
         finished: bool,
-        error: Optional[str] = None,
-        tool: Optional[str] = None,
-        metadata: Optional[Dict] = None
-    ) -> Dict:
+        error: str | None = None,
+        tool: str | None = None,
+        metadata: dict | None = None,
+    ) -> dict:
         """
         Create standardized result dictionary.
 
@@ -78,12 +78,7 @@ class ResultHandler:
             >>> result = handler.make_result("WAITING_USER", "Task done!", "claude", True)
             >>> assert result["finished"] is True
         """
-        result = {
-            "state": state,
-            "output": output,
-            "agent": agent,
-            "finished": finished
-        }
+        result = {"state": state, "output": output, "agent": agent, "finished": finished}
 
         if error:
             result["error"] = error
@@ -98,7 +93,7 @@ class ResultHandler:
 
         return result
 
-    def _record_to_auto_memory(self, agent: Optional[str], error: Optional[str]):
+    def _record_to_auto_memory(self, agent: str | None, error: str | None):
         """
         Record task outcome to Auto-Memory for learning.
 
@@ -117,7 +112,7 @@ class ResultHandler:
                 swarm_mode=self._orch._current_swarm_mode,
                 lead_agent=lead_agent,
                 duration_seconds=duration,
-                reason=error
+                reason=error,
             )
         else:
             # Record success
@@ -127,13 +122,13 @@ class ResultHandler:
                 swarm_mode=self._orch._current_swarm_mode,
                 lead_agent=lead_agent,
                 duration_seconds=duration,
-                score=1.0
+                score=1.0,
             )
 
         # Reset tracking
         self._orch._current_task_start = 0
 
-    def validate_message(self, response: Dict, expect_heavy: bool = False) -> Dict:
+    def validate_message(self, response: dict, expect_heavy: bool = False) -> dict:
         """
         Validate and parse message with Pydantic V2.
 
@@ -153,7 +148,7 @@ class ResultHandler:
             >>> handler = ResultHandler(orch)
             >>> validated = handler.validate_message({"action_type": "TALK", ...})
         """
-        from core.synapse.protocol_v7 import LightMessageV7, HeavyMessageV7
+        from core.synapse.protocol_v7 import HeavyMessageV7, LightMessageV7
 
         try:
             if expect_heavy or response.get("action_type") == "TOOL_USE":
@@ -161,7 +156,7 @@ class ResultHandler:
             else:
                 return LightMessageV7(**response).model_dump()
         except ValidationError as e:
-            raise ValueError(f"Invalid message schema: {e}")
+            raise ValueError(f"Invalid message schema: {e}") from e
 
     def format_tool_result(self, result) -> str:
         """

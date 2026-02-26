@@ -16,9 +16,6 @@ Validates:
 - Module exports
 """
 
-import time
-import pytest
-
 from core.synapse.message_deduplicator import (
     DEFAULT_TTL,
     MAX_FINGERPRINTS,
@@ -32,10 +29,10 @@ from core.synapse.message_deduplicator import (
     reset_deduplicator,
 )
 
-
 # =============================================================================
 # compute_fingerprint Tests
 # =============================================================================
+
 
 class TestComputeFingerprint:
     """Test fingerprint computation."""
@@ -65,6 +62,7 @@ class TestComputeFingerprint:
 # MessageFingerprint Tests
 # =============================================================================
 
+
 class TestMessageFingerprint:
     """Test MessageFingerprint dataclass."""
 
@@ -82,6 +80,7 @@ class TestMessageFingerprint:
 # =============================================================================
 # MessageTrace Tests
 # =============================================================================
+
 
 class TestMessageTrace:
     """Test MessageTrace dataclass."""
@@ -109,22 +108,26 @@ class TestMessageTrace:
 # DeduplicationStats Tests
 # =============================================================================
 
+
 class TestDeduplicationStats:
     """Test DeduplicationStats dataclass."""
 
     def test_duplicate_rate_zero(self):
-        s = DeduplicationStats(total_checked=0, total_duplicates=0, total_unique=0,
-                               active_fingerprints=0, active_traces=0)
+        s = DeduplicationStats(
+            total_checked=0, total_duplicates=0, total_unique=0, active_fingerprints=0, active_traces=0
+        )
         assert s.duplicate_rate == 0.0
 
     def test_duplicate_rate(self):
-        s = DeduplicationStats(total_checked=10, total_duplicates=3, total_unique=7,
-                               active_fingerprints=7, active_traces=0)
+        s = DeduplicationStats(
+            total_checked=10, total_duplicates=3, total_unique=7, active_fingerprints=7, active_traces=0
+        )
         assert abs(s.duplicate_rate - 0.3) < 0.01
 
     def test_to_dict(self):
-        s = DeduplicationStats(total_checked=10, total_duplicates=3, total_unique=7,
-                               active_fingerprints=7, active_traces=0)
+        s = DeduplicationStats(
+            total_checked=10, total_duplicates=3, total_unique=7, active_fingerprints=7, active_traces=0
+        )
         d = s.to_dict()
         assert "duplicate_rate" in d
 
@@ -132,6 +135,7 @@ class TestDeduplicationStats:
 # =============================================================================
 # Duplicate Detection Tests
 # =============================================================================
+
 
 class TestDuplicateDetection:
     """Test duplicate detection."""
@@ -183,6 +187,7 @@ class TestDuplicateDetection:
 # Expiration Tests
 # =============================================================================
 
+
 class TestExpiration:
     """Test fingerprint expiration."""
 
@@ -203,6 +208,7 @@ class TestExpiration:
 # =============================================================================
 # Tracing Tests
 # =============================================================================
+
 
 class TestTracing:
     """Test message tracing."""
@@ -282,6 +288,7 @@ class TestTracing:
 # Bounded History Tests
 # =============================================================================
 
+
 class TestBoundedHistory:
     """Test bounded history with eviction."""
 
@@ -301,6 +308,7 @@ class TestBoundedHistory:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test deduplication statistics."""
@@ -330,6 +338,7 @@ class TestStatistics:
 # =============================================================================
 # State Tests
 # =============================================================================
+
 
 class TestState:
     """Test state management."""
@@ -366,6 +375,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global deduplicator."""
 
@@ -392,25 +402,34 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_synapse_package(self):
         from core.synapse import (
-            MessageDeduplicator, MessageFingerprint, MessageTrace,
-            DeduplicationStats, compute_fingerprint,
-            get_deduplicator, reset_deduplicator,
+            DeduplicationStats,
+            MessageDeduplicator,
+            MessageFingerprint,
+            MessageTrace,
+            compute_fingerprint,
+            get_deduplicator,
+            reset_deduplicator,
         )
-        assert all([
-            MessageDeduplicator, MessageFingerprint, MessageTrace,
-            DeduplicationStats, compute_fingerprint,
-            get_deduplicator, reset_deduplicator,
-        ])
+
+        assert all(
+            [
+                MessageDeduplicator,
+                MessageFingerprint,
+                MessageTrace,
+                DeduplicationStats,
+                compute_fingerprint,
+                get_deduplicator,
+                reset_deduplicator,
+            ]
+        )
 
     def test_constants(self):
-        from core.synapse.message_deduplicator import (
-            MAX_FINGERPRINTS, DEFAULT_TTL, MAX_TRACES,
-        )
         assert MAX_FINGERPRINTS == 100000
         assert DEFAULT_TTL == 300.0
         assert MAX_TRACES == 10000

@@ -14,16 +14,15 @@ Note: Some tests require Redis to be running for full coverage.
 Tests are designed to pass even without Redis (graceful degradation).
 """
 
-import asyncio
 import json
-import pytest
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
+import pytest
 
 # =============================================================================
 # TestCerebroEventTypes - Event serialization/deserialization
 # =============================================================================
+
 
 class TestCerebroEventTypes:
     """Test CerebroEvent and CerebroEventType."""
@@ -83,14 +82,16 @@ class TestCerebroEventTypes:
         """CerebroEvent deserializes from JSON correctly."""
         from core.observability.events.types import CerebroEvent, CerebroEventType
 
-        json_str = json.dumps({
-            "event_type": "interaction.confirm",
-            "tenant_id": "tenant_x",
-            "workspace_id": "project_1",
-            "payload": {"prompt": "Proceed?", "default": False},
-            "timestamp": "2025-12-15T12:00:00Z",
-            "event_id": "xyz789",
-        })
+        json_str = json.dumps(
+            {
+                "event_type": "interaction.confirm",
+                "tenant_id": "tenant_x",
+                "workspace_id": "project_1",
+                "payload": {"prompt": "Proceed?", "default": False},
+                "timestamp": "2025-12-15T12:00:00Z",
+                "event_id": "xyz789",
+            }
+        )
 
         event = CerebroEvent.from_json(json_str)
 
@@ -130,6 +131,7 @@ class TestCerebroEventTypes:
 # TestRedisEventBus - Singleton and graceful degradation
 # =============================================================================
 
+
 class TestRedisEventBus:
     """Test RedisEventBus singleton and behavior."""
 
@@ -137,6 +139,7 @@ class TestRedisEventBus:
     def reset_singleton(self):
         """Reset singleton between tests."""
         from core.observability.events.redis_bus import reset_redis_bus
+
         reset_redis_bus()
         yield
         reset_redis_bus()
@@ -197,6 +200,7 @@ class TestRedisEventBus:
 # TestRedisLogHandler - Queue and thread lifecycle
 # =============================================================================
 
+
 class TestRedisLogHandler:
     """Test RedisLogHandler queue behavior."""
 
@@ -232,6 +236,7 @@ class TestRedisLogHandler:
     def test_emit_non_blocking(self):
         """Emit is non-blocking even without Redis."""
         import logging
+
         from core.observability.telemetry.redis_bridge import RedisLogHandler
 
         handler = RedisLogHandler()
@@ -258,6 +263,7 @@ class TestRedisLogHandler:
     def test_queue_overflow_drops(self):
         """Handler drops events when queue is full."""
         import logging
+
         from core.observability.telemetry.redis_bridge import RedisLogHandler
 
         # Small queue for testing
@@ -302,6 +308,7 @@ class TestRedisLogHandler:
 # TestCerebroAPI - FastAPI health endpoints
 # =============================================================================
 
+
 class TestCerebroAPI:
     """Test CEREBRO FastAPI application."""
 
@@ -312,6 +319,7 @@ class TestCerebroAPI:
         pytest.importorskip("httpx", reason="httpx not installed")
 
         from fastapi.testclient import TestClient
+
         from core.api.cerebro.app import create_cerebro_app
 
         app = create_cerebro_app()
@@ -358,6 +366,7 @@ class TestCerebroAPI:
 # TestHeadlessProviderIntegration - CEREBRO event publishing
 # =============================================================================
 
+
 class TestHeadlessProviderIntegration:
     """Test HeadlessProvider CEREBRO integration."""
 
@@ -365,6 +374,7 @@ class TestHeadlessProviderIntegration:
     def reset_singleton(self):
         """Reset Redis bus singleton."""
         from core.observability.events.redis_bus import reset_redis_bus
+
         reset_redis_bus()
         yield
         reset_redis_bus()
@@ -372,8 +382,8 @@ class TestHeadlessProviderIntegration:
     @pytest.mark.asyncio
     async def test_ask_publishes_event(self):
         """HeadlessProvider.ask() publishes CEREBRO event."""
-        from core.security_pkg.interaction.headless_provider import HeadlessProvider
         from core.observability.events.redis_bus import get_redis_bus
+        from core.security_pkg.interaction.headless_provider import HeadlessProvider
 
         provider = HeadlessProvider(publish_events=True)
 
@@ -401,7 +411,6 @@ class TestHeadlessProviderIntegration:
     async def test_publish_events_disabled(self):
         """HeadlessProvider respects publish_events=False."""
         from core.security_pkg.interaction.headless_provider import HeadlessProvider
-        from core.observability.events.redis_bus import get_redis_bus
 
         provider = HeadlessProvider(publish_events=False)
 
@@ -414,6 +423,7 @@ class TestHeadlessProviderIntegration:
 # =============================================================================
 # TestMiddleware - JWT decoding
 # =============================================================================
+
 
 class TestMiddleware:
     """Test CEREBRO middleware components."""
@@ -454,6 +464,7 @@ class TestMiddleware:
 # =============================================================================
 # TestDependencies - WebSocket context extraction
 # =============================================================================
+
 
 class TestDependencies:
     """Test CEREBRO dependency injection."""

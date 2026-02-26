@@ -23,9 +23,9 @@ Author: Claude (NEXUS PRISM V10)
 Date: 2025-12-15
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID, uuid4
 
 from sqlmodel import Field, Relationship, SQLModel
@@ -33,6 +33,7 @@ from sqlmodel import Field, Relationship, SQLModel
 
 class PlanTier(str, Enum):
     """Subscription plan tiers."""
+
     FREE = "free"
     PRO = "pro"
     ENTERPRISE = "enterprise"
@@ -40,6 +41,7 @@ class PlanTier(str, Enum):
 
 class TenantStatus(str, Enum):
     """Tenant account status."""
+
     ACTIVE = "active"
     SUSPENDED = "suspended"
     PENDING = "pending"
@@ -48,6 +50,7 @@ class TenantStatus(str, Enum):
 # =============================================================================
 # TENANT - The root of multi-tenancy
 # =============================================================================
+
 
 class Tenant(SQLModel, table=True):
     """
@@ -59,6 +62,7 @@ class Tenant(SQLModel, table=True):
     - Quota/Budget
     - Isolated data in data/tenants/{id}/
     """
+
     __tablename__ = "tenant"
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
@@ -70,15 +74,15 @@ class Tenant(SQLModel, table=True):
     status: TenantStatus = Field(default=TenantStatus.ACTIVE)
 
     # Metadata
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
 
     # Contact
-    email: Optional[str] = Field(default=None, max_length=255)
+    email: str | None = Field(default=None, max_length=255)
 
     # Relationships
-    users: List["User"] = Relationship(back_populates="tenant")
-    workspaces: List["Workspace"] = Relationship(back_populates="tenant")
+    users: list["User"] = Relationship(back_populates="tenant")
+    workspaces: list["Workspace"] = Relationship(back_populates="tenant")
     quota: Optional["Quota"] = Relationship(back_populates="tenant")
 
     def __repr__(self) -> str:
@@ -89,12 +93,14 @@ class Tenant(SQLModel, table=True):
 # USER - Tenant members
 # =============================================================================
 
+
 class UserRole(str, Enum):
     """User roles within a tenant."""
-    OWNER = "owner"      # Full control, billing
-    ADMIN = "admin"      # Manage users, settings
-    MEMBER = "member"    # Standard access
-    VIEWER = "viewer"    # Read-only
+
+    OWNER = "owner"  # Full control, billing
+    ADMIN = "admin"  # Manage users, settings
+    MEMBER = "member"  # Standard access
+    VIEWER = "viewer"  # Read-only
 
 
 class User(SQLModel, table=True):
@@ -104,6 +110,7 @@ class User(SQLModel, table=True):
     Users belong to exactly one tenant. Cross-tenant access
     requires separate user accounts.
     """
+
     __tablename__ = "user"
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
@@ -121,13 +128,13 @@ class User(SQLModel, table=True):
 
     # Status
     is_active: bool = Field(default=True)
-    last_login: Optional[datetime] = Field(default=None)
+    last_login: datetime | None = Field(default=None)
 
     # Metadata
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
 
     # Relationships
-    tenant: Optional[Tenant] = Relationship(back_populates="users")
+    tenant: Tenant | None = Relationship(back_populates="users")
 
     class Config:
         # Unique constraint on (tenant_id, username)
@@ -143,6 +150,7 @@ class User(SQLModel, table=True):
 # WORKSPACE - Isolated project environments
 # =============================================================================
 
+
 class Workspace(SQLModel, table=True):
     """
     Workspace - an isolated project environment within a tenant.
@@ -156,6 +164,7 @@ class Workspace(SQLModel, table=True):
     - logs/ (event logs)
     - memory/ (RAG vectors)
     """
+
     __tablename__ = "workspace"
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
@@ -169,15 +178,15 @@ class Workspace(SQLModel, table=True):
     filesystem_path: str = Field(max_length=500)
 
     # Metadata
-    description: Optional[str] = Field(default=None, max_length=500)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+    description: str | None = Field(default=None, max_length=500)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
 
     # Status
     is_active: bool = Field(default=True)
 
     # Relationships
-    tenant: Optional[Tenant] = Relationship(back_populates="workspaces")
+    tenant: Tenant | None = Relationship(back_populates="workspaces")
 
     def __repr__(self) -> str:
         return f"Workspace(id={self.id}, name={self.name}, path={self.filesystem_path})"
@@ -187,6 +196,7 @@ class Workspace(SQLModel, table=True):
 # QUOTA - Usage limits and tracking
 # =============================================================================
 
+
 class Quota(SQLModel, table=True):
     """
     Quota and usage tracking per tenant.
@@ -194,6 +204,7 @@ class Quota(SQLModel, table=True):
     Enforces resource limits based on plan tier and tracks
     current usage for billing and throttling.
     """
+
     __tablename__ = "quota"
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
@@ -226,11 +237,11 @@ class Quota(SQLModel, table=True):
     monthly_spend_usd: float = Field(default=0.0)
 
     # Reset tracking
-    daily_reset_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
-    monthly_reset_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+    daily_reset_at: datetime = Field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
+    monthly_reset_at: datetime = Field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
 
     # Relationships
-    tenant: Optional[Tenant] = Relationship(back_populates="quota")
+    tenant: Tenant | None = Relationship(back_populates="quota")
 
     def is_over_daily_budget(self) -> bool:
         """Check if tenant has exceeded daily budget."""
@@ -245,10 +256,7 @@ class Quota(SQLModel, table=True):
         return max(0.0, self.daily_budget_usd - self.current_spend_usd)
 
     def __repr__(self) -> str:
-        return (
-            f"Quota(tenant={self.tenant_id}, "
-            f"daily=${self.current_spend_usd:.2f}/${self.daily_budget_usd:.2f})"
-        )
+        return f"Quota(tenant={self.tenant_id}, daily=${self.current_spend_usd:.2f}/${self.daily_budget_usd:.2f})"
 
 
 # =============================================================================

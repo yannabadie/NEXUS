@@ -27,13 +27,12 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import re
 import uuid
 from collections import Counter
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -42,11 +41,13 @@ _logger = logging.getLogger(__name__)
 # Data Types
 # =============================================================================
 
+
 @dataclass
 class ToolCallRecord:
     """Record of a single tool call execution."""
+
     tool_name: str
-    arguments: Dict[str, Any] = field(default_factory=dict)
+    arguments: dict[str, Any] = field(default_factory=dict)
     success: bool = True
     output: str = ""
     error: str = ""
@@ -55,7 +56,7 @@ class ToolCallRecord:
 
     def __post_init__(self):
         if not self.timestamp:
-            self.timestamp = datetime.now(timezone.utc).isoformat()
+            self.timestamp = datetime.now(UTC).isoformat()
 
     @property
     def signature(self) -> str:
@@ -63,7 +64,7 @@ class ToolCallRecord:
         keys = sorted(self.arguments.keys())
         return f"{self.tool_name}({','.join(keys)})"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "tool_name": self.tool_name,
             "arguments": self.arguments,
@@ -75,7 +76,7 @@ class ToolCallRecord:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> ToolCallRecord:
+    def from_dict(cls, data: dict[str, Any]) -> ToolCallRecord:
         return cls(
             tool_name=data["tool_name"],
             arguments=data.get("arguments", {}),
@@ -90,11 +91,12 @@ class ToolCallRecord:
 @dataclass
 class ToolSequencePattern:
     """A detected repeated sequence of tool calls."""
+
     pattern_id: str
-    tool_names: List[str]
-    signatures: List[str]
+    tool_names: list[str]
+    signatures: list[str]
     occurrence_count: int
-    occurrences: List[List[ToolCallRecord]] = field(default_factory=list)
+    occurrences: list[list[ToolCallRecord]] = field(default_factory=list)
     first_seen: str = ""
     last_seen: str = ""
     avg_duration_seconds: float = 0.0
@@ -118,7 +120,7 @@ class ToolSequencePattern:
         raw = "->".join(self.tool_names)
         return hashlib.sha256(raw.encode()).hexdigest()[:8]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "pattern_id": self.pattern_id,
             "tool_names": self.tool_names,
@@ -135,28 +137,29 @@ class ToolSequencePattern:
 @dataclass
 class CrystallizedSkill:
     """A reusable parameterized skill compiled from a pattern."""
+
     skill_id: str
     name: str
     description: str
-    tool_steps: List[Dict[str, Any]]
-    parameters: List[Dict[str, Any]] = field(default_factory=list)
+    tool_steps: list[dict[str, Any]]
+    parameters: list[dict[str, Any]] = field(default_factory=list)
     source_pattern_id: str = ""
     created_at: str = ""
     invocation_count: int = 0
     success_rate: float = 1.0
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
 
     def __post_init__(self):
         if not self.skill_id:
             self.skill_id = uuid.uuid4().hex[:8]
         if not self.created_at:
-            self.created_at = datetime.now(timezone.utc).isoformat()
+            self.created_at = datetime.now(UTC).isoformat()
 
     @property
     def step_count(self) -> int:
         return len(self.tool_steps)
 
-    def render_steps(self, params: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def render_steps(self, params: dict[str, Any]) -> list[dict[str, Any]]:
         """
         Render tool steps with concrete parameter values.
 
@@ -175,9 +178,7 @@ class CrystallizedSkill:
             rendered.append(rendered_step)
         return rendered
 
-    def _substitute_params(
-        self, arguments: Dict[str, Any], params: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def _substitute_params(self, arguments: dict[str, Any], params: dict[str, Any]) -> dict[str, Any]:
         """Replace {{param}} placeholders with actual values."""
         result = {}
         for key, value in arguments.items():
@@ -191,7 +192,7 @@ class CrystallizedSkill:
                 result[key] = value
         return result
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "skill_id": self.skill_id,
             "name": self.name,
@@ -207,7 +208,7 @@ class CrystallizedSkill:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> CrystallizedSkill:
+    def from_dict(cls, data: dict[str, Any]) -> CrystallizedSkill:
         return cls(
             skill_id=data["skill_id"],
             name=data["name"],
@@ -225,6 +226,7 @@ class CrystallizedSkill:
 # =============================================================================
 # Skill Crystallizer Engine
 # =============================================================================
+
 
 class SkillCrystallizer:
     """
@@ -246,7 +248,7 @@ class SkillCrystallizer:
 
     def __init__(
         self,
-        storage_path: Optional[Path] = None,
+        storage_path: Path | None = None,
         min_occurrences: int = DEFAULT_MIN_OCCURRENCES,
         min_sequence_length: int = DEFAULT_MIN_SEQUENCE_LENGTH,
         max_sequence_length: int = DEFAULT_MAX_SEQUENCE_LENGTH,
@@ -268,9 +270,9 @@ class SkillCrystallizer:
         self.max_sequence_length = max_sequence_length
         self.max_history = max_history
 
-        self._history: List[ToolCallRecord] = []
-        self._skills: Dict[str, CrystallizedSkill] = {}
-        self._patterns: Dict[str, ToolSequencePattern] = {}
+        self._history: list[ToolCallRecord] = []
+        self._skills: dict[str, CrystallizedSkill] = {}
+        self._patterns: dict[str, ToolSequencePattern] = {}
 
         # Load persisted skills
         if self._storage_path:
@@ -291,9 +293,9 @@ class SkillCrystallizer:
 
         # Trim history if over limit
         if len(self._history) > self.max_history:
-            self._history = self._history[-self.max_history:]
+            self._history = self._history[-self.max_history :]
 
-    def record_batch(self, calls: List[ToolCallRecord]) -> None:
+    def record_batch(self, calls: list[ToolCallRecord]) -> None:
         """Record multiple tool calls at once."""
         for call in calls:
             self.record(call)
@@ -310,7 +312,7 @@ class SkillCrystallizer:
     # Pattern Detection
     # =========================================================================
 
-    def detect_patterns(self) -> List[ToolSequencePattern]:
+    def detect_patterns(self) -> list[ToolSequencePattern]:
         """
         Scan history for repeated tool sequences.
 
@@ -324,7 +326,7 @@ class SkillCrystallizer:
             return []
 
         tool_names = [r.tool_name for r in self._history]
-        patterns: Dict[str, ToolSequencePattern] = {}
+        patterns: dict[str, ToolSequencePattern] = {}
 
         # Scan all n-gram lengths
         for length in range(self.min_sequence_length, self.max_sequence_length + 1):
@@ -333,20 +335,17 @@ class SkillCrystallizer:
 
             ngram_positions = self._find_ngram_positions(tool_names, length)
 
-            for ngram_key, positions in ngram_positions.items():
+            for _ngram_key, positions in ngram_positions.items():
                 if len(positions) < self.min_occurrences:
                     continue
 
-                names = tool_names[positions[0]:positions[0] + length]
-                signatures = [
-                    self._history[positions[0] + i].signature
-                    for i in range(length)
-                ]
+                names = tool_names[positions[0] : positions[0] + length]
+                signatures = [self._history[positions[0] + i].signature for i in range(length)]
 
                 # Build occurrences
                 occurrences = []
                 for pos in positions:
-                    occurrence = self._history[pos:pos + length]
+                    occurrence = self._history[pos : pos + length]
                     occurrences.append(occurrence)
 
                 # Compute stats
@@ -392,13 +391,11 @@ class SkillCrystallizer:
         self._patterns = {p.pattern_id: p for p in result}
         return result
 
-    def _find_ngram_positions(
-        self, tool_names: List[str], length: int
-    ) -> Dict[str, List[int]]:
+    def _find_ngram_positions(self, tool_names: list[str], length: int) -> dict[str, list[int]]:
         """Find all positions where each n-gram of given length occurs."""
-        ngrams: Dict[str, List[int]] = {}
+        ngrams: dict[str, list[int]] = {}
         for i in range(len(tool_names) - length + 1):
-            key = "->".join(tool_names[i:i + length])
+            key = "->".join(tool_names[i : i + length])
             if key not in ngrams:
                 ngrams[key] = []
             # Only add non-overlapping positions
@@ -406,9 +403,7 @@ class SkillCrystallizer:
                 ngrams[key].append(i)
         return ngrams
 
-    def _remove_subpatterns(
-        self, patterns: List[ToolSequencePattern]
-    ) -> List[ToolSequencePattern]:
+    def _remove_subpatterns(self, patterns: list[ToolSequencePattern]) -> list[ToolSequencePattern]:
         """Remove patterns that are strict subsequences of longer patterns."""
         if not patterns:
             return []
@@ -417,7 +412,7 @@ class SkillCrystallizer:
         patterns.sort(key=lambda p: p.length, reverse=True)
 
         result = []
-        seen_sequences: Set[str] = set()
+        seen_sequences: set[str] = set()
 
         for pattern in patterns:
             seq = "->".join(pattern.tool_names)
@@ -438,9 +433,7 @@ class SkillCrystallizer:
     # Crystallization
     # =========================================================================
 
-    def crystallize(
-        self, patterns: Optional[List[ToolSequencePattern]] = None
-    ) -> List[CrystallizedSkill]:
+    def crystallize(self, patterns: list[ToolSequencePattern] | None = None) -> list[CrystallizedSkill]:
         """
         Compile detected patterns into reusable parameterized skills.
 
@@ -456,10 +449,7 @@ class SkillCrystallizer:
         new_skills = []
         for pattern in patterns:
             # Skip if already crystallized
-            if any(
-                s.source_pattern_id == pattern.pattern_id
-                for s in self._skills.values()
-            ):
+            if any(s.source_pattern_id == pattern.pattern_id for s in self._skills.values()):
                 continue
 
             skill = self._compile_skill(pattern)
@@ -471,14 +461,11 @@ class SkillCrystallizer:
         if self._storage_path and new_skills:
             self._save_skills()
 
-        _logger.info(
-            f"Crystallized {len(new_skills)} new skills from "
-            f"{len(patterns)} patterns"
-        )
+        _logger.info(f"Crystallized {len(new_skills)} new skills from {len(patterns)} patterns")
 
         return new_skills
 
-    def _compile_skill(self, pattern: ToolSequencePattern) -> Optional[CrystallizedSkill]:
+    def _compile_skill(self, pattern: ToolSequencePattern) -> CrystallizedSkill | None:
         """Compile a single pattern into a skill."""
         if not pattern.occurrences:
             return None
@@ -500,11 +487,13 @@ class SkillCrystallizer:
                 tool_name, step_idx, step_args_across_occurrences, param_index
             )
 
-            tool_steps.append({
-                "tool_name": tool_name,
-                "arguments": template_args,
-                "step_index": step_idx,
-            })
+            tool_steps.append(
+                {
+                    "tool_name": tool_name,
+                    "arguments": template_args,
+                    "step_index": step_idx,
+                }
+            )
             parameters.extend(step_params)
 
         # Generate name from tool sequence
@@ -535,9 +524,9 @@ class SkillCrystallizer:
         self,
         tool_name: str,
         step_idx: int,
-        args_list: List[Dict[str, Any]],
+        args_list: list[dict[str, Any]],
         param_index: int,
-    ) -> Tuple[Dict[str, Any], List[Dict[str, Any]], int]:
+    ) -> tuple[dict[str, Any], list[dict[str, Any]], int]:
         """
         Analyze argument values across occurrences to find variable parts.
 
@@ -551,12 +540,12 @@ class SkillCrystallizer:
             return {}, [], param_index
 
         # Collect all keys
-        all_keys: Set[str] = set()
+        all_keys: set[str] = set()
         for args in args_list:
             all_keys.update(args.keys())
 
-        template_args: Dict[str, Any] = {}
-        new_params: List[Dict[str, Any]] = []
+        template_args: dict[str, Any] = {}
+        new_params: list[dict[str, Any]] = []
 
         for key in sorted(all_keys):
             values = [args.get(key) for args in args_list if key in args]
@@ -583,19 +572,21 @@ class SkillCrystallizer:
                 # Infer type from values
                 param_type = self._infer_param_type(values)
 
-                new_params.append({
-                    "name": param_name,
-                    "key": key,
-                    "step_index": step_idx,
-                    "tool_name": tool_name,
-                    "type": param_type,
-                    "examples": [str(v) for v in values[:3]],
-                })
+                new_params.append(
+                    {
+                        "name": param_name,
+                        "key": key,
+                        "step_index": step_idx,
+                        "tool_name": tool_name,
+                        "type": param_type,
+                        "examples": [str(v) for v in values[:3]],
+                    }
+                )
                 param_index += 1
 
         return template_args, new_params, param_index
 
-    def _infer_param_type(self, values: List[Any]) -> str:
+    def _infer_param_type(self, values: list[Any]) -> str:
         """Infer parameter type from example values."""
         types = set()
         for v in values:
@@ -616,7 +607,7 @@ class SkillCrystallizer:
             return types.pop()
         return "string"  # Default to string for mixed types
 
-    def _generate_skill_name(self, tool_names: List[str]) -> str:
+    def _generate_skill_name(self, tool_names: list[str]) -> str:
         """Generate a human-readable skill name from tool sequence."""
         # Count tool frequency
         counts = Counter(tool_names)
@@ -635,18 +626,18 @@ class SkillCrystallizer:
     # Skill Management
     # =========================================================================
 
-    def get_skill(self, skill_id: str) -> Optional[CrystallizedSkill]:
+    def get_skill(self, skill_id: str) -> CrystallizedSkill | None:
         """Get a skill by ID."""
         return self._skills.get(skill_id)
 
-    def get_skill_by_name(self, name: str) -> Optional[CrystallizedSkill]:
+    def get_skill_by_name(self, name: str) -> CrystallizedSkill | None:
         """Get a skill by name."""
         for skill in self._skills.values():
             if skill.name == name:
                 return skill
         return None
 
-    def list_skills(self) -> List[CrystallizedSkill]:
+    def list_skills(self) -> list[CrystallizedSkill]:
         """List all crystallized skills."""
         return list(self._skills.values())
 
@@ -659,9 +650,7 @@ class SkillCrystallizer:
             return True
         return False
 
-    def find_matching_skill(
-        self, tool_names: List[str]
-    ) -> Optional[CrystallizedSkill]:
+    def find_matching_skill(self, tool_names: list[str]) -> CrystallizedSkill | None:
         """
         Find a skill that matches a tool name sequence.
 
@@ -671,15 +660,11 @@ class SkillCrystallizer:
         Returns:
             Matching skill or None
         """
-        target_hash = hashlib.sha256(
-            "->".join(tool_names).encode()
-        ).hexdigest()[:12]
+        target_hash = hashlib.sha256("->".join(tool_names).encode()).hexdigest()[:12]
 
         for skill in self._skills.values():
             skill_names = [s["tool_name"] for s in skill.tool_steps]
-            skill_hash = hashlib.sha256(
-                "->".join(skill_names).encode()
-            ).hexdigest()[:12]
+            skill_hash = hashlib.sha256("->".join(skill_names).encode()).hexdigest()[:12]
             if skill_hash == target_hash:
                 return skill
         return None
@@ -717,11 +702,8 @@ class SkillCrystallizer:
 
         data = {
             "version": "1.0",
-            "updated_at": datetime.now(timezone.utc).isoformat(),
-            "skills": {
-                sid: skill.to_dict()
-                for sid, skill in self._skills.items()
-            },
+            "updated_at": datetime.now(UTC).isoformat(),
+            "skills": {sid: skill.to_dict() for sid, skill in self._skills.items()},
         }
 
         skills_file.write_text(json.dumps(data, indent=2))
@@ -744,16 +726,13 @@ class SkillCrystallizer:
         except (json.JSONDecodeError, KeyError) as e:
             _logger.warning(f"Failed to load skills: {e}")
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Export crystallizer state."""
         return {
             "history_size": self.history_size,
             "pattern_count": len(self._patterns),
             "skill_count": len(self._skills),
-            "skills": {
-                sid: skill.to_dict()
-                for sid, skill in self._skills.items()
-            },
+            "skills": {sid: skill.to_dict() for sid, skill in self._skills.items()},
             "config": {
                 "min_occurrences": self.min_occurrences,
                 "min_sequence_length": self.min_sequence_length,
@@ -767,9 +746,9 @@ class SkillCrystallizer:
 # Global Instance
 # =============================================================================
 
-import threading as _threading
+import threading as _threading  # noqa: E402  # singleton setup after class definition
 
-_crystallizer: Optional[SkillCrystallizer] = None
+_crystallizer: SkillCrystallizer | None = None
 _crystallizer_lock = _threading.Lock()
 
 

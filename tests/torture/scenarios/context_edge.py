@@ -6,18 +6,17 @@ Torture Protocol V8 - Context Edge Case Tests
 Test IDs: CE-001 to CE-010
 """
 
-import pytest
-import asyncio
+import contextlib
 import sys
-from pathlib import Path
 from collections import deque
 from dataclasses import dataclass
-from typing import Optional
+from pathlib import Path
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from core.intelligence.hive_mind.saga_manager import SagaManager
-from tests.torture.base import TortureBase
 
 
 @pytest.fixture
@@ -32,9 +31,11 @@ def saga_dir(tmp_path):
 # Mock Context Managers
 # ============================================================================
 
+
 @dataclass
 class MockContextItem:
     """Mock context item with token estimate."""
+
     content: str
     token_estimate: int = 100
 
@@ -44,9 +45,7 @@ class MockDequeContextManager:
 
     def __init__(self, items=None):
         self._items = deque(items or [])
-        self._current_tokens = sum(
-            getattr(item, 'token_estimate', 0) for item in self._items
-        )
+        self._current_tokens = sum(getattr(item, "token_estimate", 0) for item in self._items)
 
 
 class MockListContextManager:
@@ -61,9 +60,7 @@ class MockBothContextManager:
 
     def __init__(self, items=None, messages=None):
         self._items = deque(items or [])
-        self._current_tokens = sum(
-            getattr(item, 'token_estimate', 0) for item in self._items
-        )
+        self._current_tokens = sum(getattr(item, "token_estimate", 0) for item in self._items)
         self.messages = list(messages or [])
 
 
@@ -78,6 +75,7 @@ class MockNoTokenContextManager:
 # ============================================================================
 # CE-001: context_index > len(items)
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_saga
@@ -108,6 +106,7 @@ async def test_ce001_context_index_out_of_bounds(saga_dir):
 # ============================================================================
 # CE-002: Token recalc with missing estimates
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_saga
@@ -145,6 +144,7 @@ async def test_ce002_token_recalc_missing_estimates(saga_dir):
 # CE-003: Context manager type mismatch
 # ============================================================================
 
+
 @pytest.mark.torture
 @pytest.mark.torture_saga
 @pytest.mark.asyncio
@@ -165,7 +165,7 @@ async def test_ce003_context_manager_type_mismatch(saga_dir):
     context_manager = InvalidContextManager()
 
     # Rollback should not crash
-    result = await saga.rollback_to("analysis", context_manager)
+    await saga.rollback_to("analysis", context_manager)
 
     # Should complete without error
 
@@ -173,6 +173,7 @@ async def test_ce003_context_manager_type_mismatch(saga_dir):
 # ============================================================================
 # CE-004: Empty context after rollback
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_saga
@@ -200,6 +201,7 @@ async def test_ce004_empty_context_after_rollback(saga_dir):
 # ============================================================================
 # CE-005: Deque vs List inconsistency
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_saga
@@ -235,6 +237,7 @@ async def test_ce005_deque_vs_list(saga_dir):
 # CE-006: Rollback to non-checkpointed phase
 # ============================================================================
 
+
 @pytest.mark.torture
 @pytest.mark.torture_saga
 @pytest.mark.asyncio
@@ -258,6 +261,7 @@ async def test_ce006_rollback_nonexistent_phase(saga_dir):
 # ============================================================================
 # CE-007: Context with None items
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_saga
@@ -287,6 +291,7 @@ async def test_ce007_context_with_none_items(saga_dir):
 # ============================================================================
 # CE-008: Very large context (50k items)
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_saga
@@ -320,6 +325,7 @@ async def test_ce008_large_context(saga_dir):
 # CE-009: Unicode in context content
 # ============================================================================
 
+
 @pytest.mark.torture
 @pytest.mark.torture_saga
 @pytest.mark.asyncio
@@ -337,7 +343,7 @@ async def test_ce009_unicode_context(saga_dir):
         "emoji": "Hello World! It's working!",
         "cjk": "Chinese Japanese Korean",
         "rtl": "Right to left text",
-        "mixed": "Mix: symbols and text"
+        "mixed": "Mix: symbols and text",
     }
     await saga.checkpoint_phase("analysis", unicode_result, "S1", 5)
 
@@ -353,6 +359,7 @@ async def test_ce009_unicode_context(saga_dir):
 # ============================================================================
 # CE-010: Non-serializable context items
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_saga
@@ -371,7 +378,7 @@ async def test_ce010_non_serializable_result(saga_dir):
         def __init__(self, value):
             self.value = value
 
-    try:
+    with contextlib.suppress(TypeError, ValueError):
         await saga.checkpoint_phase(
             "analysis",
             {
@@ -381,13 +388,8 @@ async def test_ce010_non_serializable_result(saga_dir):
                 # but saga_manager uses serialize_for_checkpoint()
             },
             "S1",
-            5
+            5,
         )
-        # If it succeeds, that's fine
-        success = True
-    except (TypeError, ValueError) as e:
-        # Serialization error is acceptable
-        success = False
 
     # Either outcome is acceptable - no crash
 
@@ -395,6 +397,7 @@ async def test_ce010_non_serializable_result(saga_dir):
 # ============================================================================
 # Run All Tests (Standalone Mode)
 # ============================================================================
+
 
 def run_all(metrics_collector=None):
     """Run all context edge case tests."""

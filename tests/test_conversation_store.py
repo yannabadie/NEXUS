@@ -15,26 +15,21 @@ Validates:
 - Module exports
 """
 
-import json
-import os
 import tempfile
-
-import pytest
+from pathlib import Path
 
 from core.memory_pkg.memory.conversation_store import (
-    ConversationStore,
-    ConversationTurn,
     ConversationSession,
+    ConversationStore,
     ConversationSummary,
+    ConversationTurn,
     SearchResult,
-    MAX_SESSIONS,
-    MAX_TURNS_PER_SESSION,
 )
-
 
 # =============================================================================
 # ConversationTurn Tests
 # =============================================================================
+
 
 class TestConversationTurn:
     """Test ConversationTurn dataclass."""
@@ -55,14 +50,20 @@ class TestConversationTurn:
 
     def test_explicit_token_estimate(self):
         turn = ConversationTurn(
-            turn_id="t1", role="user", content="Hi", token_estimate=50,
+            turn_id="t1",
+            role="user",
+            content="Hi",
+            token_estimate=50,
         )
         assert turn.token_estimate == 50
 
     def test_to_dict(self):
         turn = ConversationTurn(
-            turn_id="t1", role="assistant", content="Hello!",
-            agent_id="claude", metadata={"key": "val"},
+            turn_id="t1",
+            role="assistant",
+            content="Hello!",
+            agent_id="claude",
+            metadata={"key": "val"},
         )
         d = turn.to_dict()
         assert d["turn_id"] == "t1"
@@ -86,7 +87,9 @@ class TestConversationTurn:
 
     def test_roundtrip(self):
         turn = ConversationTurn(
-            turn_id="t1", role="user", content="Test roundtrip",
+            turn_id="t1",
+            role="user",
+            content="Test roundtrip",
             agent_id="gemini",
         )
         d = turn.to_dict()
@@ -99,6 +102,7 @@ class TestConversationTurn:
 # =============================================================================
 # ConversationSession Tests
 # =============================================================================
+
 
 class TestConversationSession:
     """Test ConversationSession dataclass."""
@@ -116,7 +120,8 @@ class TestConversationSession:
 
     def test_to_dict(self):
         session = ConversationSession(
-            session_id="s1", title="Debug session",
+            session_id="s1",
+            title="Debug session",
             tags=["debug", "auth"],
         )
         d = session.to_dict()
@@ -143,6 +148,7 @@ class TestConversationSession:
 # =============================================================================
 # Session Management Tests
 # =============================================================================
+
 
 class TestSessionManagement:
     """Test session creation and management."""
@@ -218,6 +224,7 @@ class TestSessionManagement:
 # =============================================================================
 # Turn Management Tests
 # =============================================================================
+
 
 class TestTurnManagement:
     """Test turn addition and retrieval."""
@@ -313,6 +320,7 @@ class TestTurnManagement:
 # Search Tests
 # =============================================================================
 
+
 class TestSearch:
     """Test conversation search."""
 
@@ -382,6 +390,7 @@ class TestSearch:
 # Summary Tests
 # =============================================================================
 
+
 class TestSummary:
     """Test conversation summaries."""
 
@@ -429,6 +438,7 @@ class TestSummary:
 # =============================================================================
 # Persistence Tests
 # =============================================================================
+
 
 class TestPersistence:
     """Test disk persistence."""
@@ -482,12 +492,10 @@ class TestPersistence:
             assert not (Path(tmpdir) / "sessions.json").exists()
 
 
-from pathlib import Path
-
-
 # =============================================================================
 # State Management Tests
 # =============================================================================
+
 
 class TestStateManagement:
     """Test state management."""
@@ -533,27 +541,28 @@ class TestStateManagement:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_memory_package(self):
         from core.memory_pkg.memory import (
-            ConversationStore,
-            ConversationSession,
-            ConversationTurn,
-            ConversationSummary,
             ConversationSearchResult,
+            ConversationSession,
+            ConversationStore,
+            ConversationSummary,
+            ConversationTurn,
         )
-        assert all([ConversationStore, ConversationSession, ConversationTurn,
-                     ConversationSummary, ConversationSearchResult])
+
+        assert all(
+            [ConversationStore, ConversationSession, ConversationTurn, ConversationSummary, ConversationSearchResult]
+        )
 
     def test_from_module(self):
         from core.memory_pkg.memory.conversation_store import (
-            ConversationStore,
             ConversationSession,
+            ConversationStore,
             ConversationTurn,
-            ConversationSummary,
-            SearchResult,
         )
-        assert all([ConversationStore, ConversationSession, ConversationTurn,
-                     ConversationSummary, SearchResult])
+
+        assert all([ConversationStore, ConversationSession, ConversationTurn, ConversationSummary, SearchResult])

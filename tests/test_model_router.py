@@ -5,13 +5,14 @@ Tests the intelligent model selection routing for:
 - Claude: Opus (complex) vs Sonnet (simple)
 - Gemini: 3-Pro (complex) vs Flash (simple)
 """
+
 import sys
 from pathlib import Path
 
 # Add parent to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.execution_pkg.routing.model_router import ModelRouter, TaskType, RoutingDecision
+from core.execution_pkg.routing.model_router import ModelRouter, RoutingDecision, TaskType
 
 
 class TestTaskType:
@@ -274,4 +275,5 @@ class TestRoutingStats:
 # Pytest entry point
 if __name__ == "__main__":
     import pytest
+
     pytest.main([__file__, "-v"])

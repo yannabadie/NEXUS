@@ -13,6 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import pytest
+
 from core.intelligence.reasoning.task_complexity import (
     TaskComplexity,
     estimate_complexity,
@@ -132,18 +133,18 @@ class TestPerformanceHeuristics:
         duration = time.perf_counter() - start
 
         # 1000 estimations should take < 10ms (avg < 0.01ms per call)
-        assert duration < 0.01, f"Too slow: {duration*1000:.2f}ms for 1000 calls"
+        assert duration < 0.01, f"Too slow: {duration * 1000:.2f}ms for 1000 calls"
 
     def test_no_external_dependencies(self):
         """Complexity estimation should not import LLM drivers."""
         import sys
 
         # Clear any previous imports
-        drivers_before = {k for k in sys.modules if 'drivers' in k}
+        drivers_before = {k for k in sys.modules if "drivers" in k}
 
         estimate_complexity("Analyze this code")
 
-        drivers_after = {k for k in sys.modules if 'drivers' in k}
+        drivers_after = {k for k in sys.modules if "drivers" in k}
 
         # Should not have imported any new driver modules
         assert drivers_before == drivers_after

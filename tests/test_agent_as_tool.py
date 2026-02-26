@@ -12,30 +12,25 @@ Test Layers:
 Run: pytest tests/test_agent_as_tool.py -v
 """
 
-import pytest
-import json
-import tempfile
 import shutil
-from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch
-from dataclasses import dataclass
 
 # Import modules under test
 import sys
+import tempfile
+from pathlib import Path
+from unittest.mock import Mock
+
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.execution_pkg.execution.agent_tools import (
-    AgentToolRegistry,
-    AgentToolDefinition,
-    AgentToolResult,
-    AGENT_TOOL_PREFIX
-)
+from core.execution_pkg.execution.agent_tools import AgentToolRegistry, AgentToolResult
 from core.intelligence.swarm.agent_metrics import AgentPool, AgentProfile
-
 
 # =============================================================================
 # Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def temp_workspace():
@@ -53,32 +48,40 @@ def mock_agent_pool():
     pool = AgentPool()
 
     # Add core agents
-    pool.register(AgentProfile(
-        agent_id="gemini_primary",
-        provider="gemini",
-        model="gemini-3-pro-preview",
-        capabilities=["reasoning", "coding"]
-    ))
-    pool.register(AgentProfile(
-        agent_id="claude_opus",
-        provider="claude",
-        model="claude-opus-4-5",
-        capabilities=["brainstorm", "creativity"]
-    ))
+    pool.register(
+        AgentProfile(
+            agent_id="gemini_primary",
+            provider="gemini",
+            model="gemini-3-pro-preview",
+            capabilities=["reasoning", "coding"],
+        )
+    )
+    pool.register(
+        AgentProfile(
+            agent_id="claude_opus",
+            provider="claude",
+            model="claude-opus-4-5",
+            capabilities=["brainstorm", "creativity"],
+        )
+    )
 
     # Add spawned agents
-    pool.register(AgentProfile(
-        agent_id="security_expert",
-        provider="spawned",
-        model="spawned_security_expert",
-        capabilities=["security", "audit", "vulnerability"]
-    ))
-    pool.register(AgentProfile(
-        agent_id="sql_specialist",
-        provider="spawned",
-        model="spawned_sql_specialist",
-        capabilities=["database", "sql", "optimization"]
-    ))
+    pool.register(
+        AgentProfile(
+            agent_id="security_expert",
+            provider="spawned",
+            model="spawned_security_expert",
+            capabilities=["security", "audit", "vulnerability"],
+        )
+    )
+    pool.register(
+        AgentProfile(
+            agent_id="sql_specialist",
+            provider="spawned",
+            model="spawned_sql_specialist",
+            capabilities=["database", "sql", "optimization"],
+        )
+    )
 
     return pool
 
@@ -107,10 +110,7 @@ def mock_agent_loader(temp_workspace):
     sql_config.domains = ["database", "sql"]
 
     def load_config(agent_id):
-        configs = {
-            "security_expert": security_config,
-            "sql_specialist": sql_config
-        }
+        configs = {"security_expert": security_config, "sql_specialist": sql_config}
         return configs.get(agent_id)
 
     loader.load_agent_config = load_config
@@ -124,7 +124,7 @@ def registry(temp_workspace, mock_agent_pool, mock_agent_invoker, mock_agent_loa
         workspace_path=temp_workspace,
         agent_pool=mock_agent_pool,
         agent_invoker=mock_agent_invoker,
-        agent_loader=mock_agent_loader
+        agent_loader=mock_agent_loader,
     )
     reg.refresh()
     return reg
@@ -133,6 +133,7 @@ def registry(temp_workspace, mock_agent_pool, mock_agent_invoker, mock_agent_loa
 # =============================================================================
 # Unit Tests - AgentToolRegistry
 # =============================================================================
+
 
 class TestAgentToolRegistryInit:
     """Test AgentToolRegistry initialization."""
@@ -143,7 +144,7 @@ class TestAgentToolRegistryInit:
             workspace_path=temp_workspace,
             agent_pool=mock_agent_pool,
             agent_invoker=mock_agent_invoker,
-            agent_loader=mock_agent_loader
+            agent_loader=mock_agent_loader,
         )
 
         assert reg.workspace_path == temp_workspace
@@ -165,9 +166,7 @@ class TestAgentToolRegistryInit:
         reg = AgentToolRegistry(workspace_path=temp_workspace)
 
         reg.set_dependencies(
-            agent_pool=mock_agent_pool,
-            agent_invoker=mock_agent_invoker,
-            agent_loader=mock_agent_loader
+            agent_pool=mock_agent_pool, agent_invoker=mock_agent_invoker, agent_loader=mock_agent_loader
         )
 
         assert reg._agent_pool == mock_agent_pool
@@ -203,7 +202,7 @@ class TestAgentToolRegistryRefresh:
             workspace_path=temp_workspace,
             agent_pool=mock_agent_pool,
             agent_invoker=mock_agent_invoker,
-            agent_loader=mock_agent_loader
+            agent_loader=mock_agent_loader,
         )
 
         count = reg.refresh()
@@ -246,10 +245,7 @@ class TestAgentToolExecution:
 
     def test_execute_valid_tool(self, registry, mock_agent_invoker):
         """Test executing a valid agent tool."""
-        result = registry.execute_agent_tool(
-            "agent_security_expert",
-            {"task": "Analyze this code for SQL injection"}
-        )
+        result = registry.execute_agent_tool("agent_security_expert", {"task": "Analyze this code for SQL injection"})
 
         assert result.success is True
         assert result.agent_id == "security_expert"
@@ -259,34 +255,26 @@ class TestAgentToolExecution:
     def test_execute_with_context(self, registry, mock_agent_invoker):
         """Test executing with additional context."""
         result = registry.execute_agent_tool(
-            "agent_sql_specialist",
-            {
-                "task": "Optimize this query",
-                "context": "SELECT * FROM users WHERE id = 1"
-            }
+            "agent_sql_specialist", {"task": "Optimize this query", "context": "SELECT * FROM users WHERE id = 1"}
         )
 
         assert result.success is True
         # Check that context was included in the call
         call_args = mock_agent_invoker.invoke_spawned_agent.call_args
-        assert "Optimize this query" in call_args.kwargs.get("context", call_args.args[2] if len(call_args.args) > 2 else "")
+        assert "Optimize this query" in call_args.kwargs.get(
+            "context", call_args.args[2] if len(call_args.args) > 2 else ""
+        )
 
     def test_execute_unknown_tool_fails(self, registry):
         """Test executing unknown tool fails gracefully."""
-        result = registry.execute_agent_tool(
-            "agent_nonexistent",
-            {"task": "Do something"}
-        )
+        result = registry.execute_agent_tool("agent_nonexistent", {"task": "Do something"})
 
         assert result.success is False
         assert "Unknown agent tool" in result.error
 
     def test_execute_without_task_fails(self, registry):
         """Test executing without task parameter fails."""
-        result = registry.execute_agent_tool(
-            "agent_security_expert",
-            {"context": "some context but no task"}
-        )
+        result = registry.execute_agent_tool("agent_security_expert", {"context": "some context but no task"})
 
         assert result.success is False
         assert "task" in result.error.lower()
@@ -297,14 +285,11 @@ class TestAgentToolExecution:
             workspace_path=temp_workspace,
             agent_pool=mock_agent_pool,
             agent_invoker=None,  # No invoker
-            agent_loader=mock_agent_loader
+            agent_loader=mock_agent_loader,
         )
         reg.refresh()
 
-        result = reg.execute_agent_tool(
-            "agent_security_expert",
-            {"task": "Analyze code"}
-        )
+        result = reg.execute_agent_tool("agent_security_expert", {"task": "Analyze code"})
 
         assert result.success is False
         assert "not configured" in result.error.lower()
@@ -313,10 +298,7 @@ class TestAgentToolExecution:
         """Test that invoker exceptions are handled."""
         mock_agent_invoker.invoke_spawned_agent.side_effect = Exception("Network timeout")
 
-        result = registry.execute_agent_tool(
-            "agent_security_expert",
-            {"task": "Analyze code"}
-        )
+        result = registry.execute_agent_tool("agent_security_expert", {"task": "Analyze code"})
 
         assert result.success is False
         assert "Network timeout" in result.error
@@ -382,23 +364,20 @@ class TestRegistrySummary:
 # Stress Tests
 # =============================================================================
 
+
 class TestAgentToolStress:
     """Stress tests for concurrent agent tool operations."""
 
     def test_concurrent_tool_execution(self, registry, mock_agent_invoker):
         """Test concurrent tool executions."""
         import threading
-        import time
 
         results = []
         errors = []
 
         def execute_tool(tool_name, task):
             try:
-                result = registry.execute_agent_tool(
-                    tool_name,
-                    {"task": task}
-                )
+                result = registry.execute_agent_tool(tool_name, {"task": task})
                 results.append(result)
             except Exception as e:
                 errors.append(str(e))
@@ -423,7 +402,7 @@ class TestAgentToolStress:
             workspace_path=temp_workspace,
             agent_pool=mock_agent_pool,
             agent_invoker=mock_agent_invoker,
-            agent_loader=mock_agent_loader
+            agent_loader=mock_agent_loader,
         )
 
         for _ in range(50):
@@ -435,16 +414,14 @@ class TestAgentToolStress:
 # Agent Tool Result Tests
 # =============================================================================
 
+
 class TestAgentToolResult:
     """Test AgentToolResult dataclass."""
 
     def test_success_result(self):
         """Test successful result creation."""
         result = AgentToolResult(
-            success=True,
-            agent_id="security_expert",
-            output="Found 3 vulnerabilities",
-            duration_seconds=1.5
+            success=True, agent_id="security_expert", output="Found 3 vulnerabilities", duration_seconds=1.5
         )
 
         assert result.success is True
@@ -453,12 +430,7 @@ class TestAgentToolResult:
 
     def test_failure_result(self):
         """Test failure result creation."""
-        result = AgentToolResult(
-            success=False,
-            agent_id="security_expert",
-            output="",
-            error="Connection timeout"
-        )
+        result = AgentToolResult(success=False, agent_id="security_expert", output="", error="Connection timeout")
 
         assert result.success is False
         assert result.error == "Connection timeout"
@@ -466,10 +438,7 @@ class TestAgentToolResult:
     def test_result_to_dict(self):
         """Test result dictionary conversion."""
         result = AgentToolResult(
-            success=True,
-            agent_id="sql_specialist",
-            output="Query optimized",
-            duration_seconds=0.8
+            success=True, agent_id="sql_specialist", output="Query optimized", duration_seconds=0.8
         )
 
         result_dict = result.to_dict()

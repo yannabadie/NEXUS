@@ -32,18 +32,17 @@ Author: Claude (NEXUS V12.2 IRONCLAD)
 Date: 2025-12-16
 """
 
+from .audit_logger import AuditLogger
 from .models import (
+    AuditAction,
     # Audit
     AuditLog,
-    AuditAction,
     AuditStatus,
     # HITL
     HITLRequest,
     HITLRequestStatus,
     HITLRequestType,
 )
-
-from .audit_logger import AuditLogger
 
 __all__ = [
     # Audit

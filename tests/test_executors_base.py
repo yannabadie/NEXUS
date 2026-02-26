@@ -5,19 +5,16 @@ Validates executor base classes and patterns.
 """
 
 import pytest
-from dataclasses import dataclass
-from typing import List, Dict
 
+from core.intelligence.swarm.collaboration_modes import CollaborationMode
 from core.intelligence.swarm.executors.base import (
-    ExecutionStatus,
+    COMPLETION_PATTERN,
     AgentResponse,
     ExecutionContext,
-    ExecutionResult,
-    ModeExecutor,
     ExecutionError,
-    COMPLETION_PATTERN,
+    ExecutionResult,
+    ExecutionStatus,
 )
-from core.intelligence.swarm.collaboration_modes import CollaborationMode
 from core.intelligence.swarm.mode_selector import AgentAssignment
 
 
@@ -43,57 +40,35 @@ class TestAgentResponse:
 
     def test_create_response(self):
         """Should create response with required fields."""
-        response = AgentResponse(
-            agent_id="gemini",
-            content="Hello world"
-        )
+        response = AgentResponse(agent_id="gemini", content="Hello world")
         assert response.agent_id == "gemini"
         assert response.content == "Hello world"
         assert response.status == "success"
 
     def test_response_with_error(self):
         """Should create error response."""
-        response = AgentResponse(
-            agent_id="claude",
-            content="",
-            status="error",
-            error="Something went wrong"
-        )
+        response = AgentResponse(agent_id="claude", content="", status="error", error="Something went wrong")
         assert response.status == "error"
         assert response.error == "Something went wrong"
 
     def test_is_finished_completion_signal(self):
         """Should detect completion signals."""
-        response = AgentResponse(
-            agent_id="test",
-            content="Task COMPLETED successfully."
-        )
+        response = AgentResponse(agent_id="test", content="Task COMPLETED successfully.")
         assert response.is_finished is True
 
     def test_is_finished_with_ongoing(self):
         """Should reject completion if ongoing work detected."""
-        response = AgentResponse(
-            agent_id="test",
-            content="COMPLETED first part. Will continue with next step."
-        )
+        response = AgentResponse(agent_id="test", content="COMPLETED first part. Will continue with next step.")
         assert response.is_finished is False
 
     def test_is_finished_no_signal(self):
         """Should return False without completion signal."""
-        response = AgentResponse(
-            agent_id="test",
-            content="Working on the task..."
-        )
+        response = AgentResponse(agent_id="test", content="Working on the task...")
         assert response.is_finished is False
 
     def test_to_dict(self):
         """Should convert to dictionary."""
-        response = AgentResponse(
-            agent_id="gemini",
-            content="Result",
-            tokens_used=100,
-            time_seconds=1.5
-        )
+        response = AgentResponse(agent_id="gemini", content="Result", tokens_used=100, time_seconds=1.5)
         data = response.to_dict()
         assert data["agent_id"] == "gemini"
         assert data["content"] == "Result"
@@ -268,12 +243,10 @@ class TestBackwardCompatibility:
     def test_import_from_mode_executors(self):
         """Should be importable from original location."""
         from core.intelligence.swarm.mode_executors import (
-            ExecutionStatus,
             AgentResponse,
-            ExecutionContext,
-            ExecutionResult,
-            ModeExecutor,
+            ExecutionStatus,
         )
+
         # Just verify imports work
         assert ExecutionStatus is not None
         assert AgentResponse is not None
@@ -281,4 +254,5 @@ class TestBackwardCompatibility:
     def test_parallel_executor_exists(self):
         """ParallelExecutor should be importable."""
         from core.intelligence.swarm.mode_executors import ParallelExecutor
+
         assert ParallelExecutor is not None

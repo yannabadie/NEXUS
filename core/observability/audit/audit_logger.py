@@ -30,13 +30,13 @@ Date: 2025-12-16
 import asyncio
 import json
 import logging
-from datetime import datetime, timedelta, timezone
-from typing import Any, Optional, List
+from datetime import UTC, datetime, timedelta
+from typing import Any
 from uuid import UUID
 
 from sqlmodel import select
 
-from .models import AuditLog, AuditAction, AuditStatus
+from .models import AuditAction, AuditLog, AuditStatus
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +44,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # Sync DB Operations (run in thread pool)
 # =============================================================================
+
 
 def _insert_audit_log(entry: AuditLog) -> dict:
     """
@@ -76,7 +77,7 @@ def _query_audit_logs(
     filters: dict,
     limit: int,
     offset: int,
-) -> List[dict]:
+) -> list[dict]:
     """
     Sync query of audit logs with filters.
 
@@ -115,19 +116,21 @@ def _query_audit_logs(
         # Convert to dicts to avoid detached session issues
         results = []
         for log in session.exec(statement).all():
-            results.append({
-                "id": log.id,
-                "tenant_id": log.tenant_id,
-                "user_id": log.user_id,
-                "action": log.action,
-                "resource_type": log.resource_type,
-                "resource_id": log.resource_id,
-                "status": log.status,
-                "details": log.details,
-                "ip_address": log.ip_address,
-                "user_agent": log.user_agent,
-                "timestamp": log.timestamp,
-            })
+            results.append(
+                {
+                    "id": log.id,
+                    "tenant_id": log.tenant_id,
+                    "user_id": log.user_id,
+                    "action": log.action,
+                    "resource_type": log.resource_type,
+                    "resource_id": log.resource_id,
+                    "status": log.status,
+                    "details": log.details,
+                    "ip_address": log.ip_address,
+                    "user_agent": log.user_agent,
+                    "timestamp": log.timestamp,
+                }
+            )
         return results
 
 
@@ -138,6 +141,7 @@ def _count_audit_logs(tenant_id: UUID, filters: dict) -> int:
     Called from thread pool via asyncio.to_thread().
     """
     from sqlalchemy import func
+
     from core.infrastructure.db import get_session
 
     with get_session() as session:
@@ -162,15 +166,14 @@ def _cleanup_old_logs(retention_days: int) -> int:
     Called from thread pool via asyncio.to_thread().
     """
     from sqlalchemy import delete
-    from core.infrastructure.db import get_session, get_engine
 
-    cutoff = (datetime.now(timezone.utc) - timedelta(days=retention_days)).replace(tzinfo=None)
+    from core.infrastructure.db import get_engine
+
+    cutoff = (datetime.now(UTC) - timedelta(days=retention_days)).replace(tzinfo=None)
 
     engine = get_engine()
     with engine.connect() as conn:
-        result = conn.execute(
-            delete(AuditLog).where(AuditLog.timestamp < cutoff)
-        )
+        result = conn.execute(delete(AuditLog).where(AuditLog.timestamp < cutoff))
         conn.commit()
         return result.rowcount
 
@@ -178,6 +181,7 @@ def _cleanup_old_logs(retention_days: int) -> int:
 # =============================================================================
 # Async Audit Logger
 # =============================================================================
+
 
 class AuditLogger:
     """
@@ -192,11 +196,11 @@ class AuditLogger:
         user_id: UUID,
         action: str | AuditAction,
         resource_type: str,
-        resource_id: Optional[str] = None,
+        resource_id: str | None = None,
         status: str | AuditStatus = AuditStatus.SUCCESS,
-        details: Optional[dict] = None,
-        request: Optional[Any] = None,  # FastAPI Request
-    ) -> Optional[dict]:
+        details: dict | None = None,
+        request: Any | None = None,  # FastAPI Request
+    ) -> dict | None:
         """
         Log an audit event (append-only).
 
@@ -223,8 +227,8 @@ class AuditLogger:
             user_agent = None
             if request:
                 try:
-                    ip_address = getattr(request.client, 'host', None) if hasattr(request, 'client') else None
-                    user_agent = request.headers.get("user-agent") if hasattr(request, 'headers') else None
+                    ip_address = getattr(request.client, "host", None) if hasattr(request, "client") else None
+                    user_agent = request.headers.get("user-agent") if hasattr(request, "headers") else None
                 except Exception:
                     pass
 
@@ -257,9 +261,9 @@ class AuditLogger:
         user_id: UUID,
         action: AuditAction,
         success: bool,
-        request: Optional[Any] = None,
-        details: Optional[dict] = None,
-    ) -> Optional[dict]:
+        request: Any | None = None,
+        details: dict | None = None,
+    ) -> dict | None:
         """
         Convenience method for authentication audit events.
 
@@ -288,9 +292,9 @@ class AuditLogger:
         action: AuditAction,
         file_path: str,
         success: bool,
-        request: Optional[Any] = None,
-        details: Optional[dict] = None,
-    ) -> Optional[dict]:
+        request: Any | None = None,
+        details: dict | None = None,
+    ) -> dict | None:
         """
         Convenience method for file audit events.
 
@@ -320,9 +324,9 @@ class AuditLogger:
         user_id: UUID,
         permission: str,
         resource_type: str,
-        resource_id: Optional[str] = None,
-        request: Optional[Any] = None,
-    ) -> Optional[dict]:
+        resource_id: str | None = None,
+        request: Any | None = None,
+    ) -> dict | None:
         """
         Log a permission denial event.
 
@@ -348,15 +352,15 @@ class AuditLogger:
     @staticmethod
     async def query(
         tenant_id: UUID,
-        user_id: Optional[UUID] = None,
-        action: Optional[str | AuditAction] = None,
-        status: Optional[str | AuditStatus] = None,
-        resource_type: Optional[str] = None,
-        since: Optional[datetime] = None,
-        until: Optional[datetime] = None,
+        user_id: UUID | None = None,
+        action: str | AuditAction | None = None,
+        status: str | AuditStatus | None = None,
+        resource_type: str | None = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
         limit: int = 100,
         offset: int = 0,
-    ) -> List[dict]:
+    ) -> list[dict]:
         """
         Query audit logs with filters.
 
@@ -394,9 +398,9 @@ class AuditLogger:
     @staticmethod
     async def count(
         tenant_id: UUID,
-        user_id: Optional[UUID] = None,
-        action: Optional[str | AuditAction] = None,
-        status: Optional[str | AuditStatus] = None,
+        user_id: UUID | None = None,
+        action: str | AuditAction | None = None,
+        status: str | AuditStatus | None = None,
     ) -> int:
         """
         Count audit logs matching filters.

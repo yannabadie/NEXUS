@@ -19,13 +19,9 @@ Validates:
 - Module exports
 """
 
-import time
-import pytest
-
 from core.drivers.failover_manager import (
     DEFAULT_FAILURE_THRESHOLD,
     DEFAULT_RECOVERY_TIMEOUT,
-    MAX_DECISIONS,
     MAX_DRIVERS,
     FailoverConfig,
     FailoverDecision,
@@ -36,10 +32,10 @@ from core.drivers.failover_manager import (
     reset_failover_manager,
 )
 
-
 # =============================================================================
 # FailoverState Tests
 # =============================================================================
+
 
 class TestFailoverState:
     """Test FailoverState dataclass."""
@@ -78,6 +74,7 @@ class TestFailoverState:
 # FailoverConfig Tests
 # =============================================================================
 
+
 class TestFailoverConfig:
     """Test FailoverConfig dataclass."""
 
@@ -91,13 +88,16 @@ class TestFailoverConfig:
 # FailoverDecision Tests
 # =============================================================================
 
+
 class TestFailoverDecision:
     """Test FailoverDecision dataclass."""
 
     def test_to_dict(self):
         d = FailoverDecision(
-            selected_driver="gemini/pro", reason="failover_from_claude",
-            primary_driver="claude/opus", fallback_used=True,
+            selected_driver="gemini/pro",
+            reason="failover_from_claude",
+            primary_driver="claude/opus",
+            fallback_used=True,
         )
         result = d.to_dict()
         assert result["fallback_used"] is True
@@ -107,14 +107,19 @@ class TestFailoverDecision:
 # FailoverStats Tests
 # =============================================================================
 
+
 class TestFailoverStats:
     """Test FailoverStats dataclass."""
 
     def test_to_dict(self):
         s = FailoverStats(
-            total_drivers=3, healthy_drivers=2, degraded_drivers=1,
-            failing_drivers=0, circuit_open_drivers=0,
-            total_failovers=1, total_decisions=10,
+            total_drivers=3,
+            healthy_drivers=2,
+            degraded_drivers=1,
+            failing_drivers=0,
+            circuit_open_drivers=0,
+            total_failovers=1,
+            total_decisions=10,
         )
         d = s.to_dict()
         assert d["total_drivers"] == 3
@@ -123,6 +128,7 @@ class TestFailoverStats:
 # =============================================================================
 # Registration Tests
 # =============================================================================
+
 
 class TestRegistration:
     """Test driver registration."""
@@ -158,6 +164,7 @@ class TestRegistration:
 # =============================================================================
 # Success Recording Tests
 # =============================================================================
+
 
 class TestSuccessRecording:
     """Test success recording."""
@@ -202,6 +209,7 @@ class TestSuccessRecording:
 # =============================================================================
 # Failure Recording Tests
 # =============================================================================
+
 
 class TestFailureRecording:
     """Test failure recording and degradation ladder."""
@@ -248,6 +256,7 @@ class TestFailureRecording:
 # =============================================================================
 # Driver Selection Tests
 # =============================================================================
+
 
 class TestDriverSelection:
     """Test driver selection logic."""
@@ -309,6 +318,7 @@ class TestDriverSelection:
 # Statistics Tests
 # =============================================================================
 
+
 class TestStatistics:
     """Test failover statistics."""
 
@@ -336,6 +346,7 @@ class TestStatistics:
 # =============================================================================
 # State Tests
 # =============================================================================
+
 
 class TestState:
     """Test state management."""
@@ -365,6 +376,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global failover manager."""
 
@@ -391,26 +403,34 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_drivers_package(self):
         from core.drivers import (
-            FailoverManager, FailoverState, FailoverConfig,
-            FailoverDecision, FailoverStats,
-            get_failover_manager, reset_failover_manager,
+            FailoverConfig,
+            FailoverDecision,
+            FailoverManager,
+            FailoverState,
+            FailoverStats,
+            get_failover_manager,
+            reset_failover_manager,
         )
-        assert all([
-            FailoverManager, FailoverState, FailoverConfig,
-            FailoverDecision, FailoverStats,
-            get_failover_manager, reset_failover_manager,
-        ])
+
+        assert all(
+            [
+                FailoverManager,
+                FailoverState,
+                FailoverConfig,
+                FailoverDecision,
+                FailoverStats,
+                get_failover_manager,
+                reset_failover_manager,
+            ]
+        )
 
     def test_constants(self):
-        from core.drivers.failover_manager import (
-            DEFAULT_FAILURE_THRESHOLD, DEFAULT_RECOVERY_TIMEOUT,
-            MAX_DRIVERS, MAX_DECISIONS,
-        )
         assert DEFAULT_FAILURE_THRESHOLD == 3
         assert DEFAULT_RECOVERY_TIMEOUT == 60.0
         assert MAX_DRIVERS == 100

@@ -4,41 +4,40 @@ REPL Interface V7 - Persistent Orchestrator
 Le REPL crée l'orchestrateur UNE FOIS et le garde en mémoire
 toute la session (persistent FSM architecture)
 """
-import sys
+
 import os
+import sys
 from pathlib import Path
-from typing import Dict, Optional
 
 # Fix VS Code terminal on Windows: unset TERM to let prompt_toolkit auto-detect
-if sys.platform == 'win32' and os.environ.get('TERM') == 'xterm-256color':
-    del os.environ['TERM']
+if sys.platform == "win32" and os.environ.get("TERM") == "xterm-256color":
+    del os.environ["TERM"]
 
 import asyncio
+from contextlib import nullcontext
+
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.patch_stdout import patch_stdout
-from contextlib import nullcontext
-from core.orchestration_v7 import OrchestratorV7
-from core.ui.console_v7 import ConsoleV7
-from core.interface_pkg.interface.commands import (
-    is_slash_command,
-    is_exit_command,
-    parse_command,
-    get_help_message,
-    SLASH_COMMANDS,
-    # V9: Command Pattern
-    get_initialized_registry,
-    CommandContext,
-    CommandStatus,
-)
+
 from core.config import load_config
 from core.fsm.states import OrchestratorState
-from core.intelligence.evolution.rate_limiter import EvolutionRateLimiter
-from core.intelligence.evolution import ChildValidator, SafetyGate, AutoPromotionDecision
+from core.intelligence.evolution import AutoPromotionDecision, ChildValidator
 from core.intelligence.evolution.manager import EvolutionManager  # V7.5 Phase 0a: Central evolution orchestrator
-from core.security_pkg.security import MutationValidator
-from core.memory_pkg.prompts import load_prompt  # V7.5 HIVE MIND: Prompt loader with includes
-from core.foundation.agents.unified_registry import get_registry  # V8.4.0: Unified agent registry
+from core.intelligence.evolution.rate_limiter import EvolutionRateLimiter
+from core.interface_pkg.interface.commands import (
+    SLASH_COMMANDS,
+    CommandContext,
+    CommandStatus,
+    get_help_message,
+    # V9: Command Pattern
+    get_initialized_registry,
+    is_exit_command,
+    is_slash_command,
+    parse_command,
+)
+from core.orchestration_v7 import OrchestratorV7
+from core.ui.console_v7 import ConsoleV7
 
 
 class InteractiveNexusV7:
@@ -51,7 +50,7 @@ class InteractiveNexusV7:
     - Slash commands: /mode, /clear, /status, /doctor, /reset
     """
 
-    def __init__(self, workspace_path: Path, gemini_info: Dict, claude_info: Dict):
+    def __init__(self, workspace_path: Path, gemini_info: dict, claude_info: dict):
         self.workspace_path = workspace_path
         self.config = load_config()
 
@@ -59,12 +58,7 @@ class InteractiveNexusV7:
         self.nexus_root = self._calculate_nexus_root()
 
         # Create orchestrator ONCE (persistent!)
-        self.orchestrator = OrchestratorV7(
-            workspace_path,
-            self.config,
-            gemini_info,
-            claude_info
-        )
+        self.orchestrator = OrchestratorV7(workspace_path, self.config, gemini_info, claude_info)
 
         # UI
         self.console = ConsoleV7(verbose=self.config.ui_verbose)
@@ -75,9 +69,7 @@ class InteractiveNexusV7:
         self._use_simple_input = False
 
         try:
-            self.session = PromptSession(
-                history=FileHistory(str(history_file))
-            )
+            self.session = PromptSession(history=FileHistory(str(history_file)))
         except Exception as e:
             # Fallback for VS Code terminal, piped input, or other non-standard terminals
             print(f"[INFO] prompt_toolkit unavailable ({type(e).__name__}), using simple input mode")
@@ -105,7 +97,7 @@ class InteractiveNexusV7:
 
         # V7.7 Phase 15: Set up streaming callback if enabled
         self._streaming_active = False  # Track if we're currently streaming
-        if getattr(self.config, 'streaming_enabled', False):
+        if getattr(self.config, "streaming_enabled", False):
             self.orchestrator.on_token = self._stream_token
 
     def _get_input(self, prompt: str = "nexus7> ") -> str:
@@ -148,7 +140,7 @@ class InteractiveNexusV7:
             gemini_model=self.orchestrator.gemini_info["model"],
             claude_model=self.orchestrator.claude_info["model"],
             version=self.config.nexus_version,
-            codename=self.config.nexus_codename
+            codename=self.config.nexus_codename,
         )
 
         # V7 Sprint 11: Display startup hints (bootstrap, swarm status)
@@ -167,9 +159,10 @@ class InteractiveNexusV7:
                 # Sanitize input: strip ANSI escape sequences that can corrupt objectives
                 # Escape sequences like 0~, [D, ESC[ can leak from terminal on Windows
                 import re
-                user_input = re.sub(r'\x1b\[[0-9;]*[a-zA-Z]', '', user_input)  # ESC[...X sequences
-                user_input = re.sub(r'[0-9]+~', '', user_input)  # 0~ type sequences (Insert, Home, etc.)
-                user_input = re.sub(r'\[\w\]?', '', user_input)  # Orphan [D, [A sequences
+
+                user_input = re.sub(r"\x1b\[[0-9;]*[a-zA-Z]", "", user_input)  # ESC[...X sequences
+                user_input = re.sub(r"[0-9]+~", "", user_input)  # 0~ type sequences (Insert, Home, etc.)
+                user_input = re.sub(r"\[\w\]?", "", user_input)  # Orphan [D, [A sequences
                 user_input = user_input.strip()
 
                 if not user_input:
@@ -222,9 +215,9 @@ class InteractiveNexusV7:
                     # 2. Agent explicitly needs input
                     # 3. Error state detected
                     needs_user_prompt = (
-                        result.get("needs_user_input", False) or
-                        result.get("state") == "ERROR" or
-                        iterations >= (max_iterations - 2)  # Warning before limit
+                        result.get("needs_user_input", False)
+                        or result.get("state") == "ERROR"
+                        or iterations >= (max_iterations - 2)  # Warning before limit
                     )
 
                     if needs_user_prompt and not tool_active:
@@ -235,12 +228,14 @@ class InteractiveNexusV7:
                                 # User wants to interject - add their message to context
                                 self.console.print(f"[bold green]You:[/bold green] {user_input}")
                                 # Inject user message into the conversation
-                                self.orchestrator.memory.add_to_history({
-                                    "sender": "User",
-                                    "action_type": "TALK",
-                                    "content": user_input,
-                                    "status": "CONTINUE"
-                                })
+                                self.orchestrator.memory.add_to_history(
+                                    {
+                                        "sender": "User",
+                                        "action_type": "TALK",
+                                        "content": user_input,
+                                        "status": "CONTINUE",
+                                    }
+                                )
                                 # Reset iteration counter and continue
                                 iterations = 0
                         except (EOFError, KeyboardInterrupt):
@@ -259,7 +254,9 @@ class InteractiveNexusV7:
 
                     # Check for auto-evolution trigger
                     if self.successful_turns >= self.evolution_trigger_threshold:
-                        self.console.print(f"\n⚡ AUTO-EVOLUTION TRIGGER: {self.successful_turns} successful turns reached")
+                        self.console.print(
+                            f"\n⚡ AUTO-EVOLUTION TRIGGER: {self.successful_turns} successful turns reached"
+                        )
                         self.console.print("   Starting evolution cycle...\n")
                         self.run_evolve(auto_triggered=True)
                         self.successful_turns = 0  # Reset counter
@@ -271,6 +268,7 @@ class InteractiveNexusV7:
             except Exception as e:
                 self.console.print_error(f"Unexpected error: {e}")
                 import traceback
+
                 if self.config.ui_verbose:
                     traceback.print_exc()
                 continue
@@ -297,7 +295,7 @@ class InteractiveNexusV7:
             gemini_model=self.orchestrator.gemini_info["model"],
             claude_model=self.orchestrator.claude_info["model"],
             version=self.config.nexus_version,
-            codename=self.config.nexus_codename
+            codename=self.config.nexus_codename,
         )
 
         self.console.print("\n⚡ V9 Async Mode Active")
@@ -319,16 +317,14 @@ class InteractiveNexusV7:
                     # V11.4 ASYNC: get_running_loop() for Python 3.12+ compatibility
                     if self._use_simple_input:
                         loop = asyncio.get_running_loop()
-                        user_input = await loop.run_in_executor(
-                            None, lambda: input("nexus7> ")
-                        )
+                        user_input = await loop.run_in_executor(None, lambda: input("nexus7> "))
                     else:
                         user_input = await self.session.prompt_async("nexus7> ")
 
                     # Sanitize input (same as sync version)
-                    user_input = re.sub(r'\x1b\[[0-9;]*[a-zA-Z]', '', user_input)
-                    user_input = re.sub(r'[0-9]+~', '', user_input)
-                    user_input = re.sub(r'\[\w\]?', '', user_input)
+                    user_input = re.sub(r"\x1b\[[0-9;]*[a-zA-Z]", "", user_input)
+                    user_input = re.sub(r"[0-9]+~", "", user_input)
+                    user_input = re.sub(r"\[\w\]?", "", user_input)
                     user_input = user_input.strip()
 
                     if not user_input:
@@ -353,6 +349,7 @@ class InteractiveNexusV7:
                     # V9: Cancel all async driver processes
                     try:
                         from core.drivers.async_factory import get_driver_factory
+
                         factory = get_driver_factory()
                         if factory:
                             cancelled = await factory.cancel_all()
@@ -369,6 +366,7 @@ class InteractiveNexusV7:
                     self.console.print_error(f"Unexpected error: {e}")
                     if self.config.ui_verbose:
                         import traceback
+
                         traceback.print_exc()
                     continue
 
@@ -380,15 +378,13 @@ class InteractiveNexusV7:
         Otherwise falls back to sync process_turn() in executor.
         """
         # Check for async method first
-        if hasattr(self.orchestrator, 'process_turn_async'):
+        if hasattr(self.orchestrator, "process_turn_async"):
             result = await self.orchestrator.process_turn_async(user_input)
         else:
             # Fallback: Run sync in executor (non-blocking for REPL)
             # V11.4 ASYNC: get_running_loop() for Python 3.12+ compatibility
             loop = asyncio.get_running_loop()
-            result = await loop.run_in_executor(
-                None, lambda: self.orchestrator.process_turn(user_input)
-            )
+            result = await loop.run_in_executor(None, lambda: self.orchestrator.process_turn(user_input))
 
         self.console.display_result(result)
 
@@ -402,14 +398,12 @@ class InteractiveNexusV7:
                 self.console.print("🛑 Abort requested - stopping")
                 break
 
-            if hasattr(self.orchestrator, 'process_turn_async'):
+            if hasattr(self.orchestrator, "process_turn_async"):
                 result = await self.orchestrator.process_turn_async()
             else:
                 # V11.4 ASYNC: get_running_loop() for Python 3.12+ compatibility
                 loop = asyncio.get_running_loop()
-                result = await loop.run_in_executor(
-                    None, lambda: self.orchestrator.process_turn()
-                )
+                result = await loop.run_in_executor(None, lambda: self.orchestrator.process_turn())
 
             self.console.display_result(result)
             iterations += 1
@@ -426,9 +420,9 @@ class InteractiveNexusV7:
 
             # Check if user input needed
             needs_user_prompt = (
-                result.get("needs_user_input", False) or
-                result.get("state") == "ERROR" or
-                iterations >= (max_iterations - 2)
+                result.get("needs_user_input", False)
+                or result.get("state") == "ERROR"
+                or iterations >= (max_iterations - 2)
             )
 
             if needs_user_prompt and not tool_active:
@@ -440,12 +434,14 @@ class InteractiveNexusV7:
                     user_interjection = await loop.run_in_executor(None, lambda: input().strip())
                     if user_interjection:
                         self.console.print(f"[bold green]You:[/bold green] {user_interjection}")
-                        self.orchestrator.memory.add_to_history({
-                            "sender": "User",
-                            "action_type": "TALK",
-                            "content": user_interjection,
-                            "status": "CONTINUE"
-                        })
+                        self.orchestrator.memory.add_to_history(
+                            {
+                                "sender": "User",
+                                "action_type": "TALK",
+                                "content": user_interjection,
+                                "status": "CONTINUE",
+                            }
+                        )
                         iterations = 0
                 except (EOFError, KeyboardInterrupt):
                     self.console.print("\n[Returning to prompt]")
@@ -487,10 +483,7 @@ class InteractiveNexusV7:
         # V9: Command Pattern dispatch
         registry = get_initialized_registry()
         context = CommandContext(
-            orchestrator=self.orchestrator,
-            console=self.console,
-            config=self.config,
-            extras={"repl": self}
+            orchestrator=self.orchestrator, console=self.console, config=self.config, extras={"repl": self}
         )
 
         # Dispatch command
@@ -499,9 +492,7 @@ class InteractiveNexusV7:
 
         # Handle result
         if result.message:
-            if result.status == CommandStatus.ERROR:
-                self.console.print_error(result.message)
-            elif result.status == CommandStatus.INVALID_ARGS:
+            if result.status == CommandStatus.ERROR or result.status == CommandStatus.INVALID_ARGS:
                 self.console.print_error(result.message)
             elif result.status == CommandStatus.NOT_FOUND:
                 # Fallback to legacy error message with available commands
@@ -516,7 +507,7 @@ class InteractiveNexusV7:
             "state": self.orchestrator.state.name,
             "agent": self.orchestrator.active_agent,
             "iteration": self.orchestrator.iteration,
-            "objective": self.orchestrator.blackboard.get("objective", "None")
+            "objective": self.orchestrator.blackboard.get("objective", "None"),
         }
         self.console.print_status(status)
 
@@ -534,7 +525,7 @@ class InteractiveNexusV7:
             "gemini": gemini,
             "claude": claude,
             "workspace": self.workspace_path.exists(),
-            "io_buffer": (self.workspace_path / "_IO_BUFFER").exists()
+            "io_buffer": (self.workspace_path / "_IO_BUFFER").exists(),
         }
 
         self.console.print_doctor_results(results)
@@ -555,27 +546,27 @@ class InteractiveNexusV7:
             self.console.print("   Pending reviews are created after evolution completes.")
             return
 
-        generation = pending_metadata['generation']
-        children = pending_metadata['children']
-        hours_elapsed = pending_metadata['hours_elapsed']
+        generation = pending_metadata["generation"]
+        children = pending_metadata["children"]
+        hours_elapsed = pending_metadata["hours_elapsed"]
 
         # Display review header
-        self.console.print("\n" + "="*60)
+        self.console.print("\n" + "=" * 60)
         self.console.print(f"📋 REVIEW - Generation {generation}")
-        self.console.print("="*60)
+        self.console.print("=" * 60)
         self.console.print(f"Children: {len(children)}")
         self.console.print(f"Elapsed: {hours_elapsed:.1f}h")
-        self.console.print("="*60 + "\n")
+        self.console.print("=" * 60 + "\n")
 
         # Interactive review loop
         for i, child in enumerate(children, 1):
-            self.console.print(f"\n{'─'*60}")
+            self.console.print(f"\n{'─' * 60}")
             self.console.print(f"Child {i}/{len(children)}: {child['id']}")
-            self.console.print(f"{'─'*60}")
+            self.console.print(f"{'─' * 60}")
             self.console.print(f"Fitness Score: {child['score']:.3f} ({child['improvement']:+.1%} vs parent)")
 
             # Show improvements if available
-            if 'improvements_summary' in child:
+            if "improvements_summary" in child:
                 self.console.print(f"\nImprovements:\n{child['improvements_summary']}")
 
             self.console.print(f"\nBirth Certificate: {child.get('birth_cert_path', 'Not found')}")
@@ -585,7 +576,9 @@ class InteractiveNexusV7:
             decision_result = self._check_auto_promotion(child)
 
             # Display safety gates status
-            self.console.print(f"\n🔒 Safety Gates ({sum(1 for g in decision_result.gates if g.passed)}/{len(decision_result.gates)} passed):")
+            self.console.print(
+                f"\n🔒 Safety Gates ({sum(1 for g in decision_result.gates if g.passed)}/{len(decision_result.gates)} passed):"
+            )
             for gate in decision_result.gates:
                 status = "✅" if gate.passed else "❌"
                 blocking = " [BLOCKING]" if gate.blocking else ""
@@ -599,10 +592,10 @@ class InteractiveNexusV7:
                 try:
                     # V9.1: Use EvolutionManager (delegates to PromotePhase)
                     result = self.evolution_manager.promote_child(
-                        child_id=child['id'],
-                        fitness_score=child['score'],
+                        child_id=child["id"],
+                        fitness_score=child["score"],
                         generation=generation,
-                        child_metadata={'improvements_summary': child.get('improvements_summary')},
+                        child_metadata={"improvements_summary": child.get("improvements_summary")},
                     )
                     if result.success:
                         self.console.print(f"✅ Auto-promotion complete: {child['id']} is now the active parent")
@@ -627,15 +620,15 @@ class InteractiveNexusV7:
                     self.console.print("\nReview interrupted.")
                     return
 
-                if decision in ['a', 'approve']:
+                if decision in ["a", "approve"]:
                     self.console.print(f"✓ Approved: {child['id']} will become new parent")
                     # V9.1: Use EvolutionManager (delegates to PromotePhase)
                     try:
                         result = self.evolution_manager.promote_child(
-                            child_id=child['id'],
-                            fitness_score=child['score'],
+                            child_id=child["id"],
+                            fitness_score=child["score"],
                             generation=generation,
-                            child_metadata={'improvements_summary': child.get('improvements_summary')},
+                            child_metadata={"improvements_summary": child.get("improvements_summary")},
                         )
                         if result.success:
                             self.console.print(f"✅ Promotion complete: {child['id']} is now the active parent")
@@ -645,15 +638,15 @@ class InteractiveNexusV7:
                         self.console.print_error(f"Promotion failed: {e}")
                         self.console.print("⚠️  Manual promotion required")
                     break
-                elif decision in ['r', 'reject']:
+                elif decision in ["r", "reject"]:
                     self.console.print(f"✗ Rejected: {child['id']} will be archived")
                     # V9.1: Use EvolutionManager (delegates to PromotePhase)
                     try:
                         result = self.evolution_manager.archive_child(
-                            child_id=child['id'],
+                            child_id=child["id"],
                             reason="manual_review_rejection",
                             generation=generation,
-                            fitness_score=child.get('score', 0.0),
+                            fitness_score=child.get("score", 0.0),
                         )
                         if result.success:
                             self.console.print(f"✅ Child archived: {child['id']}")
@@ -663,23 +656,23 @@ class InteractiveNexusV7:
                         self.console.print_error(f"Archival failed: {e}")
                         self.console.print("⚠️  Manual cleanup required")
                     break
-                elif decision in ['t', 'test']:
+                elif decision in ["t", "test"]:
                     self.console.print(f"🧪 Opening test mode for {child['id']}")
                     self.console.print("⚠️  Manual testing required (auto-testing not yet implemented)")
                     break
-                elif decision in ['s', 'skip']:
+                elif decision in ["s", "skip"]:
                     self.console.print(f"⏭️  Skipped: {child['id']}")
                     break
-                elif decision in ['q', 'quit']:
+                elif decision in ["q", "quit"]:
                     self.console.print("\nExiting review (progress not saved)")
                     return
                 else:
                     self.console.print_error("Invalid choice. Use A/R/T/S/Q")
 
         # Review completed
-        self.console.print("\n" + "="*60)
+        self.console.print("\n" + "=" * 60)
         self.console.print("✅ Review completed for all children")
-        self.console.print("="*60)
+        self.console.print("=" * 60)
 
         # Ask to delete PENDING_REVIEW files
         self.console.print("\nDelete PENDING_REVIEW files? [y/N]")
@@ -689,7 +682,7 @@ class InteractiveNexusV7:
             self.console.print("\nKeeping PENDING_REVIEW files.")
             return
 
-        if confirm == 'y':
+        if confirm == "y":
             if delete_pending_review(self.workspace_path):
                 self.console.print("✓ PENDING_REVIEW files deleted")
             else:
@@ -705,10 +698,11 @@ class InteractiveNexusV7:
             Parent fitness score (default 0.75 if not found)
         """
         import json
+
         lineage_path = self.nexus_root.parent / "LINEAGE.json"  # 20_NEXUS/LINEAGE.json
         if lineage_path.exists():
             try:
-                data = json.loads(lineage_path.read_text(encoding='utf-8'))
+                data = json.loads(lineage_path.read_text(encoding="utf-8"))
                 parent_id = data.get("current_parent", {}).get("id")
                 if parent_id and parent_id in data.get("nodes", {}):
                     # V7.5: Support both old and new field names
@@ -718,7 +712,7 @@ class InteractiveNexusV7:
                 pass
         return 0.75  # Default fallback
 
-    def _check_auto_promotion(self, child: Dict) -> AutoPromotionDecision:
+    def _check_auto_promotion(self, child: dict) -> AutoPromotionDecision:
         """
         Check if child is eligible for auto-promotion (V7).
 
@@ -733,24 +727,26 @@ class InteractiveNexusV7:
         # Build validation_result dict from child data
         validation_result = {
             "passed": True,  # If it's in pending review, it passed validation
-            "fitness_score": child.get('score', 0),
-            "red_team_score": child.get('validation', {}).get('red_team_score')
+            "fitness_score": child.get("score", 0),
+            "red_team_score": child.get("validation", {}).get("red_team_score"),
         }
 
         # Try to load full validation results if available
-        eval_path = child.get('eval_results_path')
+        eval_path = child.get("eval_results_path")
         if eval_path:
             try:
                 eval_path = Path(eval_path)
                 if eval_path.exists():
-                    full_results = json.loads(eval_path.read_text(encoding='utf-8'))
+                    full_results = json.loads(eval_path.read_text(encoding="utf-8"))
                     # V7.5: Support both old and new field names
-                    fitness = full_results.get("fitness_score") or full_results.get("asi_score", child.get('score', 0))
-                    validation_result.update({
-                        "passed": full_results.get("passed", True),
-                        "red_team_score": full_results.get("red_team_score"),
-                        "fitness_score": fitness
-                    })
+                    fitness = full_results.get("fitness_score") or full_results.get("asi_score", child.get("score", 0))
+                    validation_result.update(
+                        {
+                            "passed": full_results.get("passed", True),
+                            "red_team_score": full_results.get("red_team_score"),
+                            "fitness_score": fitness,
+                        }
+                    )
             except Exception:
                 pass
 
@@ -761,13 +757,11 @@ class InteractiveNexusV7:
         validator = ChildValidator(
             child_path=Path("."),  # Not used by check_auto_promotion_eligibility
             child_id="",
-            parent_id=""
+            parent_id="",
         )
 
         return validator.check_auto_promotion_eligibility(
-            validation_result=validation_result,
-            parent_fitness_score=parent_fitness,
-            config=self.config
+            validation_result=validation_result, parent_fitness_score=parent_fitness, config=self.config
         )
 
     # ==================== WORKSPACE MANAGEMENT ====================
@@ -782,15 +776,16 @@ class InteractiveNexusV7:
             /workspace list      - List all workspaces
             /workspace switch <name> - Switch to another workspace
         """
+
         from core.interface_pkg.interface_pkg.workspace import (
-            WorkspaceManager, WorkspaceError,
-            WorkspaceNotFoundError, WorkspaceExistsError
+            WorkspaceError,
+            WorkspaceExistsError,
+            WorkspaceManager,
+            WorkspaceNotFoundError,
         )
-        from rich.table import Table
-        from rich.panel import Panel
 
         # Lazy init workspace manager
-        if not hasattr(self, 'workspace_manager'):
+        if not hasattr(self, "workspace_manager"):
             self.workspace_manager = WorkspaceManager(self.nexus_root)
 
         parts = args.strip().split(maxsplit=1)
@@ -842,9 +837,9 @@ class InteractiveNexusV7:
 
         content = f"""[bold cyan]Current Workspace:[/bold cyan] {current.name}
 
-[dim]Created:[/dim]     {current.created_at.strftime('%Y-%m-%d %H:%M')}
+[dim]Created:[/dim]     {current.created_at.strftime("%Y-%m-%d %H:%M")}
 [dim]Last used:[/dim]   {current.get_relative_time()}
-[dim]Task:[/dim]        "{current.last_task[:50] + '...' if len(current.last_task) > 50 else current.last_task or 'None'}"
+[dim]Task:[/dim]        "{current.last_task[:50] + "..." if len(current.last_task) > 50 else current.last_task or "None"}"
 [dim]Iterations:[/dim]  {current.metrics.iterations}
 [dim]Size:[/dim]        {current.get_size_human()}
 [dim]Files:[/dim]       {current.metrics.files_count}
@@ -867,12 +862,7 @@ class InteractiveNexusV7:
             self.console.print("No workspaces found.")
             return
 
-        table = Table(
-            title="NEXUS Workspaces",
-            show_header=True,
-            header_style="bold cyan",
-            border_style="dim"
-        )
+        table = Table(title="NEXUS Workspaces", show_header=True, header_style="bold cyan", border_style="dim")
 
         table.add_column("Status", style="bold", width=8)
         table.add_column("Name", style="cyan", max_width=28)
@@ -907,7 +897,7 @@ class InteractiveNexusV7:
         if name:
             self.console.print(f"\n  Nouveau workspace: {name}")
         else:
-            self.console.print(f"\n  Nouveau workspace: [auto-généré depuis l'objectif]")
+            self.console.print("\n  Nouveau workspace: [auto-généré depuis l'objectif]")
 
         self.console.console.print("\n  Confirmer? (Y/n): ", end="")
 
@@ -917,7 +907,7 @@ class InteractiveNexusV7:
             self.console.print("\nAnnulé.")
             return
 
-        if confirm and confirm != 'y':
+        if confirm and confirm != "y":
             self.console.print("Annulé.")
             return
 
@@ -975,16 +965,13 @@ class InteractiveNexusV7:
             self.console.print("\nAnnulé.")
             return
 
-        archive_current = confirm != 'n'
+        archive_current = confirm != "n"
 
         # Switch
         self.console.print("\n  ⠋ Sauvegarde...")
 
         try:
-            old_ws, new_ws = self.workspace_manager.switch_workspace(
-                name=target.name,
-                archive_current=archive_current
-            )
+            old_ws, new_ws = self.workspace_manager.switch_workspace(name=target.name, archive_current=archive_current)
 
             self.console.print("  ✓ État sauvegardé")
             self.console.print(f"  ⠋ Chargement {new_ws.name}...")
@@ -998,7 +985,7 @@ class InteractiveNexusV7:
             self.console.print(f"""
   État restauré:
     Iterations:    {new_ws.metrics.iterations}
-    Dernière tâche: "{new_ws.last_task[:40] + '...' if len(new_ws.last_task) > 40 else new_ws.last_task or 'None'}"
+    Dernière tâche: "{new_ws.last_task[:40] + "..." if len(new_ws.last_task) > 40 else new_ws.last_task or "None"}"
 
 ✅ Switched to: [bold cyan]{new_ws.name}[/bold cyan]
 """)
@@ -1006,6 +993,7 @@ class InteractiveNexusV7:
         except Exception as e:
             self.console.print_error(f"Erreur: {e}")
             import traceback
+
             if self.config.ui_verbose:
                 traceback.print_exc()
 
@@ -1015,9 +1003,10 @@ class InteractiveNexusV7:
 
         This allows changing workspace without restarting NEXUS.
         """
-        from core.synapse.memory_v7 import MemoryManagerV7
-        from core.execution_pkg.execution.tool_manager import ToolManager
         from prompt_toolkit.history import FileHistory
+
+        from core.execution_pkg.execution.tool_manager import ToolManager
+        from core.synapse.memory_v7 import MemoryManagerV7
 
         # 1. Save current state to disk
         self.orchestrator.memory.save_to_disk()
@@ -1027,10 +1016,7 @@ class InteractiveNexusV7:
         self.orchestrator.workspace_path = new_workspace_path
 
         # 3. Recreate MemoryManager with new path
-        self.orchestrator.memory = MemoryManagerV7(
-            workspace_path=new_workspace_path,
-            config=self.config
-        )
+        self.orchestrator.memory = MemoryManagerV7(workspace_path=new_workspace_path, config=self.config)
 
         # 4. Load blackboard from new workspace
         self.orchestrator.blackboard = self.orchestrator.memory.blackboard
@@ -1048,8 +1034,9 @@ class InteractiveNexusV7:
         self.orchestrator.iteration = 0
 
         # 8. Update workspace manager reference
-        if hasattr(self, 'workspace_manager'):
+        if hasattr(self, "workspace_manager"):
             from core.interface_pkg.interface_pkg.workspace import WorkspaceManager
+
             self.workspace_manager = WorkspaceManager(self.nexus_root)
 
     # ==================== END WORKSPACE MANAGEMENT ====================
@@ -1063,12 +1050,11 @@ class InteractiveNexusV7:
 
     def _get_memory_service(self):
         """Get or create MemoryService instance."""
-        if not hasattr(self, '_memory_service'):
+        if not hasattr(self, "_memory_service"):
             from core.memory_pkg.memory import MemoryService
+
             self._memory_service = MemoryService(
-                getattr(self.orchestrator, 'project_memory', None),
-                self.workspace_path,
-                self.console
+                getattr(self.orchestrator, "project_memory", None), self.workspace_path, self.console
             )
         return self._memory_service
 
@@ -1138,11 +1124,11 @@ class InteractiveNexusV7:
         calculated_path = Path(__file__).parent.parent.parent.resolve()
 
         # Validation: Check for expected markers
-        expected_markers = ['nexus7.py', 'core', 'prompts']
+        expected_markers = ["nexus7.py", "core", "prompts"]
         for marker in expected_markers:
             if not (calculated_path / marker).exists():
                 # Fallback: Try to find from workspace_path
-                if self.workspace_path.name == 'workspace':
+                if self.workspace_path.name == "workspace":
                     fallback_path = self.workspace_path.parent.resolve()
                     if all((fallback_path / m).exists() for m in expected_markers):
                         return fallback_path
@@ -1168,19 +1154,18 @@ class InteractiveNexusV7:
             child_count: Number of children to create
             auto_triggered: True if triggered by 50-turn threshold
         """
-        from datetime import datetime
 
-        self.console.print("\n" + "="*60)
+        self.console.print("\n" + "=" * 60)
         self.console.print("🧬 EVOLUTION CYCLE STARTED")
-        self.console.print("="*60)
+        self.console.print("=" * 60)
 
         if auto_triggered:
-            self.console.print(f"Trigger: Auto (50 successful turns)")
+            self.console.print("Trigger: Auto (50 successful turns)")
         else:
-            self.console.print(f"Trigger: Manual (/evolve command)")
+            self.console.print("Trigger: Manual (/evolve command)")
 
         self.console.print(f"Children to create: {child_count}")
-        self.console.print("="*60 + "\n")
+        self.console.print("=" * 60 + "\n")
 
         # Check rate limits with UI feedback
         can_evolve, reason = self.rate_limiter.can_evolve(child_count)
@@ -1188,9 +1173,11 @@ class InteractiveNexusV7:
             self.console.print(f"[red]❌ Evolution blocked: {reason}[/red]")
             self.console.print("\nRate limit statistics:")
             stats = self.rate_limiter.get_stats()
-            self.console.print(f"  Today's evolutions: {stats['today_evolutions']}/{self.config.max_generations_per_day}")
+            self.console.print(
+                f"  Today's evolutions: {stats['today_evolutions']}/{self.config.max_generations_per_day}"
+            )
             self.console.print(f"  Remaining today: {stats['remaining_today']}")
-            if 'hours_since_last' in stats:
+            if "hours_since_last" in stats:
                 self.console.print(f"  Hours since last: {stats['hours_since_last']}h")
                 self.console.print(f"  Next evolution at: {stats['can_evolve_at']}")
             self.console.print("\nUse /evolve-status to see full statistics\n")
@@ -1205,10 +1192,10 @@ class InteractiveNexusV7:
 
             # Display results
             if result.success:
-                self.console.print("\n" + "="*60)
+                self.console.print("\n" + "=" * 60)
                 self.console.print("✅ ÉMERGENT EVOLUTION COMPLETE")
-                self.console.print("="*60)
-                self.console.print(f"\n📊 Summary:")
+                self.console.print("=" * 60)
+                self.console.print("\n📊 Summary:")
                 self.console.print(f"  Mutations proposed: {result.mutations_proposed}")
                 self.console.print(f"  Children created: {result.children_created}")
                 self.console.print(f"  Children validated: {result.children_validated}")
@@ -1216,10 +1203,10 @@ class InteractiveNexusV7:
                     self.console.print(f"  🏆 Winner: {result.winner_id}")
                     self.console.print(f"  📈 Fitness Score: {result.winner_score:.3f}")
                 if result.promoted:
-                    self.console.print(f"  ✓ Winner promoted to parent")
+                    self.console.print("  ✓ Winner promoted to parent")
                 self.console.print(f"\n  Duration: {result.duration_seconds:.1f}s")
-                self.console.print(f"\nReview with: /review")
-                self.console.print(f"Status with: /evolve-status\n")
+                self.console.print("\nReview with: /review")
+                self.console.print("Status with: /evolve-status\n")
             else:
                 self.console.print(f"\n[red]❌ Evolution failed at phase: {result.phase_reached}[/red]")
                 for error in result.errors:
@@ -1229,64 +1216,67 @@ class InteractiveNexusV7:
         except Exception as e:
             self.console.print_error(f"Evolution cycle failed: {e}")
             import traceback
+
             if self.config.ui_verbose:
                 traceback.print_exc()
 
     def show_evolve_status(self):
         """Show evolution statistics and stagnation counter (/evolve-status command)"""
-        from core.intelligence.evolution.lineage import load_lineage, get_evolution_stats
+        from core.intelligence.evolution.lineage import get_evolution_stats, load_lineage
 
         try:
             lineage = load_lineage(self.workspace_path)
             parent = lineage["current_parent"]
             stats = get_evolution_stats(lineage)
 
-            self.console.print("\n" + "="*60)
+            self.console.print("\n" + "=" * 60)
             self.console.print("🧬 EVOLUTION STATUS")
-            self.console.print("="*60)
+            self.console.print("=" * 60)
             self.console.print(f"\nCurrent Parent: {parent['id']}")
             self.console.print(f"Generation: {parent['generation']}")
             # V7.5: Support both old and new field names
-            score = parent.get('fitness_score') or parent.get('asi_proximity_score', 0.7)
+            score = parent.get("fitness_score") or parent.get("asi_proximity_score", 0.7)
             self.console.print(f"Fitness Score: {score}")
             self.console.print(f"Activated: {parent['activated_at']}")
-            self.console.print(f"\n{'─'*60}")
+            self.console.print(f"\n{'─' * 60}")
             self.console.print("STATISTICS")
-            self.console.print(f"{'─'*60}")
+            self.console.print(f"{'─' * 60}")
             self.console.print(f"Total Generations: {stats['total_generations']}")
             self.console.print(f"Total Children Created: {stats['total_children_created']}")
             self.console.print(f"Successful Promotions: {stats['successful_promotions']}")
             self.console.print(f"\nStagnation Counter: {stats['stagnation_counter']}/3")
 
-            if stats['stagnation_counter'] >= 2:
+            if stats["stagnation_counter"] >= 2:
                 self.console.print("⚠️  WARNING: Approaching SURVIVAL_LAW threshold!")
-            elif stats['stagnation_counter'] >= 3:
+            elif stats["stagnation_counter"] >= 3:
                 self.console.print("🚨 CRITICAL: SURVIVAL_LAW triggered - human intervention required!")
 
-            self.console.print(f"\n{'─'*60}")
+            self.console.print(f"\n{'─' * 60}")
             self.console.print("SESSION STATUS")
-            self.console.print(f"{'─'*60}")
+            self.console.print(f"{'─' * 60}")
             self.console.print(f"Successful Turns This Session: {self.successful_turns}")
             self.console.print(f"Auto-Evolution Trigger: {self.evolution_trigger_threshold} turns")
             remaining = self.evolution_trigger_threshold - self.successful_turns
             self.console.print(f"Turns Until Auto-Evolution: {remaining}")
 
             # Rate limiter statistics
-            self.console.print(f"\n{'─'*60}")
+            self.console.print(f"\n{'─' * 60}")
             self.console.print("RATE LIMITING")
-            self.console.print(f"{'─'*60}")
+            self.console.print(f"{'─' * 60}")
             rate_stats = self.rate_limiter.get_stats()
             self.console.print(f"Total Evolutions: {rate_stats['total_evolutions']}")
             self.console.print(f"Total Children Created: {rate_stats['total_children']}")
-            self.console.print(f"Today's Evolutions: {rate_stats['today_evolutions']}/{self.config.max_generations_per_day}")
+            self.console.print(
+                f"Today's Evolutions: {rate_stats['today_evolutions']}/{self.config.max_generations_per_day}"
+            )
             self.console.print(f"Remaining Today: {rate_stats['remaining_today']}")
-            if 'hours_since_last' in rate_stats:
+            if "hours_since_last" in rate_stats:
                 self.console.print(f"Hours Since Last Evolution: {rate_stats['hours_since_last']}h")
                 self.console.print(f"Can Evolve Again At: {rate_stats['can_evolve_at']}")
             else:
                 self.console.print("No evolutions recorded yet")
 
-            self.console.print("="*60 + "\n")
+            self.console.print("=" * 60 + "\n")
 
         except Exception as e:
             self.console.print_error(f"Failed to load evolution status: {e}")
@@ -1297,13 +1287,10 @@ class InteractiveNexusV7:
 
     def _get_swarm_service(self):
         """Get or create SwarmService instance."""
-        if not hasattr(self, '_swarm_service'):
+        if not hasattr(self, "_swarm_service"):
             from core.intelligence.swarm import SwarmService
-            self._swarm_service = SwarmService(
-                self.orchestrator,
-                self.console,
-                self.config
-            )
+
+            self._swarm_service = SwarmService(self.orchestrator, self.console, self.config)
         return self._swarm_service
 
     def run_swarm_task(self, task: str):
@@ -1324,13 +1311,10 @@ class InteractiveNexusV7:
 
     def _get_agent_service(self):
         """Get or create AgentService instance."""
-        if not hasattr(self, '_agent_service'):
+        if not hasattr(self, "_agent_service"):
             from core.foundation.agents import AgentService
-            self._agent_service = AgentService(
-                self.orchestrator,
-                self.workspace_path,
-                self.console
-            )
+
+            self._agent_service = AgentService(self.orchestrator, self.workspace_path, self.console)
         return self._agent_service
 
     def spawn_agent(self, role: str):

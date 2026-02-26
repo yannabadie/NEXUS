@@ -44,26 +44,24 @@ Date: 2025-12-15
 from __future__ import annotations
 
 import abc
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum, auto
 from typing import (
-    AsyncIterator,
-    Dict,
-    List,
-    Optional,
     Any,
     Protocol,
     runtime_checkable,
 )
-from datetime import datetime
-from enum import Enum, auto
-
 
 # =============================================================================
 # Response Types
 # =============================================================================
 
+
 class DriverResponseStatus(Enum):
     """Status of a driver response."""
+
     SUCCESS = auto()
     ERROR = auto()
     TIMEOUT = auto()
@@ -74,11 +72,12 @@ class DriverResponseStatus(Enum):
 @dataclass
 class ToolCall:
     """Represents a tool/function call from the LLM."""
-    name: str
-    arguments: Dict[str, Any]
-    id: Optional[str] = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    name: str
+    arguments: dict[str, Any]
+    id: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "arguments": self.arguments,
@@ -97,17 +96,18 @@ class DriverResponse:
 
     Both result in the same DriverResponse for orchestration code.
     """
+
     # Core content
     content: str
     status: DriverResponseStatus = DriverResponseStatus.SUCCESS
 
     # Metadata
-    model: Optional[str] = None
+    model: str | None = None
     provider: str = "unknown"  # "gemini" or "claude"
-    session_id: Optional[str] = None
+    session_id: str | None = None
 
     # Tool calls (if any)
-    tool_calls: List[ToolCall] = field(default_factory=list)
+    tool_calls: list[ToolCall] = field(default_factory=list)
 
     # Timing and metrics
     latency_ms: float = 0.0
@@ -115,11 +115,11 @@ class DriverResponse:
     output_tokens: int = 0
 
     # Error information (if status != SUCCESS)
-    error_message: Optional[str] = None
-    error_code: Optional[str] = None
+    error_message: str | None = None
+    error_code: str | None = None
 
     # Raw response (for debugging)
-    raw: Optional[Dict[str, Any]] = None
+    raw: dict[str, Any] | None = None
 
     # Timestamp
     timestamp: datetime = field(default_factory=datetime.now)
@@ -134,7 +134,7 @@ class DriverResponse:
         """Check if response contains tool calls."""
         return len(self.tool_calls) > 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
             "content": self.content,
@@ -155,9 +155,10 @@ class DriverResponse:
 @dataclass
 class StreamChunk:
     """A chunk of streamed response."""
+
     content: str
     is_final: bool = False
-    tool_call: Optional[ToolCall] = None
+    tool_call: ToolCall | None = None
 
     # Metadata (only populated in final chunk)
     latency_ms: float = 0.0
@@ -168,6 +169,7 @@ class StreamChunk:
 # =============================================================================
 # Driver Protocol (ABC)
 # =============================================================================
+
 
 @runtime_checkable
 class DriverProtocol(Protocol):
@@ -203,11 +205,11 @@ class DriverProtocol(Protocol):
         self,
         prompt: str,
         *,
-        session_id: Optional[str] = None,
-        system_prompt: Optional[str] = None,
-        tools: Optional[List[Dict[str, Any]]] = None,
-        isolated_env: Optional[Dict[str, str]] = None,
-        timeout: Optional[float] = None,
+        session_id: str | None = None,
+        system_prompt: str | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        isolated_env: dict[str, str] | None = None,
+        timeout: float | None = None,
         **kwargs: Any,
     ) -> DriverResponse:
         """
@@ -235,11 +237,11 @@ class DriverProtocol(Protocol):
         self,
         prompt: str,
         *,
-        session_id: Optional[str] = None,
-        system_prompt: Optional[str] = None,
-        tools: Optional[List[Dict[str, Any]]] = None,
-        isolated_env: Optional[Dict[str, str]] = None,
-        timeout: Optional[float] = None,
+        session_id: str | None = None,
+        system_prompt: str | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        isolated_env: dict[str, str] | None = None,
+        timeout: float | None = None,
         **kwargs: Any,
     ) -> AsyncIterator[StreamChunk]:
         """
@@ -254,7 +256,7 @@ class DriverProtocol(Protocol):
         ...
         yield  # Make this a generator
 
-    async def cancel(self, session_id: Optional[str] = None) -> bool:
+    async def cancel(self, session_id: str | None = None) -> bool:
         """
         Cancel an ongoing invocation.
 
@@ -282,6 +284,7 @@ class DriverProtocol(Protocol):
 # =============================================================================
 # Session Protocol (F32 preparation)
 # =============================================================================
+
 
 @runtime_checkable
 class SessionProtocol(Protocol):
@@ -329,7 +332,7 @@ class SessionProtocol(Protocol):
         """End the current session."""
         ...
 
-    def get_context_for_driver(self) -> Dict[str, Any]:
+    def get_context_for_driver(self) -> dict[str, Any]:
         """
         Get session context in driver-appropriate format.
 
@@ -342,6 +345,7 @@ class SessionProtocol(Protocol):
 # =============================================================================
 # Tool Executor Protocol (F33 preparation)
 # =============================================================================
+
 
 @runtime_checkable
 class ToolExecutorProtocol(Protocol):
@@ -357,11 +361,11 @@ class ToolExecutorProtocol(Protocol):
     async def execute(
         self,
         tool_name: str,
-        arguments: Dict[str, Any],
+        arguments: dict[str, Any],
         *,
-        workspace_path: Optional[str] = None,
+        workspace_path: str | None = None,
         timeout: float = 30.0,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Execute a tool and return the result.
 
@@ -376,7 +380,7 @@ class ToolExecutorProtocol(Protocol):
         """
         ...
 
-    def list_available_tools(self) -> List[str]:
+    def list_available_tools(self) -> list[str]:
         """
         List all available tools.
 
@@ -385,7 +389,7 @@ class ToolExecutorProtocol(Protocol):
         """
         ...
 
-    def get_tool_schema(self, tool_name: str) -> Optional[Dict[str, Any]]:
+    def get_tool_schema(self, tool_name: str) -> dict[str, Any] | None:
         """
         Get JSON schema for a tool.
 
@@ -401,6 +405,7 @@ class ToolExecutorProtocol(Protocol):
 # =============================================================================
 # Abstract Base Classes (for implementation guidance)
 # =============================================================================
+
 
 class BaseAsyncDriver(abc.ABC):
     """
@@ -433,11 +438,11 @@ class BaseAsyncDriver(abc.ABC):
         self,
         prompt: str,
         *,
-        session_id: Optional[str] = None,
-        system_prompt: Optional[str] = None,
-        tools: Optional[List[Dict[str, Any]]] = None,
-        isolated_env: Optional[Dict[str, str]] = None,
-        timeout: Optional[float] = None,
+        session_id: str | None = None,
+        system_prompt: str | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        isolated_env: dict[str, str] | None = None,
+        timeout: float | None = None,
         **kwargs: Any,
     ) -> DriverResponse:
         """Implement in subclass."""
@@ -448,11 +453,11 @@ class BaseAsyncDriver(abc.ABC):
         self,
         prompt: str,
         *,
-        session_id: Optional[str] = None,
-        system_prompt: Optional[str] = None,
-        tools: Optional[List[Dict[str, Any]]] = None,
-        isolated_env: Optional[Dict[str, str]] = None,
-        timeout: Optional[float] = None,
+        session_id: str | None = None,
+        system_prompt: str | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        isolated_env: dict[str, str] | None = None,
+        timeout: float | None = None,
         **kwargs: Any,
     ) -> AsyncIterator[StreamChunk]:
         """Implement in subclass."""
@@ -460,7 +465,7 @@ class BaseAsyncDriver(abc.ABC):
         yield  # pragma: no cover
 
     @abc.abstractmethod
-    async def cancel(self, session_id: Optional[str] = None) -> bool:
+    async def cancel(self, session_id: str | None = None) -> bool:
         """Implement in subclass."""
         ...
 

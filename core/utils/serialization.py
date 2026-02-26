@@ -27,10 +27,10 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, is_dataclass
-from datetime import datetime, date, time, timedelta
+from datetime import date, datetime, time, timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, Optional, Type, Union
+from typing import Any
 from uuid import UUID
 
 
@@ -105,18 +105,19 @@ class NexusJSONEncoder(json.JSONEncoder):
         # bytes → base64
         if isinstance(obj, bytes):
             import base64
-            return base64.b64encode(obj).decode('ascii')
+
+            return base64.b64encode(obj).decode("ascii")
 
         # Objects with to_dict() method (NEXUS convention)
-        if hasattr(obj, 'to_dict') and callable(obj.to_dict):
+        if hasattr(obj, "to_dict") and callable(obj.to_dict):
             return obj.to_dict()
 
         # Pydantic models (v2)
-        if hasattr(obj, 'model_dump') and callable(obj.model_dump):
+        if hasattr(obj, "model_dump") and callable(obj.model_dump):
             return obj.model_dump()
 
         # Pydantic models (v1)
-        if hasattr(obj, 'dict') and callable(obj.dict) and hasattr(obj, '__fields__'):
+        if hasattr(obj, "dict") and callable(obj.dict) and hasattr(obj, "__fields__"):
             return obj.dict()
 
         # Dataclasses without to_dict()
@@ -128,12 +129,7 @@ class NexusJSONEncoder(json.JSONEncoder):
 
 
 def nexus_dumps(
-    obj: Any,
-    *,
-    indent: Optional[int] = 2,
-    ensure_ascii: bool = False,
-    sort_keys: bool = False,
-    **kwargs
+    obj: Any, *, indent: int | None = 2, ensure_ascii: bool = False, sort_keys: bool = False, **kwargs
 ) -> str:
     """
     Serialize object to JSON string using NexusJSONEncoder.
@@ -154,21 +150,11 @@ def nexus_dumps(
         '{\n  "time": "2025-12-10T..."\n}'
     """
     return json.dumps(
-        obj,
-        cls=NexusJSONEncoder,
-        indent=indent,
-        ensure_ascii=ensure_ascii,
-        sort_keys=sort_keys,
-        **kwargs
+        obj, cls=NexusJSONEncoder, indent=indent, ensure_ascii=ensure_ascii, sort_keys=sort_keys, **kwargs
     )
 
 
-def nexus_loads(
-    s: Union[str, bytes],
-    *,
-    parse_dates: bool = True,
-    **kwargs
-) -> Any:
+def nexus_loads(s: str | bytes, *, parse_dates: bool = True, **kwargs) -> Any:
     """
     Deserialize JSON string with optional datetime parsing.
 
@@ -183,7 +169,8 @@ def nexus_loads(
     Note:
         Date parsing is best-effort and won't affect non-date strings.
     """
-    def object_hook(dct: Dict) -> Dict:
+
+    def object_hook(dct: dict) -> dict:
         """Attempt to parse ISO 8601 date strings in dict values."""
         if not parse_dates:
             return dct
@@ -192,8 +179,8 @@ def nexus_loads(
             if isinstance(value, str):
                 # Try parsing as datetime
                 try:
-                    if 'T' in value and len(value) >= 19:
-                        dct[key] = datetime.fromisoformat(value.replace('Z', '+00:00'))
+                    if "T" in value and len(value) >= 19:
+                        dct[key] = datetime.fromisoformat(value.replace("Z", "+00:00"))
                 except (ValueError, TypeError):
                     pass
         return dct
@@ -201,7 +188,7 @@ def nexus_loads(
     return json.loads(s, object_hook=object_hook if parse_dates else None, **kwargs)
 
 
-def serialize_for_checkpoint(obj: Any) -> Dict[str, Any]:
+def serialize_for_checkpoint(obj: Any) -> dict[str, Any]:
     """
     Serialize an object for SagaManager checkpoint storage.
 
@@ -238,7 +225,7 @@ def serialize_for_checkpoint(obj: Any) -> Dict[str, Any]:
     # Use NexusJSONEncoder logic for complex types
     try:
         # First try to_dict() if available
-        if hasattr(obj, 'to_dict') and callable(obj.to_dict):
+        if hasattr(obj, "to_dict") and callable(obj.to_dict):
             return serialize_for_checkpoint(obj.to_dict())
 
         # Encode and decode to ensure clean serialization
@@ -250,7 +237,7 @@ def serialize_for_checkpoint(obj: Any) -> Dict[str, Any]:
 
 
 # Type alias for serializable data
-SerializableData = Union[Dict, list, str, int, float, bool, None]
+SerializableData = dict | list | str | int | float | bool | None
 
 
 __all__ = [

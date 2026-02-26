@@ -39,8 +39,8 @@ from __future__ import annotations
 import logging
 import threading
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import UTC, datetime
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -56,18 +56,21 @@ MAX_NEGOTIATIONS = 50000
 # Helpers
 # =============================================================================
 
+
 def _utc_iso_now() -> str:
     """Return current UTC time as ISO 8601 string."""
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 # =============================================================================
 # Types
 # =============================================================================
 
+
 @dataclass
 class NegotiationTurn:
     """A single turn in a negotiation."""
+
     turn_number: int = 0
     agent_id: str = ""
     proposed_mode: str = ""
@@ -79,7 +82,7 @@ class NegotiationTurn:
         if not self.timestamp:
             self.timestamp = _utc_iso_now()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "turn_number": self.turn_number,
             "agent_id": self.agent_id,
@@ -93,23 +96,24 @@ class NegotiationTurn:
 @dataclass
 class NegotiationRecord:
     """Complete record of a single negotiation."""
+
     negotiation_id: str = ""
     task_domain: str = ""
     complexity: str = ""
     initial_mode: str = ""
     final_mode: str = ""
-    turns: List[Dict[str, Any]] = field(default_factory=list)
+    turns: list[dict[str, Any]] = field(default_factory=list)
     turn_count: int = 0
     duration_ms: float = 0.0
     converged: bool = True
-    participating_agents: List[str] = field(default_factory=list)
+    participating_agents: list[str] = field(default_factory=list)
     timestamp: str = ""
 
     def __post_init__(self) -> None:
         if not self.timestamp:
             self.timestamp = _utc_iso_now()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "negotiation_id": self.negotiation_id,
             "task_domain": self.task_domain,
@@ -128,6 +132,7 @@ class NegotiationRecord:
 @dataclass
 class NegotiationStats:
     """Aggregated negotiation statistics."""
+
     total_negotiations: int = 0
     converged_count: int = 0
     failed_count: int = 0
@@ -142,7 +147,7 @@ class NegotiationStats:
             return self.converged_count / self.total_negotiations
         return 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_negotiations": self.total_negotiations,
             "converged_count": self.converged_count,
@@ -159,6 +164,7 @@ class NegotiationStats:
 # Negotiation Tracker
 # =============================================================================
 
+
 class NegotiationTracker:
     """
     Tracks swarm mode negotiation outcomes.
@@ -174,9 +180,9 @@ class NegotiationTracker:
     """
 
     def __init__(self, max_negotiations: int = MAX_NEGOTIATIONS) -> None:
-        self._records: List[NegotiationRecord] = []
-        self._mode_proposals: Dict[str, int] = {}
-        self._mode_agreements: Dict[str, int] = {}
+        self._records: list[NegotiationRecord] = []
+        self._mode_proposals: dict[str, int] = {}
+        self._mode_agreements: dict[str, int] = {}
         self._max_negotiations = max_negotiations
         self._lock = threading.Lock()
         self._counter = 0
@@ -191,11 +197,11 @@ class NegotiationTracker:
         complexity: str = "",
         initial_mode: str = "",
         final_mode: str = "",
-        turns: Optional[List[Dict[str, Any]]] = None,
+        turns: list[dict[str, Any]] | None = None,
         turn_count: int = 0,
         duration_ms: float = 0.0,
         converged: bool = True,
-        participating_agents: Optional[List[str]] = None,
+        participating_agents: list[str] | None = None,
     ) -> NegotiationRecord:
         """
         Record a completed negotiation.
@@ -233,15 +239,11 @@ class NegotiationTracker:
 
             # Track mode proposals
             if initial_mode:
-                self._mode_proposals[initial_mode] = (
-                    self._mode_proposals.get(initial_mode, 0) + 1
-                )
+                self._mode_proposals[initial_mode] = self._mode_proposals.get(initial_mode, 0) + 1
 
             # Track mode agreements (only if converged)
             if converged and final_mode:
-                self._mode_agreements[final_mode] = (
-                    self._mode_agreements.get(final_mode, 0) + 1
-                )
+                self._mode_agreements[final_mode] = self._mode_agreements.get(final_mode, 0) + 1
 
             self._records.append(record)
 
@@ -268,7 +270,7 @@ class NegotiationTracker:
     # Mode Rankings
     # =========================================================================
 
-    def get_mode_proposal_ranking(self) -> List[Tuple[str, int]]:
+    def get_mode_proposal_ranking(self) -> list[tuple[str, int]]:
         """
         Get modes ranked by how often they are proposed first.
 
@@ -280,7 +282,7 @@ class NegotiationTracker:
         items.sort(key=lambda x: x[1], reverse=True)
         return items
 
-    def get_mode_agreement_ranking(self) -> List[Tuple[str, int]]:
+    def get_mode_agreement_ranking(self) -> list[tuple[str, int]]:
         """
         Get modes ranked by how often they are agreed upon.
 
@@ -296,7 +298,7 @@ class NegotiationTracker:
     # Queries
     # =========================================================================
 
-    def get_recent_negotiations(self, limit: int = 20) -> List[NegotiationRecord]:
+    def get_recent_negotiations(self, limit: int = 20) -> list[NegotiationRecord]:
         """
         Get the most recent negotiation records.
 
@@ -311,7 +313,7 @@ class NegotiationTracker:
         records.reverse()
         return records
 
-    def get_failed_negotiations(self, limit: int = 20) -> List[NegotiationRecord]:
+    def get_failed_negotiations(self, limit: int = 20) -> list[NegotiationRecord]:
         """
         Get negotiations that did not converge.
 
@@ -326,7 +328,7 @@ class NegotiationTracker:
         failed.reverse()
         return failed[:limit]
 
-    def get_negotiations_by_domain(self, domain: str) -> List[NegotiationRecord]:
+    def get_negotiations_by_domain(self, domain: str) -> list[NegotiationRecord]:
         """
         Get all negotiations for a specific task domain.
 
@@ -362,13 +364,15 @@ class NegotiationTracker:
             most_proposed = ""
             if self._mode_proposals:
                 most_proposed = max(
-                    self._mode_proposals, key=self._mode_proposals.get  # type: ignore[arg-type]
+                    self._mode_proposals,
+                    key=self._mode_proposals.get,  # type: ignore[arg-type]
                 )
 
             most_agreed = ""
             if self._mode_agreements:
                 most_agreed = max(
-                    self._mode_agreements, key=self._mode_agreements.get  # type: ignore[arg-type]
+                    self._mode_agreements,
+                    key=self._mode_agreements.get,  # type: ignore[arg-type]
                 )
 
         return NegotiationStats(
@@ -397,7 +401,7 @@ class NegotiationTracker:
             self._mode_agreements.clear()
             self._counter = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         # CRITICAL: call get_stats() BEFORE acquiring self._lock
         # to avoid deadlock (get_stats also acquires the lock).
         stats = self.get_stats()
@@ -412,7 +416,7 @@ class NegotiationTracker:
 # Global Instance
 # =============================================================================
 
-_tracker: Optional[NegotiationTracker] = None
+_tracker: NegotiationTracker | None = None
 _tracker_lock = threading.Lock()
 
 

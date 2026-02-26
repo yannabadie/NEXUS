@@ -50,9 +50,9 @@ from __future__ import annotations
 
 import dataclasses
 import threading
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any
 
 # =============================================================================
 # Constants
@@ -64,6 +64,7 @@ MAX_DELIVERIES: int = 50000
 # =============================================================================
 # Dataclasses
 # =============================================================================
+
 
 @dataclass
 class DeliveryRecord:
@@ -83,6 +84,7 @@ class DeliveryRecord:
         dead_letter: Whether this message ended up in dead letter queue
         timestamp: ISO timestamp of delivery attempt
     """
+
     delivery_id: str = ""
     sender: str = ""
     receiver: str = ""
@@ -92,7 +94,7 @@ class DeliveryRecord:
     dead_letter: bool = False
     timestamp: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return dataclasses.asdict(self)
 
@@ -117,6 +119,7 @@ class ChannelMetrics:
         delivery_rate: Percentage of messages successfully delivered (0.0-1.0)
         avg_latency_ms: Average latency per delivered message
     """
+
     sender: str = ""
     receiver: str = ""
     total_messages: int = 0
@@ -138,7 +141,7 @@ class ChannelMetrics:
             return 0.0
         return self.total_latency_ms / self.delivered_count
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         Convert to dictionary including computed properties.
 
@@ -166,6 +169,7 @@ class ReliabilityStats:
         overall_delivery_rate: System-wide delivery success rate (0.0-1.0)
         total_dead_letters: Total messages in dead letter state
     """
+
     total_messages: int = 0
     unique_senders: int = 0
     unique_receivers: int = 0
@@ -173,7 +177,7 @@ class ReliabilityStats:
     overall_delivery_rate: float = 0.0
     total_dead_letters: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return dataclasses.asdict(self)
 
@@ -181,6 +185,7 @@ class ReliabilityStats:
 # =============================================================================
 # Main Tracker Class
 # =============================================================================
+
 
 class MessageReliabilityTracker:
     """
@@ -215,8 +220,8 @@ class MessageReliabilityTracker:
                           Oldest records are evicted when this limit is reached.
         """
         self._max_deliveries = max_deliveries
-        self._deliveries: List[DeliveryRecord] = []
-        self._channels: Dict[str, ChannelMetrics] = {}
+        self._deliveries: list[DeliveryRecord] = []
+        self._channels: dict[str, ChannelMetrics] = {}
         self._counter: int = 1
         self._lock = threading.Lock()
 
@@ -227,7 +232,7 @@ class MessageReliabilityTracker:
         message_type: str = "",
         delivered: bool = True,
         latency_ms: float = 0.0,
-        dead_letter: bool = False
+        dead_letter: bool = False,
     ) -> DeliveryRecord:
         """
         Record a message delivery attempt.
@@ -255,7 +260,7 @@ class MessageReliabilityTracker:
             self._counter += 1
 
             # Create timestamp
-            timestamp = datetime.now(timezone.utc).isoformat()
+            timestamp = datetime.now(UTC).isoformat()
 
             # Create delivery record
             record = DeliveryRecord(
@@ -266,16 +271,13 @@ class MessageReliabilityTracker:
                 delivered=delivered,
                 latency_ms=latency_ms,
                 dead_letter=dead_letter,
-                timestamp=timestamp
+                timestamp=timestamp,
             )
 
             # Update channel metrics
             channel_key = f"{sender}->{receiver}"
             if channel_key not in self._channels:
-                self._channels[channel_key] = ChannelMetrics(
-                    sender=sender,
-                    receiver=receiver
-                )
+                self._channels[channel_key] = ChannelMetrics(sender=sender, receiver=receiver)
 
             channel = self._channels[channel_key]
             channel.total_messages += 1
@@ -293,7 +295,7 @@ class MessageReliabilityTracker:
 
             return record
 
-    def get_channel_metrics(self, sender: str, receiver: str) -> Optional[ChannelMetrics]:
+    def get_channel_metrics(self, sender: str, receiver: str) -> ChannelMetrics | None:
         """
         Get metrics for a specific sender->receiver channel.
 
@@ -311,7 +313,7 @@ class MessageReliabilityTracker:
             channel_key = f"{sender}->{receiver}"
             return self._channels.get(channel_key)
 
-    def get_all_channels(self) -> List[ChannelMetrics]:
+    def get_all_channels(self) -> list[ChannelMetrics]:
         """
         Get metrics for all channels.
 
@@ -325,7 +327,7 @@ class MessageReliabilityTracker:
             channels = list(self._channels.values())
             return sorted(channels, key=lambda c: c.total_messages, reverse=True)
 
-    def get_dead_letters(self) -> List[DeliveryRecord]:
+    def get_dead_letters(self) -> list[DeliveryRecord]:
         """
         Get all deliveries marked as dead letters.
 
@@ -338,7 +340,7 @@ class MessageReliabilityTracker:
         with self._lock:
             return [d for d in self._deliveries if d.dead_letter]
 
-    def get_messages_by_sender(self, sender: str) -> List[DeliveryRecord]:
+    def get_messages_by_sender(self, sender: str) -> list[DeliveryRecord]:
         """
         Get all deliveries from a specific sender.
 
@@ -354,7 +356,7 @@ class MessageReliabilityTracker:
         with self._lock:
             return [d for d in self._deliveries if d.sender == sender]
 
-    def get_recent_deliveries(self, limit: int = 10) -> List[DeliveryRecord]:
+    def get_recent_deliveries(self, limit: int = 10) -> list[DeliveryRecord]:
         """
         Get the most recent delivery records.
 
@@ -370,7 +372,7 @@ class MessageReliabilityTracker:
         with self._lock:
             return self._deliveries[-limit:]
 
-    def list_senders(self) -> List[str]:
+    def list_senders(self) -> list[str]:
         """
         Get list of all unique sender agent IDs.
 
@@ -384,7 +386,7 @@ class MessageReliabilityTracker:
             senders = set(d.sender for d in self._deliveries)
             return sorted(senders)
 
-    def list_receivers(self) -> List[str]:
+    def list_receivers(self) -> list[str]:
         """
         Get list of all unique receiver agent IDs.
 
@@ -433,7 +435,7 @@ class MessageReliabilityTracker:
                 unique_receivers=unique_receivers,
                 unique_channels=unique_channels,
                 overall_delivery_rate=round(overall_delivery_rate, 4),
-                total_dead_letters=total_dead_letters
+                total_dead_letters=total_dead_letters,
             )
 
     @property
@@ -464,7 +466,7 @@ class MessageReliabilityTracker:
             self._deliveries.clear()
             self._channels.clear()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         Export tracker state to dictionary.
 
@@ -485,11 +487,9 @@ class MessageReliabilityTracker:
             return {
                 "stats": stats.to_dict(),
                 "channels": [c.to_dict() for c in channels],
-                "recent_deliveries": [
-                    d.to_dict() for d in self._deliveries[-20:]
-                ],
+                "recent_deliveries": [d.to_dict() for d in self._deliveries[-20:]],
                 "delivery_count": len(self._deliveries),
-                "max_deliveries": self._max_deliveries
+                "max_deliveries": self._max_deliveries,
             }
 
 
@@ -497,7 +497,7 @@ class MessageReliabilityTracker:
 # Singleton Pattern (Double-Checked Locking)
 # =============================================================================
 
-_instance: Optional[MessageReliabilityTracker] = None
+_instance: MessageReliabilityTracker | None = None
 _lock = threading.Lock()
 
 

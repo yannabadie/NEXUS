@@ -17,8 +17,6 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.intelligence.swarm.mode_effectiveness_evaluator import (
     MAX_EVALUATIONS,
     EvaluatorStats,
@@ -29,17 +27,16 @@ from core.intelligence.swarm.mode_effectiveness_evaluator import (
     reset_mode_evaluator,
 )
 
-
 # =============================================================================
 # ModeEvaluation Tests
 # =============================================================================
+
 
 class TestModeEvaluation:
     """Test ModeEvaluation dataclass."""
 
     def test_to_dict(self):
-        e = ModeEvaluation(mode="PARALLEL", task_domain="coding",
-                           quality_score=0.85, success=True)
+        e = ModeEvaluation(mode="PARALLEL", task_domain="coding", quality_score=0.85, success=True)
         d = e.to_dict()
         assert d["mode"] == "PARALLEL"
         assert d["quality_score"] == 0.85
@@ -48,6 +45,7 @@ class TestModeEvaluation:
 # =============================================================================
 # ModeEffectivenessSummary Tests
 # =============================================================================
+
 
 class TestModeEffectivenessSummary:
     """Test ModeEffectivenessSummary dataclass."""
@@ -79,6 +77,7 @@ class TestModeEffectivenessSummary:
 # EvaluatorStats Tests
 # =============================================================================
 
+
 class TestEvaluatorStats:
     """Test EvaluatorStats dataclass."""
 
@@ -92,13 +91,13 @@ class TestEvaluatorStats:
 # Recording Tests
 # =============================================================================
 
+
 class TestRecording:
     """Test evaluation recording."""
 
     def test_record_basic(self):
         e = ModeEffectivenessEvaluator()
-        ev = e.record_evaluation("PARALLEL", task_domain="coding",
-                                 quality_score=0.9, success=True)
+        ev = e.record_evaluation("PARALLEL", task_domain="coding", quality_score=0.9, success=True)
         assert ev.mode == "PARALLEL"
         assert e.evaluation_count == 1
 
@@ -121,6 +120,7 @@ class TestRecording:
 # =============================================================================
 # Domain Analysis Tests
 # =============================================================================
+
 
 class TestDomainAnalysis:
     """Test domain-mode analysis."""
@@ -153,6 +153,7 @@ class TestDomainAnalysis:
 # =============================================================================
 # Query Tests
 # =============================================================================
+
 
 class TestQueries:
     """Test query methods."""
@@ -188,6 +189,7 @@ class TestQueries:
 # Listing Tests
 # =============================================================================
 
+
 class TestListing:
     """Test listing methods."""
 
@@ -208,6 +210,7 @@ class TestListing:
 # Bounded History Tests
 # =============================================================================
 
+
 class TestBoundedHistory:
     """Test bounded evaluation history."""
 
@@ -222,6 +225,7 @@ class TestBoundedHistory:
 # Statistics Tests
 # =============================================================================
 
+
 class TestStatistics:
     """Test evaluator statistics."""
 
@@ -232,10 +236,8 @@ class TestStatistics:
 
     def test_stats_after_recording(self):
         e = ModeEffectivenessEvaluator()
-        e.record_evaluation("PARALLEL", task_domain="coding",
-                            quality_score=0.8, success=True)
-        e.record_evaluation("SEQUENTIAL", task_domain="security",
-                            quality_score=0.6, success=False)
+        e.record_evaluation("PARALLEL", task_domain="coding", quality_score=0.8, success=True)
+        e.record_evaluation("SEQUENTIAL", task_domain="security", quality_score=0.6, success=False)
         stats = e.get_stats()
         assert stats.total_evaluations == 2
         assert stats.unique_modes == 2
@@ -250,6 +252,7 @@ class TestStatistics:
 # =============================================================================
 # State Tests
 # =============================================================================
+
 
 class TestState:
     """Test state management."""
@@ -277,6 +280,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global mode evaluator."""
 
@@ -303,21 +307,30 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_swarm_package(self):
         from core.intelligence.swarm import (
-            ModeEffectivenessEvaluator, ModeEvaluation,
-            ModeEffectivenessSummary, EvaluatorStats,
-            get_mode_evaluator, reset_mode_evaluator,
+            EvaluatorStats,
+            ModeEffectivenessEvaluator,
+            ModeEffectivenessSummary,
+            ModeEvaluation,
+            get_mode_evaluator,
+            reset_mode_evaluator,
         )
-        assert all([
-            ModeEffectivenessEvaluator, ModeEvaluation,
-            ModeEffectivenessSummary, EvaluatorStats,
-            get_mode_evaluator, reset_mode_evaluator,
-        ])
+
+        assert all(
+            [
+                ModeEffectivenessEvaluator,
+                ModeEvaluation,
+                ModeEffectivenessSummary,
+                EvaluatorStats,
+                get_mode_evaluator,
+                reset_mode_evaluator,
+            ]
+        )
 
     def test_constants(self):
-        from core.intelligence.swarm.mode_effectiveness_evaluator import MAX_EVALUATIONS
         assert MAX_EVALUATIONS == 50000

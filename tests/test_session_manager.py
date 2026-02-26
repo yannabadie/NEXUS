@@ -17,18 +17,18 @@ Date: 2025-12-04
 
 import json
 import shutil
+
+# Add parent to path for imports
+import sys
 import tempfile
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import List
 from unittest import TestCase, main
 
 import pytest
 
-# Add parent to path for imports
-import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.intelligence.swarm.session_manager import (
@@ -46,11 +46,7 @@ class TestAgentSession(TestCase):
 
     def test_create_agent_session(self):
         """Test creating an AgentSession."""
-        session = AgentSession(
-            agent_id="gemini",
-            session_uuid="test-uuid-123",
-            role="lead"
-        )
+        session = AgentSession(agent_id="gemini", session_uuid="test-uuid-123", role="lead")
 
         assert session.agent_id == "gemini"
         assert session.session_uuid == "test-uuid-123"
@@ -67,7 +63,7 @@ class TestAgentSession(TestCase):
             role="worker",
             status=SessionStatus.COMPLETED,
             mode=SessionMode.BRANCH,
-            parent_session_uuid="parent-uuid"
+            parent_session_uuid="parent-uuid",
         )
 
         data = session.to_dict()
@@ -88,7 +84,7 @@ class TestAgentSession(TestCase):
             "status": "failed",
             "mode": "continue",
             "created_at": "2025-12-04T10:00:00",
-            "parent_session_uuid": None
+            "parent_session_uuid": None,
         }
 
         session = AgentSession.from_dict(data)
@@ -105,10 +101,7 @@ class TestTaskSession(TestCase):
 
     def test_create_task_session(self):
         """Test creating a TaskSession."""
-        task = TaskSession(
-            task_id="task_001",
-            swarm_mode="PARALLEL"
-        )
+        task = TaskSession(task_id="task_001", swarm_mode="PARALLEL")
 
         assert task.task_id == "task_001"
         assert task.swarm_mode == "PARALLEL"
@@ -118,22 +111,10 @@ class TestTaskSession(TestCase):
 
     def test_task_session_with_roles(self):
         """Test TaskSession with agent sessions."""
-        session1 = AgentSession(
-            agent_id="gemini",
-            session_uuid="uuid-1",
-            role="lead"
-        )
-        session2 = AgentSession(
-            agent_id="claude",
-            session_uuid="uuid-2",
-            role="support"
-        )
+        session1 = AgentSession(agent_id="gemini", session_uuid="uuid-1", role="lead")
+        session2 = AgentSession(agent_id="claude", session_uuid="uuid-2", role="support")
 
-        task = TaskSession(
-            task_id="task_002",
-            swarm_mode="LEAD_SUPPORT",
-            roles={"lead": session1, "support": session2}
-        )
+        task = TaskSession(task_id="task_002", swarm_mode="LEAD_SUPPORT", roles={"lead": session1, "support": session2})
 
         assert len(task.roles) == 2
         assert task.roles["lead"].agent_id == "gemini"
@@ -141,16 +122,9 @@ class TestTaskSession(TestCase):
 
     def test_task_session_to_dict(self):
         """Test TaskSession serialization."""
-        session = AgentSession(
-            agent_id="gemini",
-            session_uuid="uuid-1",
-            role="lead"
-        )
+        session = AgentSession(agent_id="gemini", session_uuid="uuid-1", role="lead")
         task = TaskSession(
-            task_id="task_003",
-            swarm_mode="SEQUENTIAL",
-            roles={"lead": session},
-            metadata={"priority": "high"}
+            task_id="task_003", swarm_mode="SEQUENTIAL", roles={"lead": session}, metadata={"priority": "high"}
         )
 
         data = task.to_dict()
@@ -174,10 +148,10 @@ class TestTaskSession(TestCase):
                     "session_uuid": "uuid-1",
                     "role": "lead",
                     "status": "completed",
-                    "mode": "fresh"
+                    "mode": "fresh",
                 }
             },
-            "metadata": {}
+            "metadata": {},
         }
 
         task = TaskSession.from_dict(data)
@@ -222,11 +196,7 @@ class TestSwarmSessionManagerBasic(TestCase):
         """Test creating a task with metadata."""
         manager = SwarmSessionManager(self.workspace)
 
-        task = manager.create_task(
-            "task_002",
-            "SEQUENTIAL",
-            metadata={"priority": "high", "user": "test"}
-        )
+        task = manager.create_task("task_002", "SEQUENTIAL", metadata={"priority": "high", "user": "test"})
 
         assert task.metadata["priority"] == "high"
         assert task.metadata["user"] == "test"
@@ -287,9 +257,7 @@ class TestSwarmSessionManagerSessions(TestCase):
 
     def test_get_or_create_session(self):
         """Test creating a session for a task."""
-        uuid = self.manager.get_or_create_session(
-            "task_001", "lead", "gemini"
-        )
+        uuid = self.manager.get_or_create_session("task_001", "lead", "gemini")
 
         assert uuid is not None
         assert len(uuid) == 36  # UUID format
@@ -347,18 +315,12 @@ class TestSwarmSessionManagerSessions(TestCase):
 
     def test_session_with_branch_mode(self):
         """Test creating a branched session."""
-        uuid_original = self.manager.get_or_create_session(
-            "task_001", "lead", "gemini"
-        )
+        uuid_original = self.manager.get_or_create_session("task_001", "lead", "gemini")
 
         # Create branched session in another task
         self.manager.create_task("task_002", "SEQUENTIAL")
-        uuid_branch = self.manager.get_or_create_session(
-            "task_002",
-            "lead",
-            "gemini",
-            mode=SessionMode.BRANCH,
-            parent_session_uuid=uuid_original
+        self.manager.get_or_create_session(
+            "task_002", "lead", "gemini", mode=SessionMode.BRANCH, parent_session_uuid=uuid_original
         )
 
         session = self.manager.get_session("task_002", "lead")
@@ -388,7 +350,7 @@ class TestSwarmSessionManagerPersistence(TestCase):
         assert registry_path.exists()
 
         # Check content
-        with open(registry_path, "r", encoding="utf-8") as f:
+        with open(registry_path, encoding="utf-8") as f:
             data = json.load(f)
 
         assert "tasks" in data
@@ -537,6 +499,7 @@ class TestSwarmSessionManagerCleanup(TestCase):
         # Manually set completed_at to old date
         task = self.manager._tasks["task_001"]
         from datetime import datetime, timedelta
+
         old_time = datetime.now() - timedelta(hours=48)
         task.completed_at = old_time.isoformat()
         self.manager._save_registry()
@@ -631,8 +594,8 @@ class TestSwarmSessionManagerConcurrency(TestCase):
     def test_concurrent_task_creation(self):
         """Test concurrent task creation."""
         manager = SwarmSessionManager(self.workspace)
-        errors: List[Exception] = []
-        created_tasks: List[str] = []
+        errors: list[Exception] = []
+        created_tasks: list[str] = []
         lock = threading.Lock()
 
         def create_task(task_num: int):
@@ -658,17 +621,13 @@ class TestSwarmSessionManagerConcurrency(TestCase):
         manager = SwarmSessionManager(self.workspace)
         manager.create_task("task_001", "PARALLEL", is_ephemeral=True)
 
-        uuids: List[str] = []
-        errors: List[Exception] = []
+        uuids: list[str] = []
+        errors: list[Exception] = []
         lock = threading.Lock()
 
         def create_session(role_num: int):
             try:
-                uuid = manager.get_or_create_session(
-                    "task_001",
-                    f"worker_{role_num}",
-                    "gemini"
-                )
+                uuid = manager.get_or_create_session("task_001", f"worker_{role_num}", "gemini")
                 with lock:
                     uuids.append(uuid)
             except Exception as e:
@@ -692,7 +651,7 @@ class TestSwarmSessionManagerConcurrency(TestCase):
     def test_concurrent_read_write(self):
         """Test concurrent reads and writes."""
         manager = SwarmSessionManager(self.workspace)
-        errors: List[Exception] = []
+        errors: list[Exception] = []
 
         def writer(thread_id: int):
             try:
@@ -739,9 +698,9 @@ class TestGenerateTaskId(TestCase):
         parts = task_id.split("_")
         assert len(parts) == 4
         assert parts[0] == "task"
-        assert len(parts[1]) == 8   # YYYYMMDD
-        assert len(parts[2]) == 6   # HHMMSS
-        assert len(parts[3]) == 8   # Short UUID
+        assert len(parts[1]) == 8  # YYYYMMDD
+        assert len(parts[2]) == 6  # HHMMSS
+        assert len(parts[3]) == 8  # Short UUID
 
     def test_generate_task_id_custom_prefix(self):
         """Test task ID with custom prefix."""

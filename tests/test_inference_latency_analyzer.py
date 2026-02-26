@@ -15,11 +15,9 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.drivers.inference_latency_analyzer import (
-    MAX_SAMPLES,
     LATENCY_ANOMALY_THRESHOLD_MS,
+    MAX_SAMPLES,
     AnalyzerStats,
     InferenceLatencyAnalyzer,
     LatencySample,
@@ -28,10 +26,10 @@ from core.drivers.inference_latency_analyzer import (
     reset_latency_analyzer,
 )
 
-
 # =============================================================================
 # LatencySample Tests
 # =============================================================================
+
 
 class TestLatencySample:
     """Test LatencySample dataclass."""
@@ -65,6 +63,7 @@ class TestLatencySample:
 # ModelLatencyProfile Tests
 # =============================================================================
 
+
 class TestModelLatencyProfile:
     """Test ModelLatencyProfile dataclass."""
 
@@ -92,6 +91,7 @@ class TestModelLatencyProfile:
 # AnalyzerStats Tests
 # =============================================================================
 
+
 class TestAnalyzerStats:
     """Test AnalyzerStats dataclass."""
 
@@ -105,6 +105,7 @@ class TestAnalyzerStats:
 # Recording Tests
 # =============================================================================
 
+
 class TestRecording:
     """Test sample recording."""
 
@@ -116,8 +117,7 @@ class TestRecording:
 
     def test_record_with_tokens(self):
         a = InferenceLatencyAnalyzer()
-        s = a.record_sample("gemini-pro", latency_ms=1000.0,
-                            prompt_tokens=500, response_tokens=200)
+        s = a.record_sample("gemini-pro", latency_ms=1000.0, prompt_tokens=500, response_tokens=200)
         assert s.prompt_tokens == 500
 
     def test_auto_incrementing_ids(self):
@@ -148,6 +148,7 @@ class TestRecording:
 # =============================================================================
 # Query Tests
 # =============================================================================
+
 
 class TestQueries:
     """Test query methods."""
@@ -200,6 +201,7 @@ class TestQueries:
 # Bounded History Tests
 # =============================================================================
 
+
 class TestBoundedHistory:
     """Test bounded sample history."""
 
@@ -213,6 +215,7 @@ class TestBoundedHistory:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test analyzer statistics."""
@@ -240,6 +243,7 @@ class TestStatistics:
 # State Tests
 # =============================================================================
 
+
 class TestState:
     """Test state management."""
 
@@ -265,6 +269,7 @@ class TestState:
 # =============================================================================
 # Global Singleton Tests
 # =============================================================================
+
 
 class TestGlobalSingleton:
     """Test global latency analyzer."""
@@ -292,24 +297,35 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_drivers_package(self):
         from core.drivers import (
-            InferenceLatencyAnalyzer, LatencySample, ModelLatencyProfile,
             AnalyzerStats,
-            get_latency_analyzer, reset_latency_analyzer,
+            InferenceLatencyAnalyzer,
+            LatencySample,
+            ModelLatencyProfile,
+            get_latency_analyzer,
+            reset_latency_analyzer,
         )
-        assert all([
-            InferenceLatencyAnalyzer, LatencySample, ModelLatencyProfile,
-            AnalyzerStats,
-            get_latency_analyzer, reset_latency_analyzer,
-        ])
+
+        assert all(
+            [
+                InferenceLatencyAnalyzer,
+                LatencySample,
+                ModelLatencyProfile,
+                AnalyzerStats,
+                get_latency_analyzer,
+                reset_latency_analyzer,
+            ]
+        )
 
     def test_constants(self):
         from core.drivers.inference_latency_analyzer import (
-            MAX_SAMPLES, LATENCY_ANOMALY_THRESHOLD_MS,
+            LATENCY_ANOMALY_THRESHOLD_MS,
         )
+
         assert MAX_SAMPLES == 50000
         assert LATENCY_ANOMALY_THRESHOLD_MS == 30000.0

@@ -25,7 +25,7 @@ import logging
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -44,9 +44,11 @@ TRUST_RECOVERY_PER_PASS = 0.02
 # Types
 # =============================================================================
 
+
 @dataclass
 class VerificationEntry:
     """Record of an alignment verification."""
+
     agent_id: str
     principle: str
     passed: bool
@@ -54,7 +56,7 @@ class VerificationEntry:
     timestamp: float = field(default_factory=time.monotonic)
     details: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "agent_id": self.agent_id,
             "principle": self.principle,
@@ -67,6 +69,7 @@ class VerificationEntry:
 @dataclass
 class ViolationEntry:
     """Record of an alignment violation."""
+
     agent_id: str
     principle: str
     severity: str = "medium"  # low, medium, high, critical
@@ -74,7 +77,7 @@ class ViolationEntry:
     timestamp: float = field(default_factory=time.monotonic)
     details: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "agent_id": self.agent_id,
             "principle": self.principle,
@@ -87,6 +90,7 @@ class ViolationEntry:
 @dataclass
 class TrustScore:
     """Computed trust score for an agent."""
+
     agent_id: str
     score: float
     total_verifications: int
@@ -94,7 +98,7 @@ class TrustScore:
     passes: int
     fails: int
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "agent_id": self.agent_id,
             "score": round(self.score, 4),
@@ -108,13 +112,14 @@ class TrustScore:
 @dataclass
 class JournalStats:
     """Journal statistics."""
+
     total_verifications: int
     total_violations: int
     unique_agents: int
     unique_principles: int
     average_trust: float
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_verifications": self.total_verifications,
             "total_violations": self.total_violations,
@@ -127,6 +132,7 @@ class JournalStats:
 # =============================================================================
 # Alignment Journal
 # =============================================================================
+
 
 class AlignmentJournal:
     """
@@ -142,9 +148,9 @@ class AlignmentJournal:
 
     def __init__(self, *, max_entries: int = MAX_ENTRIES):
         self._max_entries = max_entries
-        self._verifications: List[VerificationEntry] = []
-        self._violations: List[ViolationEntry] = []
-        self._trust_scores: Dict[str, float] = {}  # agent_id -> trust score
+        self._verifications: list[VerificationEntry] = []
+        self._violations: list[ViolationEntry] = []
+        self._trust_scores: dict[str, float] = {}  # agent_id -> trust score
         self._lock = threading.Lock()
 
     # =========================================================================
@@ -226,7 +232,7 @@ class AlignmentJournal:
     # Trust Scores
     # =========================================================================
 
-    def get_trust_score(self, agent_id: str) -> Optional[TrustScore]:
+    def get_trust_score(self, agent_id: str) -> TrustScore | None:
         """Get the trust score for an agent."""
         if agent_id not in self._trust_scores:
             return None
@@ -245,7 +251,7 @@ class AlignmentJournal:
             fails=fails,
         )
 
-    def get_all_trust_scores(self) -> List[TrustScore]:
+    def get_all_trust_scores(self) -> list[TrustScore]:
         """Get trust scores for all agents, sorted by score ascending."""
         scores = []
         for agent_id in sorted(self._trust_scores.keys()):
@@ -254,12 +260,9 @@ class AlignmentJournal:
                 scores.append(ts)
         return sorted(scores, key=lambda t: t.score)
 
-    def get_untrusted_agents(self, threshold: float = 0.5) -> List[str]:
+    def get_untrusted_agents(self, threshold: float = 0.5) -> list[str]:
         """Get agents with trust score below threshold."""
-        return sorted(
-            aid for aid, score in self._trust_scores.items()
-            if score < threshold
-        )
+        return sorted(aid for aid, score in self._trust_scores.items() if score < threshold)
 
     # =========================================================================
     # Queries
@@ -268,10 +271,10 @@ class AlignmentJournal:
     def get_verifications(
         self,
         *,
-        agent_id: Optional[str] = None,
-        principle: Optional[str] = None,
+        agent_id: str | None = None,
+        principle: str | None = None,
         limit: int = 100,
-    ) -> List[VerificationEntry]:
+    ) -> list[VerificationEntry]:
         """Query verifications with optional filters."""
         results = []
         for entry in reversed(self._verifications):
@@ -287,10 +290,10 @@ class AlignmentJournal:
     def get_violations(
         self,
         *,
-        agent_id: Optional[str] = None,
-        severity: Optional[str] = None,
+        agent_id: str | None = None,
+        severity: str | None = None,
         limit: int = 100,
-    ) -> List[ViolationEntry]:
+    ) -> list[ViolationEntry]:
         """Query violations with optional filters."""
         results = []
         for entry in reversed(self._violations):
@@ -303,7 +306,7 @@ class AlignmentJournal:
                 break
         return results
 
-    def get_agent_history(self, agent_id: str) -> Dict[str, Any]:
+    def get_agent_history(self, agent_id: str) -> dict[str, Any]:
         """Get complete alignment history for an agent."""
         verifications = [v for v in self._verifications if v.agent_id == agent_id]
         violations = [v for v in self._violations if v.agent_id == agent_id]
@@ -359,7 +362,7 @@ class AlignmentJournal:
             self._violations.clear()
             self._trust_scores.clear()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "verification_count": self.verification_count,
             "violation_count": self.violation_count,
@@ -372,7 +375,7 @@ class AlignmentJournal:
 # Global Instance
 # =============================================================================
 
-_journal: Optional[AlignmentJournal] = None
+_journal: AlignmentJournal | None = None
 _journal_lock = threading.Lock()
 
 

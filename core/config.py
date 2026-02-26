@@ -7,16 +7,17 @@ Load configuration from:
 3. Environment variables
 4. Default values
 """
-import os
-from dataclasses import dataclass, field
-from pathlib import Path
-from dotenv import load_dotenv
-from typing import Optional
 
+import os
+from dataclasses import dataclass
+from pathlib import Path
+
+from dotenv import load_dotenv
 
 # =============================================================================
 # Feature Flags - Safe toggles for experimental/dangerous features
 # =============================================================================
+
 
 @dataclass
 class FeatureFlags:
@@ -26,34 +27,35 @@ class FeatureFlags:
     All flags default to safe production values.
     Override via NEXUS_FF_<FLAG_NAME>=true|false in env.
     """
+
     # RAG Pipeline
-    rag_datamarking: bool = True           # Spotlighter datamarking on RAG results (OWASP LLM01 defense)
-    rag_hybrid_backend: bool = True        # Enable Dense+BM25 hybrid retrieval
-    rag_dense_backend: bool = True         # Enable dense (semantic) backend
+    rag_datamarking: bool = True  # Spotlighter datamarking on RAG results (OWASP LLM01 defense)
+    rag_hybrid_backend: bool = True  # Enable Dense+BM25 hybrid retrieval
+    rag_dense_backend: bool = True  # Enable dense (semantic) backend
 
     # Security
-    sandbox_enabled: bool = False          # OS-level code sandbox (E2B/Docker)
-    kernel_fail_closed: bool = True        # KERNEL exits on missing hash (fail-closed)
+    sandbox_enabled: bool = False  # OS-level code sandbox (E2B/Docker)
+    kernel_fail_closed: bool = True  # KERNEL exits on missing hash (fail-closed)
 
     # Execution
-    headless_mode: bool = False            # Deterministic JSON output, no TTY
-    streaming_enabled: bool = True         # Real-time token streaming
-    prompt_caching: bool = True            # Anthropic prompt caching (90% savings on cache hits)
+    headless_mode: bool = False  # Deterministic JSON output, no TTY
+    streaming_enabled: bool = True  # Real-time token streaming
+    prompt_caching: bool = True  # Anthropic prompt caching (90% savings on cache hits)
 
     # Observability
-    otel_enabled: bool = False             # OpenTelemetry export
-    telemetry_jsonl: bool = True           # Legacy JSONL telemetry
+    otel_enabled: bool = False  # OpenTelemetry export
+    telemetry_jsonl: bool = True  # Legacy JSONL telemetry
 
     # Evolution
-    evolution_llm_judge: bool = False      # LLM-as-judge for mutations (deprecated)
-    evolution_deterministic: bool = True   # Deterministic fitness (AST+pytest only)
+    evolution_llm_judge: bool = False  # LLM-as-judge for mutations (deprecated)
+    evolution_deterministic: bool = True  # Deterministic fitness (AST+pytest only)
 
     # Experimental
-    rust_acceleration: bool = False        # Use Rust native extensions if compiled
-    slm_triage: bool = False               # Route trivial tasks to local SLM
+    rust_acceleration: bool = False  # Use Rust native extensions if compiled
+    slm_triage: bool = False  # Route trivial tasks to local SLM
 
     @classmethod
-    def from_env(cls) -> 'FeatureFlags':
+    def from_env(cls) -> "FeatureFlags":
         """Load feature flags from environment variables."""
         flags = cls()
         for flag_name in flags.__dataclass_fields__:
@@ -100,14 +102,10 @@ class Config:
         self.cfl_timeout: int = int(os.getenv("CFL_TIMEOUT", "60"))  # CFL validation timeout (fast)
 
         # Stagnation Detection
-        self.stagnation_similarity_threshold: float = float(
-            os.getenv("STAGNATION_SIMILARITY_THRESHOLD", "0.8")
-        )
+        self.stagnation_similarity_threshold: float = float(os.getenv("STAGNATION_SIMILARITY_THRESHOLD", "0.8"))
 
         # Memory
-        self.compression_threshold_tokens: int = int(
-            os.getenv("COMPRESSION_THRESHOLD_TOKENS", "100000")
-        )
+        self.compression_threshold_tokens: int = int(os.getenv("COMPRESSION_THRESHOLD_TOKENS", "100000"))
 
         # Workspace
         self.workspace_path: Path = Path(os.getenv("WORKSPACE_PATH", "./workspace"))
@@ -133,12 +131,7 @@ class Config:
         self.stable_mode_threshold: int = int(os.getenv("STABLE_MODE_THRESHOLD", "5"))
 
         # Q2C: Fitness Metrics (4 axes with scalability)
-        self.fitness_metrics = {
-            "coding": 0.30,
-            "reasoning": 0.30,
-            "creativity": 0.25,
-            "scalability": 0.15
-        }
+        self.fitness_metrics = {"coding": 0.30, "reasoning": 0.30, "creativity": 0.25, "scalability": 0.15}
 
         # Q3B: Rate Limiting (3 gen/day)
         # Note: 8h limit was too restrictive for development - reduced to 0.1h (6 min)
@@ -179,11 +172,11 @@ class Config:
         self.smtp_port: int = int(os.getenv("SMTP_PORT", "587"))
         self.email_from: str = os.getenv("EMAIL_FROM", "")
         self.email_to: str = os.getenv("EMAIL_TO", "")
-        self.email_password: Optional[str] = os.getenv("NEXUS_EMAIL_PASSWORD")
+        self.email_password: str | None = os.getenv("NEXUS_EMAIL_PASSWORD")
 
         # Other Notifications
         self.desktop_notifications: bool = os.getenv("DESKTOP_NOTIF", "False").lower() == "true"
-        self.webhook_url: Optional[str] = os.getenv("WEBHOOK_URL")
+        self.webhook_url: str | None = os.getenv("WEBHOOK_URL")
 
         # ====================================================================
         # SECURITY & GOVERNANCE
@@ -211,10 +204,10 @@ class Config:
 
         # API Keys (V12.4: SDK-native drivers prefer API keys over CLI)
         # When set, the factory creates SDK drivers instead of CLI subprocess drivers
-        self.anthropic_api_key: Optional[str] = os.getenv("ANTHROPIC_API_KEY")
-        self.google_api_key: Optional[str] = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
-        self.deepseek_api_key: Optional[str] = os.getenv("DEEPSEEK_API_KEY")
-        self.kimi_api_key: Optional[str] = os.getenv("KIMI_API_KEY")
+        self.anthropic_api_key: str | None = os.getenv("ANTHROPIC_API_KEY")
+        self.google_api_key: str | None = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
+        self.deepseek_api_key: str | None = os.getenv("DEEPSEEK_API_KEY")
+        self.kimi_api_key: str | None = os.getenv("KIMI_API_KEY")
 
         # Driver mode: "auto" (SDK when key available, else CLI), "sdk", "cli"
         self.driver_mode: str = os.getenv("NEXUS_DRIVER_MODE", "auto")
@@ -309,17 +302,13 @@ class Config:
         self.hive_mind_min_debate_turns: int = int(os.getenv("HIVE_MIND_MIN_DEBATE", "3"))
 
         # Enable user breakpoints (pause for approval at key decisions)
-        self.hive_mind_breakpoints_enabled: bool = os.getenv(
-            "HIVE_MIND_BREAKPOINTS", "True"
-        ).lower() == "true"
+        self.hive_mind_breakpoints_enabled: bool = os.getenv("HIVE_MIND_BREAKPOINTS", "True").lower() == "true"
 
         # Maximum retry attempts before escalation
         self.hive_mind_max_retries: int = int(os.getenv("HIVE_MIND_MAX_RETRIES", "3"))
 
         # Agreement threshold to skip debate (0.0-1.0)
-        self.hive_mind_agreement_threshold: float = float(
-            os.getenv("HIVE_MIND_AGREEMENT_THRESHOLD", "0.85")
-        )
+        self.hive_mind_agreement_threshold: float = float(os.getenv("HIVE_MIND_AGREEMENT_THRESHOLD", "0.85"))
 
         # NOTE: PTY mode removed in V7.6 (never worked)
         # See: docs/archive/pty_mode_v7_archived.py
@@ -357,17 +346,13 @@ class Config:
         # Benefits: ~14k cached tokens, reduced latency on follow-up calls
 
         # Enable session resume mode (DEFAULT: True for multi-turn conversations)
-        self.gemini_persistent_mode: bool = os.getenv(
-            "GEMINI_PERSISTENT_MODE", "True"
-        ).lower() == "true"
+        self.gemini_persistent_mode: bool = os.getenv("GEMINI_PERSISTENT_MODE", "True").lower() == "true"
 
         # Approval mode for yolo (safe with restricted tools whitelist)
         self.gemini_approval_mode: str = os.getenv("GEMINI_APPROVAL_MODE", "yolo")
 
         # Use JSON output mode for structured responses
-        self.gemini_stream_json: bool = os.getenv(
-            "GEMINI_STREAM_JSON", "True"
-        ).lower() == "true"
+        self.gemini_stream_json: bool = os.getenv("GEMINI_STREAM_JSON", "True").lower() == "true"
 
         # ====================================================================
         # RESPONSE STREAMING (V7.7 Phase 15)
@@ -375,14 +360,10 @@ class Config:
         # Enable real-time token streaming during agent responses
         # When True, responses stream character-by-character to the REPL
         # When False, responses appear only after completion (default V7.6 behavior)
-        self.streaming_enabled: bool = os.getenv(
-            "STREAMING_ENABLED", "True"
-        ).lower() == "true"
+        self.streaming_enabled: bool = os.getenv("STREAMING_ENABLED", "True").lower() == "true"
 
         # Session timeout (seconds)
-        self.gemini_persistent_timeout: float = float(
-            os.getenv("GEMINI_PERSISTENT_TIMEOUT", "300")
-        )
+        self.gemini_persistent_timeout: float = float(os.getenv("GEMINI_PERSISTENT_TIMEOUT", "300"))
 
         # ====================================================================
         # V12.3 SCALE-OUT - Multi-Instance Support
@@ -392,14 +373,10 @@ class Config:
         self.redis_url: str = os.getenv("REDIS_URL", "redis://localhost:6379")
 
         # Use Redis for workflow registry (enables multi-instance)
-        self.use_redis_workflows: bool = os.getenv(
-            "USE_REDIS_WORKFLOWS", "True"
-        ).lower() == "true"
+        self.use_redis_workflows: bool = os.getenv("USE_REDIS_WORKFLOWS", "True").lower() == "true"
 
         # Use Redis for hibernation state (opt-in, SQLite default)
-        self.use_redis_hibernation: bool = os.getenv(
-            "USE_REDIS_HIBERNATION", "False"
-        ).lower() == "true"
+        self.use_redis_hibernation: bool = os.getenv("USE_REDIS_HIBERNATION", "False").lower() == "true"
 
         # TTL for completed/failed workflows (hours)
         self.workflow_ttl_hours: int = int(os.getenv("WORKFLOW_TTL_HOURS", "24"))
@@ -416,7 +393,7 @@ class Config:
             "workspace_path": str(self.workspace_path),
             "log_level": self.log_level,
             "ui_verbose": self.ui_verbose,
-            "benchmark_mode": self.benchmark_mode
+            "benchmark_mode": self.benchmark_mode,
         }
 
 

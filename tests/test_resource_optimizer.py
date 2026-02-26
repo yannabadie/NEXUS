@@ -14,22 +14,19 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.execution_pkg.routing.resource_optimizer import (
     ModelSpec,
     OptimizationDecision,
-    OptimizationReport,
     ResourceOptimizer,
     UsageRecord,
     get_resource_optimizer,
     reset_resource_optimizer,
 )
 
-
 # =============================================================================
 # ModelSpec Tests
 # =============================================================================
+
 
 class TestModelSpec:
     """Test ModelSpec dataclass."""
@@ -68,6 +65,7 @@ class TestModelSpec:
 # =============================================================================
 # Register Tests
 # =============================================================================
+
 
 class TestRegister:
     """Test model registration."""
@@ -131,14 +129,21 @@ class TestRegister:
 # Optimization Tests
 # =============================================================================
 
+
 class TestOptimization:
     """Test optimization decisions."""
 
     def _setup_models(self) -> ResourceOptimizer:
         opt = ResourceOptimizer()
-        opt.register_model("cheap", cost_per_1k_input=0.001, cost_per_1k_output=0.002, quality_score=0.3, avg_latency_ms=200)
-        opt.register_model("mid", cost_per_1k_input=0.005, cost_per_1k_output=0.015, quality_score=0.7, avg_latency_ms=500)
-        opt.register_model("expensive", cost_per_1k_input=0.015, cost_per_1k_output=0.075, quality_score=0.95, avg_latency_ms=2000)
+        opt.register_model(
+            "cheap", cost_per_1k_input=0.001, cost_per_1k_output=0.002, quality_score=0.3, avg_latency_ms=200
+        )
+        opt.register_model(
+            "mid", cost_per_1k_input=0.005, cost_per_1k_output=0.015, quality_score=0.7, avg_latency_ms=500
+        )
+        opt.register_model(
+            "expensive", cost_per_1k_input=0.015, cost_per_1k_output=0.075, quality_score=0.95, avg_latency_ms=2000
+        )
         return opt
 
     def test_optimize_cost(self):
@@ -219,6 +224,7 @@ class TestOptimization:
 # Usage Tracking Tests
 # =============================================================================
 
+
 class TestUsageTracking:
     """Test usage recording."""
 
@@ -235,18 +241,24 @@ class TestUsageTracking:
 
     def test_usage_record_accuracy(self):
         record = UsageRecord(
-            decision_id="d1", model_id="test",
-            estimated_tokens=1000, actual_tokens=900,
-            estimated_cost=0.01, actual_cost=0.009,
+            decision_id="d1",
+            model_id="test",
+            estimated_tokens=1000,
+            actual_tokens=900,
+            estimated_cost=0.01,
+            actual_cost=0.009,
         )
         assert record.token_accuracy > 0.8
         assert record.cost_accuracy > 0.8
 
     def test_usage_record_zero_estimate(self):
         record = UsageRecord(
-            decision_id="d1", model_id="test",
-            estimated_tokens=0, actual_tokens=100,
-            estimated_cost=0, actual_cost=0.01,
+            decision_id="d1",
+            model_id="test",
+            estimated_tokens=0,
+            actual_tokens=100,
+            estimated_cost=0,
+            actual_cost=0.01,
         )
         assert record.token_accuracy == 0.0
         assert record.cost_accuracy == 0.0
@@ -255,6 +267,7 @@ class TestUsageTracking:
 # =============================================================================
 # Report Tests
 # =============================================================================
+
 
 class TestReport:
     """Test optimization reporting."""
@@ -286,6 +299,7 @@ class TestReport:
 # =============================================================================
 # Listing Tests
 # =============================================================================
+
 
 class TestListing:
     """Test model listing."""
@@ -330,6 +344,7 @@ class TestListing:
 # State Tests
 # =============================================================================
 
+
 class TestState:
     """Test state management."""
 
@@ -359,6 +374,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global optimizer."""
 
@@ -385,23 +401,37 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_routing_package(self):
         from core.execution_pkg.routing import (
-            ResourceOptimizer, ModelSpec, OptimizationDecision,
-            OptimizationReport, UsageRecord,
-            get_resource_optimizer, reset_resource_optimizer,
+            ModelSpec,
+            OptimizationDecision,
+            OptimizationReport,
+            ResourceOptimizer,
+            UsageRecord,
+            get_resource_optimizer,
+            reset_resource_optimizer,
         )
-        assert all([
-            ResourceOptimizer, ModelSpec, OptimizationDecision,
-            OptimizationReport, UsageRecord,
-            get_resource_optimizer, reset_resource_optimizer,
-        ])
+
+        assert all(
+            [
+                ResourceOptimizer,
+                ModelSpec,
+                OptimizationDecision,
+                OptimizationReport,
+                UsageRecord,
+                get_resource_optimizer,
+                reset_resource_optimizer,
+            ]
+        )
 
     def test_from_module(self):
         from core.execution_pkg.routing.resource_optimizer import (
-            ResourceOptimizer, ModelSpec, OptimizationDecision,
+            ModelSpec,
+            ResourceOptimizer,
         )
+
         assert all([ResourceOptimizer, ModelSpec, OptimizationDecision])

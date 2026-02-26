@@ -5,16 +5,16 @@ Handles EXECUTING_TOOL state.
 """
 
 import sys
-from typing import Dict
+
+from core.fsm.handlers.base import BaseHandler
 from core.fsm.states import OrchestratorState
 from core.synapse.protocol_v7 import ToolUse
-from core.fsm.handlers.base import BaseHandler
 
 
 class ExecutingToolHandler(BaseHandler):
     """Handler for EXECUTING_TOOL state."""
 
-    def handle_executing_tool(self) -> Dict:
+    def handle_executing_tool(self) -> dict:
         """
         Handle EXECUTING_TOOL state - execute requested tool.
 
@@ -33,14 +33,12 @@ class ExecutingToolHandler(BaseHandler):
         requesting_agent = self._orch.active_agent
         self._orch.active_agent = self._registry.get_alternate(self._orch.active_agent) or self._orch.active_agent
         if self._orch.config.ui_verbose:
-            print(f"[CFL] {self._registry.get_display_name(requesting_agent)} tool → {self._registry.get_display_name(self._orch.active_agent)} validates", file=sys.stderr)
+            print(
+                f"[CFL] {self._registry.get_display_name(requesting_agent)} tool → {self._registry.get_display_name(self._orch.active_agent)} validates",
+                file=sys.stderr,
+            )
 
         # Transition to CFL validation
         self._orch._transition_to(OrchestratorState.VALIDATING_CFL)
 
-        return self._make_result(
-            "VALIDATING_CFL",
-            self._orch._format_tool_result(result),
-            requesting_agent,
-            False
-        )
+        return self._make_result("VALIDATING_CFL", self._orch._format_tool_result(result), requesting_agent, False)

@@ -16,46 +16,42 @@ Covers:
 Target: 60+ tests, all passing.
 """
 
-import asyncio
 import json
-import logging
 import sys
-import uuid
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
-from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 # Ensure project root is on path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.intelligence.hive_mind.types import (
-    AnalysisComparison,
-    Disagreement,
-    IndependentAnalysis,
-)
+from core.intelligence.hive_mind.context_manager import HiveMindContextManager
+from core.intelligence.hive_mind.cost_estimator import CostEstimator
 from core.intelligence.hive_mind.phases.phase_analysis import (
     AnalysisPhaseResult,
     IndependentAnalysisPhase,
 )
 from core.intelligence.hive_mind.prompts import ANALYSIS_SYSTEM_PROMPT
-from core.intelligence.hive_mind.cost_estimator import CostEstimator
-from core.intelligence.hive_mind.context_manager import HiveMindContextManager
-
+from core.intelligence.hive_mind.types import (
+    AnalysisComparison,
+    Disagreement,
+    IndependentAnalysis,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_analysis(
     agent_id: str = "gemini",
     task_understanding: str = "Build a REST API",
     complexity: str = "MODERATE",
     approach: str = "Use FastAPI with Pydantic models",
-    capabilities: Optional[List[str]] = None,
-    risks: Optional[List[str]] = None,
+    capabilities: list[str] | None = None,
+    risks: list[str] | None = None,
     confidence: float = 0.8,
     reasoning: str = "Standard approach",
 ) -> IndependentAnalysis:
@@ -72,7 +68,7 @@ def _make_analysis(
     )
 
 
-def _json_response(data: Dict[str, Any]) -> str:
+def _json_response(data: dict[str, Any]) -> str:
     """Wrap a dict as a JSON string an LLM might return."""
     return json.dumps(data)
 
@@ -114,6 +110,7 @@ def _make_phase(
 # ============================================================================
 # 1. AnalysisPhaseResult dataclass tests
 # ============================================================================
+
 
 class TestAnalysisPhaseResult:
     """Tests for the AnalysisPhaseResult dataclass."""
@@ -188,6 +185,7 @@ class TestAnalysisPhaseResult:
 # 2. ANALYSIS_SYSTEM_PROMPT template tests
 # ============================================================================
 
+
 class TestAnalysisPrompt:
     """Tests for the ANALYSIS_SYSTEM_PROMPT template string."""
 
@@ -220,6 +218,7 @@ class TestAnalysisPrompt:
 # ============================================================================
 # 3. Parsing analysis responses
 # ============================================================================
+
 
 class TestParseAnalysisResponse:
     """Tests for _parse_analysis_response."""
@@ -266,16 +265,18 @@ class TestParseAnalysisResponse:
 
     def test_parse_confidence_as_string(self):
         phase = _make_phase()
-        raw = _json_response({
-            "task_understanding": "Test",
-            "confidence": "0.75",
-        })
+        raw = _json_response(
+            {
+                "task_understanding": "Test",
+                "confidence": "0.75",
+            }
+        )
         data = phase._parse_analysis_response(raw, "claude")
         assert data["confidence"] == 0.75
 
     def test_parse_json_embedded_in_text(self):
         phase = _make_phase()
-        text = 'Here is my analysis:\n' + _valid_analysis_json() + '\nDone.'
+        text = "Here is my analysis:\n" + _valid_analysis_json() + "\nDone."
         data = phase._parse_analysis_response(text, "gemini")
         assert data["task_understanding"] == "Implement feature X"
 
@@ -283,6 +284,7 @@ class TestParseAnalysisResponse:
 # ============================================================================
 # 4. Default analysis data
 # ============================================================================
+
 
 class TestDefaultAnalysisData:
     """Tests for _default_analysis_data."""
@@ -300,6 +302,7 @@ class TestDefaultAnalysisData:
 # ============================================================================
 # 5. Fallback analysis
 # ============================================================================
+
 
 class TestFallbackAnalysis:
     """Tests for _create_fallback_analysis."""
@@ -328,6 +331,7 @@ class TestFallbackAnalysis:
 # ============================================================================
 # 6. Text similarity
 # ============================================================================
+
 
 class TestTextSimilarity:
     """Tests for _text_similarity (Jaccard-based word overlap)."""
@@ -383,6 +387,7 @@ class TestTextSimilarity:
 # ============================================================================
 # 7. Compare analyses
 # ============================================================================
+
 
 class TestCompareAnalyses:
     """Tests for _compare_analyses."""
@@ -514,13 +519,14 @@ class TestCompareAnalyses:
 # 8. Needs debate decision
 # ============================================================================
 
+
 class TestNeedsDebate:
     """Tests for _needs_debate logic."""
 
     def _make_comparison(
         self,
         agreement: float = 0.9,
-        disagreements: Optional[List[Disagreement]] = None,
+        disagreements: list[Disagreement] | None = None,
         gemini_confidence: float = 0.8,
         claude_confidence: float = 0.8,
     ) -> AnalysisComparison:
@@ -603,6 +609,7 @@ class TestNeedsDebate:
 # 9. Skip reason
 # ============================================================================
 
+
 class TestGetSkipReason:
     """Tests for _get_skip_reason."""
 
@@ -611,9 +618,13 @@ class TestGetSkipReason:
         g = _make_analysis("gemini")
         c = _make_analysis("claude")
         comp = AnalysisComparison(
-            gemini_analysis=g, claude_analysis=c,
-            disagreements=[], agreement_score=0.96,
-            needs_debate=False, merged_capabilities=[], merged_risks=[],
+            gemini_analysis=g,
+            claude_analysis=c,
+            disagreements=[],
+            agreement_score=0.96,
+            needs_debate=False,
+            merged_capabilities=[],
+            merged_risks=[],
         )
         reason = phase._get_skip_reason(comp)
         assert "95%" in reason
@@ -623,9 +634,13 @@ class TestGetSkipReason:
         g = _make_analysis("gemini")
         c = _make_analysis("claude")
         comp = AnalysisComparison(
-            gemini_analysis=g, claude_analysis=c,
-            disagreements=[], agreement_score=0.92,
-            needs_debate=False, merged_capabilities=[], merged_risks=[],
+            gemini_analysis=g,
+            claude_analysis=c,
+            disagreements=[],
+            agreement_score=0.92,
+            needs_debate=False,
+            merged_capabilities=[],
+            merged_risks=[],
         )
         reason = phase._get_skip_reason(comp)
         assert "90%" in reason
@@ -635,9 +650,13 @@ class TestGetSkipReason:
         g = _make_analysis("gemini")
         c = _make_analysis("claude")
         comp = AnalysisComparison(
-            gemini_analysis=g, claude_analysis=c,
-            disagreements=[], agreement_score=0.87,
-            needs_debate=False, merged_capabilities=[], merged_risks=[],
+            gemini_analysis=g,
+            claude_analysis=c,
+            disagreements=[],
+            agreement_score=0.87,
+            needs_debate=False,
+            merged_capabilities=[],
+            merged_risks=[],
         )
         reason = phase._get_skip_reason(comp)
         assert "High agreement" in reason
@@ -647,9 +666,13 @@ class TestGetSkipReason:
         g = _make_analysis("gemini")
         c = _make_analysis("claude")
         comp = AnalysisComparison(
-            gemini_analysis=g, claude_analysis=c,
-            disagreements=[], agreement_score=0.80,
-            needs_debate=False, merged_capabilities=[], merged_risks=[],
+            gemini_analysis=g,
+            claude_analysis=c,
+            disagreements=[],
+            agreement_score=0.80,
+            needs_debate=False,
+            merged_capabilities=[],
+            merged_risks=[],
         )
         reason = phase._get_skip_reason(comp)
         assert "No significant disagreements" in reason
@@ -659,10 +682,13 @@ class TestGetSkipReason:
         g = _make_analysis("gemini")
         c = _make_analysis("claude")
         comp = AnalysisComparison(
-            gemini_analysis=g, claude_analysis=c,
+            gemini_analysis=g,
+            claude_analysis=c,
             disagreements=[Disagreement(topic="x", gemini_position="a", claude_position="b", severity=0.2)],
             agreement_score=0.80,
-            needs_debate=False, merged_capabilities=[], merged_risks=[],
+            needs_debate=False,
+            merged_capabilities=[],
+            merged_risks=[],
         )
         reason = phase._get_skip_reason(comp)
         assert "Minor" in reason
@@ -672,6 +698,7 @@ class TestGetSkipReason:
 # 10. Consensus summary
 # ============================================================================
 
+
 class TestConsensusSummary:
     """Tests for get_consensus_summary."""
 
@@ -680,14 +707,19 @@ class TestConsensusSummary:
         g = _make_analysis("gemini", confidence=0.9)
         c = _make_analysis("claude", confidence=0.7)
         comp = AnalysisComparison(
-            gemini_analysis=g, claude_analysis=c,
-            disagreements=[], agreement_score=0.95,
-            needs_debate=False, merged_capabilities=["coding"],
+            gemini_analysis=g,
+            claude_analysis=c,
+            disagreements=[],
+            agreement_score=0.95,
+            needs_debate=False,
+            merged_capabilities=["coding"],
             merged_risks=["risk1"],
         )
         result = AnalysisPhaseResult(
-            gemini_analysis=g, claude_analysis=c,
-            comparison=comp, needs_debate=False,
+            gemini_analysis=g,
+            claude_analysis=c,
+            comparison=comp,
+            needs_debate=False,
         )
         summary = phase.get_consensus_summary(result)
         assert summary["primary_agent"] == "gemini"
@@ -698,14 +730,19 @@ class TestConsensusSummary:
         g = _make_analysis("gemini", confidence=0.5)
         c = _make_analysis("claude", confidence=0.9)
         comp = AnalysisComparison(
-            gemini_analysis=g, claude_analysis=c,
-            disagreements=[], agreement_score=0.95,
-            needs_debate=False, merged_capabilities=[],
+            gemini_analysis=g,
+            claude_analysis=c,
+            disagreements=[],
+            agreement_score=0.95,
+            needs_debate=False,
+            merged_capabilities=[],
             merged_risks=[],
         )
         result = AnalysisPhaseResult(
-            gemini_analysis=g, claude_analysis=c,
-            comparison=comp, needs_debate=False,
+            gemini_analysis=g,
+            claude_analysis=c,
+            comparison=comp,
+            needs_debate=False,
         )
         summary = phase.get_consensus_summary(result)
         assert summary["primary_agent"] == "claude"
@@ -715,14 +752,19 @@ class TestConsensusSummary:
         g = _make_analysis("gemini", confidence=0.9)
         c = _make_analysis("claude", confidence=0.7)
         comp = AnalysisComparison(
-            gemini_analysis=g, claude_analysis=c,
+            gemini_analysis=g,
+            claude_analysis=c,
             disagreements=[Disagreement(topic="approach", gemini_position="X", claude_position="Y")],
-            agreement_score=0.5, needs_debate=True,
-            merged_capabilities=[], merged_risks=[],
+            agreement_score=0.5,
+            needs_debate=True,
+            merged_capabilities=[],
+            merged_risks=[],
         )
         result = AnalysisPhaseResult(
-            gemini_analysis=g, claude_analysis=c,
-            comparison=comp, needs_debate=True,
+            gemini_analysis=g,
+            claude_analysis=c,
+            comparison=comp,
+            needs_debate=True,
         )
         summary = phase.get_consensus_summary(result)
         assert summary["approach"] == "TO_BE_DEBATED"
@@ -736,13 +778,19 @@ class TestConsensusSummary:
             Disagreement(topic="approach", gemini_position="A", claude_position="B"),
         ]
         comp = AnalysisComparison(
-            gemini_analysis=g, claude_analysis=c,
-            disagreements=disags, agreement_score=0.6,
-            needs_debate=True, merged_capabilities=[], merged_risks=[],
+            gemini_analysis=g,
+            claude_analysis=c,
+            disagreements=disags,
+            agreement_score=0.6,
+            needs_debate=True,
+            merged_capabilities=[],
+            merged_risks=[],
         )
         result = AnalysisPhaseResult(
-            gemini_analysis=g, claude_analysis=c,
-            comparison=comp, needs_debate=True,
+            gemini_analysis=g,
+            claude_analysis=c,
+            comparison=comp,
+            needs_debate=True,
         )
         summary = phase.get_consensus_summary(result)
         assert "complexity" in summary["disagreement_topics"]
@@ -753,15 +801,19 @@ class TestConsensusSummary:
         g = _make_analysis("gemini")
         c = _make_analysis("claude")
         comp = AnalysisComparison(
-            gemini_analysis=g, claude_analysis=c,
-            disagreements=[], agreement_score=0.95,
+            gemini_analysis=g,
+            claude_analysis=c,
+            disagreements=[],
+            agreement_score=0.95,
             needs_debate=False,
             merged_capabilities=["coding", "testing"],
             merged_risks=["r1", "r2"],
         )
         result = AnalysisPhaseResult(
-            gemini_analysis=g, claude_analysis=c,
-            comparison=comp, needs_debate=False,
+            gemini_analysis=g,
+            claude_analysis=c,
+            comparison=comp,
+            needs_debate=False,
         )
         summary = phase.get_consensus_summary(result)
         assert summary["capabilities"] == ["coding", "testing"]
@@ -771,6 +823,7 @@ class TestConsensusSummary:
 # ============================================================================
 # 11. Full execution flow (async)
 # ============================================================================
+
 
 class TestExecuteFlow:
     """Tests for the full execute() method with mocked drivers."""
@@ -848,6 +901,7 @@ class TestExecuteFlow:
 # 12. Driver error handling
 # ============================================================================
 
+
 class TestDriverErrorHandling:
     """Tests for error handling when one or both drivers fail."""
 
@@ -891,6 +945,7 @@ class TestDriverErrorHandling:
 # 13. Budget exceeded
 # ============================================================================
 
+
 class TestBudgetExceeded:
     """Tests for budget enforcement in execute()."""
 
@@ -905,6 +960,7 @@ class TestBudgetExceeded:
 # 14. Thresholds
 # ============================================================================
 
+
 class TestThresholds:
     """Tests for class-level threshold constants."""
 
@@ -918,6 +974,7 @@ class TestThresholds:
 # ============================================================================
 # 15. Phase transition context
 # ============================================================================
+
 
 class TestPhaseTransitionContext:
     """Tests for get_phase_transition_context."""
@@ -939,13 +996,19 @@ class TestPhaseTransitionContext:
         g = _make_analysis("gemini")
         c = _make_analysis("claude")
         comp = AnalysisComparison(
-            gemini_analysis=g, claude_analysis=c,
-            disagreements=[], agreement_score=0.95,
-            needs_debate=False, merged_capabilities=[], merged_risks=[],
+            gemini_analysis=g,
+            claude_analysis=c,
+            disagreements=[],
+            agreement_score=0.95,
+            needs_debate=False,
+            merged_capabilities=[],
+            merged_risks=[],
         )
         result = AnalysisPhaseResult(
-            gemini_analysis=g, claude_analysis=c,
-            comparison=comp, needs_debate=False,
+            gemini_analysis=g,
+            claude_analysis=c,
+            comparison=comp,
+            needs_debate=False,
         )
         with pytest.raises(RuntimeError, match="Session integration not initialized"):
             phase.get_phase_transition_context(result, "debate")
@@ -956,12 +1019,8 @@ class TestPhaseTransitionContext:
     async def test_transition_uses_higher_complexity(self, mock_speak, mock_exchange):
         """If Claude says EXPERT and Gemini says MODERATE, EXPERT is used."""
         phase = _make_phase()
-        phase.gemini.send_message_async = AsyncMock(
-            return_value=_valid_analysis_json(complexity_assessment="MODERATE")
-        )
-        phase.claude.send_message_async = AsyncMock(
-            return_value=_valid_analysis_json(complexity_assessment="EXPERT")
-        )
+        phase.gemini.send_message_async = AsyncMock(return_value=_valid_analysis_json(complexity_assessment="MODERATE"))
+        phase.claude.send_message_async = AsyncMock(return_value=_valid_analysis_json(complexity_assessment="EXPERT"))
         result = await phase.execute("Hard task")
         # The transition context should use higher complexity
         ctx = phase.get_phase_transition_context(result, "debate")
@@ -971,6 +1030,7 @@ class TestPhaseTransitionContext:
 # ============================================================================
 # 16. Session / task_id properties
 # ============================================================================
+
 
 class TestSessionProperties:
     """Tests for task_id and session_integration properties."""
@@ -1000,6 +1060,7 @@ class TestSessionProperties:
 # ============================================================================
 # 17. V12.4 integration points
 # ============================================================================
+
 
 class TestV124IntegrationPoints:
     """Tests for V12.4 ThoughtEvaluator, ConsensusTracker, EvaluationPanel.
@@ -1118,6 +1179,7 @@ class TestV124IntegrationPoints:
 # 18. Telemetry emission
 # ============================================================================
 
+
 class TestTelemetryEmission:
     """Tests for emit_agent_speak and emit_agent_exchange calls."""
 
@@ -1127,8 +1189,10 @@ class TestTelemetryEmission:
         phase.gemini.send_message_async = AsyncMock(return_value=_valid_analysis_json())
         phase.claude.send_message_async = AsyncMock(return_value=_valid_analysis_json())
 
-        with patch("core.hive_mind.phases.phase_analysis.emit_agent_speak") as mock_speak, \
-             patch("core.hive_mind.phases.phase_analysis.emit_agent_exchange") as mock_exchange:
+        with (
+            patch("core.hive_mind.phases.phase_analysis.emit_agent_speak") as mock_speak,
+            patch("core.hive_mind.phases.phase_analysis.emit_agent_exchange"),
+        ):
             await phase.execute("Build REST API")
             assert mock_speak.call_count == 2  # Once per agent
             agents_spoken = [call.args[0] for call in mock_speak.call_args_list]
@@ -1141,8 +1205,10 @@ class TestTelemetryEmission:
         phase.gemini.send_message_async = AsyncMock(return_value=_valid_analysis_json())
         phase.claude.send_message_async = AsyncMock(return_value=_valid_analysis_json())
 
-        with patch("core.hive_mind.phases.phase_analysis.emit_agent_speak") as mock_speak, \
-             patch("core.hive_mind.phases.phase_analysis.emit_agent_exchange") as mock_exchange:
+        with (
+            patch("core.hive_mind.phases.phase_analysis.emit_agent_speak"),
+            patch("core.hive_mind.phases.phase_analysis.emit_agent_exchange") as mock_exchange,
+        ):
             await phase.execute("Build REST API")
             assert mock_exchange.call_count == 2  # gemini->claude and claude->gemini
 
@@ -1150,6 +1216,7 @@ class TestTelemetryEmission:
 # ============================================================================
 # 19. Edge cases
 # ============================================================================
+
 
 class TestEdgeCases:
     """Edge case tests."""
@@ -1234,9 +1301,15 @@ class TestEdgeCases:
         a = _make_analysis("gemini")
         d = a.to_dict()
         expected_keys = {
-            "agent_id", "task_understanding", "complexity_assessment",
-            "proposed_approach", "required_capabilities", "potential_risks",
-            "confidence", "reasoning", "timestamp",
+            "agent_id",
+            "task_understanding",
+            "complexity_assessment",
+            "proposed_approach",
+            "required_capabilities",
+            "potential_risks",
+            "confidence",
+            "reasoning",
+            "timestamp",
         }
         assert expected_keys == set(d.keys())
 
@@ -1259,6 +1332,7 @@ class TestEdgeCases:
 # ============================================================================
 # 20. Principle library integration (V12.4 EvolveR)
 # ============================================================================
+
 
 class TestPrincipleLibrary:
     """Tests for principle library integration in execute()."""
@@ -1326,6 +1400,7 @@ class TestPrincipleLibrary:
 # ============================================================================
 # 21. Cost estimation details
 # ============================================================================
+
 
 class TestCostEstimation:
     """Tests for cost recording during execution."""

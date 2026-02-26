@@ -14,8 +14,6 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.execution_pkg.orchestration.dependency_injector import (
     AgentRequirements,
     Capability,
@@ -27,10 +25,10 @@ from core.execution_pkg.orchestration.dependency_injector import (
     reset_injector,
 )
 
-
 # =============================================================================
 # Capability Tests
 # =============================================================================
+
 
 class TestCapability:
     """Test Capability dataclass."""
@@ -48,8 +46,10 @@ class TestCapability:
 
     def test_to_dict(self):
         cap = Capability(
-            name="web_search", provider="tools.web",
-            description="Search the web", exclusive=False,
+            name="web_search",
+            provider="tools.web",
+            description="Search the web",
+            exclusive=False,
         )
         d = cap.to_dict()
         assert d["name"] == "web_search"
@@ -60,6 +60,7 @@ class TestCapability:
 # =============================================================================
 # Register Tests
 # =============================================================================
+
 
 class TestRegister:
     """Test capability registration."""
@@ -119,6 +120,7 @@ class TestRegister:
 # Availability Tests
 # =============================================================================
 
+
 class TestAvailability:
     """Test capability availability."""
 
@@ -152,6 +154,7 @@ class TestAvailability:
 # =============================================================================
 # Requirements Tests
 # =============================================================================
+
 
 class TestRequirements:
     """Test agent requirement declaration."""
@@ -197,6 +200,7 @@ class TestRequirements:
 # =============================================================================
 # Validation Tests
 # =============================================================================
+
 
 class TestValidation:
     """Test agent readiness validation."""
@@ -284,6 +288,7 @@ class TestValidation:
 # Conflict Detection Tests
 # =============================================================================
 
+
 class TestConflictDetection:
     """Test conflict detection."""
 
@@ -347,6 +352,7 @@ class TestConflictDetection:
 # Manifest Tests
 # =============================================================================
 
+
 class TestManifest:
     """Test dependency manifest generation."""
 
@@ -393,6 +399,7 @@ class TestManifest:
 # Listing Tests
 # =============================================================================
 
+
 class TestListing:
     """Test listing capabilities and agents."""
 
@@ -423,6 +430,7 @@ class TestListing:
 # =============================================================================
 # State Tests
 # =============================================================================
+
 
 class TestState:
     """Test state management."""
@@ -459,6 +467,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global injector."""
 
@@ -485,28 +494,48 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_orchestration_package(self):
         from core.execution_pkg.orchestration import (
-            DependencyInjector, Capability, AgentRequirements,
-            DependencyValidationResult, Conflict, DependencyManifest,
-            get_injector, reset_injector,
+            AgentRequirements,
+            Capability,
+            Conflict,
+            DependencyInjector,
+            DependencyManifest,
+            DependencyValidationResult,
+            get_injector,
+            reset_injector,
         )
-        assert all([
-            DependencyInjector, Capability, AgentRequirements,
-            DependencyValidationResult, Conflict, DependencyManifest,
-            get_injector, reset_injector,
-        ])
+
+        assert all(
+            [
+                DependencyInjector,
+                Capability,
+                AgentRequirements,
+                DependencyValidationResult,
+                Conflict,
+                DependencyManifest,
+                get_injector,
+                reset_injector,
+            ]
+        )
 
     def test_from_module(self):
         from core.execution_pkg.orchestration.dependency_injector import (
-            DependencyInjector, Capability, AgentRequirements,
-            ValidationResult, Conflict, DependencyManifest,
-            get_injector, reset_injector,
+            Capability,
+            DependencyInjector,
         )
-        assert all([
-            DependencyInjector, Capability, AgentRequirements,
-            ValidationResult, Conflict, DependencyManifest,
-        ])
+
+        assert all(
+            [
+                DependencyInjector,
+                Capability,
+                AgentRequirements,
+                ValidationResult,
+                Conflict,
+                DependencyManifest,
+            ]
+        )

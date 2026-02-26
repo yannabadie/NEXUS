@@ -32,31 +32,15 @@ Usage:
     manager.cleanup_workspace("task_123_lead", "swarm")
 """
 
-from .workspace_manager import (
-    SessionWorkspaceManager,
-    get_workspace_manager,
-    reset_workspace_manager,
-)
 from .home_isolator import HomeIsolator
-
-# V12.4: State Recovery Manager
-from .state_recovery import (
-    StateRecoveryManager,
-    StateSnapshot,
-    RecoveryResult,
-    RecoveryStats,
-    SnapshotReason,
-    get_recovery_manager,
-    reset_recovery_manager,
-)
 
 # V12.4 COGNITIVE BOOST: Session Analytics
 from .session_analytics import (
-    SessionAnalytics,
-    PhaseMetric,
     AgentAction,
-    SessionMetrics,
     AnalyticsStats,
+    PhaseMetric,
+    SessionAnalytics,
+    SessionMetrics,
     get_session_analytics,
     reset_session_analytics,
 )
@@ -70,6 +54,22 @@ from .session_efficiency_scorecard import (
     SessionRecord,
     get_session_scorecard,
     reset_session_scorecard,
+)
+
+# V12.4: State Recovery Manager
+from .state_recovery import (
+    RecoveryResult,
+    RecoveryStats,
+    SnapshotReason,
+    StateRecoveryManager,
+    StateSnapshot,
+    get_recovery_manager,
+    reset_recovery_manager,
+)
+from .workspace_manager import (
+    SessionWorkspaceManager,
+    get_workspace_manager,
+    reset_workspace_manager,
 )
 
 __all__ = [

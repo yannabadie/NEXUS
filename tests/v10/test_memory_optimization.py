@@ -11,9 +11,9 @@ Run with:
     pytest tests/v10/test_memory_optimization.py -v
 """
 
-import pytest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+
+import pytest
 
 # Skip all tests if dependencies not available
 pytest.importorskip("sentence_transformers", reason="sentence-transformers not installed")
@@ -27,7 +27,6 @@ class TestEmbeddingEngineSingleton:
         from core.memory_pkg.memory.embedding_engine import (
             get_embedding_engine,
             reset_embedding_engine,
-            EmbeddingEngine
         )
 
         # Reset to clean state
@@ -46,10 +45,7 @@ class TestEmbeddingEngineSingleton:
 
     def test_singleton_via_class(self):
         """EmbeddingEngine() also returns singleton."""
-        from core.memory_pkg.memory.embedding_engine import (
-            EmbeddingEngine,
-            reset_embedding_engine
-        )
+        from core.memory_pkg.memory.embedding_engine import EmbeddingEngine, reset_embedding_engine
 
         reset_embedding_engine()
 
@@ -63,10 +59,7 @@ class TestEmbeddingEngineSingleton:
 
     def test_properties_before_load(self):
         """Properties work before model is loaded."""
-        from core.memory_pkg.memory.embedding_engine import (
-            get_embedding_engine,
-            reset_embedding_engine
-        )
+        from core.memory_pkg.memory.embedding_engine import get_embedding_engine, reset_embedding_engine
 
         reset_embedding_engine()
         engine = get_embedding_engine()
@@ -85,10 +78,8 @@ class TestEmbeddingEngineEncoding:
     @pytest.fixture
     def engine(self):
         """Get a fresh engine instance."""
-        from core.memory_pkg.memory.embedding_engine import (
-            get_embedding_engine,
-            reset_embedding_engine
-        )
+        from core.memory_pkg.memory.embedding_engine import get_embedding_engine, reset_embedding_engine
+
         reset_embedding_engine()
         yield get_embedding_engine()
         reset_embedding_engine()
@@ -142,22 +133,17 @@ class TestIsolatedStorage:
 
     def test_dense_backend_accepts_engine(self):
         """DenseBackend can accept an injected engine."""
-        from core.memory_pkg.memory.backends.dense import DenseBackend
-        from core.memory_pkg.memory.embedding_engine import (
-            get_embedding_engine,
-            reset_embedding_engine
-        )
-        from pathlib import Path
         import tempfile
+        from pathlib import Path
+
+        from core.memory_pkg.memory.backends.dense import DenseBackend
+        from core.memory_pkg.memory.embedding_engine import get_embedding_engine, reset_embedding_engine
 
         reset_embedding_engine()
         engine = get_embedding_engine()
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            backend = DenseBackend(
-                storage_path=Path(tmpdir) / "lancedb",
-                embedding_engine=engine
-            )
+            backend = DenseBackend(storage_path=Path(tmpdir) / "lancedb", embedding_engine=engine)
 
             # Engine should be stored
             assert backend._engine is engine
@@ -166,9 +152,10 @@ class TestIsolatedStorage:
 
     def test_different_storage_paths(self):
         """Different tenants get different storage paths."""
-        from core.memory_pkg.memory.project_memory import ProjectMemory
-        from pathlib import Path
         import tempfile
+        from pathlib import Path
+
+        from core.memory_pkg.memory.project_memory import ProjectMemory
 
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
@@ -194,6 +181,7 @@ class TestMemorySingletonMigration:
     def test_auto_memory_has_prism_pattern(self):
         """AutoMemory.get_auto_memory includes PRISM pattern."""
         import inspect
+
         from core.memory_pkg.memory.auto_memory import get_auto_memory
 
         source = inspect.getsource(get_auto_memory)
@@ -205,6 +193,7 @@ class TestMemorySingletonMigration:
     def test_success_memory_has_prism_pattern(self):
         """SuccessMemory.get_success_memory includes PRISM pattern."""
         import inspect
+
         from core.memory_pkg.memory import get_success_memory  # V2 via backward compat alias
 
         source = inspect.getsource(get_success_memory)
@@ -215,6 +204,7 @@ class TestMemorySingletonMigration:
     def test_spotlighter_has_prism_pattern(self):
         """Spotlighter.get_spotlighter includes PRISM pattern."""
         import inspect
+
         from core.memory_pkg.memory.spotlighting import get_spotlighter
 
         source = inspect.getsource(get_spotlighter)
@@ -284,10 +274,7 @@ class TestONNXFallback:
 
     def test_backend_detection(self):
         """Engine detects and uses appropriate backend."""
-        from core.memory_pkg.memory.embedding_engine import (
-            get_embedding_engine,
-            reset_embedding_engine
-        )
+        from core.memory_pkg.memory.embedding_engine import get_embedding_engine, reset_embedding_engine
 
         reset_embedding_engine()
         engine = get_embedding_engine()
@@ -300,10 +287,7 @@ class TestONNXFallback:
 
     def test_onnx_availability_check(self):
         """Engine can check ONNX availability."""
-        from core.memory_pkg.memory.embedding_engine import (
-            get_embedding_engine,
-            reset_embedding_engine
-        )
+        from core.memory_pkg.memory.embedding_engine import get_embedding_engine, reset_embedding_engine
 
         reset_embedding_engine()
         engine = get_embedding_engine()
@@ -321,20 +305,15 @@ class TestDenseBackendIntegration:
     @pytest.fixture
     def backend(self):
         """Create a DenseBackend with temporary storage."""
-        from core.memory_pkg.memory.backends.dense import DenseBackend
-        from core.memory_pkg.memory.embedding_engine import (
-            get_embedding_engine,
-            reset_embedding_engine
-        )
         import tempfile
+
+        from core.memory_pkg.memory.backends.dense import DenseBackend
+        from core.memory_pkg.memory.embedding_engine import get_embedding_engine, reset_embedding_engine
 
         reset_embedding_engine()
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            backend = DenseBackend(
-                storage_path=Path(tmpdir) / "lancedb",
-                embedding_engine=get_embedding_engine()
-            )
+            backend = DenseBackend(storage_path=Path(tmpdir) / "lancedb", embedding_engine=get_embedding_engine())
             yield backend
 
         reset_embedding_engine()

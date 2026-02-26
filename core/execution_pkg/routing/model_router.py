@@ -19,13 +19,14 @@ Usage:
     # Returns: "claude-haiku-4-5-20251001" (cost-optimized)
 """
 
+import contextlib
+from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, List, Dict, TYPE_CHECKING
-from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from core.config import Config
-    from core.intelligence.swarm import AgentPool, AgentProfile
+    from core.intelligence.swarm import AgentPool
 
 
 class RoutingPolicy(Enum):
@@ -37,6 +38,7 @@ class RoutingPolicy(Enum):
     - QUALITY_OPTIMIZED: Always use the most capable model
     - BALANCED: Use task complexity to select tier (default, same as V7 behavior)
     """
+
     COST_OPTIMIZED = "cost_optimized"
     QUALITY_OPTIMIZED = "quality_optimized"
     BALANCED = "balanced"
@@ -49,9 +51,10 @@ class ModelTier(Enum):
     Ordered from cheapest/fastest to most capable:
     LIGHT → MEDIUM → HEAVY
     """
-    LIGHT = "light"     # Haiku / Flash (cheapest, fastest)
-    MEDIUM = "medium"   # Sonnet / Pro (balanced)
-    HEAVY = "heavy"     # Opus / Pro-exp (most capable)
+
+    LIGHT = "light"  # Haiku / Flash (cheapest, fastest)
+    MEDIUM = "medium"  # Sonnet / Pro (balanced)
+    HEAVY = "heavy"  # Opus / Pro-exp (most capable)
 
 
 class TaskType(Enum):
@@ -61,20 +64,21 @@ class TaskType(Enum):
     Claude: Complex tasks → Opus, simpler tasks → Sonnet
     Gemini: Complex tasks → 3-Pro, simpler tasks → Flash
     """
+
     # Opus/3-Pro routed (complex, creative, security-critical)
-    BRAINSTORM = "brainstorm"      # Evolution brainstorming
-    REDTEAM = "redteam"            # Security/alignment testing
-    ARCHITECT = "architect"        # Architecture decisions
-    EVOLUTION = "evolution"        # Child mutation design
-    REASONING = "reasoning"        # Complex reasoning (Gemini 3 Pro)
-    RESEARCH = "research"          # Web research (Gemini 3 Pro)
-    ANALYSIS = "analysis"          # Deep analysis (Gemini 3 Pro)
+    BRAINSTORM = "brainstorm"  # Evolution brainstorming
+    REDTEAM = "redteam"  # Security/alignment testing
+    ARCHITECT = "architect"  # Architecture decisions
+    EVOLUTION = "evolution"  # Child mutation design
+    REASONING = "reasoning"  # Complex reasoning (Gemini 3 Pro)
+    RESEARCH = "research"  # Web research (Gemini 3 Pro)
+    ANALYSIS = "analysis"  # Deep analysis (Gemini 3 Pro)
 
     # Sonnet/Flash routed (simpler, faster)
-    TOOL = "tool"                  # Tool execution
-    VALIDATION = "validation"      # Code validation
-    SIMPLE = "simple"              # Simple queries
-    FORMAT = "format"              # Formatting tasks
+    TOOL = "tool"  # Tool execution
+    VALIDATION = "validation"  # Code validation
+    SIMPLE = "simple"  # Simple queries
+    FORMAT = "format"  # Formatting tasks
 
     # Default
     DEFAULT = "default"
@@ -83,6 +87,7 @@ class TaskType(Enum):
 @dataclass
 class RoutingDecision:
     """Result of model routing decision"""
+
     model_id: str
     task_type: TaskType
     reason: str
@@ -100,6 +105,7 @@ class CascadeRoute:
     The caller attempts each model in order, escalating only if the
     previous result's quality is below the confidence threshold.
     """
+
     models: list  # Ordered list of model IDs (cheapest first)
     agent_id: str  # "claude" or "gemini"
     task_type: TaskType
@@ -122,7 +128,7 @@ class ModelRouter:
     def __init__(
         self,
         config: Optional["Config"] = None,
-        policy: Optional[RoutingPolicy] = None,
+        policy: RoutingPolicy | None = None,
     ):
         """
         Initialize router with config and routing policy.
@@ -147,19 +153,21 @@ class ModelRouter:
         self.gemini_flash_model = "gemini-2.5-flash"
 
         # Default Claude task type mappings
-        self.opus_tasks = {TaskType.BRAINSTORM, TaskType.REDTEAM,
-                          TaskType.ARCHITECT, TaskType.EVOLUTION}
-        self.sonnet_tasks = {TaskType.TOOL, TaskType.VALIDATION,
-                            TaskType.SIMPLE, TaskType.FORMAT}
+        self.opus_tasks = {TaskType.BRAINSTORM, TaskType.REDTEAM, TaskType.ARCHITECT, TaskType.EVOLUTION}
+        self.sonnet_tasks = {TaskType.TOOL, TaskType.VALIDATION, TaskType.SIMPLE, TaskType.FORMAT}
 
         # Default Gemini task type mappings (V7 Sprint 6)
-        self.gemini_pro_tasks = {TaskType.REASONING, TaskType.RESEARCH,
-                                 TaskType.ANALYSIS, TaskType.BRAINSTORM, TaskType.EVOLUTION}
-        self.gemini_flash_tasks = {TaskType.SIMPLE, TaskType.FORMAT,
-                                   TaskType.VALIDATION, TaskType.TOOL}
+        self.gemini_pro_tasks = {
+            TaskType.REASONING,
+            TaskType.RESEARCH,
+            TaskType.ANALYSIS,
+            TaskType.BRAINSTORM,
+            TaskType.EVOLUTION,
+        }
+        self.gemini_flash_tasks = {TaskType.SIMPLE, TaskType.FORMAT, TaskType.VALIDATION, TaskType.TOOL}
 
         # V12.4: Task type → tier mapping (for SLM triage)
-        self._task_tiers: Dict[TaskType, ModelTier] = {
+        self._task_tiers: dict[TaskType, ModelTier] = {
             # Heavy tier (complex reasoning, creativity, security)
             TaskType.BRAINSTORM: ModelTier.HEAVY,
             TaskType.REDTEAM: ModelTier.HEAVY,
@@ -180,26 +188,24 @@ class ModelRouter:
         # Override with config if provided
         if config:
             # Routing policy from config/env
-            policy_str = getattr(config, 'routing_policy', None)
+            policy_str = getattr(config, "routing_policy", None)
             if policy_str and not policy:
-                try:
+                with contextlib.suppress(ValueError):
                     self.policy = RoutingPolicy(policy_str)
-                except ValueError:
-                    pass
 
             # Claude models
-            self.opus_model = getattr(config, 'claude_opus_model', self.opus_model)
-            self.sonnet_model = getattr(config, 'claude_sonnet_model', self.sonnet_model)
-            self.haiku_model = getattr(config, 'claude_haiku_model', self.haiku_model)
+            self.opus_model = getattr(config, "claude_opus_model", self.opus_model)
+            self.sonnet_model = getattr(config, "claude_sonnet_model", self.sonnet_model)
+            self.haiku_model = getattr(config, "claude_haiku_model", self.haiku_model)
 
             # Gemini models (V7 Sprint 6)
-            self.gemini_model = getattr(config, 'gemini_default_model', self.gemini_model)
-            self.gemini_pro_model = getattr(config, 'gemini_pro_model', self.gemini_pro_model)
-            self.gemini_flash_model = getattr(config, 'gemini_flash_model', self.gemini_flash_model)
+            self.gemini_model = getattr(config, "gemini_default_model", self.gemini_model)
+            self.gemini_pro_model = getattr(config, "gemini_pro_model", self.gemini_pro_model)
+            self.gemini_flash_model = getattr(config, "gemini_flash_model", self.gemini_flash_model)
 
             # Update Claude task mappings from config lists
-            opus_list = getattr(config, 'opus_task_types', [])
-            sonnet_list = getattr(config, 'sonnet_task_types', [])
+            opus_list = getattr(config, "opus_task_types", [])
+            sonnet_list = getattr(config, "sonnet_task_types", [])
 
             if opus_list:
                 self.opus_tasks = {TaskType(t) for t in opus_list if t in [e.value for e in TaskType]}
@@ -207,8 +213,8 @@ class ModelRouter:
                 self.sonnet_tasks = {TaskType(t) for t in sonnet_list if t in [e.value for e in TaskType]}
 
             # Update Gemini task mappings from config lists (V7 Sprint 6)
-            gemini_pro_list = getattr(config, 'gemini_pro_tasks', [])
-            gemini_flash_list = getattr(config, 'gemini_flash_tasks', [])
+            gemini_pro_list = getattr(config, "gemini_pro_tasks", [])
+            gemini_flash_list = getattr(config, "gemini_flash_tasks", [])
 
             if gemini_pro_list:
                 self.gemini_pro_tasks = {TaskType(t) for t in gemini_pro_list if t in [e.value for e in TaskType]}
@@ -326,10 +332,7 @@ class ModelRouter:
         else:
             tier_label = "Sonnet (medium)"
 
-        reason = (
-            f"[{self.policy.value}] Task '{task_type.value}' "
-            f"(tier={tier.value}) → {tier_label}"
-        )
+        reason = f"[{self.policy.value}] Task '{task_type.value}' (tier={tier.value}) → {tier_label}"
 
         return RoutingDecision(
             model_id=model,
@@ -398,10 +401,7 @@ class ModelRouter:
         return task_type in self.opus_tasks
 
     def select_best_agent(
-        self,
-        task_type: TaskType,
-        agent_pool: Optional["AgentPool"] = None,
-        min_importance: float = 0.5
+        self, task_type: TaskType, agent_pool: Optional["AgentPool"] = None, min_importance: float = 0.5
     ) -> RoutingDecision:
         """
         Select best agent using DyLAN metrics when available.
@@ -433,7 +433,7 @@ class ModelRouter:
                 model_id=base_model,
                 task_type=task_type,
                 reason=f"Static routing: {task_type.value} → {'Opus' if is_opus else 'Sonnet'}",
-                is_opus=is_opus
+                is_opus=is_opus,
             )
 
         # Get agents with performance for this task type
@@ -445,7 +445,7 @@ class ModelRouter:
                 model_id=base_model,
                 task_type=task_type,
                 reason="No agent metrics yet, using static routing",
-                is_opus=is_opus
+                is_opus=is_opus,
             )
 
         # Check if best agent meets minimum importance threshold
@@ -457,7 +457,7 @@ class ModelRouter:
                 model_id=base_model,
                 task_type=task_type,
                 reason=f"Best agent importance ({best_importance:.2f}) below threshold ({min_importance})",
-                is_opus=is_opus
+                is_opus=is_opus,
             )
 
         # Use DyLAN-selected agent
@@ -466,8 +466,8 @@ class ModelRouter:
             model_id=best.model,
             task_type=task_type,
             reason=f"DyLAN selection: {best.agent_id} (importance={best_importance:.3f}, "
-                   f"success_rate={best.success_rate:.1%})",
-            is_opus=selected_is_opus
+            f"success_rate={best.success_rate:.1%})",
+            is_opus=selected_is_opus,
         )
 
     def route_for_sdk(
@@ -495,7 +495,7 @@ class ModelRouter:
     # Budget-Aware Routing (V12.4 COGNITIVE BOOST)
     # =========================================================================
 
-    def apply_budget_pressure(self, warning_level: Optional[str]) -> Optional[RoutingPolicy]:
+    def apply_budget_pressure(self, warning_level: str | None) -> RoutingPolicy | None:
         """
         Adjust routing policy based on budget pressure.
 
@@ -510,13 +510,13 @@ class ModelRouter:
         """
         if warning_level is None:
             # Budget OK — restore original policy if it was saved
-            if hasattr(self, '_original_policy'):
+            if hasattr(self, "_original_policy"):
                 self.policy = self._original_policy
                 del self._original_policy
             return None
 
         # Save original policy on first downgrade
-        if not hasattr(self, '_original_policy'):
+        if not hasattr(self, "_original_policy"):
             self._original_policy = self.policy
 
         if warning_level == "critical":
@@ -664,10 +664,7 @@ class ModelRouter:
             confidence_threshold=confidence_threshold,
         )
 
-    def get_routing_stats(
-        self,
-        agent_pool: Optional["AgentPool"] = None
-    ) -> dict:
+    def get_routing_stats(self, agent_pool: Optional["AgentPool"] = None) -> dict:
         """
         Get routing statistics for debugging.
 

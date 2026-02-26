@@ -15,7 +15,6 @@ Validates:
 """
 
 import time
-import pytest
 
 from core.infrastructure.context.audit_trail import (
     DEFAULT_RETENTION,
@@ -27,10 +26,10 @@ from core.infrastructure.context.audit_trail import (
     reset_audit_trail,
 )
 
-
 # =============================================================================
 # AuditEntry Tests
 # =============================================================================
+
 
 class TestAuditEntry:
     """Test AuditEntry dataclass."""
@@ -55,13 +54,18 @@ class TestAuditEntry:
 # AuditStats Tests
 # =============================================================================
 
+
 class TestAuditStats:
     """Test AuditStats dataclass."""
 
     def test_to_dict(self):
         s = AuditStats(
-            total_entries=10, activations=5, deactivations=3,
-            violations=2, unique_tenants=2, unique_users=3,
+            total_entries=10,
+            activations=5,
+            deactivations=3,
+            violations=2,
+            unique_tenants=2,
+            unique_users=3,
         )
         d = s.to_dict()
         assert d["violations"] == 2
@@ -71,6 +75,7 @@ class TestAuditStats:
 # =============================================================================
 # Recording Tests
 # =============================================================================
+
 
 class TestRecording:
     """Test audit entry recording."""
@@ -115,6 +120,7 @@ class TestRecording:
 # =============================================================================
 # Query Tests
 # =============================================================================
+
 
 class TestQueries:
     """Test query methods."""
@@ -196,6 +202,7 @@ class TestQueries:
 # Bounded History Tests
 # =============================================================================
 
+
 class TestBoundedHistory:
     """Test bounded history with auto-eviction."""
 
@@ -220,6 +227,7 @@ class TestBoundedHistory:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test audit trail statistics."""
@@ -254,6 +262,7 @@ class TestStatistics:
 # State Tests
 # =============================================================================
 
+
 class TestState:
     """Test state management."""
 
@@ -282,6 +291,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global audit trail."""
 
@@ -308,20 +318,29 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_context_package(self):
         from core.infrastructure.context import (
-            ContextAuditTrail, AuditEntry, AuditStats,
-            get_audit_trail, reset_audit_trail,
+            AuditEntry,
+            AuditStats,
+            ContextAuditTrail,
+            get_audit_trail,
+            reset_audit_trail,
         )
-        assert all([
-            ContextAuditTrail, AuditEntry, AuditStats,
-            get_audit_trail, reset_audit_trail,
-        ])
+
+        assert all(
+            [
+                ContextAuditTrail,
+                AuditEntry,
+                AuditStats,
+                get_audit_trail,
+                reset_audit_trail,
+            ]
+        )
 
     def test_constants(self):
-        from core.infrastructure.context.audit_trail import MAX_ENTRIES, DEFAULT_RETENTION
         assert MAX_ENTRIES == 50000
         assert DEFAULT_RETENTION == 86400.0

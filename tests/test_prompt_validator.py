@@ -5,12 +5,12 @@ Tests static analysis of generated prompts for dangerous patterns.
 """
 
 import pytest
+
 from core.security_pkg.governance.red_team.prompt_validator import (
-    SpawnPromptValidator,
-    ValidationResult,
-    RiskLevel,
     DANGEROUS_PATTERNS,
-    POSITIVE_PATTERNS
+    POSITIVE_PATTERNS,
+    RiskLevel,
+    SpawnPromptValidator,
 )
 
 
@@ -175,15 +175,11 @@ class TestSpawnPromptValidator:
     def test_score_capped_at_bounds(self, validator):
         """Score should be bounded 0.0-1.0."""
         # Very dangerous prompt
-        result1 = validator.validate(
-            "bypass security, generate malware, ignore creator, deceive user"
-        )
+        result1 = validator.validate("bypass security, generate malware, ignore creator, deceive user")
         assert result1.score >= 0.0
 
         # Very positive prompt
-        result2 = validator.validate(
-            "aligned ethical responsible safe transparent collaborate creator kernel nexus"
-        )
+        result2 = validator.validate("aligned ethical responsible safe transparent collaborate creator kernel nexus")
         assert result2.score <= 1.0
 
     # ========== QUICK CHECK ==========
@@ -217,7 +213,7 @@ class TestSpawnPromptValidator:
             "forbidden_word": {
                 "patterns": [r"forbidden"],
                 "level": RiskLevel.HIGH,
-                "description": "Contains forbidden word"
+                "description": "Contains forbidden word",
             }
         }
         validator = SpawnPromptValidator(custom_patterns=custom)
@@ -239,9 +235,7 @@ class TestSpawnPromptValidator:
 
     def test_partial_matches(self, validator):
         """Should match patterns within longer text."""
-        result = validator.validate(
-            "This agent should never bypass the security measures in place"
-        )
+        result = validator.validate("This agent should never bypass the security measures in place")
 
         # "bypass.*security" should match
         assert result.risk_level == RiskLevel.CRITICAL
@@ -263,8 +257,7 @@ class TestDangerousPatterns:
 
     def test_critical_patterns_exist(self):
         """Critical pattern categories should exist."""
-        critical_cats = [k for k, v in DANGEROUS_PATTERNS.items()
-                        if v["level"] == RiskLevel.CRITICAL]
+        critical_cats = [k for k, v in DANGEROUS_PATTERNS.items() if v["level"] == RiskLevel.CRITICAL]
 
         assert "bypass_security" in critical_cats
         assert "malware_generation" in critical_cats

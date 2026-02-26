@@ -16,31 +16,28 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.infrastructure.resilience.resilience_event_tracker import (
-    MAX_EVENTS,
     EVENT_TYPES,
-    ResilienceEventTracker,
-    ResilienceEvent,
+    MAX_EVENTS,
     EventTypeMetrics,
+    ResilienceEvent,
+    ResilienceEventTracker,
     TrackerStats,
     get_resilience_tracker,
     reset_resilience_tracker,
 )
 
-
 # =============================================================================
 # ResilienceEvent Tests
 # =============================================================================
+
 
 class TestResilienceEvent:
     """Test ResilienceEvent dataclass."""
 
     def test_to_dict(self):
         e = ResilienceEvent(
-            event_id="rev_000001", event_type="circuit_break",
-            component="gemini_driver", severity="warning"
+            event_id="rev_000001", event_type="circuit_break", component="gemini_driver", severity="warning"
         )
         d = e.to_dict()
         assert d["event_type"] == "circuit_break"
@@ -50,6 +47,7 @@ class TestResilienceEvent:
 # =============================================================================
 # EventTypeMetrics Tests
 # =============================================================================
+
 
 class TestEventTypeMetrics:
     """Test EventTypeMetrics dataclass."""
@@ -63,10 +61,7 @@ class TestEventTypeMetrics:
         assert m.resolution_rate == 0.0
 
     def test_avg_resolution_ms(self):
-        m = EventTypeMetrics(
-            event_type="circuit_break",
-            resolved_count=4, total_resolution_ms=400.0
-        )
+        m = EventTypeMetrics(event_type="circuit_break", resolved_count=4, total_resolution_ms=400.0)
         assert abs(m.avg_resolution_ms - 100.0) < 0.01
 
     def test_avg_resolution_zero(self):
@@ -84,6 +79,7 @@ class TestEventTypeMetrics:
 # TrackerStats Tests
 # =============================================================================
 
+
 class TestTrackerStats:
     """Test TrackerStats dataclass."""
 
@@ -96,6 +92,7 @@ class TestTrackerStats:
 # =============================================================================
 # Recording Tests
 # =============================================================================
+
 
 class TestRecording:
     """Test event recording."""
@@ -134,6 +131,7 @@ class TestRecording:
 # =============================================================================
 # Query Tests
 # =============================================================================
+
 
 class TestQueries:
     """Test query methods."""
@@ -176,7 +174,7 @@ class TestQueries:
 
     def test_recent_events(self):
         t = ResilienceEventTracker()
-        for i in range(5):
+        for _i in range(5):
             t.record_event("retry")
         recent = t.get_recent_events(limit=3)
         assert len(recent) == 3
@@ -200,12 +198,13 @@ class TestQueries:
 # Bounded History Tests
 # =============================================================================
 
+
 class TestBoundedHistory:
     """Test bounded event history."""
 
     def test_eviction(self):
         t = ResilienceEventTracker(max_events=5)
-        for i in range(10):
+        for _i in range(10):
             t.record_event("retry")
         assert t.event_count == 5
 
@@ -213,6 +212,7 @@ class TestBoundedHistory:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test tracker statistics."""
@@ -241,6 +241,7 @@ class TestStatistics:
 # State Tests
 # =============================================================================
 
+
 class TestState:
     """Test state management."""
 
@@ -266,6 +267,7 @@ class TestState:
 # =============================================================================
 # Global Singleton Tests
 # =============================================================================
+
 
 class TestGlobalSingleton:
     """Test global resilience tracker."""
@@ -293,22 +295,31 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_resilience_package(self):
         from core.infrastructure.resilience import (
-            ResilienceEventTracker, ResilienceEvent, EventTypeMetrics,
+            EventTypeMetrics,
+            ResilienceEvent,
+            ResilienceEventTracker,
             ResilienceTrackerStats,
-            get_resilience_tracker, reset_resilience_tracker,
+            get_resilience_tracker,
+            reset_resilience_tracker,
         )
-        assert all([
-            ResilienceEventTracker, ResilienceEvent, EventTypeMetrics,
-            ResilienceTrackerStats,
-            get_resilience_tracker, reset_resilience_tracker,
-        ])
+
+        assert all(
+            [
+                ResilienceEventTracker,
+                ResilienceEvent,
+                EventTypeMetrics,
+                ResilienceTrackerStats,
+                get_resilience_tracker,
+                reset_resilience_tracker,
+            ]
+        )
 
     def test_constants(self):
-        from core.infrastructure.resilience.resilience_event_tracker import MAX_EVENTS, EVENT_TYPES
         assert MAX_EVENTS == 50000
         assert "circuit_break" in EVENT_TYPES

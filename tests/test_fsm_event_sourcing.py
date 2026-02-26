@@ -10,15 +10,12 @@ Validates:
 """
 
 import json
-import tempfile
-from pathlib import Path
 
 import pytest
 
 from core.fsm.event_sourcing import (
     FSMEventStore,
     TransitionEvent,
-    get_event_store,
     record_transition,
 )
 
@@ -176,7 +173,7 @@ class TestFSMEventStore:
     def test_trim(self, store):
         """Trim keeps only recent events."""
         for i in range(20):
-            store.append(TransitionEvent(f"S{i}", f"S{i+1}", "step"))
+            store.append(TransitionEvent(f"S{i}", f"S{i + 1}", "step"))
 
         trimmed = store.trim(keep_last=5)
         assert trimmed == 15
@@ -223,6 +220,7 @@ class TestConvenienceFunctions:
     def test_record_transition(self, tmp_workspace, monkeypatch):
         """record_transition() creates and appends event."""
         import core.fsm.event_sourcing as es
+
         monkeypatch.setattr(es, "_global_store", FSMEventStore(tmp_workspace))
 
         record_transition("IDLE", "BRAINSTORMING", "user_input", session_id="test")

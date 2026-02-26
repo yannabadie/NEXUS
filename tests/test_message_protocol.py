@@ -13,27 +13,25 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.synapse.message_protocol import (
-    PROTOCOL_VERSION,
     MAX_PAYLOAD_SIZE,
+    PRIORITY_ORDER,
+    PROTOCOL_VERSION,
     Message,
     MessageHeader,
     MessageThread,
     MessageType,
     Priority,
-    PRIORITY_ORDER,
     create_broadcast,
     create_message,
     create_request,
     validate_message,
 )
 
-
 # =============================================================================
 # MessageType Tests
 # =============================================================================
+
 
 class TestMessageType:
     """Test MessageType enum."""
@@ -58,6 +56,7 @@ class TestMessageType:
 # Priority Tests
 # =============================================================================
 
+
 class TestPriority:
     """Test Priority enum."""
 
@@ -79,6 +78,7 @@ class TestPriority:
 # =============================================================================
 # MessageHeader Tests
 # =============================================================================
+
 
 class TestMessageHeader:
     """Test MessageHeader dataclass."""
@@ -163,6 +163,7 @@ class TestMessageHeader:
 # =============================================================================
 # Message Tests
 # =============================================================================
+
 
 class TestMessage:
     """Test Message dataclass."""
@@ -265,7 +266,9 @@ class TestMessage:
 
     def test_round_trip(self):
         msg = create_request(
-            "claude", "gemini", "review",
+            "claude",
+            "gemini",
+            "review",
             payload={"code": "def foo(): pass"},
             priority=Priority.HIGH,
         )
@@ -282,12 +285,15 @@ class TestMessage:
 # Reply Tests
 # =============================================================================
 
+
 class TestReply:
     """Test reply creation."""
 
     def test_create_reply(self):
         original = create_request(
-            "claude", "gemini", "review",
+            "claude",
+            "gemini",
+            "review",
             payload={"code": "x = 1"},
         )
         reply = original.create_reply(
@@ -304,7 +310,8 @@ class TestReply:
 
     def test_reply_preserves_priority(self):
         original = create_message(
-            MessageType.REQUEST, "claude",
+            MessageType.REQUEST,
+            "claude",
             recipient="gemini",
             topic="urgent",
             priority=Priority.CRITICAL,
@@ -354,6 +361,7 @@ class TestReply:
 # =============================================================================
 # MessageThread Tests
 # =============================================================================
+
 
 class TestMessageThread:
     """Test MessageThread."""
@@ -420,6 +428,7 @@ class TestMessageThread:
 # Factory Function Tests
 # =============================================================================
 
+
 class TestFactoryFunctions:
     """Test message factory functions."""
 
@@ -455,28 +464,33 @@ class TestFactoryFunctions:
 
     def test_create_message_with_priority(self):
         msg = create_message(
-            MessageType.REQUEST, "claude",
+            MessageType.REQUEST,
+            "claude",
             priority=Priority.CRITICAL,
         )
         assert msg.priority == Priority.CRITICAL
 
     def test_create_message_with_thread_id(self):
         msg = create_message(
-            MessageType.REQUEST, "claude",
+            MessageType.REQUEST,
+            "claude",
             thread_id="existing_thread",
         )
         assert msg.thread_id == "existing_thread"
 
     def test_create_message_with_metadata(self):
         msg = create_message(
-            MessageType.NOTIFY, "claude",
+            MessageType.NOTIFY,
+            "claude",
             metadata={"session": "s1"},
         )
         assert msg.metadata == {"session": "s1"}
 
     def test_create_request(self):
         msg = create_request(
-            "claude", "gemini", "code.review",
+            "claude",
+            "gemini",
+            "code.review",
             payload={"file": "main.py"},
         )
         assert msg.msg_type == MessageType.REQUEST
@@ -487,14 +501,17 @@ class TestFactoryFunctions:
 
     def test_create_request_with_priority(self):
         msg = create_request(
-            "claude", "gemini", "urgent",
+            "claude",
+            "gemini",
+            "urgent",
             priority=Priority.HIGH,
         )
         assert msg.priority == Priority.HIGH
 
     def test_create_broadcast(self):
         msg = create_broadcast(
-            "claude", "system.status",
+            "claude",
+            "system.status",
             payload={"online": True},
         )
         assert msg.msg_type == MessageType.BROADCAST
@@ -505,7 +522,8 @@ class TestFactoryFunctions:
 
     def test_create_broadcast_with_priority(self):
         msg = create_broadcast(
-            "claude", "alert",
+            "claude",
+            "alert",
             priority=Priority.CRITICAL,
         )
         assert msg.priority == Priority.CRITICAL
@@ -514,6 +532,7 @@ class TestFactoryFunctions:
 # =============================================================================
 # Validation Tests
 # =============================================================================
+
 
 class TestValidation:
     """Test message validation."""
@@ -540,7 +559,8 @@ class TestValidation:
 
     def test_request_without_recipient(self):
         msg = create_message(
-            MessageType.REQUEST, "claude",
+            MessageType.REQUEST,
+            "claude",
             topic="task",
         )
         errors = validate_message(msg)
@@ -573,6 +593,7 @@ class TestValidation:
 # Constants Tests
 # =============================================================================
 
+
 class TestConstants:
     """Test module constants."""
 
@@ -587,26 +608,58 @@ class TestConstants:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_synapse_package(self):
         from core.synapse import (
-            Message, MessageHeader, MessageThread, MessageType, Priority,
-            create_message, create_request, create_broadcast, validate_message,
+            Message,
+            MessageHeader,
+            MessageThread,
+            MessageType,
+            Priority,
+            create_broadcast,
+            create_message,
+            create_request,
+            validate_message,
         )
-        assert all([
-            Message, MessageHeader, MessageThread, MessageType, Priority,
-            create_message, create_request, create_broadcast, validate_message,
-        ])
+
+        assert all(
+            [
+                Message,
+                MessageHeader,
+                MessageThread,
+                MessageType,
+                Priority,
+                create_message,
+                create_request,
+                create_broadcast,
+                validate_message,
+            ]
+        )
 
     def test_from_module(self):
         from core.synapse.message_protocol import (
-            Message, MessageHeader, MessageThread, MessageType, Priority,
-            PRIORITY_ORDER, PROTOCOL_VERSION, MAX_PAYLOAD_SIZE,
-            create_message, create_request, create_broadcast, validate_message,
+            PRIORITY_ORDER,
+            Message,
+            MessageHeader,
+            MessageThread,
+            MessageType,
+            Priority,
+            create_message,
+            validate_message,
         )
-        assert all([
-            Message, MessageHeader, MessageThread, MessageType, Priority,
-            PRIORITY_ORDER, create_message, validate_message,
-        ])
+
+        assert all(
+            [
+                Message,
+                MessageHeader,
+                MessageThread,
+                MessageType,
+                Priority,
+                PRIORITY_ORDER,
+                create_message,
+                validate_message,
+            ]
+        )

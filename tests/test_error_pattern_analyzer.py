@@ -17,11 +17,9 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.observability.telemetry.error_pattern_analyzer import (
-    MAX_ERRORS,
     ERROR_CATEGORIES,
+    MAX_ERRORS,
     AnalyzerStats,
     ErrorCategoryMetrics,
     ErrorPattern,
@@ -31,17 +29,16 @@ from core.observability.telemetry.error_pattern_analyzer import (
     reset_error_analyzer,
 )
 
-
 # =============================================================================
 # ErrorRecord Tests
 # =============================================================================
+
 
 class TestErrorRecord:
     """Test ErrorRecord dataclass."""
 
     def test_to_dict(self):
-        r = ErrorRecord(error_id="err_000001", category="timeout",
-                        message="Request timed out", source="llm_invoke")
+        r = ErrorRecord(error_id="err_000001", category="timeout", message="Request timed out", source="llm_invoke")
         d = r.to_dict()
         assert d["category"] == "timeout"
         assert d["error_id"] == "err_000001"
@@ -50,6 +47,7 @@ class TestErrorRecord:
 # =============================================================================
 # ErrorCategoryMetrics Tests
 # =============================================================================
+
 
 class TestErrorCategoryMetrics:
     """Test ErrorCategoryMetrics dataclass."""
@@ -81,12 +79,12 @@ class TestErrorCategoryMetrics:
 # ErrorPattern Tests
 # =============================================================================
 
+
 class TestErrorPattern:
     """Test ErrorPattern dataclass."""
 
     def test_to_dict(self):
-        p = ErrorPattern(pattern_type="recurring", category="timeout",
-                         details="5 occurrences", count=5)
+        p = ErrorPattern(pattern_type="recurring", category="timeout", details="5 occurrences", count=5)
         d = p.to_dict()
         assert d["pattern_type"] == "recurring"
 
@@ -94,6 +92,7 @@ class TestErrorPattern:
 # =============================================================================
 # AnalyzerStats Tests
 # =============================================================================
+
 
 class TestAnalyzerStats:
     """Test AnalyzerStats dataclass."""
@@ -107,6 +106,7 @@ class TestAnalyzerStats:
 # =============================================================================
 # Recording Tests
 # =============================================================================
+
 
 class TestRecording:
     """Test error recording."""
@@ -146,6 +146,7 @@ class TestRecording:
 # Query Tests
 # =============================================================================
 
+
 class TestQueries:
     """Test query methods."""
 
@@ -179,7 +180,7 @@ class TestQueries:
 
     def test_recent_errors(self):
         a = ErrorPatternAnalyzer()
-        for i in range(5):
+        for _i in range(5):
             a.record_error(category="timeout")
         recent = a.get_recent_errors(limit=3)
         assert len(recent) == 3
@@ -198,6 +199,7 @@ class TestQueries:
 # =============================================================================
 # Pattern Detection Tests
 # =============================================================================
+
 
 class TestPatternDetection:
     """Test pattern detection."""
@@ -229,12 +231,13 @@ class TestPatternDetection:
 # Bounded History Tests
 # =============================================================================
 
+
 class TestBoundedHistory:
     """Test bounded error history."""
 
     def test_eviction(self):
         a = ErrorPatternAnalyzer(max_errors=5)
-        for i in range(10):
+        for _i in range(10):
             a.record_error(category="timeout")
         assert a.error_count == 5
 
@@ -242,6 +245,7 @@ class TestBoundedHistory:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test analyzer statistics."""
@@ -269,6 +273,7 @@ class TestStatistics:
 # State Tests
 # =============================================================================
 
+
 class TestState:
     """Test state management."""
 
@@ -294,6 +299,7 @@ class TestState:
 # =============================================================================
 # Global Singleton Tests
 # =============================================================================
+
 
 class TestGlobalSingleton:
     """Test global error analyzer."""
@@ -321,22 +327,33 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_telemetry_package(self):
         from core.observability.telemetry import (
-            ErrorPatternAnalyzer, ErrorRecord, ErrorCategoryMetrics,
-            ErrorPattern, ErrorAnalyzerStats,
-            get_error_analyzer, reset_error_analyzer,
+            ErrorAnalyzerStats,
+            ErrorCategoryMetrics,
+            ErrorPattern,
+            ErrorPatternAnalyzer,
+            ErrorRecord,
+            get_error_analyzer,
+            reset_error_analyzer,
         )
-        assert all([
-            ErrorPatternAnalyzer, ErrorRecord, ErrorCategoryMetrics,
-            ErrorPattern, ErrorAnalyzerStats,
-            get_error_analyzer, reset_error_analyzer,
-        ])
+
+        assert all(
+            [
+                ErrorPatternAnalyzer,
+                ErrorRecord,
+                ErrorCategoryMetrics,
+                ErrorPattern,
+                ErrorAnalyzerStats,
+                get_error_analyzer,
+                reset_error_analyzer,
+            ]
+        )
 
     def test_constants(self):
-        from core.observability.telemetry.error_pattern_analyzer import MAX_ERRORS, ERROR_CATEGORIES
         assert MAX_ERRORS == 50000
         assert "timeout" in ERROR_CATEGORIES

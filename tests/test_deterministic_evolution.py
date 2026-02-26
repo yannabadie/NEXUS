@@ -8,12 +8,11 @@ Validates:
 """
 
 import hashlib
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
-from core.intelligence.evolution.tiered_validator import TieredValidator, ValidationTier, TierResult
+from core.intelligence.evolution.tiered_validator import TieredValidator, TierResult, ValidationTier
 
 
 @pytest.fixture
@@ -26,9 +25,7 @@ def mock_child_path(tmp_path):
     # Create tests directory
     tests_dir = tmp_path / "tests"
     tests_dir.mkdir()
-    (tests_dir / "test_utils.py").write_text(
-        "def test_add():\n    from utils import add\n    assert add(1, 2) == 3\n"
-    )
+    (tests_dir / "test_utils.py").write_text("def test_add():\n    from utils import add\n    assert add(1, 2) == 3\n")
 
     return tmp_path
 

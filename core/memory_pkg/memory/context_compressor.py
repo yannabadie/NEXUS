@@ -36,7 +36,7 @@ import re
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -67,9 +67,11 @@ HIGH_IMPORTANCE_PATTERNS = [
 # Types
 # =============================================================================
 
+
 @dataclass
 class CompressTurn:
     """A turn in the conversation with importance scoring."""
+
     turn_id: int
     role: str  # "user", "assistant", "system"
     content: str
@@ -77,7 +79,7 @@ class CompressTurn:
     importance: float = 0.5  # 0.0 = least important, 1.0 = most important
     timestamp: float = 0.0
     pinned: bool = False  # If True, never pruned
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         if self.timestamp == 0.0:
@@ -85,7 +87,7 @@ class CompressTurn:
         if self.token_estimate == 0:
             self.token_estimate = int(len(self.content.split()) * TOKENS_PER_WORD)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "turn_id": self.turn_id,
             "role": self.role,
@@ -99,6 +101,7 @@ class CompressTurn:
 @dataclass
 class CompressionResult:
     """Result of a compression operation."""
+
     turns_before: int
     turns_after: int
     tokens_before: int
@@ -112,7 +115,7 @@ class CompressionResult:
             return 0.0
         return 1 - (self.tokens_after / self.tokens_before)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "turns_before": self.turns_before,
             "turns_after": self.turns_after,
@@ -127,12 +130,13 @@ class CompressionResult:
 @dataclass
 class ContextShift:
     """A detected shift in conversation context."""
+
     turn_id: int
     old_topic: str
     new_topic: str
     confidence: float
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "turn_id": self.turn_id,
             "old_topic": self.old_topic,
@@ -144,6 +148,7 @@ class ContextShift:
 # =============================================================================
 # Context Compressor
 # =============================================================================
+
 
 class ContextCompressor:
     """
@@ -163,8 +168,8 @@ class ContextCompressor:
         max_tokens: int = DEFAULT_MAX_TOKENS,
         compress_threshold: float = DEFAULT_COMPRESS_THRESHOLD,
     ):
-        self._turns: List[CompressTurn] = []
-        self._archive: List[CompressTurn] = []
+        self._turns: list[CompressTurn] = []
+        self._archive: list[CompressTurn] = []
         self._max_tokens = max_tokens
         self._compress_threshold = compress_threshold
         self._next_id = 0
@@ -181,8 +186,8 @@ class ContextCompressor:
         content: str,
         *,
         pinned: bool = False,
-        importance: Optional[float] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        importance: float | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> CompressTurn:
         """
         Add a conversation turn.
@@ -257,7 +262,7 @@ class ContextCompressor:
     # Compression
     # =========================================================================
 
-    def compress(self, *, target_tokens: Optional[int] = None) -> CompressionResult:
+    def compress(self, *, target_tokens: int | None = None) -> CompressionResult:
         """
         Compress the conversation by removing low-importance turns.
 
@@ -284,10 +289,7 @@ class ContextCompressor:
                 )
 
             # Sort prunable turns by importance (lowest first)
-            prunable = [
-                (i, t) for i, t in enumerate(self._turns)
-                if not t.pinned
-            ]
+            prunable = [(i, t) for i, t in enumerate(self._turns) if not t.pinned]
             prunable.sort(key=lambda x: (x[1].importance, -x[0]))  # Low importance first, older first
 
             pruned_indices = set()
@@ -333,17 +335,17 @@ class ContextCompressor:
         current = self._total_tokens()
         return current > self._max_tokens * self._compress_threshold
 
-    def get_active_turns(self) -> List[CompressTurn]:
+    def get_active_turns(self) -> list[CompressTurn]:
         """Get current (non-pruned) turns."""
         with self._lock:
             return list(self._turns)
 
-    def get_archived_turns(self) -> List[CompressTurn]:
+    def get_archived_turns(self) -> list[CompressTurn]:
         """Get archived (pruned) turns."""
         with self._lock:
             return list(self._archive)
 
-    def get_turn(self, turn_id: int) -> Optional[CompressTurn]:
+    def get_turn(self, turn_id: int) -> CompressTurn | None:
         """Get a turn by ID (searches active and archived)."""
         with self._lock:
             for turn in self._turns:
@@ -376,7 +378,7 @@ class ContextCompressor:
     # Context Shift Detection
     # =========================================================================
 
-    def detect_context_shift(self) -> Optional[ContextShift]:
+    def detect_context_shift(self) -> ContextShift | None:
         """
         Detect if the conversation topic has shifted.
 
@@ -423,10 +425,36 @@ class ContextCompressor:
         words = re.findall(r"\b[a-zA-Z]{4,}\b", text.lower())
         # Filter common stop words
         stop_words = {
-            "this", "that", "with", "from", "have", "will", "been", "were",
-            "they", "them", "their", "some", "what", "when", "where", "which",
-            "would", "could", "should", "about", "into", "your", "also",
-            "than", "then", "just", "more", "most", "very", "much",
+            "this",
+            "that",
+            "with",
+            "from",
+            "have",
+            "will",
+            "been",
+            "were",
+            "they",
+            "them",
+            "their",
+            "some",
+            "what",
+            "when",
+            "where",
+            "which",
+            "would",
+            "could",
+            "should",
+            "about",
+            "into",
+            "your",
+            "also",
+            "than",
+            "then",
+            "just",
+            "more",
+            "most",
+            "very",
+            "much",
         }
         return set(w for w in words if w not in stop_words)
 
@@ -472,7 +500,7 @@ class ContextCompressor:
             self._compressions = 0
             self._next_id = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "active_count": self.active_count,
             "archived_count": self.archived_count,
@@ -488,7 +516,7 @@ class ContextCompressor:
 # Global Instance
 # =============================================================================
 
-_compressor: Optional[ContextCompressor] = None
+_compressor: ContextCompressor | None = None
 _compressor_lock = threading.Lock()
 
 

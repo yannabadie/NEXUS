@@ -24,7 +24,7 @@ import logging
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -51,9 +51,11 @@ EVENT_TYPES = {
 # Types
 # =============================================================================
 
+
 @dataclass
 class SecurityEvent:
     """Record of a security event."""
+
     event_id: str
     event_type: str  # from EVENT_TYPES
     severity: str = "medium"  # from SEVERITY_LEVELS
@@ -64,9 +66,9 @@ class SecurityEvent:
     session_id: str = ""
     timestamp: float = field(default_factory=time.monotonic)
     details: str = ""
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "event_id": self.event_id,
             "event_type": self.event_type,
@@ -84,6 +86,7 @@ class SecurityEvent:
 @dataclass
 class ThreatPattern:
     """Detected threat pattern from event analysis."""
+
     pattern_type: str  # e.g. "repeated_auth_failure", "privilege_probe"
     actor: str
     event_count: int
@@ -92,7 +95,7 @@ class ThreatPattern:
     last_seen: float
     description: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "pattern_type": self.pattern_type,
             "actor": self.actor,
@@ -107,13 +110,14 @@ class ThreatPattern:
 @dataclass
 class SecurityJournalStats:
     """Journal statistics."""
+
     total_events: int
-    events_by_type: Dict[str, int]
-    events_by_severity: Dict[str, int]
+    events_by_type: dict[str, int]
+    events_by_severity: dict[str, int]
     unique_actors: int
     critical_events: int
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_events": self.total_events,
             "events_by_type": dict(self.events_by_type),
@@ -126,6 +130,7 @@ class SecurityJournalStats:
 # =============================================================================
 # Security Event Journal
 # =============================================================================
+
 
 class SecurityEventJournal:
     """
@@ -142,7 +147,7 @@ class SecurityEventJournal:
 
     def __init__(self, *, max_events: int = MAX_EVENTS):
         self._max_events = max_events
-        self._events: List[SecurityEvent] = []
+        self._events: list[SecurityEvent] = []
         self._counter: int = 0
         self._lock = threading.Lock()
 
@@ -161,7 +166,7 @@ class SecurityEventJournal:
         result: str = "",
         session_id: str = "",
         details: str = "",
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> SecurityEvent:
         """
         Record a security event.
@@ -192,7 +197,10 @@ class SecurityEventJournal:
 
         _logger.debug(
             "Security event %s: type=%s severity=%s actor=%s",
-            event_id, event_type, severity, actor,
+            event_id,
+            event_type,
+            severity,
+            actor,
         )
         return event
 
@@ -261,9 +269,9 @@ class SecurityEventJournal:
     # Queries
     # =========================================================================
 
-    def query_by_actor(self, actor: str, *, limit: int = 100) -> List[SecurityEvent]:
+    def query_by_actor(self, actor: str, *, limit: int = 100) -> list[SecurityEvent]:
         """Query events by actor (most recent first)."""
-        results: List[SecurityEvent] = []
+        results: list[SecurityEvent] = []
         for event in reversed(self._events):
             if event.actor == actor:
                 results.append(event)
@@ -271,11 +279,9 @@ class SecurityEventJournal:
                     break
         return results
 
-    def query_by_type(
-        self, event_type: str, *, limit: int = 100
-    ) -> List[SecurityEvent]:
+    def query_by_type(self, event_type: str, *, limit: int = 100) -> list[SecurityEvent]:
         """Query events by type (most recent first)."""
-        results: List[SecurityEvent] = []
+        results: list[SecurityEvent] = []
         for event in reversed(self._events):
             if event.event_type == event_type:
                 results.append(event)
@@ -283,11 +289,9 @@ class SecurityEventJournal:
                     break
         return results
 
-    def query_by_severity(
-        self, severity: str, *, limit: int = 100
-    ) -> List[SecurityEvent]:
+    def query_by_severity(self, severity: str, *, limit: int = 100) -> list[SecurityEvent]:
         """Query events by severity (most recent first)."""
-        results: List[SecurityEvent] = []
+        results: list[SecurityEvent] = []
         for event in reversed(self._events):
             if event.severity == severity:
                 results.append(event)
@@ -295,11 +299,9 @@ class SecurityEventJournal:
                     break
         return results
 
-    def query_by_session(
-        self, session_id: str, *, limit: int = 100
-    ) -> List[SecurityEvent]:
+    def query_by_session(self, session_id: str, *, limit: int = 100) -> list[SecurityEvent]:
         """Query events by session ID (most recent first)."""
-        results: List[SecurityEvent] = []
+        results: list[SecurityEvent] = []
         for event in reversed(self._events):
             if event.session_id == session_id:
                 results.append(event)
@@ -307,11 +309,11 @@ class SecurityEventJournal:
                     break
         return results
 
-    def get_recent(self, *, limit: int = 50) -> List[SecurityEvent]:
+    def get_recent(self, *, limit: int = 50) -> list[SecurityEvent]:
         """Get the most recent events (most recent first)."""
         return list(reversed(self._events[-limit:]))
 
-    def get_critical_events(self, *, limit: int = 50) -> List[SecurityEvent]:
+    def get_critical_events(self, *, limit: int = 50) -> list[SecurityEvent]:
         """Get critical severity events (most recent first)."""
         return self.query_by_severity("critical", limit=limit)
 
@@ -319,9 +321,7 @@ class SecurityEventJournal:
     # Analytics
     # =========================================================================
 
-    def detect_patterns(
-        self, *, actor: Optional[str] = None, window_size: int = 100
-    ) -> List[ThreatPattern]:
+    def detect_patterns(self, *, actor: str | None = None, window_size: int = 100) -> list[ThreatPattern]:
         """
         Detect threat patterns in recent events.
 
@@ -342,8 +342,8 @@ class SecurityEventJournal:
             window = [e for e in window if e.actor == actor]
 
         # Group auth failures by actor
-        auth_failures: Dict[str, List[SecurityEvent]] = {}
-        access_denials: Dict[str, List[SecurityEvent]] = {}
+        auth_failures: dict[str, list[SecurityEvent]] = {}
+        access_denials: dict[str, list[SecurityEvent]] = {}
 
         for event in window:
             if not event.actor:
@@ -353,49 +353,52 @@ class SecurityEventJournal:
             if event.event_type == "access_denied":
                 access_denials.setdefault(event.actor, []).append(event)
 
-        patterns: List[ThreatPattern] = []
+        patterns: list[ThreatPattern] = []
 
         for act, events in auth_failures.items():
             if len(events) >= 3:
-                patterns.append(ThreatPattern(
-                    pattern_type="repeated_auth_failure",
-                    actor=act,
-                    event_count=len(events),
-                    severity="high",
-                    first_seen=events[0].timestamp,
-                    last_seen=events[-1].timestamp,
-                    description=(
-                        f"Actor '{act}' has {len(events)} failed authentication "
-                        f"attempts in the last {window_size} events"
-                    ),
-                ))
+                patterns.append(
+                    ThreatPattern(
+                        pattern_type="repeated_auth_failure",
+                        actor=act,
+                        event_count=len(events),
+                        severity="high",
+                        first_seen=events[0].timestamp,
+                        last_seen=events[-1].timestamp,
+                        description=(
+                            f"Actor '{act}' has {len(events)} failed authentication "
+                            f"attempts in the last {window_size} events"
+                        ),
+                    )
+                )
 
         for act, events in access_denials.items():
             if len(events) >= 3:
-                patterns.append(ThreatPattern(
-                    pattern_type="privilege_probe",
-                    actor=act,
-                    event_count=len(events),
-                    severity="high",
-                    first_seen=events[0].timestamp,
-                    last_seen=events[-1].timestamp,
-                    description=(
-                        f"Actor '{act}' has {len(events)} access denied events "
-                        f"in the last {window_size} events"
-                    ),
-                ))
+                patterns.append(
+                    ThreatPattern(
+                        pattern_type="privilege_probe",
+                        actor=act,
+                        event_count=len(events),
+                        severity="high",
+                        first_seen=events[0].timestamp,
+                        last_seen=events[-1].timestamp,
+                        description=(
+                            f"Actor '{act}' has {len(events)} access denied events in the last {window_size} events"
+                        ),
+                    )
+                )
 
         return patterns
 
-    def get_actor_summary(self, actor: str) -> Dict[str, Any]:
+    def get_actor_summary(self, actor: str) -> dict[str, Any]:
         """
         Get a summary of all events for a specific actor.
 
         Returns:
             Dict with total_events, events_by_type, events_by_severity.
         """
-        events_by_type: Dict[str, int] = {}
-        events_by_severity: Dict[str, int] = {}
+        events_by_type: dict[str, int] = {}
+        events_by_severity: dict[str, int] = {}
         total = 0
 
         for event in self._events:
@@ -418,8 +421,8 @@ class SecurityEventJournal:
 
     def get_stats(self) -> SecurityJournalStats:
         """Get journal statistics."""
-        events_by_type: Dict[str, int] = {}
-        events_by_severity: Dict[str, int] = {}
+        events_by_type: dict[str, int] = {}
+        events_by_severity: dict[str, int] = {}
         actors: set[str] = set()
         critical_count = 0
 
@@ -450,7 +453,7 @@ class SecurityEventJournal:
             self._events.clear()
             self._counter = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "size": self.size,
             "counter": self._counter,
@@ -462,7 +465,7 @@ class SecurityEventJournal:
 # Global Instance
 # =============================================================================
 
-_journal: Optional[SecurityEventJournal] = None
+_journal: SecurityEventJournal | None = None
 _journal_lock = threading.Lock()
 
 

@@ -17,22 +17,20 @@ Usage:
     response = invoker.invoke_agent(TaskType.BRAINSTORM, context)
 """
 
-import time
 import logging
-from pathlib import Path
-from typing import TYPE_CHECKING, Dict, Optional, Callable
+from typing import TYPE_CHECKING
 
 import tiktoken
 
-from core.foundation.agents.unified_registry import get_registry
 from core.execution_pkg.routing.model_router import TaskType
+from core.foundation.agents.unified_registry import get_registry
 from core.fsm.states import OrchestratorState
 from core.intelligence.swarm import AgentInvocationResult
-from core.observability.telemetry import BudgetExceededError
 
 # V13.0: Real-time telemetry for CEREBRO UI
-from core.observability.events.telemetry_bridge import get_telemetry_bridge, _resolve_tenant_workspace
+from core.observability.events.telemetry_bridge import _resolve_tenant_workspace, get_telemetry_bridge
 from core.observability.events.types import CerebroEventType
+from core.observability.telemetry import BudgetExceededError
 
 if TYPE_CHECKING:
     from core.orchestration_v7 import OrchestratorV7
@@ -52,7 +50,7 @@ class AgentInvoker:
     Phase 14c: Extracted from OrchestratorV7 for better maintainability.
     """
 
-    def __init__(self, orchestrator: 'OrchestratorV7'):
+    def __init__(self, orchestrator: "OrchestratorV7"):
         """
         Initialize agent invoker with orchestrator reference.
 
@@ -97,18 +95,14 @@ class AgentInvoker:
                     "data": {"name": agent_name, "status": status, "task_type": task_type},
                 },
                 tenant_id=tenant_id,
-                workspace_id=workspace_id
+                workspace_id=workspace_id,
             )
             self._logger.debug(f"[TELEMETRY] {node_id} -> {status}: {result}")
         except Exception as e:
             # Fire-and-forget: never block agent execution
             self._logger.debug(f"[TELEMETRY] Emit failed (non-blocking): {e}")
 
-    def get_claude_driver(
-        self,
-        task_type: TaskType,
-        timeout_override: Optional[int] = None
-    ):
+    def get_claude_driver(self, task_type: TaskType, timeout_override: int | None = None):
         """
         Get Claude driver with appropriate model for task type.
 
@@ -133,12 +127,12 @@ class AgentInvoker:
 
         # Override timeout if specified (for CFL validation)
         # Note: SDK drivers and CLI drivers both support timeout attribute
-        if timeout_override and hasattr(driver, 'timeout'):
+        if timeout_override and hasattr(driver, "timeout"):
             driver.timeout = timeout_override
 
         return driver
 
-    def invoke_agent(self, task_type: TaskType, context: str) -> Dict:
+    def invoke_agent(self, task_type: TaskType, context: str) -> dict:
         """
         Invoke the active agent with task-aware model selection.
 
@@ -165,14 +159,11 @@ class AgentInvoker:
                 "sender": "System",
                 "action_type": "ERROR",
                 "content": f"BUDGET EXCEEDED: Daily limit of ${e.limit:.2f} reached (spent: ${e.spent:.2f}). Use /budget reset to unlock.",
-                "status": "ERROR"
+                "status": "ERROR",
             }
 
         # V7.7 Phase 15: Use streaming if enabled and callback is set
-        use_streaming = (
-            getattr(self._orch.config, 'streaming_enabled', False) and
-            self._orch.on_token is not None
-        )
+        use_streaming = getattr(self._orch.config, "streaming_enabled", False) and self._orch.on_token is not None
 
         # V8.4.0: Use registry for agent lookup
         if self._registry.is_claude(self._orch.active_agent):
@@ -187,7 +178,7 @@ class AgentInvoker:
                 # V13.0: Emit idle status after invocation
                 self._emit_agent_status("Claude", "idle", task_type.value)
                 return result
-            except Exception as e:
+            except Exception:
                 self._emit_agent_status("Claude", "idle", task_type.value)
                 raise
         else:
@@ -201,13 +192,18 @@ class AgentInvoker:
                 # V13.0: Emit idle status after invocation
                 self._emit_agent_status("Gemini", "idle", task_type.value)
                 return result
-            except Exception as e:
+            except Exception:
                 self._emit_agent_status("Gemini", "idle", task_type.value)
                 raise
 
-    def invoke_for_swarm(self, agent_id: str, task_type: str, context: str,
-                         session_uuid: Optional[str] = None,
-                         isolated_env: Optional[Dict[str, str]] = None) -> str:
+    def invoke_for_swarm(
+        self,
+        agent_id: str,
+        task_type: str,
+        context: str,
+        session_uuid: str | None = None,
+        isolated_env: dict[str, str] | None = None,
+    ) -> str:
         """
         Invoke agent for HybridSwarmEngine.
 
@@ -232,7 +228,7 @@ class AgentInvoker:
             return self.invoke_spawned_agent(agent_id, task_type, context, isolated_env)
 
         # V8.4.0: Use registry for agent identification
-        is_claude = self._registry.is_claude(agent_id)
+        self._registry.is_claude(agent_id)
         # V7 FIX: Use local variable instead of shared self.active_agent to avoid race condition
         # in parallel execution mode. Each thread must know which agent it's invoking.
         target_agent = self._registry.get_display_name(agent_id)
@@ -249,10 +245,8 @@ class AgentInvoker:
 
             # V7 FIX: Build rich context for swarm execution
             # Use context_builder if available, otherwise use provided context
-            if hasattr(self._orch, 'context_builder'):
-                enriched_context = self._orch.context_builder.build_swarm_context(
-                    context, task_type, target_agent
-                )
+            if hasattr(self._orch, "context_builder"):
+                enriched_context = self._orch.context_builder.build_swarm_context(context, task_type, target_agent)
             else:
                 enriched_context = self._orch._build_swarm_context(context, task_type, target_agent)
 
@@ -260,9 +254,7 @@ class AgentInvoker:
             # V8.1.6: Pass session_uuid for thread-safe file access
             # V9.7.1: Pass isolated_env for Gemini session isolation
             response = self.invoke_agent_direct(
-                task_type_enum, enriched_context, target_agent,
-                session_uuid=session_uuid,
-                isolated_env=isolated_env
+                task_type_enum, enriched_context, target_agent, session_uuid=session_uuid, isolated_env=isolated_env
             )
             return response.get("content", str(response))
 
@@ -288,8 +280,9 @@ class AgentInvoker:
             return False
         return self._orch.agent_pool.agents[agent_id].provider == "spawned"
 
-    def invoke_spawned_agent(self, agent_id: str, task_type: str, context: str,
-                              isolated_env: Optional[Dict[str, str]] = None) -> str:
+    def invoke_spawned_agent(
+        self, agent_id: str, task_type: str, context: str, isolated_env: dict[str, str] | None = None
+    ) -> str:
         """
         Invoke a spawned agent with its specialized system prompt.
 
@@ -338,18 +331,21 @@ class AgentInvoker:
                 enriched_context = f"""# SPAWNED AGENT: {agent_id}
 
 ## Capabilities
-{', '.join(capabilities) if capabilities else 'general'}
+{", ".join(capabilities) if capabilities else "general"}
 
 ## Task
 {context}
 """
 
-            self._logger.debug(f"Invoking spawned agent", {
-                "agent_id": agent_id,
-                "task_type": task_type,
-                "target_agent": target_agent,  # V8.1.8-B
-                "has_system_prompt": system_prompt is not None
-            })
+            self._logger.debug(
+                "Invoking spawned agent",
+                {
+                    "agent_id": agent_id,
+                    "task_type": task_type,
+                    "target_agent": target_agent,  # V8.1.8-B
+                    "has_system_prompt": system_prompt is not None,
+                },
+            )
 
             # Map task type to TaskType enum
             task_type_enum = TaskType.TOOL  # Default for spawned agents
@@ -359,15 +355,12 @@ class AgentInvoker:
             # V8.1.8-B: Route to configured provider (Claude or Gemini)
             # V9.7.1: Pass isolated_env for session isolation
             response = self.invoke_agent_direct(
-                task_type_enum, enriched_context, target_agent,
-                isolated_env=isolated_env
+                task_type_enum, enriched_context, target_agent, isolated_env=isolated_env
             )
             return response.get("content", str(response))
 
         except Exception as e:
-            self._logger.error(f"Spawned agent invocation failed: {e}", {
-                "agent_id": agent_id
-            })
+            self._logger.error(f"Spawned agent invocation failed: {e}", {"agent_id": agent_id})
             return f"Error invoking spawned agent {agent_id}: {e}"
 
     def invoke_agent_direct(
@@ -375,9 +368,9 @@ class AgentInvoker:
         task_type: TaskType,
         context: str,
         target_agent: str,
-        session_uuid: Optional[str] = None,
-        isolated_env: Optional[Dict[str, str]] = None
-    ) -> Dict:
+        session_uuid: str | None = None,
+        isolated_env: dict[str, str] | None = None,
+    ) -> dict:
         """
         Invoke a specific agent directly without using shared state.
 
@@ -408,14 +401,11 @@ class AgentInvoker:
                 "sender": "System",
                 "action_type": "ERROR",
                 "content": f"BUDGET EXCEEDED: ${e.spent:.2f}/${e.limit:.2f}",
-                "status": "ERROR"
+                "status": "ERROR",
             }
 
         # V7.7 Phase 15: Use streaming if enabled and callback is set
-        use_streaming = (
-            getattr(self._orch.config, 'streaming_enabled', False) and
-            self._orch.on_token is not None
-        )
+        use_streaming = getattr(self._orch.config, "streaming_enabled", False) and self._orch.on_token is not None
 
         # V8.4.0: Use registry for agent identification
         if self._registry.is_claude(target_agent):
@@ -432,7 +422,7 @@ class AgentInvoker:
                 # V13.0: Emit idle status after invocation
                 self._emit_agent_status("Claude", "idle", task_type.value)
                 return result
-            except Exception as e:
+            except Exception:
                 self._emit_agent_status("Claude", "idle", task_type.value)
                 raise
         else:
@@ -442,20 +432,16 @@ class AgentInvoker:
             try:
                 if use_streaming:
                     result = self._orch.gemini_driver.invoke_stream(
-                        context, self._orch.on_token,
-                        session_uuid=session_uuid,
-                        isolated_env=isolated_env
+                        context, self._orch.on_token, session_uuid=session_uuid, isolated_env=isolated_env
                     )
                 else:
                     result = self._orch.gemini_driver.invoke(
-                        context,
-                        session_uuid=session_uuid,
-                        isolated_env=isolated_env
+                        context, session_uuid=session_uuid, isolated_env=isolated_env
                     )
                 # V13.0: Emit idle status after invocation
                 self._emit_agent_status("Gemini", "idle", task_type.value)
                 return result
-            except Exception as e:
+            except Exception:
                 self._emit_agent_status("Gemini", "idle", task_type.value)
                 raise
 
@@ -466,7 +452,7 @@ class AgentInvoker:
         success: bool,
         duration: float,
         quality_score: float = 0.5,
-        response_text: Optional[str] = None
+        response_text: str | None = None,
     ) -> None:
         """
         Record agent invocation for DyLAN-style metrics (V7 Sprint 3).
@@ -501,25 +487,23 @@ class AgentInvoker:
             success=success,
             quality_score=quality_score,
             tokens_used=estimated_tokens,
-            time_seconds=duration
+            time_seconds=duration,
         )
         self._orch.agent_pool.record_invocation(invocation)
 
-        self._logger.debug("Agent invocation recorded", {
-            "agent_id": agent_id,
-            "task_type": task_type,
-            "success": success,
-            "duration": f"{duration:.2f}s",
-            "tokens": estimated_tokens,
-            "importance": f"{invocation.importance_score:.4f}"
-        })
+        self._logger.debug(
+            "Agent invocation recorded",
+            {
+                "agent_id": agent_id,
+                "task_type": task_type,
+                "success": success,
+                "duration": f"{duration:.2f}s",
+                "tokens": estimated_tokens,
+                "importance": f"{invocation.importance_score:.4f}",
+            },
+        )
 
-    def calculate_quality_score(
-        self,
-        message: dict,
-        validation_ok: bool,
-        is_stagnant: bool
-    ) -> float:
+    def calculate_quality_score(self, message: dict, validation_ok: bool, is_stagnant: bool) -> float:
         """
         Calculate DyLAN quality score for agent invocation.
 

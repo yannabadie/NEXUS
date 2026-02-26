@@ -9,20 +9,19 @@ V7.9: Enhanced with TaskCompletionValidator to prevent premature FINISHED.
 """
 
 from pathlib import Path
-from typing import Dict, List, Optional
-
-from .base import (
-    ModeExecutor,
-    ExecutionStatus,
-    AgentResponse,
-    ExecutionContext,
-    ExecutionResult,
-)
-from ..collaboration_modes import CollaborationMode
-from ..task_completion_validator import TaskCompletionValidator
 
 # V13.0 CEREBRO LIVE: Telemetry for agent exchanges
 from core.observability.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
+
+from ..collaboration_modes import CollaborationMode
+from ..task_completion_validator import TaskCompletionValidator
+from .base import (
+    AgentResponse,
+    ExecutionContext,
+    ExecutionResult,
+    ExecutionStatus,
+    ModeExecutor,
+)
 
 
 class PingPongExecutor(ModeExecutor):
@@ -36,7 +35,7 @@ class PingPongExecutor(ModeExecutor):
 
     mode = CollaborationMode.PING_PONG
 
-    def __init__(self, workspace_path: Optional[Path] = None):
+    def __init__(self, workspace_path: Path | None = None):
         """
         Initialize PingPongExecutor.
 
@@ -56,7 +55,7 @@ class PingPongExecutor(ModeExecutor):
                 agent_outputs=[],
                 total_rounds=0,
                 total_tokens=0,
-                total_time_seconds=0.0
+                total_time_seconds=0.0,
             )
 
         # V7.9: Initialize completion validator
@@ -68,12 +67,13 @@ class PingPongExecutor(ModeExecutor):
         task_analysis_raw = context.blackboard.get("task_analysis")
         if task_analysis_raw and isinstance(task_analysis_raw, dict):
             from ..task_analyzer import TaskAnalysis
+
             task_analysis = TaskAnalysis.from_dict(task_analysis_raw)
         else:
             task_analysis = task_analysis_raw
 
-        outputs: List[AgentResponse] = []
-        tool_results: List[Dict] = []  # Collect tool results for validation
+        outputs: list[AgentResponse] = []
+        tool_results: list[dict] = []  # Collect tool results for validation
         total_tokens = 0
         total_time = 0.0
         current_idx = 0
@@ -111,15 +111,12 @@ class PingPongExecutor(ModeExecutor):
 
             # V13.0 CEREBRO LIVE: Emit ping-pong exchange
             next_agent = agents[(current_idx + 1) % len(agents)]
-            emit_agent_speak(
-                agent.agent_id,
-                response.content[:200],
-                action_type="PING_PONG"
-            )
+            emit_agent_speak(agent.agent_id, response.content[:200], action_type="PING_PONG")
             emit_agent_exchange(
-                agent.agent_id, next_agent.agent_id,
+                agent.agent_id,
+                next_agent.agent_id,
                 f"Round {round_num + 1}: {response.content[:60]}",
-                exchange_type="ping_pong"
+                exchange_type="ping_pong",
             )
 
             # V7.5: Stream round to callback for real-time display
@@ -140,7 +137,7 @@ class PingPongExecutor(ModeExecutor):
                         task_input=context.task_input,
                         agent_response=response.content,
                         task_analysis=task_analysis,
-                        tool_results=tool_results
+                        tool_results=tool_results,
                     )
                     is_valid_finish = validation_result.is_valid
                     validation_reason = validation_result.reason
@@ -149,10 +146,11 @@ class PingPongExecutor(ModeExecutor):
                         # Reject the FINISHED signal
                         false_finish_count += 1
                         import sys
+
                         print(
                             f"[COMPLETION VALIDATOR] Rejected FINISHED signal (round {round_num + 1}): "
                             f"{validation_reason}",
-                            file=sys.stderr
+                            file=sys.stderr,
                         )
                         # Continue to next round
                         current_idx += 1
@@ -171,8 +169,8 @@ class PingPongExecutor(ModeExecutor):
                         "execution_type": "ping_pong",
                         "converged_at": round_num + 1,
                         "validation_reason": validation_reason,
-                        "false_finish_count": false_finish_count
-                    }
+                        "false_finish_count": false_finish_count,
+                    },
                 )
 
             current_idx += 1
@@ -193,6 +191,6 @@ class PingPongExecutor(ModeExecutor):
                 "execution_type": "ping_pong",
                 "max_rounds_reached": True,
                 "false_finish_count": false_finish_count,
-                "reason": "max_rounds_exceeded_without_convergence"  # V10: Explicit reason
-            }
+                "reason": "max_rounds_exceeded_without_convergence",  # V10: Explicit reason
+            },
         )

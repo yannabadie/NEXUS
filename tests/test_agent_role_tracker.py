@@ -16,8 +16,6 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.intelligence.swarm.agent_role_tracker import (
     MAX_ASSIGNMENTS,
     ROLES,
@@ -29,17 +27,16 @@ from core.intelligence.swarm.agent_role_tracker import (
     reset_role_tracker,
 )
 
-
 # =============================================================================
 # RoleAssignment Tests
 # =============================================================================
+
 
 class TestRoleAssignment:
     """Test RoleAssignment dataclass."""
 
     def test_to_dict(self):
-        a = RoleAssignment(agent_id="claude", role="lead", mode="LEAD_SUPPORT",
-                           quality_score=0.9, success=True)
+        a = RoleAssignment(agent_id="claude", role="lead", mode="LEAD_SUPPORT", quality_score=0.9, success=True)
         d = a.to_dict()
         assert d["agent_id"] == "claude"
         assert d["role"] == "lead"
@@ -49,12 +46,12 @@ class TestRoleAssignment:
 # AgentRoleProfile Tests
 # =============================================================================
 
+
 class TestAgentRoleProfile:
     """Test AgentRoleProfile dataclass."""
 
     def test_success_rate(self):
-        p = AgentRoleProfile(agent_id="claude", role="lead",
-                             total_assignments=10, successes=8)
+        p = AgentRoleProfile(agent_id="claude", role="lead", total_assignments=10, successes=8)
         assert abs(p.success_rate - 0.8) < 0.01
 
     def test_success_rate_zero(self):
@@ -62,8 +59,7 @@ class TestAgentRoleProfile:
         assert p.success_rate == 0.0
 
     def test_avg_quality(self):
-        p = AgentRoleProfile(agent_id="claude", role="lead",
-                             total_assignments=4, total_quality=3.2)
+        p = AgentRoleProfile(agent_id="claude", role="lead", total_assignments=4, total_quality=3.2)
         assert abs(p.avg_quality - 0.8) < 0.01
 
     def test_to_dict(self):
@@ -77,6 +73,7 @@ class TestAgentRoleProfile:
 # RoleTrackerStats Tests
 # =============================================================================
 
+
 class TestRoleTrackerStats:
     """Test RoleTrackerStats dataclass."""
 
@@ -89,6 +86,7 @@ class TestRoleTrackerStats:
 # =============================================================================
 # Recording Tests
 # =============================================================================
+
 
 class TestRecording:
     """Test assignment recording."""
@@ -120,6 +118,7 @@ class TestRecording:
 # =============================================================================
 # Query Tests
 # =============================================================================
+
 
 class TestQueries:
     """Test query methods."""
@@ -176,6 +175,7 @@ class TestQueries:
 # Listing Tests
 # =============================================================================
 
+
 class TestListing:
     """Test listing methods."""
 
@@ -196,6 +196,7 @@ class TestListing:
 # Bounded History Tests
 # =============================================================================
 
+
 class TestBoundedHistory:
     """Test bounded assignment history."""
 
@@ -209,6 +210,7 @@ class TestBoundedHistory:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test tracker statistics."""
@@ -237,6 +239,7 @@ class TestStatistics:
 # State Tests
 # =============================================================================
 
+
 class TestState:
     """Test state management."""
 
@@ -262,6 +265,7 @@ class TestState:
 # =============================================================================
 # Global Singleton Tests
 # =============================================================================
+
 
 class TestGlobalSingleton:
     """Test global role tracker."""
@@ -289,23 +293,32 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_swarm_package(self):
         from core.intelligence.swarm import (
-            AgentRoleTracker, RoleAssignment, AgentRoleProfile,
+            AgentRoleProfile,
+            AgentRoleTracker,
+            RoleAssignment,
             RoleTrackerStats,
-            get_role_tracker, reset_role_tracker,
+            get_role_tracker,
+            reset_role_tracker,
         )
-        assert all([
-            AgentRoleTracker, RoleAssignment, AgentRoleProfile,
-            RoleTrackerStats,
-            get_role_tracker, reset_role_tracker,
-        ])
+
+        assert all(
+            [
+                AgentRoleTracker,
+                RoleAssignment,
+                AgentRoleProfile,
+                RoleTrackerStats,
+                get_role_tracker,
+                reset_role_tracker,
+            ]
+        )
 
     def test_constants(self):
-        from core.intelligence.swarm.agent_role_tracker import MAX_ASSIGNMENTS, ROLES
         assert MAX_ASSIGNMENTS == 50000
         assert "lead" in ROLES
         assert "support" in ROLES

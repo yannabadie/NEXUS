@@ -9,20 +9,19 @@ Verifies:
 5. End-to-end memory influence on mode selection
 """
 
-import pytest
-from pathlib import Path
 from dataclasses import dataclass
-from typing import List, Optional
 from enum import Enum
 
-from core.memory_pkg.memory import SuccessMemory, SuccessEntry  # V2 via backward compat alias
-from core.intelligence.swarm.mode_selector import ModeSelector, ModeProposal
-from core.intelligence.swarm.collaboration_modes import CollaborationMode
+import pytest
 
+from core.intelligence.swarm.collaboration_modes import CollaborationMode
+from core.intelligence.swarm.mode_selector import ModeSelector
+from core.memory_pkg.memory import SuccessEntry, SuccessMemory  # V2 via backward compat alias
 
 # =============================================================================
 # Mock Classes
 # =============================================================================
+
 
 class MockTaskComplexity(Enum):
     TRIVIAL = 1
@@ -42,11 +41,12 @@ class MockTaskDomain(Enum):
 @dataclass
 class MockTaskAnalysis:
     """Mock TaskAnalysis for testing."""
+
     raw_input: str = "Test task"
     complexity: MockTaskComplexity = MockTaskComplexity.MODERATE
-    domains: List[MockTaskDomain] = None
-    primary_domain: Optional[MockTaskDomain] = None
-    recommended_lead: Optional[str] = None
+    domains: list[MockTaskDomain] = None
+    primary_domain: MockTaskDomain | None = None
+    recommended_lead: str | None = None
     requires_web: bool = False
     requires_deep_reasoning: bool = False
     requires_iteration: bool = False
@@ -62,6 +62,7 @@ class MockTaskAnalysis:
 # =============================================================================
 # Tokenization Tests
 # =============================================================================
+
 
 class TestTokenization:
     """Tests for internal tokenization."""
@@ -118,6 +119,7 @@ class TestTokenization:
 # Jaccard Similarity Tests
 # =============================================================================
 
+
 class TestJaccardSimilarity:
     """Tests for Jaccard similarity calculation."""
 
@@ -157,6 +159,7 @@ class TestJaccardSimilarity:
 # find_similar_tasks Tests
 # =============================================================================
 
+
 class TestFindSimilarTasks:
     """Tests for find_similar_tasks() method."""
 
@@ -177,7 +180,7 @@ class TestFindSimilarTasks:
                 complexity="MODERATE",
                 domains=["coding", "debugging"],
                 quality_score=0.85,
-                timestamp="2025-12-04T12:00:00"
+                timestamp="2025-12-04T12:00:00",
             ),
             SuccessEntry(
                 task_id="task-002",
@@ -189,7 +192,7 @@ class TestFindSimilarTasks:
                 complexity="MODERATE",
                 domains=["coding"],
                 quality_score=0.9,
-                timestamp="2025-12-04T13:00:00"
+                timestamp="2025-12-04T13:00:00",
             ),
             SuccessEntry(
                 task_id="task-003",
@@ -201,7 +204,7 @@ class TestFindSimilarTasks:
                 complexity="SIMPLE",
                 domains=["debugging"],
                 quality_score=0.8,
-                timestamp="2025-12-04T14:00:00"
+                timestamp="2025-12-04T14:00:00",
             ),
         ]
 
@@ -213,11 +216,7 @@ class TestFindSimilarTasks:
 
     def test_find_exact_match(self, memory_with_entries):
         """Find tasks with exact word matches."""
-        similar = memory_with_entries.find_similar_tasks(
-            "Fix authentication bug",
-            limit=5,
-            min_score=0.1
-        )
+        similar = memory_with_entries.find_similar_tasks("Fix authentication bug", limit=5, min_score=0.1)
 
         assert len(similar) > 0
         # First result should be task-001 or task-003 (auth/authentication)
@@ -226,11 +225,7 @@ class TestFindSimilarTasks:
 
     def test_find_similar_by_domain(self, memory_with_entries):
         """Find tasks similar by domain keywords."""
-        similar = memory_with_entries.find_similar_tasks(
-            "Debug the login problem",
-            limit=5,
-            min_score=0.1
-        )
+        similar = memory_with_entries.find_similar_tasks("Debug the login problem", limit=5, min_score=0.1)
 
         assert len(similar) > 0
         # Should match task-003 (debug, login)
@@ -239,11 +234,7 @@ class TestFindSimilarTasks:
 
     def test_limit_results(self, memory_with_entries):
         """Limit parameter works."""
-        similar = memory_with_entries.find_similar_tasks(
-            "Fix authentication bug issue login",
-            limit=1,
-            min_score=0.01
-        )
+        similar = memory_with_entries.find_similar_tasks("Fix authentication bug issue login", limit=1, min_score=0.01)
 
         assert len(similar) <= 1
 
@@ -252,19 +243,17 @@ class TestFindSimilarTasks:
         similar = memory_with_entries.find_similar_tasks(
             "Fix authentication",
             limit=10,
-            min_score=0.9  # Very high threshold
+            min_score=0.9,  # Very high threshold
         )
 
         # All returned items should have score >= 0.9
-        for entry, score in similar:
+        for _entry, score in similar:
             assert score >= 0.9
 
     def test_no_matches(self, memory_with_entries):
         """Returns empty for no matches."""
         similar = memory_with_entries.find_similar_tasks(
-            "completely unrelated query about bananas",
-            limit=5,
-            min_score=0.5
+            "completely unrelated query about bananas", limit=5, min_score=0.5
         )
 
         assert len(similar) == 0
@@ -279,6 +268,7 @@ class TestFindSimilarTasks:
 # =============================================================================
 # get_best_mode_for_similar Tests
 # =============================================================================
+
 
 class TestGetBestModeForSimilar:
     """Tests for get_best_mode_for_similar() helper."""
@@ -300,7 +290,7 @@ class TestGetBestModeForSimilar:
                 complexity="MODERATE",
                 domains=["coding"],
                 quality_score=0.9,
-                timestamp="2025-12-04T12:00:00"
+                timestamp="2025-12-04T12:00:00",
             ),
             SuccessEntry(
                 task_id="task-002",
@@ -312,7 +302,7 @@ class TestGetBestModeForSimilar:
                 complexity="MODERATE",
                 domains=["debugging"],
                 quality_score=0.85,
-                timestamp="2025-12-04T13:00:00"
+                timestamp="2025-12-04T13:00:00",
             ),
             # API tasks solved with LEAD_SUPPORT
             SuccessEntry(
@@ -325,7 +315,7 @@ class TestGetBestModeForSimilar:
                 complexity="MODERATE",
                 domains=["coding"],
                 quality_score=0.95,
-                timestamp="2025-12-04T14:00:00"
+                timestamp="2025-12-04T14:00:00",
             ),
         ]
 
@@ -335,10 +325,7 @@ class TestGetBestModeForSimilar:
 
     def test_returns_best_mode(self, memory_with_mode_history):
         """Returns mode that worked for similar tasks."""
-        result = memory_with_mode_history.get_best_mode_for_similar(
-            "Fix the authentication issue",
-            min_similarity=0.1
-        )
+        result = memory_with_mode_history.get_best_mode_for_similar("Fix the authentication issue", min_similarity=0.1)
 
         assert result is not None
         mode, task_id, similarity = result
@@ -348,10 +335,7 @@ class TestGetBestModeForSimilar:
 
     def test_returns_none_for_no_match(self, memory_with_mode_history):
         """Returns None when no similar tasks found."""
-        result = memory_with_mode_history.get_best_mode_for_similar(
-            "completely unrelated query",
-            min_similarity=0.5
-        )
+        result = memory_with_mode_history.get_best_mode_for_similar("completely unrelated query", min_similarity=0.5)
 
         assert result is None
 
@@ -359,6 +343,7 @@ class TestGetBestModeForSimilar:
 # =============================================================================
 # ModeSelector Memory Integration Tests
 # =============================================================================
+
 
 class TestModeSelectorMemoryIntegration:
     """Tests for ModeSelector with SuccessMemory integration."""
@@ -379,7 +364,7 @@ class TestModeSelectorMemoryIntegration:
                 complexity="MODERATE",
                 domains=["coding", "debugging"],
                 quality_score=0.9,
-                timestamp="2025-12-04T12:00:00"
+                timestamp="2025-12-04T12:00:00",
             ),
         ]
 
@@ -405,7 +390,7 @@ class TestModeSelectorMemoryIntegration:
         analysis = MockTaskAnalysis(
             raw_input="Fix authentication bug in auth module",
             complexity=MockTaskComplexity.MODERATE,
-            domains=[MockTaskDomain.CODING, MockTaskDomain.DEBUGGING]
+            domains=[MockTaskDomain.CODING, MockTaskDomain.DEBUGGING],
         )
 
         # Manually test _apply_memory_boost
@@ -425,23 +410,20 @@ class TestModeSelectorMemoryIntegration:
         selector = ModeSelector(success_memory=memory_with_history)
 
         analysis = MockTaskAnalysis(
-            raw_input="Fix authentication bug",
-            complexity=MockTaskComplexity.MODERATE,
-            domains=[MockTaskDomain.CODING]
+            raw_input="Fix authentication bug", complexity=MockTaskComplexity.MODERATE, domains=[MockTaskDomain.CODING]
         )
 
         proposal = selector.select_mode(analysis)
 
         # Check if memory was consulted (may or may not boost depending on similarity)
-        if selector._last_memory_match:
-            # If memory matched, check reasoning mentions it
-            if selector._last_memory_match.get("mode") == proposal.mode.value:
-                assert "memory" in proposal.reasoning.lower() or "similar" in proposal.reasoning.lower()
+        if selector._last_memory_match and selector._last_memory_match.get("mode") == proposal.mode.value:
+            assert "memory" in proposal.reasoning.lower() or "similar" in proposal.reasoning.lower()
 
 
 # =============================================================================
 # End-to-End Integration Tests
 # =============================================================================
+
 
 class TestEndToEndMemoryInfluence:
     """End-to-end tests for memory influence on mode selection."""
@@ -462,7 +444,7 @@ class TestEndToEndMemoryInfluence:
                 complexity="COMPLEX",
                 domains=["coding", "database"],
                 quality_score=0.95,
-                timestamp="2025-12-04T12:00:00"
+                timestamp="2025-12-04T12:00:00",
             ),
             SuccessEntry(
                 task_id="task-db-002",
@@ -474,7 +456,7 @@ class TestEndToEndMemoryInfluence:
                 complexity="COMPLEX",
                 domains=["database"],
                 quality_score=0.9,
-                timestamp="2025-12-04T13:00:00"
+                timestamp="2025-12-04T13:00:00",
             ),
         ]
 
@@ -488,7 +470,7 @@ class TestEndToEndMemoryInfluence:
         analysis = MockTaskAnalysis(
             raw_input="Optimize the database query performance",
             complexity=MockTaskComplexity.COMPLEX,
-            domains=[MockTaskDomain.CODING]
+            domains=[MockTaskDomain.CODING],
         )
 
         # Check that memory boost is applied
@@ -505,9 +487,7 @@ class TestEndToEndMemoryInfluence:
         selector = ModeSelector(success_memory=None)
 
         analysis = MockTaskAnalysis(
-            raw_input="Fix the bug",
-            complexity=MockTaskComplexity.MODERATE,
-            domains=[MockTaskDomain.CODING]
+            raw_input="Fix the bug", complexity=MockTaskComplexity.MODERATE, domains=[MockTaskDomain.CODING]
         )
 
         mode_scores = {mode: 0.5 for mode in CollaborationMode}

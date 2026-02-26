@@ -15,22 +15,20 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.infrastructure.bootstrap.startup_analytics import (
     MAX_BOOT_RECORDS,
-    StartupAnalytics,
     BootStepRecord,
     ComponentProfile,
+    StartupAnalytics,
     StartupStats,
     get_startup_analytics,
     reset_startup_analytics,
 )
 
-
 # =============================================================================
 # BootStepRecord Tests
 # =============================================================================
+
 
 class TestBootStepRecord:
     """Test BootStepRecord dataclass."""
@@ -46,6 +44,7 @@ class TestBootStepRecord:
 # ComponentProfile Tests
 # =============================================================================
 
+
 class TestComponentProfile:
     """Test ComponentProfile dataclass."""
 
@@ -58,9 +57,7 @@ class TestComponentProfile:
         assert p.success_rate == 0.0
 
     def test_avg_duration(self):
-        p = ComponentProfile(
-            component_name="redis", total_boots=4, total_duration_ms=400.0
-        )
+        p = ComponentProfile(component_name="redis", total_boots=4, total_duration_ms=400.0)
         assert abs(p.avg_duration_ms - 100.0) < 0.01
 
     def test_avg_duration_zero(self):
@@ -78,6 +75,7 @@ class TestComponentProfile:
 # StartupStats Tests
 # =============================================================================
 
+
 class TestStartupStats:
     """Test StartupStats dataclass."""
 
@@ -90,6 +88,7 @@ class TestStartupStats:
 # =============================================================================
 # Recording Tests
 # =============================================================================
+
 
 class TestRecording:
     """Test step recording."""
@@ -121,6 +120,7 @@ class TestRecording:
 # =============================================================================
 # Query Tests
 # =============================================================================
+
 
 class TestQueries:
     """Test query methods."""
@@ -183,12 +183,13 @@ class TestQueries:
 # Bounded History Tests
 # =============================================================================
 
+
 class TestBoundedHistory:
     """Test bounded step history."""
 
     def test_eviction(self):
         a = StartupAnalytics(max_records=5)
-        for i in range(10):
+        for _i in range(10):
             a.record_step("test")
         assert a.step_count == 5
 
@@ -196,6 +197,7 @@ class TestBoundedHistory:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test analytics statistics."""
@@ -223,6 +225,7 @@ class TestStatistics:
 # State Tests
 # =============================================================================
 
+
 class TestState:
     """Test state management."""
 
@@ -248,6 +251,7 @@ class TestState:
 # =============================================================================
 # Global Singleton Tests
 # =============================================================================
+
 
 class TestGlobalSingleton:
     """Test global startup analytics."""
@@ -275,21 +279,30 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_bootstrap_package(self):
         from core.infrastructure.bootstrap import (
-            StartupAnalytics, BootStepRecord,
-            ComponentProfile, StartupStats,
-            get_startup_analytics, reset_startup_analytics,
+            BootStepRecord,
+            ComponentProfile,
+            StartupAnalytics,
+            StartupStats,
+            get_startup_analytics,
+            reset_startup_analytics,
         )
-        assert all([
-            StartupAnalytics, BootStepRecord,
-            ComponentProfile, StartupStats,
-            get_startup_analytics, reset_startup_analytics,
-        ])
+
+        assert all(
+            [
+                StartupAnalytics,
+                BootStepRecord,
+                ComponentProfile,
+                StartupStats,
+                get_startup_analytics,
+                reset_startup_analytics,
+            ]
+        )
 
     def test_constants(self):
-        from core.infrastructure.bootstrap.startup_analytics import MAX_BOOT_RECORDS
         assert MAX_BOOT_RECORDS == 50000

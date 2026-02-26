@@ -21,7 +21,7 @@ import threading
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -39,23 +39,25 @@ DEFAULT_CONFIDENCE_THRESHOLD = 0.6
 # Types
 # =============================================================================
 
+
 @dataclass
 class StrategyRecord:
     """A single strategy execution record."""
+
     domain: str
     complexity: str  # trivial, simple, moderate, complex, expert
     mode: str  # PARALLEL, SEQUENTIAL, LEAD_SUPPORT, PING_PONG, SPECIALIST, RED_BLUE
     quality: float = 0.0
     success: bool = True
     duration_ms: float = 0.0
-    agents: List[str] = field(default_factory=list)
+    agents: list[str] = field(default_factory=list)
     timestamp: float = field(default_factory=time.monotonic)
 
     @property
     def key(self) -> str:
         return f"{self.domain}:{self.complexity}"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "domain": self.domain,
             "complexity": self.complexity,
@@ -70,6 +72,7 @@ class StrategyRecord:
 @dataclass
 class ModeEffectiveness:
     """Effectiveness of a mode for a specific domain/complexity."""
+
     mode: str
     total_uses: int = 0
     successes: int = 0
@@ -85,7 +88,7 @@ class ModeEffectiveness:
         """Composite score: weighted average of success rate and quality."""
         return 0.4 * self.success_rate + 0.6 * self.average_quality
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "mode": self.mode,
             "total_uses": self.total_uses,
@@ -100,12 +103,13 @@ class ModeEffectiveness:
 @dataclass
 class ModeSuggestion:
     """A mode suggestion with confidence."""
+
     mode: str
     confidence: float
     based_on_samples: int
     effectiveness: ModeEffectiveness
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "mode": self.mode,
             "confidence": round(self.confidence, 4),
@@ -117,12 +121,13 @@ class ModeSuggestion:
 @dataclass
 class StrategyStats:
     """Strategy memory statistics."""
+
     total_records: int
     unique_domains: int
     unique_keys: int
     total_modes_tracked: int
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_records": self.total_records,
             "unique_domains": self.unique_domains,
@@ -134,6 +139,7 @@ class StrategyStats:
 # =============================================================================
 # Strategy Memory
 # =============================================================================
+
 
 class StrategyMemory:
     """
@@ -148,9 +154,9 @@ class StrategyMemory:
 
     def __init__(self, *, max_records: int = MAX_RECORDS):
         self._max_records = max_records
-        self._records: List[StrategyRecord] = []
+        self._records: list[StrategyRecord] = []
         # key (domain:complexity) -> mode -> aggregated effectiveness
-        self._effectiveness: Dict[str, Dict[str, ModeEffectiveness]] = defaultdict(dict)
+        self._effectiveness: dict[str, dict[str, ModeEffectiveness]] = defaultdict(dict)
         self._lock = threading.Lock()
 
     # =========================================================================
@@ -166,7 +172,7 @@ class StrategyMemory:
         quality: float = 0.0,
         success: bool = True,
         duration_ms: float = 0.0,
-        agents: Optional[List[str]] = None,
+        agents: list[str] | None = None,
     ) -> StrategyRecord:
         """Record a strategy execution outcome."""
         q = max(0.0, min(1.0, quality))
@@ -195,13 +201,9 @@ class StrategyMemory:
             if success:
                 eff.successes += 1
             # Running average for quality
-            eff.average_quality = (
-                (eff.average_quality * (eff.total_uses - 1) + q) / eff.total_uses
-            )
+            eff.average_quality = (eff.average_quality * (eff.total_uses - 1) + q) / eff.total_uses
             # Running average for duration
-            eff.average_duration_ms = (
-                (eff.average_duration_ms * (eff.total_uses - 1) + duration_ms) / eff.total_uses
-            )
+            eff.average_duration_ms = (eff.average_duration_ms * (eff.total_uses - 1) + duration_ms) / eff.total_uses
 
         return record
 
@@ -215,7 +217,7 @@ class StrategyMemory:
         complexity: str,
         *,
         min_samples: int = MIN_SAMPLES_FOR_SUGGESTION,
-    ) -> Optional[ModeSuggestion]:
+    ) -> ModeSuggestion | None:
         """
         Suggest the best mode for a domain/complexity based on history.
         Returns None if insufficient data.
@@ -227,10 +229,7 @@ class StrategyMemory:
             return None
 
         # Filter to modes with enough samples
-        candidates = {
-            m: eff for m, eff in modes.items()
-            if eff.total_uses >= min_samples
-        }
+        candidates = {m: eff for m, eff in modes.items() if eff.total_uses >= min_samples}
 
         if not candidates:
             return None
@@ -258,32 +257,32 @@ class StrategyMemory:
         self,
         domain: str,
         complexity: str,
-    ) -> List[ModeEffectiveness]:
+    ) -> list[ModeEffectiveness]:
         """Get effectiveness of all modes for a domain/complexity, sorted by score."""
         key = f"{domain}:{complexity}"
         modes = self._effectiveness.get(key, {})
         return sorted(modes.values(), key=lambda e: e.score, reverse=True)
 
-    def get_all_effectiveness(self) -> Dict[str, List[ModeEffectiveness]]:
+    def get_all_effectiveness(self) -> dict[str, list[ModeEffectiveness]]:
         """Get effectiveness across all domain/complexity keys."""
         result = {}
         for key, modes in self._effectiveness.items():
             result[key] = sorted(modes.values(), key=lambda e: e.score, reverse=True)
         return result
 
-    def get_domain_summary(self, domain: str) -> Dict[str, int]:
+    def get_domain_summary(self, domain: str) -> dict[str, int]:
         """Get count of records per mode for a domain (across all complexities)."""
-        counts: Dict[str, int] = {}
+        counts: dict[str, int] = {}
         for record in self._records:
             if record.domain == domain:
                 counts[record.mode] = counts.get(record.mode, 0) + 1
         return counts
 
-    def list_domains(self) -> List[str]:
+    def list_domains(self) -> list[str]:
         """List all recorded domains."""
         return sorted(set(r.domain for r in self._records))
 
-    def list_keys(self) -> List[str]:
+    def list_keys(self) -> list[str]:
         """List all domain:complexity keys with data."""
         return sorted(self._effectiveness.keys())
 
@@ -316,7 +315,7 @@ class StrategyMemory:
             self._records.clear()
             self._effectiveness.clear()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "record_count": self.record_count,
             "max_records": self._max_records,
@@ -328,7 +327,7 @@ class StrategyMemory:
 # Global Instance
 # =============================================================================
 
-_memory: Optional[StrategyMemory] = None
+_memory: StrategyMemory | None = None
 _memory_lock = threading.Lock()
 
 

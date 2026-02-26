@@ -16,13 +16,11 @@ Usage:
 Phase 1 extraction (lowest risk, isolated logic).
 """
 
-from dataclasses import dataclass
-from enum import Enum
-from typing import Optional
 import logging
+from dataclasses import dataclass
 
 from core.fsm.states import OrchestratorState
-from core.security_pkg.security import get_input_guard, ThreatLevel
+from core.security_pkg.security import ThreatLevel, get_input_guard
 
 
 @dataclass
@@ -37,9 +35,10 @@ class GuardValidationResult:
         reason: Human-readable explanation
         risk_score: Numerical risk score (0.0-1.0)
     """
+
     is_safe: bool
-    threat_level: Optional[ThreatLevel] = None
-    threat_type: Optional[str] = None
+    threat_level: ThreatLevel | None = None
+    threat_type: str | None = None
     reason: str = ""
     risk_score: float = 0.0
 
@@ -63,11 +62,7 @@ class GuardPipeline:
         self.logger = logging.getLogger("nexus.guard_pipeline")
         self._input_guard = get_input_guard()
 
-    def validate_input(
-        self,
-        user_input: Optional[str],
-        state: OrchestratorState
-    ) -> GuardValidationResult:
+    def validate_input(self, user_input: str | None, state: OrchestratorState) -> GuardValidationResult:
         """
         Validate user input for security threats.
 
@@ -96,19 +91,28 @@ class GuardPipeline:
         validation = self._input_guard.validate(user_input)
 
         if not validation.is_safe:
-            self.logger.warning("Prompt injection detected", {
-                "threat_type": validation.threat_type.value if hasattr(validation.threat_type, 'value') else str(validation.threat_type),
-                "threat_level": validation.threat_level.value if hasattr(validation.threat_level, 'value') else str(validation.threat_level),
-                "risk_score": validation.risk_score,
-                "input_length": len(user_input)
-            })
+            self.logger.warning(
+                "Prompt injection detected",
+                {
+                    "threat_type": validation.threat_type.value
+                    if hasattr(validation.threat_type, "value")
+                    else str(validation.threat_type),
+                    "threat_level": validation.threat_level.value
+                    if hasattr(validation.threat_level, "value")
+                    else str(validation.threat_level),
+                    "risk_score": validation.risk_score,
+                    "input_length": len(user_input),
+                },
+            )
 
             return GuardValidationResult(
                 is_safe=False,
                 threat_level=validation.threat_level,
-                threat_type=validation.threat_type.value if hasattr(validation.threat_type, 'value') else str(validation.threat_type),
+                threat_type=validation.threat_type.value
+                if hasattr(validation.threat_type, "value")
+                else str(validation.threat_type),
                 reason=validation.reason,
-                risk_score=validation.risk_score
+                risk_score=validation.risk_score,
             )
 
         return GuardValidationResult(is_safe=True)

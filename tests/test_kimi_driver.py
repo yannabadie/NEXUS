@@ -11,23 +11,18 @@ They verify:
 """
 
 import asyncio
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
-from dataclasses import dataclass
-from typing import Any, AsyncIterator
 
 from core.drivers.protocol import (
-    DriverProtocol,
-    DriverResponse,
     DriverResponseStatus,
-    StreamChunk,
-    ToolCall,
 )
-
 
 # =============================================================================
 # Mock OpenAI Response Objects (Kimi uses OpenAI-compatible API)
 # =============================================================================
+
 
 class MockOpenAIMessage:
     def __init__(self, content: str = "Hello from Kimi!", tool_calls: list = None):
@@ -94,6 +89,7 @@ class MockOpenAIDelta:
 # =============================================================================
 # KimiSDKDriver Tests
 # =============================================================================
+
 
 @pytest.fixture
 def mock_openai_client():
@@ -171,10 +167,7 @@ class TestKimiSDKDriver:
         with patch.dict("os.environ", {"KIMI_API_KEY": "sk-test"}):
             driver = KimiSDKDriver()
 
-        await driver.invoke(
-            "What's in this image?",
-            vision_input="data:image/png;base64,iVBORw0KG..."
-        )
+        await driver.invoke("What's in this image?", vision_input="data:image/png;base64,iVBORw0KG...")
 
         # Verify multimodal message format
         call_args = mock_openai_client.chat.completions.create.call_args
@@ -190,29 +183,25 @@ class TestKimiSDKDriver:
         from core.drivers.kimi_sdk_driver import KimiSDKDriver
 
         # Mock response with tool call
-        tool_call = MockOpenAIToolCall(
-            name="get_weather",
-            arguments='{"location": "Paris"}',
-            tc_id="call_abc123"
-        )
+        tool_call = MockOpenAIToolCall(name="get_weather", arguments='{"location": "Paris"}', tc_id="call_abc123")
         mock_message = MockOpenAIMessage(content="", tool_calls=[tool_call])
-        mock_response = MockOpenAIChatCompletion(
-            choices=[MockOpenAIChoice(mock_message, finish_reason="tool_calls")]
-        )
+        mock_response = MockOpenAIChatCompletion(choices=[MockOpenAIChoice(mock_message, finish_reason="tool_calls")])
         mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
         with patch.dict("os.environ", {"KIMI_API_KEY": "sk-test"}):
             driver = KimiSDKDriver()
 
         # Invoke with tools
-        tools = [{
-            "type": "function",
-            "function": {
-                "name": "get_weather",
-                "description": "Get weather",
-                "parameters": {"type": "object", "properties": {}}
+        tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_weather",
+                    "description": "Get weather",
+                    "parameters": {"type": "object", "properties": {}},
+                },
             }
-        }]
+        ]
         result = await driver.invoke("What's the weather?", tools=tools)
 
         # Verify tool call in response
@@ -319,9 +308,8 @@ class TestKimiSDKDriver:
         """Test driver initialization without API key."""
         from core.drivers.kimi_sdk_driver import KimiSDKDriver
 
-        with patch.dict("os.environ", {}, clear=True):
-            with pytest.raises(ValueError, match="KIMI_API_KEY not found"):
-                KimiSDKDriver()
+        with patch.dict("os.environ", {}, clear=True), pytest.raises(ValueError, match="KIMI_API_KEY not found"):
+            KimiSDKDriver()
 
     async def test_model_alias_resolution(self, mock_openai_client):
         """Test model alias resolution."""
@@ -350,9 +338,7 @@ class TestKimiSDKDriver:
         from core.drivers.kimi_sdk_driver import KimiSDKDriver
         from core.drivers.response_cache import ResponseCache
 
-        mock_response = MockOpenAIChatCompletion(
-            choices=[MockOpenAIChoice(MockOpenAIMessage("Cached response"))]
-        )
+        mock_response = MockOpenAIChatCompletion(choices=[MockOpenAIChoice(MockOpenAIMessage("Cached response"))])
         mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
         cache = ResponseCache(max_size=100)
@@ -375,9 +361,7 @@ class TestKimiSDKDriver:
         """Test budget tracker integration."""
         from core.drivers.kimi_sdk_driver import KimiSDKDriver
 
-        mock_response = MockOpenAIChatCompletion(
-            usage=MockOpenAIUsage(prompt_tokens=1000, completion_tokens=500)
-        )
+        mock_response = MockOpenAIChatCompletion(usage=MockOpenAIUsage(prompt_tokens=1000, completion_tokens=500))
         mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
         mock_tracker = MagicMock()
@@ -415,9 +399,7 @@ class TestKimiSDKDriver:
         assert mock_monitor.record_success.called
 
         # Error call
-        mock_openai_client.chat.completions.create = AsyncMock(
-            side_effect=Exception("API error")
-        )
+        mock_openai_client.chat.completions.create = AsyncMock(side_effect=Exception("API error"))
         await driver.invoke("Test")
         assert mock_monitor.record_error.called
 
@@ -426,14 +408,15 @@ class TestKimiSDKDriver:
 # Factory Integration Tests
 # =============================================================================
 
+
 @pytest.mark.asyncio
 class TestKimiFactoryIntegration:
     """Tests for Kimi driver factory integration."""
 
     async def test_factory_get_kimi_sdk(self):
         """Test AsyncDriverFactory.get_kimi_sdk()."""
-        from core.drivers.async_factory import AsyncDriverFactory
         from core.config import OrchestratorConfig
+        from core.drivers.async_factory import AsyncDriverFactory
 
         with patch.dict("os.environ", {"KIMI_API_KEY": "sk-test"}):
             config = OrchestratorConfig(
@@ -454,8 +437,8 @@ class TestKimiFactoryIntegration:
 
     async def test_factory_kimi_availability(self):
         """Test AsyncDriverFactory.kimi_sdk_available property."""
-        from core.drivers.async_factory import AsyncDriverFactory
         from core.config import OrchestratorConfig
+        from core.drivers.async_factory import AsyncDriverFactory
 
         # With API key
         with patch.dict("os.environ", {"KIMI_API_KEY": "sk-test"}):

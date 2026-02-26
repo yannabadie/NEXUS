@@ -8,15 +8,16 @@ Tests:
 - Quickstart guide
 """
 
-import pytest
-from pathlib import Path
-from unittest.mock import MagicMock, patch
 from datetime import date
+from pathlib import Path
+from unittest.mock import MagicMock
 
+import pytest
 
 # =============================================================================
 # COMMAND CATEGORIES TESTS (Phase 16b)
 # =============================================================================
+
 
 class TestCommandCategories:
     """Test categorized command structure."""
@@ -34,11 +35,11 @@ class TestCommandCategories:
             "Monitoring",
             "Workspace",
             "Memory",  # V7.8 Phase 10c
-            "System"
+            "System",
         ]
 
         for expected in expected_categories:
-            found = any(expected in cat for cat in COMMAND_CATEGORIES.keys())
+            found = any(expected in cat for cat in COMMAND_CATEGORIES)
             assert found, f"Category '{expected}' not found"
 
     def test_budget_commands_in_monitoring(self):
@@ -64,7 +65,7 @@ class TestCommandCategories:
 
     def test_slash_commands_backwards_compat(self):
         """Verify flat SLASH_COMMANDS is populated."""
-        from core.interface_pkg.interface.commands import SLASH_COMMANDS, COMMAND_CATEGORIES
+        from core.interface_pkg.interface.commands import COMMAND_CATEGORIES, SLASH_COMMANDS
 
         # Should contain all commands from all categories
         total_commands = sum(len(cmds) for cmds in COMMAND_CATEGORIES.values())
@@ -89,12 +90,13 @@ class TestCommandCategories:
         assert "Monitoring" in get_category_for_command("/budget")
         assert "Monitoring" in get_category_for_command("/telemetry")
         assert "System" in get_category_for_command("/help")
-        assert "Unknown" == get_category_for_command("/nonexistent")
+        assert get_category_for_command("/nonexistent") == "Unknown"
 
 
 # =============================================================================
 # TUTORIAL TESTS (Phase 16c)
 # =============================================================================
+
 
 class TestInteractiveTutorial:
     """Test interactive tutorial functionality."""
@@ -115,10 +117,7 @@ class TestInteractiveTutorial:
         from core.interface_pkg.interface.tutorial import TutorialStep
 
         step = TutorialStep(
-            title="Test Step",
-            explanation="Test explanation",
-            suggested_command="/test",
-            tip="Test tip"
+            title="Test Step", explanation="Test explanation", suggested_command="/test", tip="Test tip"
         )
 
         assert step.title == "Test Step"
@@ -132,10 +131,7 @@ class TestInteractiveTutorial:
 
         tutorial = InteractiveTutorial()
         step = TutorialStep(
-            title="Test",
-            explanation="Explanation here",
-            suggested_command="/test",
-            tip="A helpful tip"
+            title="Test", explanation="Explanation here", suggested_command="/test", tip="A helpful tip"
         )
 
         formatted = tutorial.format_step(step, 0)
@@ -181,10 +177,7 @@ class TestInteractiveTutorial:
         # Mock input to press Enter for each step
         mock_input = MagicMock(return_value="")
 
-        result = tutorial.run(
-            print_fn=output.append,
-            input_fn=mock_input
-        )
+        result = tutorial.run(print_fn=output.append, input_fn=mock_input)
 
         assert result is True
         assert mock_input.call_count == len(tutorial.steps)
@@ -199,10 +192,7 @@ class TestInteractiveTutorial:
         # Quit on first step
         mock_input = MagicMock(return_value="q")
 
-        result = tutorial.run(
-            print_fn=output.append,
-            input_fn=mock_input
-        )
+        result = tutorial.run(print_fn=output.append, input_fn=mock_input)
 
         assert result is False
         assert mock_input.call_count == 1
@@ -224,10 +214,7 @@ class TestInteractiveTutorial:
             call_count += 1
             return "s" if call_count < total_steps else ""
 
-        result = tutorial.run(
-            print_fn=output.append,
-            input_fn=mock_input
-        )
+        result = tutorial.run(print_fn=output.append, input_fn=mock_input)
 
         assert result is True
 
@@ -235,6 +222,7 @@ class TestInteractiveTutorial:
 # =============================================================================
 # BUDGET COMMAND TESTS (Phase 16a)
 # =============================================================================
+
 
 class TestBudgetCommand:
     """Test /budget command functionality."""
@@ -249,7 +237,7 @@ class TestBudgetCommand:
             "remaining_usd": 44.75,
             "percentage_used": 10.5,
             "api_calls_today": 15,
-            "reset_date": date.today().isoformat()
+            "reset_date": date.today().isoformat(),
         }
         tracker.get_warning_level.return_value = None
         tracker.get_remaining.return_value = 44.75
@@ -258,8 +246,9 @@ class TestBudgetCommand:
 
     def test_budget_stats_structure(self):
         """Verify BudgetTracker.get_stats() structure."""
-        from core.observability.telemetry import BudgetTracker
         import tempfile
+
+        from core.observability.telemetry import BudgetTracker
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tracker = BudgetTracker(workspace_path=Path(tmpdir))
@@ -274,8 +263,9 @@ class TestBudgetCommand:
 
     def test_budget_warning_levels(self):
         """Test warning level thresholds."""
-        from core.observability.telemetry import BudgetTracker
         import tempfile
+
+        from core.observability.telemetry import BudgetTracker
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tracker = BudgetTracker(workspace_path=Path(tmpdir))
@@ -296,8 +286,9 @@ class TestBudgetCommand:
 
     def test_budget_reset_clears_counters(self):
         """Test reset_daily clears counters."""
-        from core.observability.telemetry import BudgetTracker
         import tempfile
+
+        from core.observability.telemetry import BudgetTracker
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tracker = BudgetTracker(workspace_path=Path(tmpdir))
@@ -311,8 +302,9 @@ class TestBudgetCommand:
 
     def test_budget_add_credit(self):
         """Test add_credit increases limit."""
-        from core.observability.telemetry import BudgetTracker
         import tempfile
+
+        from core.observability.telemetry import BudgetTracker
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tracker = BudgetTracker(workspace_path=Path(tmpdir))
@@ -343,13 +335,14 @@ class TestBudgetCommand:
 # INTEGRATION TESTS
 # =============================================================================
 
+
 class TestPhase16Integration:
     """Integration tests for Phase 16 components."""
 
     def test_commands_tutorial_consistency(self):
         """Verify tutorial references valid commands."""
-        from core.interface_pkg.interface.tutorial import TUTORIAL_STEPS
         from core.interface_pkg.interface.commands import SLASH_COMMANDS
+        from core.interface_pkg.interface.tutorial import TUTORIAL_STEPS
 
         for step in TUTORIAL_STEPS:
             if step.suggested_command:
@@ -357,16 +350,16 @@ class TestPhase16Integration:
                 cmd = step.suggested_command.split()[0]
                 if cmd.startswith("/"):
                     # Find in SLASH_COMMANDS (may have args in key)
-                    found = any(cmd in key for key in SLASH_COMMANDS.keys())
+                    found = any(cmd in key for key in SLASH_COMMANDS)
                     assert found, f"Tutorial references unknown command: {cmd}"
 
     def test_help_references_all_categories(self):
         """Verify help message includes all categories."""
-        from core.interface_pkg.interface.commands import get_help_message, COMMAND_CATEGORIES
+        from core.interface_pkg.interface.commands import COMMAND_CATEGORIES, get_help_message
 
         help_text = get_help_message()
 
-        for category in COMMAND_CATEGORIES.keys():
+        for category in COMMAND_CATEGORIES:
             # Category name (without emoji) should appear
             cat_name = category.split(" ", 1)[-1] if " " in category else category
             assert cat_name in help_text, f"Category '{cat_name}' missing from help"

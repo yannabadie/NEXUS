@@ -18,21 +18,17 @@ Validates:
 
 import time
 
-import pytest
-
 from core.infrastructure.resilience.request_deduplicator import (
-    CheckResult,
     DeduplicationEntry,
-    DeduplicationStats,
     RequestDeduplicator,
     get_deduplicator,
     reset_deduplicator,
 )
 
-
 # =============================================================================
 # DeduplicationEntry Tests
 # =============================================================================
+
 
 class TestDeduplicationEntry:
     """Test DeduplicationEntry dataclass."""
@@ -48,20 +44,26 @@ class TestDeduplicationEntry:
 
     def test_auto_timestamp(self):
         e = DeduplicationEntry(
-            request_id="req1", fingerprint="abc", status="pending",
+            request_id="req1",
+            fingerprint="abc",
+            status="pending",
         )
         assert e.created_at > 0
 
     def test_not_expired(self):
         e = DeduplicationEntry(
-            request_id="req1", fingerprint="abc", status="pending",
+            request_id="req1",
+            fingerprint="abc",
+            status="pending",
             ttl_seconds=300,
         )
         assert e.is_expired is False
 
     def test_expired(self):
         e = DeduplicationEntry(
-            request_id="req1", fingerprint="abc", status="pending",
+            request_id="req1",
+            fingerprint="abc",
+            status="pending",
             ttl_seconds=0.0,  # Immediately expired
             created_at=time.monotonic() - 1,
         )
@@ -69,7 +71,8 @@ class TestDeduplicationEntry:
 
     def test_to_dict(self):
         e = DeduplicationEntry(
-            request_id="req1", fingerprint="abcdef123456789",
+            request_id="req1",
+            fingerprint="abcdef123456789",
             status="completed",
         )
         d = e.to_dict()
@@ -81,6 +84,7 @@ class TestDeduplicationEntry:
 # =============================================================================
 # Check Tests
 # =============================================================================
+
 
 class TestCheck:
     """Test deduplication checking."""
@@ -139,6 +143,7 @@ class TestCheck:
 # Complete / Fail Tests
 # =============================================================================
 
+
 class TestCompleteAndFail:
     """Test status transitions."""
 
@@ -187,6 +192,7 @@ class TestCompleteAndFail:
 # Remove Tests
 # =============================================================================
 
+
 class TestRemove:
     """Test entry removal."""
 
@@ -211,6 +217,7 @@ class TestRemove:
 # =============================================================================
 # TTL Tests
 # =============================================================================
+
 
 class TestTTL:
     """Test TTL expiration."""
@@ -243,6 +250,7 @@ class TestTTL:
 # Max Entries Tests
 # =============================================================================
 
+
 class TestMaxEntries:
     """Test max entries enforcement."""
 
@@ -258,6 +266,7 @@ class TestMaxEntries:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test statistics tracking."""
@@ -305,6 +314,7 @@ class TestStatistics:
 # State Tests
 # =============================================================================
 
+
 class TestState:
     """Test state management."""
 
@@ -344,6 +354,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global deduplicator."""
 
@@ -370,23 +381,36 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_resilience_package(self):
         from core.infrastructure.resilience import (
-            RequestDeduplicator, DeduplicationEntry, CheckResult,
-            DeduplicationStats, get_deduplicator, reset_deduplicator,
+            CheckResult,
+            DeduplicationEntry,
+            DeduplicationStats,
+            RequestDeduplicator,
+            get_deduplicator,
+            reset_deduplicator,
         )
-        assert all([
-            RequestDeduplicator, DeduplicationEntry, CheckResult,
-            DeduplicationStats, get_deduplicator, reset_deduplicator,
-        ])
+
+        assert all(
+            [
+                RequestDeduplicator,
+                DeduplicationEntry,
+                CheckResult,
+                DeduplicationStats,
+                get_deduplicator,
+                reset_deduplicator,
+            ]
+        )
 
     def test_from_module(self):
         from core.infrastructure.resilience.request_deduplicator import (
-            RequestDeduplicator, DeduplicationEntry, CheckResult,
-            DeduplicationStats, DEFAULT_TTL_SECONDS, MAX_ENTRIES,
+            DEFAULT_TTL_SECONDS,
+            MAX_ENTRIES,
         )
+
         assert DEFAULT_TTL_SECONDS == 300
         assert MAX_ENTRIES == 10_000

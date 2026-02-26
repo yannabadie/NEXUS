@@ -28,7 +28,7 @@ from __future__ import annotations
 import logging
 import threading
 from dataclasses import dataclass, field
-from typing import Any, Dict, FrozenSet, List, Optional, Set, Tuple
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -45,15 +45,17 @@ MAX_EDGES = 50000
 # Types
 # =============================================================================
 
+
 @dataclass
 class WorkflowNode:
     """A step in a workflow DAG."""
+
     node_id: str
     label: str = ""
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
     estimated_duration: float = 0.0  # seconds
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "node_id": self.node_id,
             "label": self.label or self.node_id,
@@ -65,22 +67,24 @@ class WorkflowNode:
 @dataclass
 class WorkflowEdge:
     """A dependency edge: source must complete before target."""
+
     source: str  # dependency (must finish first)
     target: str  # dependent (waits for source)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {"source": self.source, "target": self.target}
 
 
 @dataclass
 class ExecutionOrder:
     """Result of topological sort."""
-    steps: List[str]
-    parallel_groups: List[List[str]]  # Groups that can run concurrently
-    critical_path: List[str]
+
+    steps: list[str]
+    parallel_groups: list[list[str]]  # Groups that can run concurrently
+    critical_path: list[str]
     critical_path_duration: float
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "steps": self.steps,
             "parallel_groups": self.parallel_groups,
@@ -92,6 +96,7 @@ class ExecutionOrder:
 @dataclass
 class GraphStats:
     """Graph statistics."""
+
     node_count: int
     edge_count: int
     root_count: int
@@ -99,7 +104,7 @@ class GraphStats:
     max_depth: int
     has_cycle: bool
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "node_count": self.node_count,
             "edge_count": self.edge_count,
@@ -113,6 +118,7 @@ class GraphStats:
 # =============================================================================
 # Dependency Graph
 # =============================================================================
+
 
 class WorkflowDependencyGraph:
     """
@@ -128,9 +134,9 @@ class WorkflowDependencyGraph:
     """
 
     def __init__(self):
-        self._nodes: Dict[str, WorkflowNode] = {}
-        self._edges: Dict[str, Set[str]] = {}  # node_id -> set of dependencies (predecessors)
-        self._reverse_edges: Dict[str, Set[str]] = {}  # node_id -> set of dependents (successors)
+        self._nodes: dict[str, WorkflowNode] = {}
+        self._edges: dict[str, set[str]] = {}  # node_id -> set of dependencies (predecessors)
+        self._reverse_edges: dict[str, set[str]] = {}  # node_id -> set of dependents (successors)
         self._lock = threading.Lock()
 
     # =========================================================================
@@ -142,9 +148,9 @@ class WorkflowDependencyGraph:
         node_id: str,
         *,
         label: str = "",
-        depends_on: Optional[List[str]] = None,
+        depends_on: list[str] | None = None,
         estimated_duration: float = 0.0,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> bool:
         """
         Add a node to the graph.
@@ -176,7 +182,7 @@ class WorkflowDependencyGraph:
             self._reverse_edges.setdefault(node_id, set())
 
             # Add dependency edges
-            for dep in (depends_on or []):
+            for dep in depends_on or []:
                 if dep in self._nodes:
                     self._edges[node_id].add(dep)
                     self._reverse_edges.setdefault(dep, set()).add(node_id)
@@ -205,10 +211,10 @@ class WorkflowDependencyGraph:
     def has_node(self, node_id: str) -> bool:
         return node_id in self._nodes
 
-    def get_node(self, node_id: str) -> Optional[WorkflowNode]:
+    def get_node(self, node_id: str) -> WorkflowNode | None:
         return self._nodes.get(node_id)
 
-    def list_nodes(self) -> List[str]:
+    def list_nodes(self) -> list[str]:
         """List all node IDs (sorted)."""
         return sorted(self._nodes.keys())
 
@@ -243,11 +249,11 @@ class WorkflowDependencyGraph:
             self._reverse_edges.get(source, set()).discard(target)
             return True
 
-    def get_dependencies(self, node_id: str) -> List[str]:
+    def get_dependencies(self, node_id: str) -> list[str]:
         """Get direct dependencies (predecessors) of a node."""
         return sorted(self._edges.get(node_id, set()))
 
-    def get_dependents(self, node_id: str) -> List[str]:
+    def get_dependents(self, node_id: str) -> list[str]:
         """Get direct dependents (successors) of a node."""
         return sorted(self._reverse_edges.get(node_id, set()))
 
@@ -255,19 +261,13 @@ class WorkflowDependencyGraph:
     # Graph Analysis
     # =========================================================================
 
-    def get_roots(self) -> List[str]:
+    def get_roots(self) -> list[str]:
         """Get nodes with no dependencies (entry points)."""
-        return sorted(
-            nid for nid in self._nodes
-            if not self._edges.get(nid, set())
-        )
+        return sorted(nid for nid in self._nodes if not self._edges.get(nid, set()))
 
-    def get_leaves(self) -> List[str]:
+    def get_leaves(self) -> list[str]:
         """Get nodes with no dependents (exit points)."""
-        return sorted(
-            nid for nid in self._nodes
-            if not self._reverse_edges.get(nid, set())
-        )
+        return sorted(nid for nid in self._nodes if not self._reverse_edges.get(nid, set()))
 
     def has_cycle(self) -> bool:
         """Check if the graph contains a cycle."""
@@ -286,7 +286,7 @@ class WorkflowDependencyGraph:
 
         return visited < len(self._nodes)
 
-    def execution_order(self) -> Optional[ExecutionOrder]:
+    def execution_order(self) -> ExecutionOrder | None:
         """
         Compute execution order via topological sort.
 
@@ -295,8 +295,8 @@ class WorkflowDependencyGraph:
         # Kahn's algorithm for topological sort
         in_degree = {nid: len(deps) for nid, deps in self._edges.items()}
         queue = sorted(nid for nid, deg in in_degree.items() if deg == 0)
-        order: List[str] = []
-        groups: List[List[str]] = []
+        order: list[str] = []
+        groups: list[list[str]] = []
 
         while queue:
             # Current group = all nodes with in_degree 0
@@ -323,14 +323,14 @@ class WorkflowDependencyGraph:
             critical_path_duration=crit_duration,
         )
 
-    def _compute_critical_path(self, topo_order: List[str]) -> Tuple[List[str], float]:
+    def _compute_critical_path(self, topo_order: list[str]) -> tuple[list[str], float]:
         """Compute the critical path (longest path by estimated_duration)."""
         if not topo_order:
             return [], 0.0
 
         # dist[node] = longest distance to reach this node
-        dist: Dict[str, float] = {}
-        predecessor: Dict[str, str] = {}
+        dist: dict[str, float] = {}
+        predecessor: dict[str, str] = {}
 
         for node_id in topo_order:
             node = self._nodes[node_id]
@@ -365,7 +365,7 @@ class WorkflowDependencyGraph:
 
         return path, crit_duration
 
-    def parallel_groups(self) -> Optional[List[List[str]]]:
+    def parallel_groups(self) -> list[list[str]] | None:
         """Get groups of nodes that can execute in parallel. Returns None if cycle."""
         result = self.execution_order()
         if result is None:
@@ -421,7 +421,7 @@ class WorkflowDependencyGraph:
             self._edges.clear()
             self._reverse_edges.clear()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "node_count": self.node_count,
             "edge_count": self.edge_count,
@@ -433,7 +433,7 @@ class WorkflowDependencyGraph:
 # Global Instance
 # =============================================================================
 
-_graph: Optional[WorkflowDependencyGraph] = None
+_graph: WorkflowDependencyGraph | None = None
 _graph_lock = threading.Lock()
 
 

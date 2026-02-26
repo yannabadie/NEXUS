@@ -45,8 +45,8 @@ from __future__ import annotations
 import logging
 import threading
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -56,7 +56,7 @@ _logger = logging.getLogger(__name__)
 # =============================================================================
 
 MAX_USAGE_RECORDS = 50000
-CONTEXT_WARNING_THRESHOLD = 0.8   # 80% usage triggers warning
+CONTEXT_WARNING_THRESHOLD = 0.8  # 80% usage triggers warning
 CONTEXT_CRITICAL_THRESHOLD = 0.95  # 95% triggers critical
 
 
@@ -64,14 +64,16 @@ CONTEXT_CRITICAL_THRESHOLD = 0.95  # 95% triggers critical
 # Types
 # =============================================================================
 
+
 def _utc_now_iso() -> str:
     """Return the current UTC time as an ISO 8601 string."""
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 @dataclass
 class ContextUsageRecord:
     """A single context window usage measurement."""
+
     record_id: str = ""
     session_id: str = ""
     model_id: str = ""
@@ -98,7 +100,7 @@ class ContextUsageRecord:
             return "warning"
         return "normal"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "record_id": self.record_id,
             "session_id": self.session_id,
@@ -116,6 +118,7 @@ class ContextUsageRecord:
 @dataclass
 class CompressionEvent:
     """Record of when context was compressed to free capacity."""
+
     original_tokens: int = 0
     compressed_tokens: int = 0
     session_id: str = ""
@@ -133,7 +136,7 @@ class CompressionEvent:
         """Absolute number of tokens freed by compression."""
         return self.original_tokens - self.compressed_tokens
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "original_tokens": self.original_tokens,
             "compressed_tokens": self.compressed_tokens,
@@ -147,6 +150,7 @@ class CompressionEvent:
 @dataclass
 class ContextTrackerStats:
     """Aggregate statistics for the context window tracker."""
+
     total_records: int = 0
     total_compressions: int = 0
     avg_utilization: float = 0.0
@@ -155,7 +159,7 @@ class ContextTrackerStats:
     warning_count: int = 0
     critical_count: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_records": self.total_records,
             "total_compressions": self.total_compressions,
@@ -171,6 +175,7 @@ class ContextTrackerStats:
 # Context Window Tracker
 # =============================================================================
 
+
 class ContextWindowTracker:
     """
     Tracks context window token consumption across sessions and models.
@@ -185,8 +190,8 @@ class ContextWindowTracker:
     """
 
     def __init__(self, max_records: int = MAX_USAGE_RECORDS):
-        self._records: List[ContextUsageRecord] = []
-        self._compressions: List[CompressionEvent] = []
+        self._records: list[ContextUsageRecord] = []
+        self._compressions: list[CompressionEvent] = []
         self._max_records = max_records
         self._lock = threading.Lock()
         self._counter = 0
@@ -270,7 +275,7 @@ class ContextWindowTracker:
                 return "normal"
             return self._records[-1].level
 
-    def get_recent_usage(self, limit: int = 20) -> List[ContextUsageRecord]:
+    def get_recent_usage(self, limit: int = 20) -> list[ContextUsageRecord]:
         """Return the most recent usage records (newest last)."""
         with self._lock:
             return list(self._records[-limit:])
@@ -278,12 +283,12 @@ class ContextWindowTracker:
     def get_high_usage_records(
         self,
         threshold: float = CONTEXT_WARNING_THRESHOLD,
-    ) -> List[ContextUsageRecord]:
+    ) -> list[ContextUsageRecord]:
         """Return records where utilization >= *threshold*."""
         with self._lock:
             return [r for r in self._records if r.utilization >= threshold]
 
-    def get_compression_history(self, limit: int = 20) -> List[CompressionEvent]:
+    def get_compression_history(self, limit: int = 20) -> list[CompressionEvent]:
         """Return the most recent compression events (newest last)."""
         with self._lock:
             return list(self._compressions[-limit:])
@@ -302,12 +307,8 @@ class ContextWindowTracker:
             if self._records:
                 utils = [r.utilization for r in self._records]
                 avg_util = sum(utils) / len(utils)
-                warning_count = sum(
-                    1 for r in self._records if r.level in ("warning", "critical")
-                )
-                critical_count = sum(
-                    1 for r in self._records if r.level == "critical"
-                )
+                warning_count = sum(1 for r in self._records if r.level in ("warning", "critical"))
+                critical_count = sum(1 for r in self._records if r.level == "critical")
             else:
                 avg_util = 0.0
                 warning_count = 0
@@ -347,7 +348,7 @@ class ContextWindowTracker:
             self._counter = 0
             self._peak_utilization = 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialise tracker state as a dict.
 
         Computes stats before acquiring the lock to avoid re-entrant
@@ -366,7 +367,7 @@ class ContextWindowTracker:
 # Global Instance
 # =============================================================================
 
-_tracker: Optional[ContextWindowTracker] = None
+_tracker: ContextWindowTracker | None = None
 _tracker_lock = threading.Lock()
 
 

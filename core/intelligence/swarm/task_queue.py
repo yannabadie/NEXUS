@@ -34,7 +34,7 @@ import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -51,8 +51,10 @@ DEFAULT_PRIORITY = 1
 # Types
 # =============================================================================
 
+
 class TaskStatus(Enum):
     """Swarm task status."""
+
     PENDING = "pending"
     READY = "ready"
     ACQUIRED = "acquired"
@@ -64,15 +66,16 @@ class TaskStatus(Enum):
 @dataclass
 class SwarmTask:
     """A queued swarm task."""
+
     task_id: str
     description: str
     priority: int = DEFAULT_PRIORITY
     status: TaskStatus = TaskStatus.PENDING
-    depends_on: List[str] = field(default_factory=list)
+    depends_on: list[str] = field(default_factory=list)
     assigned_agent: str = ""
     result: Any = None
     error: str = ""
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
     created_at: float = 0.0
     completed_at: float = 0.0
 
@@ -84,7 +87,7 @@ class SwarmTask:
     def is_terminal(self) -> bool:
         return self.status in (TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "task_id": self.task_id,
             "description": self.description[:100],
@@ -99,6 +102,7 @@ class SwarmTask:
 @dataclass
 class QueueStats:
     """Queue statistics."""
+
     total_tasks: int
     pending_count: int
     ready_count: int
@@ -106,7 +110,7 @@ class QueueStats:
     completed_count: int
     failed_count: int
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_tasks": self.total_tasks,
             "pending_count": self.pending_count,
@@ -120,6 +124,7 @@ class QueueStats:
 # =============================================================================
 # Task Queue
 # =============================================================================
+
 
 class SwarmTaskQueue:
     """
@@ -135,7 +140,7 @@ class SwarmTaskQueue:
     """
 
     def __init__(self, *, max_size: int = MAX_QUEUE_SIZE):
-        self._tasks: Dict[str, SwarmTask] = {}
+        self._tasks: dict[str, SwarmTask] = {}
         self._max_size = max_size
         self._lock = threading.Lock()
 
@@ -148,8 +153,8 @@ class SwarmTaskQueue:
         description: str,
         *,
         priority: int = DEFAULT_PRIORITY,
-        depends_on: Optional[List[str]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        depends_on: list[str] | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> str:
         """
         Add a task to the queue.
@@ -190,7 +195,7 @@ class SwarmTaskQueue:
     # Acquire / Complete / Fail
     # =========================================================================
 
-    def acquire(self, *, agent_id: str = "") -> Optional[SwarmTask]:
+    def acquire(self, *, agent_id: str = "") -> SwarmTask | None:
         """
         Acquire the highest-priority ready task.
 
@@ -201,10 +206,7 @@ class SwarmTaskQueue:
             SwarmTask or None if no ready tasks
         """
         with self._lock:
-            ready = [
-                t for t in self._tasks.values()
-                if t.status == TaskStatus.READY
-            ]
+            ready = [t for t in self._tasks.values() if t.status == TaskStatus.READY]
             if not ready:
                 return None
 
@@ -287,17 +289,17 @@ class SwarmTaskQueue:
     # Query
     # =========================================================================
 
-    def get_task(self, task_id: str) -> Optional[SwarmTask]:
+    def get_task(self, task_id: str) -> SwarmTask | None:
         """Get a task by ID."""
         return self._tasks.get(task_id)
 
-    def get_ready_tasks(self) -> List[SwarmTask]:
+    def get_ready_tasks(self) -> list[SwarmTask]:
         """Get all ready tasks sorted by priority."""
         ready = [t for t in self._tasks.values() if t.status == TaskStatus.READY]
         ready.sort(key=lambda t: (-t.priority, t.created_at))
         return ready
 
-    def get_blocked_tasks(self) -> List[SwarmTask]:
+    def get_blocked_tasks(self) -> list[SwarmTask]:
         """Get tasks waiting on dependencies."""
         return [t for t in self._tasks.values() if t.status == TaskStatus.PENDING]
 
@@ -323,9 +325,7 @@ class SwarmTaskQueue:
 
     def _evict_oldest_terminal(self) -> None:
         """Remove oldest terminal task (called under lock)."""
-        terminals = [
-            t for t in self._tasks.values() if t.is_terminal
-        ]
+        terminals = [t for t in self._tasks.values() if t.is_terminal]
         if terminals:
             oldest = min(terminals, key=lambda t: t.created_at)
             del self._tasks[oldest.task_id]
@@ -365,7 +365,7 @@ class SwarmTaskQueue:
         with self._lock:
             self._tasks.clear()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "size": self.size,
             "stats": self.get_stats().to_dict(),
@@ -376,7 +376,7 @@ class SwarmTaskQueue:
 # Global Instance
 # =============================================================================
 
-_queue: Optional[SwarmTaskQueue] = None
+_queue: SwarmTaskQueue | None = None
 _queue_lock = threading.Lock()
 
 

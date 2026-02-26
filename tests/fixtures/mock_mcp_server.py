@@ -13,10 +13,8 @@ Protocol:
     - Writes JSON-RPC 2.0 responses to stdout (one per line)
 """
 
-import sys
 import json
-from typing import Dict, Any, Optional
-
+import sys
 
 # =============================================================================
 # Server State
@@ -33,11 +31,9 @@ MOCK_TOOLS = [
         "description": "Echo back the input message",
         "inputSchema": {
             "type": "object",
-            "properties": {
-                "message": {"type": "string", "description": "Message to echo"}
-            },
-            "required": ["message"]
-        }
+            "properties": {"message": {"type": "string", "description": "Message to echo"}},
+            "required": ["message"],
+        },
     },
     {
         "name": "add",
@@ -46,19 +42,16 @@ MOCK_TOOLS = [
             "type": "object",
             "properties": {
                 "a": {"type": "number", "description": "First number"},
-                "b": {"type": "number", "description": "Second number"}
+                "b": {"type": "number", "description": "Second number"},
             },
-            "required": ["a", "b"]
-        }
+            "required": ["a", "b"],
+        },
     },
     {
         "name": "fail",
         "description": "Always fails (for testing error handling)",
-        "inputSchema": {
-            "type": "object",
-            "properties": {}
-        }
-    }
+        "inputSchema": {"type": "object", "properties": {}},
+    },
 ]
 
 
@@ -66,69 +59,43 @@ MOCK_TOOLS = [
 # Request Handlers
 # =============================================================================
 
-def handle_initialize(params: Dict) -> Dict:
+
+def handle_initialize(params: dict) -> dict:
     """Handle initialize request."""
     return {
         "protocolVersion": PROTOCOL_VERSION,
-        "capabilities": {
-            "tools": {}
-        },
-        "serverInfo": {
-            "name": SERVER_NAME,
-            "version": SERVER_VERSION
-        }
+        "capabilities": {"tools": {}},
+        "serverInfo": {"name": SERVER_NAME, "version": SERVER_VERSION},
     }
 
 
-def handle_tools_list(params: Dict) -> Dict:
+def handle_tools_list(params: dict) -> dict:
     """Handle tools/list request."""
-    return {
-        "tools": MOCK_TOOLS
-    }
+    return {"tools": MOCK_TOOLS}
 
 
-def handle_tools_call(params: Dict) -> Dict:
+def handle_tools_call(params: dict) -> dict:
     """Handle tools/call request."""
     tool_name = params.get("name", "")
     arguments = params.get("arguments", {})
 
     if tool_name == "echo":
         message = arguments.get("message", "")
-        return {
-            "content": [
-                {"type": "text", "text": f"Echo: {message}"}
-            ],
-            "isError": False
-        }
+        return {"content": [{"type": "text", "text": f"Echo: {message}"}], "isError": False}
 
     elif tool_name == "add":
         a = arguments.get("a", 0)
         b = arguments.get("b", 0)
-        return {
-            "content": [
-                {"type": "text", "text": str(a + b)}
-            ],
-            "isError": False
-        }
+        return {"content": [{"type": "text", "text": str(a + b)}], "isError": False}
 
     elif tool_name == "fail":
-        return {
-            "content": [
-                {"type": "text", "text": "This tool always fails"}
-            ],
-            "isError": True
-        }
+        return {"content": [{"type": "text", "text": "This tool always fails"}], "isError": True}
 
     else:
-        return {
-            "content": [
-                {"type": "text", "text": f"Unknown tool: {tool_name}"}
-            ],
-            "isError": True
-        }
+        return {"content": [{"type": "text", "text": f"Unknown tool: {tool_name}"}], "isError": True}
 
 
-def handle_shutdown(params: Dict) -> Dict:
+def handle_shutdown(params: dict) -> dict:
     """Handle shutdown request."""
     return {}
 
@@ -145,7 +112,7 @@ HANDLERS = {
 }
 
 
-def handle_request(request: Dict) -> Optional[Dict]:
+def handle_request(request: dict) -> dict | None:
     """
     Handle a JSON-RPC 2.0 request.
 
@@ -167,36 +134,19 @@ def handle_request(request: Dict) -> Optional[Dict]:
     handler = HANDLERS.get(method)
 
     if handler is None:
-        return {
-            "jsonrpc": "2.0",
-            "id": request_id,
-            "error": {
-                "code": -32601,
-                "message": f"Method not found: {method}"
-            }
-        }
+        return {"jsonrpc": "2.0", "id": request_id, "error": {"code": -32601, "message": f"Method not found: {method}"}}
 
     try:
         result = handler(params)
-        return {
-            "jsonrpc": "2.0",
-            "id": request_id,
-            "result": result
-        }
+        return {"jsonrpc": "2.0", "id": request_id, "result": result}
     except Exception as e:
-        return {
-            "jsonrpc": "2.0",
-            "id": request_id,
-            "error": {
-                "code": -32603,
-                "message": str(e)
-            }
-        }
+        return {"jsonrpc": "2.0", "id": request_id, "error": {"code": -32603, "message": str(e)}}
 
 
 # =============================================================================
 # Main Loop
 # =============================================================================
+
 
 def main():
     """Main server loop."""
@@ -211,14 +161,7 @@ def main():
         try:
             request = json.loads(line)
         except json.JSONDecodeError as e:
-            response = {
-                "jsonrpc": "2.0",
-                "id": None,
-                "error": {
-                    "code": -32700,
-                    "message": f"Parse error: {e}"
-                }
-            }
+            response = {"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": f"Parse error: {e}"}}
             print(json.dumps(response), flush=True)
             continue
 

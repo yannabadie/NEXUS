@@ -38,10 +38,10 @@ from core.intelligence.reasoning.failure_classifier import (
     reset_failure_classifier,
 )
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(autouse=True)
 def _reset_singleton():
@@ -60,6 +60,7 @@ def classifier() -> FailureClassifier:
 # ===========================================================================
 # 1. FailureCategory enum values
 # ===========================================================================
+
 
 class TestFailureCategoryEnum:
     """Verify that all five expected enum members exist with correct values."""
@@ -86,6 +87,7 @@ class TestFailureCategoryEnum:
 # ===========================================================================
 # 2. Classification dataclass
 # ===========================================================================
+
 
 class TestClassificationDataclass:
     """Verify Classification fields, defaults, and is_confident property."""
@@ -171,6 +173,7 @@ class TestClassificationDataclass:
 # 3. ClassifierStats dataclass
 # ===========================================================================
 
+
 class TestClassifierStats:
     """Verify ClassifierStats construction."""
 
@@ -200,6 +203,7 @@ class TestClassifierStats:
 # ===========================================================================
 # 4. classify() with empty input -> default
 # ===========================================================================
+
 
 class TestClassifyEmptyInput:
     """Empty or whitespace-only input returns SYSTEM with confidence 0."""
@@ -240,6 +244,7 @@ class TestClassifyEmptyInput:
 # 5. classify() with MEMORY patterns
 # ===========================================================================
 
+
 class TestClassifyMemory:
     """Various memory-related failure descriptions."""
 
@@ -279,6 +284,7 @@ class TestClassifyMemory:
 # 6. classify() with REFLECTION patterns
 # ===========================================================================
 
+
 class TestClassifyReflection:
     """Reflection-related failure descriptions."""
 
@@ -310,6 +316,7 @@ class TestClassifyReflection:
 # ===========================================================================
 # 7. classify() with PLANNING patterns
 # ===========================================================================
+
 
 class TestClassifyPlanning:
     """Planning-related failure descriptions."""
@@ -343,6 +350,7 @@ class TestClassifyPlanning:
 # 8. classify() with ACTION patterns
 # ===========================================================================
 
+
 class TestClassifyAction:
     """Action-related failure descriptions."""
 
@@ -374,6 +382,7 @@ class TestClassifyAction:
 # ===========================================================================
 # 9. classify() with SYSTEM patterns
 # ===========================================================================
+
 
 class TestClassifySystem:
     """System-related failure descriptions."""
@@ -411,6 +420,7 @@ class TestClassifySystem:
 # 10. Issue-type boosting
 # ===========================================================================
 
+
 class TestIssueTypeBoosting:
     """Issues with specific issue_type keys boost category scores."""
 
@@ -428,9 +438,7 @@ class TestIssueTypeBoosting:
         )
         assert result.signal_scores["system"] > 0
 
-    def test_hallucination_issue_boosts_memory_and_reflection(
-        self, classifier: FailureClassifier
-    ):
+    def test_hallucination_issue_boosts_memory_and_reflection(self, classifier: FailureClassifier):
         result = classifier.classify(
             failure_description="something happened",
             issues=[{"issue_type": "hallucination", "severity": "warning"}],
@@ -466,9 +474,7 @@ class TestIssueTypeBoosting:
         )
         assert result.signal_scores["reflection"] > 0
 
-    def test_timeout_issue_can_push_to_system_category(
-        self, classifier: FailureClassifier
-    ):
+    def test_timeout_issue_can_push_to_system_category(self, classifier: FailureClassifier):
         """Even with no pattern text, a timeout issue should push to SYSTEM."""
         result = classifier.classify(
             failure_description="something happened",
@@ -481,12 +487,11 @@ class TestIssueTypeBoosting:
 # 11. Secondary category detection
 # ===========================================================================
 
+
 class TestSecondaryCategory:
     """Verify secondary_category is populated when second score > 0.2."""
 
-    def test_secondary_populated_for_mixed_signals(
-        self, classifier: FailureClassifier
-    ):
+    def test_secondary_populated_for_mixed_signals(self, classifier: FailureClassifier):
         desc = "forgot the context and used the wrong tool"
         result = classifier.classify(desc)
         assert result.secondary_category is not None
@@ -507,15 +512,14 @@ class TestSecondaryCategory:
         )
         # Both MEMORY (+0.2) and REFLECTION (+0.1) should be boosted
         # At least one should be secondary if the other is primary
-        if result.category == FailureCategory.MEMORY:
-            assert result.secondary_category == FailureCategory.REFLECTION or True
-        elif result.category == FailureCategory.REFLECTION:
-            assert result.secondary_category == FailureCategory.MEMORY or True
+        if result.category == FailureCategory.MEMORY or result.category == FailureCategory.REFLECTION:
+            assert True
 
 
 # ===========================================================================
 # 12. Recovery strategy per category
 # ===========================================================================
+
 
 class TestRecoveryStrategy:
     """get_recovery_strategy() returns the correct string per category."""
@@ -540,9 +544,7 @@ class TestRecoveryStrategy:
         strat = classifier.get_recovery_strategy(FailureCategory.SYSTEM)
         assert "retry" in strat.lower() or "backoff" in strat.lower()
 
-    def test_classify_result_contains_matching_recovery(
-        self, classifier: FailureClassifier
-    ):
+    def test_classify_result_contains_matching_recovery(self, classifier: FailureClassifier):
         """Classification.recovery_strategy matches the category's strategy."""
         result = classifier.classify("Agent forgot the instructions")
         expected = RECOVERY_STRATEGIES[result.category]
@@ -557,6 +559,7 @@ class TestRecoveryStrategy:
 # ===========================================================================
 # 13. get_stats() tracking
 # ===========================================================================
+
 
 class TestGetStats:
     """Verify that get_stats() reflects classification history."""
@@ -590,6 +593,7 @@ class TestGetStats:
 # 14. Singleton pattern
 # ===========================================================================
 
+
 class TestSingleton:
     """get_failure_classifier() and reset_failure_classifier()."""
 
@@ -621,6 +625,7 @@ class TestSingleton:
 # 15. Signal scores dict in result
 # ===========================================================================
 
+
 class TestSignalScores:
     """Classification.signal_scores should contain all five category keys."""
 
@@ -634,9 +639,7 @@ class TestSignalScores:
         for score in result.signal_scores.values():
             assert score >= 0.0
 
-    def test_primary_category_has_highest_or_equal_score(
-        self, classifier: FailureClassifier
-    ):
+    def test_primary_category_has_highest_or_equal_score(self, classifier: FailureClassifier):
         result = classifier.classify("forgot context, lost context, missing context")
         primary_score = result.signal_scores[result.category.value]
         for score in result.signal_scores.values():
@@ -652,6 +655,7 @@ class TestSignalScores:
 # ===========================================================================
 # 16. Multiple classifications accumulate stats
 # ===========================================================================
+
 
 class TestStatsAccumulation:
     """Verify stats accumulate correctly across many classifications."""
@@ -684,6 +688,7 @@ class TestStatsAccumulation:
 # ===========================================================================
 # Edge cases & additional coverage
 # ===========================================================================
+
 
 class TestEdgeCases:
     """Edge cases for robustness."""
@@ -724,10 +729,7 @@ class TestEdgeCases:
     def test_evidence_capped_at_five(self, classifier: FailureClassifier):
         """Evidence list should have at most 5 entries."""
         # Use many matching patterns to push evidence count
-        desc = (
-            "forgot A, forgot B, forgot C, forgot D, forgot E, forgot F, "
-            "lost context, missing context"
-        )
+        desc = "forgot A, forgot B, forgot C, forgot D, forgot E, forgot F, lost context, missing context"
         result = classifier.classify(desc)
         assert len(result.evidence) <= 5
 
@@ -775,9 +777,7 @@ class TestEdgeCases:
         # "timeout" appears via issue text concatenation and also triggers boosting
         assert result.signal_scores["system"] > 0
 
-    def test_classify_returns_classification_instance(
-        self, classifier: FailureClassifier
-    ):
+    def test_classify_returns_classification_instance(self, classifier: FailureClassifier):
         result = classifier.classify("forgot something")
         assert isinstance(result, Classification)
 

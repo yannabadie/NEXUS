@@ -16,18 +16,14 @@ Validates:
 - Error handling when individual V12.4 modules fail
 """
 
-import asyncio
 import json
-import pytest
-from dataclasses import dataclass, field
-from datetime import datetime
-from typing import List, Optional, Dict, Any
 from unittest.mock import (
     AsyncMock,
     MagicMock,
     patch,
-    PropertyMock,
 )
+
+import pytest
 
 from core.intelligence.hive_mind.phases.phase_diagnosis import (
     DIAGNOSIS_PROMPT,
@@ -36,6 +32,7 @@ from core.intelligence.hive_mind.phases.phase_diagnosis import (
     FailureDiagnosisPhase,
 )
 from core.intelligence.hive_mind.types import (
+    FAILURE_RECOVERY_MAP,
     BreakpointResponse,
     ExecutionIssue,
     FailureDiagnosis,
@@ -44,13 +41,12 @@ from core.intelligence.hive_mind.types import (
     MonitoredStepResult,
     RecoveryStrategy,
     UserBreakpoint,
-    FAILURE_RECOVERY_MAP,
 )
-
 
 # =============================================================================
 # Helpers
 # =============================================================================
+
 
 def _make_step_result(
     step_name: str = "step1",
@@ -59,7 +55,7 @@ def _make_step_result(
     output: str = "Some output text for testing purposes",
     duration: float = 2.0,
     expected_duration: float = 5.0,
-    issues: Optional[list] = None,
+    issues: list | None = None,
 ) -> MonitoredStepResult:
     """Create a MonitoredStepResult for testing."""
     return MonitoredStepResult(
@@ -92,11 +88,11 @@ def _make_issue(
 def _make_diagnosis(
     failure_type: FailureType = FailureType.TOOL_ERROR,
     root_cause: str = "API timeout",
-    contributing_factors: Optional[list] = None,
-    evidence: Optional[list] = None,
-    recommended_changes: Optional[list] = None,
+    contributing_factors: list | None = None,
+    evidence: list | None = None,
+    recommended_changes: list | None = None,
     confidence: float = 0.8,
-    missing_capability: Optional[str] = None,
+    missing_capability: str | None = None,
 ) -> FailureDiagnosis:
     """Create a FailureDiagnosis for testing."""
     return FailureDiagnosis(
@@ -114,7 +110,7 @@ def _make_diagnosis(
 
 def _make_breakpoint_response(
     chosen_option: str = "retry",
-    custom_input: Optional[str] = None,
+    custom_input: str | None = None,
 ) -> BreakpointResponse:
     """Create a BreakpointResponse for testing."""
     return BreakpointResponse(
@@ -129,7 +125,7 @@ def _make_phase(
     claude_response: str = '{"failure_type":"tool_error","root_cause":"API timeout","contributing_factors":[],"evidence":[],"recommended_changes":["Increase timeout"],"confidence":0.6}',
     synthesis_response: str = '{"failure_type":"tool_error","root_cause":"API connectivity","contributing_factors":["network"],"evidence":["logs"],"recommended_changes":["Retry","Check network"],"confidence":0.75}',
     user_decision: str = "retry",
-    user_custom_input: Optional[str] = None,
+    user_custom_input: str | None = None,
     can_afford: bool = True,
 ) -> FailureDiagnosisPhase:
     """Create a FailureDiagnosisPhase with mocked dependencies."""
@@ -166,6 +162,7 @@ def _make_phase(
 # =============================================================================
 # DiagnosisPhaseResult Tests
 # =============================================================================
+
 
 class TestDiagnosisPhaseResult:
     """Tests for the DiagnosisPhaseResult dataclass."""
@@ -232,6 +229,7 @@ class TestDiagnosisPhaseResult:
 # =============================================================================
 # Prompt Template Tests
 # =============================================================================
+
 
 class TestPromptTemplates:
     """Tests for DIAGNOSIS_PROMPT and SYNTHESIS_PROMPT templates."""
@@ -300,6 +298,7 @@ class TestPromptTemplates:
 # =============================================================================
 # Format Helper Tests
 # =============================================================================
+
 
 class TestFormatHelpers:
     """Tests for _format_execution_context() and _format_issues()."""
@@ -371,6 +370,7 @@ class TestFormatHelpers:
 # Fallback Diagnosis Tests
 # =============================================================================
 
+
 class TestFallbackDiagnosis:
     """Tests for _create_fallback_diagnosis()."""
 
@@ -404,6 +404,7 @@ class TestFallbackDiagnosis:
 # Parse Diagnosis Response Tests
 # =============================================================================
 
+
 class TestParseDiagnosisResponse:
     """Tests for _parse_diagnosis_response()."""
 
@@ -418,15 +419,17 @@ class TestParseDiagnosisResponse:
         assert result.failure_type == FailureType.TOOL_ERROR
 
     def test_parse_with_valid_json_string(self):
-        response = json.dumps({
-            "failure_type": "timeout",
-            "root_cause": "Slow network",
-            "contributing_factors": ["latency"],
-            "evidence": ["log entry"],
-            "recommended_changes": ["increase timeout"],
-            "confidence": 0.9,
-            "missing_capability": None,
-        })
+        response = json.dumps(
+            {
+                "failure_type": "timeout",
+                "root_cause": "Slow network",
+                "contributing_factors": ["latency"],
+                "evidence": ["log entry"],
+                "recommended_changes": ["increase timeout"],
+                "confidence": 0.9,
+                "missing_capability": None,
+            }
+        )
         with patch("core.hive_mind.json_parser.parse_json_response") as mock_parser:
             mock_parser.return_value = json.loads(response)
             diag = self.phase._parse_diagnosis_response(response, "g", "c")
@@ -479,19 +482,22 @@ class TestParseDiagnosisResponse:
 # Synthesize Diagnoses Tests
 # =============================================================================
 
+
 class TestSynthesizeDiagnoses:
     """Tests for _synthesize_diagnoses()."""
 
     @pytest.mark.asyncio
     async def test_successful_synthesis(self):
-        synthesis_json = json.dumps({
-            "failure_type": "timeout",
-            "root_cause": "Slow API",
-            "contributing_factors": ["network"],
-            "evidence": ["latency log"],
-            "recommended_changes": ["increase timeout"],
-            "confidence": 0.85,
-        })
+        synthesis_json = json.dumps(
+            {
+                "failure_type": "timeout",
+                "root_cause": "Slow API",
+                "contributing_factors": ["network"],
+                "evidence": ["latency log"],
+                "recommended_changes": ["increase timeout"],
+                "confidence": 0.85,
+            }
+        )
         phase = _make_phase()
         # Override gemini driver to return synthesis_json directly (no side_effect list)
         phase.gemini.send_message_async = AsyncMock(return_value=synthesis_json)
@@ -521,11 +527,13 @@ class TestSynthesizeDiagnoses:
 
     @pytest.mark.asyncio
     async def test_synthesis_records_cost(self):
-        synthesis_json = json.dumps({
-            "failure_type": "tool_error",
-            "root_cause": "crash",
-            "confidence": 0.5,
-        })
+        synthesis_json = json.dumps(
+            {
+                "failure_type": "tool_error",
+                "root_cause": "crash",
+                "confidence": 0.5,
+            }
+        )
         phase = _make_phase(synthesis_response=synthesis_json)
         phase._session_integration = MagicMock()
         phase._session_integration.get_agent_session.return_value = "uuid"
@@ -535,11 +543,13 @@ class TestSynthesizeDiagnoses:
 
     @pytest.mark.asyncio
     async def test_synthesis_without_session_integration(self):
-        synthesis_json = json.dumps({
-            "failure_type": "strategy_wrong",
-            "root_cause": "bad plan",
-            "confidence": 0.6,
-        })
+        synthesis_json = json.dumps(
+            {
+                "failure_type": "strategy_wrong",
+                "root_cause": "bad plan",
+                "confidence": 0.6,
+            }
+        )
         phase = _make_phase()
         # Override gemini driver to return synthesis_json directly
         phase.gemini.send_message_async = AsyncMock(return_value=synthesis_json)
@@ -553,19 +563,22 @@ class TestSynthesizeDiagnoses:
 # Execute Flow Tests
 # =============================================================================
 
+
 class TestExecuteFlow:
     """Tests for the full execute() method with mocked drivers."""
 
     @pytest.mark.asyncio
     async def test_execute_returns_diagnosis_phase_result(self):
-        synthesis_json = json.dumps({
-            "failure_type": "tool_error",
-            "root_cause": "API failed",
-            "contributing_factors": ["bad endpoint"],
-            "evidence": ["error 500"],
-            "recommended_changes": ["fix endpoint"],
-            "confidence": 0.75,
-        })
+        synthesis_json = json.dumps(
+            {
+                "failure_type": "tool_error",
+                "root_cause": "API failed",
+                "contributing_factors": ["bad endpoint"],
+                "evidence": ["error 500"],
+                "recommended_changes": ["fix endpoint"],
+                "confidence": 0.75,
+            }
+        )
         phase = _make_phase(synthesis_response=synthesis_json)
 
         step_results = [_make_step_result(status="error")]
@@ -585,7 +598,10 @@ class TestExecuteFlow:
     async def test_execute_handles_gemini_exception(self):
         phase = _make_phase()
         phase.gemini.send_message_async = AsyncMock(
-            side_effect=[RuntimeError("Gemini exploded"), '{"failure_type":"unknown","root_cause":"fallback","confidence":0.3}']
+            side_effect=[
+                RuntimeError("Gemini exploded"),
+                '{"failure_type":"unknown","root_cause":"fallback","confidence":0.3}',
+            ]
         )
 
         result = await phase.execute(
@@ -600,11 +616,13 @@ class TestExecuteFlow:
 
     @pytest.mark.asyncio
     async def test_execute_handles_claude_exception(self):
-        synthesis_json = json.dumps({
-            "failure_type": "unknown",
-            "root_cause": "partial",
-            "confidence": 0.4,
-        })
+        synthesis_json = json.dumps(
+            {
+                "failure_type": "unknown",
+                "root_cause": "partial",
+                "confidence": 0.4,
+            }
+        )
         phase = _make_phase(synthesis_response=synthesis_json)
         phase.claude.send_message_async = AsyncMock(side_effect=RuntimeError("Claude down"))
 
@@ -621,7 +639,10 @@ class TestExecuteFlow:
     async def test_execute_handles_both_exceptions(self):
         phase = _make_phase()
         phase.gemini.send_message_async = AsyncMock(
-            side_effect=[RuntimeError("G down"), '{"failure_type":"unknown","root_cause":"both failed","confidence":0.2}']
+            side_effect=[
+                RuntimeError("G down"),
+                '{"failure_type":"unknown","root_cause":"both failed","confidence":0.2}',
+            ]
         )
         phase.claude.send_message_async = AsyncMock(side_effect=RuntimeError("C down"))
 
@@ -637,11 +658,13 @@ class TestExecuteFlow:
 
     @pytest.mark.asyncio
     async def test_execute_records_context_diagnoses(self):
-        synthesis_json = json.dumps({
-            "failure_type": "tool_error",
-            "root_cause": "crash",
-            "confidence": 0.5,
-        })
+        synthesis_json = json.dumps(
+            {
+                "failure_type": "tool_error",
+                "root_cause": "crash",
+                "confidence": 0.5,
+            }
+        )
         phase = _make_phase(synthesis_response=synthesis_json)
 
         await phase.execute(
@@ -654,11 +677,13 @@ class TestExecuteFlow:
 
     @pytest.mark.asyncio
     async def test_execute_calls_user_handler(self):
-        synthesis_json = json.dumps({
-            "failure_type": "timeout",
-            "root_cause": "slow",
-            "confidence": 0.6,
-        })
+        synthesis_json = json.dumps(
+            {
+                "failure_type": "timeout",
+                "root_cause": "slow",
+                "confidence": 0.6,
+            }
+        )
         phase = _make_phase(synthesis_response=synthesis_json, user_decision="escalate")
 
         result = await phase.execute(
@@ -672,11 +697,13 @@ class TestExecuteFlow:
 
     @pytest.mark.asyncio
     async def test_execute_with_user_modifications(self):
-        synthesis_json = json.dumps({
-            "failure_type": "strategy_wrong",
-            "root_cause": "approach",
-            "confidence": 0.5,
-        })
+        synthesis_json = json.dumps(
+            {
+                "failure_type": "strategy_wrong",
+                "root_cause": "approach",
+                "confidence": 0.5,
+            }
+        )
         phase = _make_phase(
             synthesis_response=synthesis_json,
             user_decision="modify_changes",
@@ -694,11 +721,13 @@ class TestExecuteFlow:
 
     @pytest.mark.asyncio
     async def test_execute_with_none_failure_step(self):
-        synthesis_json = json.dumps({
-            "failure_type": "unknown",
-            "root_cause": "unclear",
-            "confidence": 0.3,
-        })
+        synthesis_json = json.dumps(
+            {
+                "failure_type": "unknown",
+                "root_cause": "unclear",
+                "confidence": 0.3,
+            }
+        )
         phase = _make_phase(synthesis_response=synthesis_json)
 
         result = await phase.execute(
@@ -711,11 +740,13 @@ class TestExecuteFlow:
 
     @pytest.mark.asyncio
     async def test_execute_cost_estimator_called(self):
-        synthesis_json = json.dumps({
-            "failure_type": "tool_error",
-            "root_cause": "crash",
-            "confidence": 0.5,
-        })
+        synthesis_json = json.dumps(
+            {
+                "failure_type": "tool_error",
+                "root_cause": "crash",
+                "confidence": 0.5,
+            }
+        )
         phase = _make_phase(synthesis_response=synthesis_json)
 
         await phase.execute(
@@ -731,6 +762,7 @@ class TestExecuteFlow:
 # V12.4 Integration Graceful Degradation Tests
 # =============================================================================
 
+
 class TestV124IntegrationsDegradation:
     """
     Tests that each V12.4 integration block catches exceptions silently
@@ -740,14 +772,16 @@ class TestV124IntegrationsDegradation:
     @pytest.mark.asyncio
     async def _run_execute_with_patches(self, patches: dict) -> DiagnosisPhaseResult:
         """Helper: run execute() with given import patches, all V12.4 modules failing."""
-        synthesis_json = json.dumps({
-            "failure_type": "tool_error",
-            "root_cause": "test crash",
-            "contributing_factors": [],
-            "evidence": [],
-            "recommended_changes": ["fix it"],
-            "confidence": 0.7,
-        })
+        synthesis_json = json.dumps(
+            {
+                "failure_type": "tool_error",
+                "root_cause": "test crash",
+                "contributing_factors": [],
+                "evidence": [],
+                "recommended_changes": ["fix it"],
+                "confidence": 0.7,
+            }
+        )
         phase = _make_phase(synthesis_response=synthesis_json)
 
         with patch.dict("sys.modules", patches):
@@ -762,11 +796,13 @@ class TestV124IntegrationsDegradation:
     @pytest.mark.asyncio
     async def test_persona_diagnosis_import_failure(self):
         """Multi-persona analysis gracefully degrades when import fails."""
-        synthesis_json = json.dumps({
-            "failure_type": "tool_error",
-            "root_cause": "test",
-            "confidence": 0.5,
-        })
+        synthesis_json = json.dumps(
+            {
+                "failure_type": "tool_error",
+                "root_cause": "test",
+                "confidence": 0.5,
+            }
+        )
         phase = _make_phase(synthesis_response=synthesis_json)
 
         with patch(
@@ -786,11 +822,13 @@ class TestV124IntegrationsDegradation:
     @pytest.mark.asyncio
     async def test_mast_mars_import_failure(self):
         """MAST/MARS analysis gracefully degrades when import fails."""
-        synthesis_json = json.dumps({
-            "failure_type": "tool_error",
-            "root_cause": "test",
-            "confidence": 0.5,
-        })
+        synthesis_json = json.dumps(
+            {
+                "failure_type": "tool_error",
+                "root_cause": "test",
+                "confidence": 0.5,
+            }
+        )
         phase = _make_phase(synthesis_response=synthesis_json)
 
         result = await phase.execute(
@@ -805,11 +843,13 @@ class TestV124IntegrationsDegradation:
     @pytest.mark.asyncio
     async def test_failure_classifier_import_failure(self):
         """FailureClassifier gracefully degrades when import fails."""
-        synthesis_json = json.dumps({
-            "failure_type": "tool_error",
-            "root_cause": "test",
-            "confidence": 0.5,
-        })
+        synthesis_json = json.dumps(
+            {
+                "failure_type": "tool_error",
+                "root_cause": "test",
+                "confidence": 0.5,
+            }
+        )
         phase = _make_phase(synthesis_response=synthesis_json)
 
         result = await phase.execute(
@@ -823,11 +863,13 @@ class TestV124IntegrationsDegradation:
     @pytest.mark.asyncio
     async def test_fault_detector_import_failure(self):
         """FaultDetector gracefully degrades when import fails."""
-        synthesis_json = json.dumps({
-            "failure_type": "tool_error",
-            "root_cause": "test",
-            "confidence": 0.5,
-        })
+        synthesis_json = json.dumps(
+            {
+                "failure_type": "tool_error",
+                "root_cause": "test",
+                "confidence": 0.5,
+            }
+        )
         phase = _make_phase(synthesis_response=synthesis_json)
 
         result = await phase.execute(
@@ -841,11 +883,13 @@ class TestV124IntegrationsDegradation:
     @pytest.mark.asyncio
     async def test_multi_agent_reflexion_import_failure(self):
         """MultiAgentReflexion gracefully degrades when import fails."""
-        synthesis_json = json.dumps({
-            "failure_type": "tool_error",
-            "root_cause": "test",
-            "confidence": 0.5,
-        })
+        synthesis_json = json.dumps(
+            {
+                "failure_type": "tool_error",
+                "root_cause": "test",
+                "confidence": 0.5,
+            }
+        )
         phase = _make_phase(synthesis_response=synthesis_json)
 
         result = await phase.execute(
@@ -859,11 +903,13 @@ class TestV124IntegrationsDegradation:
     @pytest.mark.asyncio
     async def test_system_health_import_failure(self):
         """SystemHealth gracefully degrades when import fails."""
-        synthesis_json = json.dumps({
-            "failure_type": "tool_error",
-            "root_cause": "test",
-            "confidence": 0.5,
-        })
+        synthesis_json = json.dumps(
+            {
+                "failure_type": "tool_error",
+                "root_cause": "test",
+                "confidence": 0.5,
+            }
+        )
         phase = _make_phase(synthesis_response=synthesis_json)
 
         result = await phase.execute(
@@ -877,11 +923,13 @@ class TestV124IntegrationsDegradation:
     @pytest.mark.asyncio
     async def test_meta_policy_memory_failure_inside_mast(self):
         """MetaPolicyMemory consolidation failure is caught inside the MAST block."""
-        synthesis_json = json.dumps({
-            "failure_type": "timeout",
-            "root_cause": "slow",
-            "confidence": 0.6,
-        })
+        synthesis_json = json.dumps(
+            {
+                "failure_type": "timeout",
+                "root_cause": "slow",
+                "confidence": 0.6,
+            }
+        )
         phase = _make_phase(synthesis_response=synthesis_json)
 
         # Mock MAST/MARS to succeed but MetaPolicyMemory to fail
@@ -898,38 +946,45 @@ class TestV124IntegrationsDegradation:
         mock_reflection.synthesis = "Test synthesis"
         mock_reflector.reflect.return_value = mock_reflection
 
-        with patch(
-            "core.hive_mind.phases.phase_diagnosis.get_persona_diagnoser",
-            side_effect=ImportError("no persona"),
-            create=True,
+        with (
+            patch(
+                "core.hive_mind.phases.phase_diagnosis.get_persona_diagnoser",
+                side_effect=ImportError("no persona"),
+                create=True,
+            ),
+            patch.dict(
+                "sys.modules",
+                {
+                    "core.hive_mind.failure_taxonomy": MagicMock(
+                        get_mast_classifier=MagicMock(return_value=mock_mast),
+                        get_triple_reflector=MagicMock(return_value=mock_reflector),
+                    ),
+                },
+            ),
+            patch(
+                "core.reasoning.meta_policy_memory.get_meta_policy_memory",
+                side_effect=RuntimeError("MPM broken"),
+                create=True,
+            ),
         ):
-            with patch.dict("sys.modules", {
-                "core.hive_mind.failure_taxonomy": MagicMock(
-                    get_mast_classifier=MagicMock(return_value=mock_mast),
-                    get_triple_reflector=MagicMock(return_value=mock_reflector),
-                ),
-            }):
-                with patch(
-                    "core.reasoning.meta_policy_memory.get_meta_policy_memory",
-                    side_effect=RuntimeError("MPM broken"),
-                    create=True,
-                ):
-                    result = await phase.execute(
-                        task="Task",
-                        step_results=[_make_step_result()],
-                        issues=[],
-                        failure_step="s1",
-                    )
+            result = await phase.execute(
+                task="Task",
+                step_results=[_make_step_result()],
+                issues=[],
+                failure_step="s1",
+            )
         assert isinstance(result, DiagnosisPhaseResult)
 
     @pytest.mark.asyncio
     async def test_all_v124_modules_fail_simultaneously(self):
         """All V12.4 modules fail at once -- execute still completes."""
-        synthesis_json = json.dumps({
-            "failure_type": "context_lost",
-            "root_cause": "token overflow",
-            "confidence": 0.4,
-        })
+        synthesis_json = json.dumps(
+            {
+                "failure_type": "context_lost",
+                "root_cause": "token overflow",
+                "confidence": 0.4,
+            }
+        )
         phase = _make_phase(synthesis_response=synthesis_json)
 
         result = await phase.execute(
@@ -949,17 +1004,20 @@ class TestV124IntegrationsDegradation:
 # Contributing Factors Tests
 # =============================================================================
 
+
 class TestContributingFactors:
     """Tests for contributing_factors list building during execute()."""
 
     @pytest.mark.asyncio
     async def test_contributing_factors_start_from_synthesis(self):
-        synthesis_json = json.dumps({
-            "failure_type": "tool_error",
-            "root_cause": "crash",
-            "contributing_factors": ["bad input", "missing validation"],
-            "confidence": 0.7,
-        })
+        synthesis_json = json.dumps(
+            {
+                "failure_type": "tool_error",
+                "root_cause": "crash",
+                "contributing_factors": ["bad input", "missing validation"],
+                "confidence": 0.7,
+            }
+        )
         phase = _make_phase(synthesis_response=synthesis_json)
 
         result = await phase.execute(
@@ -985,6 +1043,7 @@ class TestContributingFactors:
 # Get Retry Recommendations Tests
 # =============================================================================
 
+
 class TestGetRetryRecommendations:
     """Tests for get_retry_recommendations() covering all FailureType variants."""
 
@@ -996,8 +1055,8 @@ class TestGetRetryRecommendations:
         failure_type: FailureType,
         user_decision: str = "retry",
         confidence: float = 0.7,
-        missing_capability: Optional[str] = None,
-        user_modifications: Optional[str] = None,
+        missing_capability: str | None = None,
+        user_modifications: str | None = None,
     ) -> DiagnosisPhaseResult:
         diag = _make_diagnosis(
             failure_type=failure_type,
@@ -1151,14 +1210,14 @@ class TestGetRetryRecommendations:
             result = self._make_result(ftype)
             recs = self.phase.get_retry_recommendations(result)
             assert recs["recovery_strategy"] == expected_strategy.value, (
-                f"FailureType.{ftype.name} should map to {expected_strategy.value}, "
-                f"got {recs['recovery_strategy']}"
+                f"FailureType.{ftype.name} should map to {expected_strategy.value}, got {recs['recovery_strategy']}"
             )
 
 
 # =============================================================================
 # Driver Diagnosis Tests
 # =============================================================================
+
 
 class TestDriverDiagnosis:
     """Tests for _diagnose_with_gemini() and _diagnose_with_claude()."""
@@ -1225,6 +1284,7 @@ class TestDriverDiagnosis:
 # Initialization Tests
 # =============================================================================
 
+
 class TestInitialization:
     """Tests for FailureDiagnosisPhase constructor."""
 
@@ -1248,9 +1308,7 @@ class TestInitialization:
         cost = MagicMock()
         ctx = MagicMock()
         user = MagicMock()
-        phase = FailureDiagnosisPhase(
-            gemini, claude, cost, ctx, user, session_manager=session_mgr
-        )
+        phase = FailureDiagnosisPhase(gemini, claude, cost, ctx, user, session_manager=session_mgr)
         assert phase._session_manager is session_mgr
 
     def test_session_integration_initially_none(self):
@@ -1267,16 +1325,19 @@ class TestInitialization:
 # Edge Cases and Regression Tests
 # =============================================================================
 
+
 class TestEdgeCases:
     """Edge cases and regression tests."""
 
     @pytest.mark.asyncio
     async def test_empty_step_results(self):
-        synthesis_json = json.dumps({
-            "failure_type": "unknown",
-            "root_cause": "no steps ran",
-            "confidence": 0.2,
-        })
+        synthesis_json = json.dumps(
+            {
+                "failure_type": "unknown",
+                "root_cause": "no steps ran",
+                "confidence": 0.2,
+            }
+        )
         phase = _make_phase(synthesis_response=synthesis_json)
 
         result = await phase.execute(
@@ -1289,11 +1350,13 @@ class TestEdgeCases:
 
     @pytest.mark.asyncio
     async def test_very_long_task_string(self):
-        synthesis_json = json.dumps({
-            "failure_type": "timeout",
-            "root_cause": "complexity",
-            "confidence": 0.5,
-        })
+        synthesis_json = json.dumps(
+            {
+                "failure_type": "timeout",
+                "root_cause": "complexity",
+                "confidence": 0.5,
+            }
+        )
         phase = _make_phase(synthesis_response=synthesis_json)
         long_task = "Build a system that " + "does many things " * 500
 
@@ -1307,11 +1370,13 @@ class TestEdgeCases:
 
     @pytest.mark.asyncio
     async def test_unicode_in_diagnosis(self):
-        synthesis_json = json.dumps({
-            "failure_type": "tool_error",
-            "root_cause": "Erreur avec des accents et symboles",
-            "confidence": 0.6,
-        })
+        synthesis_json = json.dumps(
+            {
+                "failure_type": "tool_error",
+                "root_cause": "Erreur avec des accents et symboles",
+                "confidence": 0.6,
+            }
+        )
         phase = _make_phase(
             gemini_response="Analyse: erreur",
             claude_response="Diagnostic: probl\u00e8me",
@@ -1333,9 +1398,16 @@ class TestEdgeCases:
 
     def test_all_failure_types_have_enum_values(self):
         expected = {
-            "timeout", "capability_missing", "hallucination", "strategy_wrong",
-            "tool_error", "context_lost", "budget_exceeded", "memory_error",
-            "planning_error", "unknown",
+            "timeout",
+            "capability_missing",
+            "hallucination",
+            "strategy_wrong",
+            "tool_error",
+            "context_lost",
+            "budget_exceeded",
+            "memory_error",
+            "planning_error",
+            "unknown",
         }
         actual = {ft.value for ft in FailureType}
         assert actual == expected

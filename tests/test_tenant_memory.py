@@ -12,12 +12,11 @@ Validates:
 """
 
 import json
-from pathlib import Path
 
 import pytest
 
-from core.memory_pkg.memory.tenant_memory import TenantMemoryService, DEFAULT_TENANT
 from core.memory_pkg.memory.namespace_manager import RAGNamespaceManager
+from core.memory_pkg.memory.tenant_memory import DEFAULT_TENANT, TenantMemoryService
 
 
 @pytest.fixture
@@ -31,7 +30,7 @@ class TestTenantInitialization:
 
     def test_creates_tenants_directory(self, tmp_path):
         """Should create .nexus/tenants/ on init."""
-        service = TenantMemoryService(nexus_root=tmp_path)
+        TenantMemoryService(nexus_root=tmp_path)
         assert (tmp_path / ".nexus" / "tenants").exists()
 
     def test_empty_registry_on_fresh_start(self, service):
@@ -42,9 +41,13 @@ class TestTenantInitialization:
         """Should load existing registry from disk."""
         registry_path = tmp_path / ".nexus" / "tenants" / "tenant_registry.json"
         registry_path.parent.mkdir(parents=True, exist_ok=True)
-        registry_path.write_text(json.dumps({
-            "tenants": {"existing_tenant": {"created_at": "2026-01-01", "status": "active"}},
-        }))
+        registry_path.write_text(
+            json.dumps(
+                {
+                    "tenants": {"existing_tenant": {"created_at": "2026-01-01", "status": "active"}},
+                }
+            )
+        )
 
         service = TenantMemoryService(nexus_root=tmp_path)
         assert service.tenant_exists("existing_tenant")
@@ -66,13 +69,13 @@ class TestGetTenantManager:
 
     def test_default_tenant_on_none(self, service, tmp_path):
         """Should use default tenant when None passed."""
-        manager = service.get_tenant_manager(None)
+        service.get_tenant_manager(None)
         default_dir = tmp_path / ".nexus" / "tenants" / DEFAULT_TENANT
         assert default_dir.exists()
 
     def test_default_tenant_on_empty_string(self, service, tmp_path):
         """Should use default tenant for empty string."""
-        manager = service.get_tenant_manager("")
+        service.get_tenant_manager("")
         default_dir = tmp_path / ".nexus" / "tenants" / DEFAULT_TENANT
         assert default_dir.exists()
 
@@ -266,9 +269,7 @@ class TestTenantIdSanitization:
         tenant_id = tenants[0]["tenant_id"]
         assert ".." not in tenant_id
         # Storage should be under tenants dir
-        assert tenants[0]["storage_path"].startswith(
-            str(tmp_path / ".nexus" / "tenants")
-        )
+        assert tenants[0]["storage_path"].startswith(str(tmp_path / ".nexus" / "tenants"))
 
 
 class TestRegistryPersistence:
@@ -301,6 +302,7 @@ class TestModuleExports:
 
     def test_importable_from_memory_package(self):
         """Should be importable from core.memory_pkg.memory."""
-        from core.memory_pkg.memory import TenantMemoryService, DEFAULT_TENANT
+        from core.memory_pkg.memory import DEFAULT_TENANT, TenantMemoryService
+
         assert TenantMemoryService is not None
         assert DEFAULT_TENANT == "_default"

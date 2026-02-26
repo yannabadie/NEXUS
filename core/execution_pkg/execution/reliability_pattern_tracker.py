@@ -40,9 +40,8 @@ from __future__ import annotations
 
 import dataclasses
 import threading
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from dataclasses import dataclass
+from datetime import UTC, datetime
 
 # =============================================================================
 # CONSTANTS
@@ -235,8 +234,8 @@ class ReliabilityPatternTracker:
             max_attempts: Maximum history size (FIFO eviction when exceeded).
         """
         self._max_attempts = max_attempts
-        self._attempts: List[RetryAttempt] = []
-        self._profiles: Dict[str, ToolReliabilityProfile] = {}
+        self._attempts: list[RetryAttempt] = []
+        self._profiles: dict[str, ToolReliabilityProfile] = {}
         self._counter: int = 0
         self._lock = threading.Lock()
 
@@ -248,7 +247,7 @@ class ReliabilityPatternTracker:
         timeout_ms: float = 0.0,
         actual_duration_ms: float = 0.0,
         success: bool = True,
-        policy: str = ""
+        policy: str = "",
     ) -> RetryAttempt:
         """
         Record a single execution attempt.
@@ -277,7 +276,7 @@ class ReliabilityPatternTracker:
             self._counter += 1
 
             # Create attempt record
-            timestamp = datetime.now(timezone.utc).isoformat()
+            timestamp = datetime.now(UTC).isoformat()
             attempt = RetryAttempt(
                 attempt_id=attempt_id,
                 tool_name=tool_name,
@@ -287,12 +286,12 @@ class ReliabilityPatternTracker:
                 actual_duration_ms=actual_duration_ms,
                 success=success,
                 policy=policy,
-                timestamp=timestamp
+                timestamp=timestamp,
             )
 
             # FIFO eviction
             if len(self._attempts) >= self._max_attempts:
-                evicted = self._attempts.pop(0)
+                self._attempts.pop(0)
                 # Note: We do NOT decrement profile stats on eviction
                 # This preserves long-term aggregate metrics
 
@@ -314,7 +313,7 @@ class ReliabilityPatternTracker:
 
             return attempt
 
-    def get_tool_profile(self, tool_name: str) -> Optional[ToolReliabilityProfile]:
+    def get_tool_profile(self, tool_name: str) -> ToolReliabilityProfile | None:
         """
         Get reliability profile for a specific tool.
 
@@ -330,7 +329,7 @@ class ReliabilityPatternTracker:
         with self._lock:
             return self._profiles.get(tool_name)
 
-    def get_all_profiles(self) -> List[ToolReliabilityProfile]:
+    def get_all_profiles(self) -> list[ToolReliabilityProfile]:
         """
         Get all tool reliability profiles sorted by total attempts (descending).
 
@@ -345,7 +344,7 @@ class ReliabilityPatternTracker:
             profiles.sort(key=lambda p: p.total_attempts, reverse=True)
             return profiles
 
-    def get_most_reliable(self, min_attempts: int = 3) -> List[ToolReliabilityProfile]:
+    def get_most_reliable(self, min_attempts: int = 3) -> list[ToolReliabilityProfile]:
         """
         Get most reliable tools (success_rate >= 0.9).
 
@@ -363,13 +362,12 @@ class ReliabilityPatternTracker:
         """
         with self._lock:
             reliable = [
-                p for p in self._profiles.values()
-                if p.total_attempts >= min_attempts and p.success_rate >= 0.9
+                p for p in self._profiles.values() if p.total_attempts >= min_attempts and p.success_rate >= 0.9
             ]
             reliable.sort(key=lambda p: p.success_rate, reverse=True)
             return reliable
 
-    def get_least_reliable(self, min_attempts: int = 3) -> List[ToolReliabilityProfile]:
+    def get_least_reliable(self, min_attempts: int = 3) -> list[ToolReliabilityProfile]:
         """
         Get least reliable tools (success_rate < 0.8).
 
@@ -387,17 +385,12 @@ class ReliabilityPatternTracker:
         """
         with self._lock:
             unreliable = [
-                p for p in self._profiles.values()
-                if p.total_attempts >= min_attempts and p.success_rate < 0.8
+                p for p in self._profiles.values() if p.total_attempts >= min_attempts and p.success_rate < 0.8
             ]
             unreliable.sort(key=lambda p: p.success_rate)
             return unreliable
 
-    def get_recent_attempts(
-        self,
-        limit: int = 10,
-        tool_name: Optional[str] = None
-    ) -> List[RetryAttempt]:
+    def get_recent_attempts(self, limit: int = 10, tool_name: str | None = None) -> list[RetryAttempt]:
         """
         Get recent execution attempts.
 
@@ -421,7 +414,7 @@ class ReliabilityPatternTracker:
             # Return most recent (reversed) up to limit
             return list(reversed(attempts[-limit:]))
 
-    def list_tools(self) -> List[str]:
+    def list_tools(self) -> list[str]:
         """
         List all tracked tool names alphabetically.
 
@@ -464,7 +457,7 @@ class ReliabilityPatternTracker:
                 total_attempts=total_attempts,
                 unique_tools=unique_tools,
                 overall_success_rate=overall_success_rate,
-                overall_timeout_rate=overall_timeout_rate
+                overall_timeout_rate=overall_timeout_rate,
             )
 
     @property
@@ -519,7 +512,7 @@ class ReliabilityPatternTracker:
                 "profiles": [p.to_dict() for p in all_profiles],
                 "recent_attempts": [a.to_dict() for a in recent],
                 "attempt_count": len(self._attempts),
-                "max_attempts": self._max_attempts
+                "max_attempts": self._max_attempts,
             }
 
 
@@ -527,7 +520,7 @@ class ReliabilityPatternTracker:
 # SINGLETON PATTERN
 # =============================================================================
 
-_instance: Optional[ReliabilityPatternTracker] = None
+_instance: ReliabilityPatternTracker | None = None
 _lock = threading.Lock()
 
 

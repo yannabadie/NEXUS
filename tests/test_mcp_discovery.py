@@ -11,24 +11,22 @@ Validates:
 - Module exports
 """
 
-from unittest.mock import MagicMock, patch, PropertyMock
-from datetime import datetime, timezone
-
-import pytest
+from datetime import datetime
+from unittest.mock import MagicMock
 
 from core.interface_pkg.mcp.discovery import (
     DiscoveredTool,
-    ToolDiscoveryResult,
-    ServerDiscoveryStatus,
     MCPToolDiscovery,
+    ServerDiscoveryStatus,
+    ToolDiscoveryResult,
     validate_input_schema,
 )
 from core.interface_pkg.mcp.protocol import MCPTool, MCPToolInputSchema
 
-
 # =============================================================================
 # Schema Validation Tests
 # =============================================================================
+
 
 class TestValidateInputSchema:
     """Test schema validation function."""
@@ -121,6 +119,7 @@ class TestValidateInputSchema:
 # DiscoveredTool Tests
 # =============================================================================
 
+
 class TestDiscoveredTool:
     """Test DiscoveredTool dataclass."""
 
@@ -138,23 +137,25 @@ class TestDiscoveredTool:
 
     def test_auto_timestamp(self):
         """Should auto-set discovered_at."""
-        tool = DiscoveredTool(
-            server_name="s", tool_name="t", qualified_name="mcp_s_t"
-        )
+        tool = DiscoveredTool(server_name="s", tool_name="t", qualified_name="mcp_s_t")
         assert tool.discovered_at != ""
         # Should be ISO format
         datetime.fromisoformat(tool.discovered_at)
 
     def test_has_schema_false(self):
         tool = DiscoveredTool(
-            server_name="s", tool_name="t", qualified_name="mcp_s_t",
+            server_name="s",
+            tool_name="t",
+            qualified_name="mcp_s_t",
             input_schema=None,
         )
         assert tool.has_schema is False
 
     def test_has_schema_true(self):
         tool = DiscoveredTool(
-            server_name="s", tool_name="t", qualified_name="mcp_s_t",
+            server_name="s",
+            tool_name="t",
+            qualified_name="mcp_s_t",
             input_schema={"type": "object", "properties": {"a": {"type": "string"}}},
         )
         assert tool.has_schema is True
@@ -162,14 +163,18 @@ class TestDiscoveredTool:
     def test_has_schema_empty_dict(self):
         """Empty dict should be falsy."""
         tool = DiscoveredTool(
-            server_name="s", tool_name="t", qualified_name="mcp_s_t",
+            server_name="s",
+            tool_name="t",
+            qualified_name="mcp_s_t",
             input_schema={},
         )
         assert tool.has_schema is False
 
     def test_required_params(self):
         tool = DiscoveredTool(
-            server_name="s", tool_name="t", qualified_name="mcp_s_t",
+            server_name="s",
+            tool_name="t",
+            qualified_name="mcp_s_t",
             input_schema={
                 "type": "object",
                 "properties": {"a": {}, "b": {}},
@@ -180,7 +185,9 @@ class TestDiscoveredTool:
 
     def test_param_names(self):
         tool = DiscoveredTool(
-            server_name="s", tool_name="t", qualified_name="mcp_s_t",
+            server_name="s",
+            tool_name="t",
+            qualified_name="mcp_s_t",
             input_schema={
                 "type": "object",
                 "properties": {"path": {}, "encoding": {}},
@@ -190,7 +197,9 @@ class TestDiscoveredTool:
 
     def test_param_names_no_schema(self):
         tool = DiscoveredTool(
-            server_name="s", tool_name="t", qualified_name="mcp_s_t",
+            server_name="s",
+            tool_name="t",
+            qualified_name="mcp_s_t",
         )
         assert tool.param_names == []
 
@@ -211,7 +220,9 @@ class TestDiscoveredTool:
 
     def test_schema_errors_stored(self):
         tool = DiscoveredTool(
-            server_name="s", tool_name="t", qualified_name="mcp_s_t",
+            server_name="s",
+            tool_name="t",
+            qualified_name="mcp_s_t",
             schema_valid=False,
             schema_errors=["Root type must be 'object'"],
         )
@@ -223,6 +234,7 @@ class TestDiscoveredTool:
 # ToolDiscoveryResult Tests
 # =============================================================================
 
+
 class TestToolDiscoveryResult:
     """Test aggregated discovery results."""
 
@@ -232,12 +244,14 @@ class TestToolDiscoveryResult:
             valid = count
         tools = []
         for i in range(count):
-            tools.append(DiscoveredTool(
-                server_name=f"server_{i % 2}",
-                tool_name=f"tool_{i}",
-                qualified_name=f"mcp_server_{i % 2}_tool_{i}",
-                schema_valid=(i < valid),
-            ))
+            tools.append(
+                DiscoveredTool(
+                    server_name=f"server_{i % 2}",
+                    tool_name=f"tool_{i}",
+                    qualified_name=f"mcp_server_{i % 2}_tool_{i}",
+                    schema_valid=(i < valid),
+                )
+            )
         return tools
 
     def test_empty_result(self):
@@ -300,6 +314,7 @@ class TestToolDiscoveryResult:
 # MCPToolDiscovery Engine Tests
 # =============================================================================
 
+
 def _make_mock_registry(servers: dict) -> MagicMock:
     """
     Create a mock MCPRegistry.
@@ -356,12 +371,26 @@ class TestMCPToolDiscovery:
 
     def test_discover_single_server(self):
         """Single server with tools."""
-        registry = _make_mock_registry({
-            "filesystem": [
-                ("read_file", "Read a file", {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}),
-                ("write_file", "Write a file", {"type": "object", "properties": {"path": {"type": "string"}, "content": {"type": "string"}}, "required": ["path", "content"]}),
-            ]
-        })
+        registry = _make_mock_registry(
+            {
+                "filesystem": [
+                    (
+                        "read_file",
+                        "Read a file",
+                        {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]},
+                    ),
+                    (
+                        "write_file",
+                        "Write a file",
+                        {
+                            "type": "object",
+                            "properties": {"path": {"type": "string"}, "content": {"type": "string"}},
+                            "required": ["path", "content"],
+                        },
+                    ),
+                ]
+            }
+        )
         discovery = MCPToolDiscovery(registry)
         result = discovery.discover_all()
 
@@ -375,15 +404,25 @@ class TestMCPToolDiscovery:
 
     def test_discover_multiple_servers(self):
         """Multiple servers with tools."""
-        registry = _make_mock_registry({
-            "filesystem": [
-                ("read_file", "Read", {"type": "object", "properties": {}, "required": []}),
-            ],
-            "github": [
-                ("list_repos", "List repos", {"type": "object", "properties": {"org": {"type": "string"}}, "required": []}),
-                ("get_issue", "Get issue", {"type": "object", "properties": {"number": {"type": "integer"}}, "required": ["number"]}),
-            ],
-        })
+        registry = _make_mock_registry(
+            {
+                "filesystem": [
+                    ("read_file", "Read", {"type": "object", "properties": {}, "required": []}),
+                ],
+                "github": [
+                    (
+                        "list_repos",
+                        "List repos",
+                        {"type": "object", "properties": {"org": {"type": "string"}}, "required": []},
+                    ),
+                    (
+                        "get_issue",
+                        "Get issue",
+                        {"type": "object", "properties": {"number": {"type": "integer"}}, "required": ["number"]},
+                    ),
+                ],
+            }
+        )
         discovery = MCPToolDiscovery(registry)
         result = discovery.discover_all()
 
@@ -428,11 +467,13 @@ class TestMCPToolDiscovery:
 
     def test_schema_validation_errors_recorded(self):
         """Tools with invalid schemas should be flagged."""
-        registry = _make_mock_registry({
-            "bad_server": [
-                ("bad_tool", "Bad schema", {"type": "string", "properties": {}, "required": ["missing"]}),
-            ]
-        })
+        registry = _make_mock_registry(
+            {
+                "bad_server": [
+                    ("bad_tool", "Bad schema", {"type": "string", "properties": {}, "required": ["missing"]}),
+                ]
+            }
+        )
         discovery = MCPToolDiscovery(registry)
         result = discovery.discover_all()
 
@@ -444,11 +485,13 @@ class TestMCPToolDiscovery:
 
     def test_skip_schema_validation(self):
         """Should skip validation when disabled."""
-        registry = _make_mock_registry({
-            "server": [
-                ("tool", "desc", {"type": "string", "properties": {}, "required": ["x"]}),
-            ]
-        })
+        registry = _make_mock_registry(
+            {
+                "server": [
+                    ("tool", "desc", {"type": "string", "properties": {}, "required": ["x"]}),
+                ]
+            }
+        )
         discovery = MCPToolDiscovery(registry)
         result = discovery.discover_all(validate_schemas=False)
 
@@ -457,9 +500,7 @@ class TestMCPToolDiscovery:
 
     def test_tool_without_schema(self):
         """Tool with no input schema should be valid."""
-        registry = _make_mock_registry({
-            "server": [("no_args_tool", "No args", None)]
-        })
+        registry = _make_mock_registry({"server": [("no_args_tool", "No args", None)]})
         discovery = MCPToolDiscovery(registry)
         result = discovery.discover_all()
 
@@ -469,9 +510,7 @@ class TestMCPToolDiscovery:
 
     def test_server_version_captured(self):
         """Should capture server version from init result."""
-        registry = _make_mock_registry({
-            "versioned": [("t", "d", None)]
-        })
+        registry = _make_mock_registry({"versioned": [("t", "d", None)]})
         discovery = MCPToolDiscovery(registry)
         result = discovery.discover_all()
 
@@ -480,10 +519,12 @@ class TestMCPToolDiscovery:
 
     def test_discover_single_server_method(self):
         """Test discover_server() for a specific server."""
-        registry = _make_mock_registry({
-            "fs": [("read", "Read", None), ("write", "Write", None)],
-            "git": [("commit", "Commit", None)],
-        })
+        registry = _make_mock_registry(
+            {
+                "fs": [("read", "Read", None), ("write", "Write", None)],
+                "git": [("commit", "Commit", None)],
+            }
+        )
         discovery = MCPToolDiscovery(registry)
         tools = discovery.discover_server("fs")
 
@@ -508,7 +549,7 @@ class TestMCPToolDiscovery:
         registry.get_client.return_value = client
 
         discovery = MCPToolDiscovery(registry)
-        result = discovery.discover_all()
+        discovery.discover_all()
 
         # Only the enabled server should have been contacted
         registry.get_client.assert_called_once_with("active")
@@ -518,22 +559,26 @@ class TestMCPToolDiscovery:
 # Registry Integration Tests
 # =============================================================================
 
+
 class TestRegistryDiscovery:
     """Test MCPRegistry.discover_all_tools() and discover_server_tools()."""
 
     def test_discover_all_tools_method_exists(self):
         """Registry should have discover_all_tools method."""
         from core.interface_pkg.mcp.registry import MCPRegistry
+
         assert hasattr(MCPRegistry, "discover_all_tools")
 
     def test_discover_server_tools_method_exists(self):
         """Registry should have discover_server_tools method."""
         from core.interface_pkg.mcp.registry import MCPRegistry
+
         assert hasattr(MCPRegistry, "discover_server_tools")
 
     def test_discover_all_tools_returns_result(self, tmp_path):
         """Should return ToolDiscoveryResult."""
         from core.interface_pkg.mcp.registry import MCPRegistry
+
         registry = MCPRegistry(tmp_path)
         result = registry.discover_all_tools()
         assert isinstance(result, ToolDiscoveryResult)
@@ -542,6 +587,7 @@ class TestRegistryDiscovery:
     def test_discover_server_tools_returns_list(self, tmp_path):
         """Should return list."""
         from core.interface_pkg.mcp.registry import MCPRegistry
+
         registry = MCPRegistry(tmp_path)
         tools = registry.discover_server_tools("nonexistent")
         assert isinstance(tools, list)
@@ -550,6 +596,7 @@ class TestRegistryDiscovery:
 # =============================================================================
 # ToolRegistry Schema Passthrough Tests
 # =============================================================================
+
 
 class TestToolRegistrySchemaPassthrough:
     """Test that register_mcp_tool now accepts and stores schemas."""
@@ -605,37 +652,45 @@ class TestToolRegistrySchemaPassthrough:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test that new types are importable."""
 
     def test_discovery_from_mcp_package(self):
         from core.interface_pkg.mcp import MCPToolDiscovery
+
         assert MCPToolDiscovery is not None
 
     def test_discovered_tool_from_mcp_package(self):
         from core.interface_pkg.mcp import DiscoveredTool
+
         assert DiscoveredTool is not None
 
     def test_discovery_result_from_mcp_package(self):
         from core.interface_pkg.mcp import ToolDiscoveryResult
+
         assert ToolDiscoveryResult is not None
 
     def test_validate_input_schema_from_mcp_package(self):
         from core.interface_pkg.mcp import validate_input_schema
+
         assert callable(validate_input_schema)
 
     def test_discovery_from_discovery_module(self):
         from core.interface_pkg.mcp.discovery import (
-            MCPToolDiscovery,
             DiscoveredTool,
-            ToolDiscoveryResult,
+            MCPToolDiscovery,
             ServerDiscoveryStatus,
+            ToolDiscoveryResult,
             validate_input_schema,
         )
-        assert all([
-            MCPToolDiscovery,
-            DiscoveredTool,
-            ToolDiscoveryResult,
-            ServerDiscoveryStatus,
-            validate_input_schema,
-        ])
+
+        assert all(
+            [
+                MCPToolDiscovery,
+                DiscoveredTool,
+                ToolDiscoveryResult,
+                ServerDiscoveryStatus,
+                validate_input_schema,
+            ]
+        )

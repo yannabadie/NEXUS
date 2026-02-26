@@ -9,7 +9,7 @@ Extracted from tool_manager.py for Single Responsibility.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any
 
 from .base import BaseHandler, ToolResult
 
@@ -25,7 +25,7 @@ class ReadHandler(BaseHandler):
     def tool_name(self) -> str:
         return "read"
 
-    def execute(self, args: Dict[str, Any]) -> ToolResult:
+    def execute(self, args: dict[str, Any]) -> ToolResult:
         """
         Read file contents.
 
@@ -46,10 +46,7 @@ class ReadHandler(BaseHandler):
         # Security validation
         if not self._validate_path(path, "read"):
             return ToolResult(
-                tool_name=self.tool_name,
-                status="BLOCKED",
-                output="",
-                error=f"[SECURITY] Path blocked: {path}"
+                tool_name=self.tool_name, status="BLOCKED", output="", error=f"[SECURITY] Path blocked: {path}"
             )
 
         try:
@@ -81,7 +78,7 @@ class WriteHandler(BaseHandler):
     def tool_name(self) -> str:
         return "write"
 
-    def execute(self, args: Dict[str, Any]) -> ToolResult:
+    def execute(self, args: dict[str, Any]) -> ToolResult:
         """
         Write file contents.
 
@@ -103,10 +100,7 @@ class WriteHandler(BaseHandler):
         # Security validation (use original relative path for PathGuardian)
         if not self._validate_path_str(file_path_str, "write"):
             return ToolResult(
-                tool_name=self.tool_name,
-                status="BLOCKED",
-                output="",
-                error=f"[SECURITY] Write blocked: {path}"
+                tool_name=self.tool_name, status="BLOCKED", output="", error=f"[SECURITY] Write blocked: {path}"
             )
 
         try:
@@ -134,7 +128,7 @@ class EditHandler(BaseHandler):
     def tool_name(self) -> str:
         return "edit"
 
-    def execute(self, args: Dict[str, Any]) -> ToolResult:
+    def execute(self, args: dict[str, Any]) -> ToolResult:
         """
         Edit file with search and replace.
 
@@ -159,10 +153,7 @@ class EditHandler(BaseHandler):
         # Security validation (use original relative path for PathGuardian)
         if not self._validate_path_str(file_path_str, "edit"):
             return ToolResult(
-                tool_name=self.tool_name,
-                status="BLOCKED",
-                output="",
-                error=f"[SECURITY] Edit blocked: {path}"
+                tool_name=self.tool_name, status="BLOCKED", output="", error=f"[SECURITY] Edit blocked: {path}"
             )
 
         try:
@@ -171,9 +162,7 @@ class EditHandler(BaseHandler):
 
             # Check if old_string exists
             if old_string not in content:
-                return self._fail(
-                    f"String not found in file: {old_string[:50]}..."
-                )
+                return self._fail(f"String not found in file: {old_string[:50]}...")
 
             # Replace (only first occurrence)
             new_content = content.replace(old_string, new_string, 1)
@@ -202,7 +191,7 @@ class ListDirHandler(BaseHandler):
     def tool_name(self) -> str:
         return "list_dir"
 
-    def execute(self, args: Dict[str, Any]) -> ToolResult:
+    def execute(self, args: dict[str, Any]) -> ToolResult:
         """
         List directory contents.
 
@@ -220,10 +209,7 @@ class ListDirHandler(BaseHandler):
         # Security validation
         if not self._validate_path(path, "list"):
             return ToolResult(
-                tool_name=self.tool_name,
-                status="BLOCKED",
-                output="",
-                error=f"[SECURITY] List blocked: {path}"
+                tool_name=self.tool_name, status="BLOCKED", output="", error=f"[SECURITY] List blocked: {path}"
             )
 
         try:
@@ -259,8 +245,8 @@ class ListDirHandler(BaseHandler):
 # Factory function
 def create_file_handlers(
     workspace_path: Path,
-    validation_service: Optional[Any] = None,
-) -> Dict[str, BaseHandler]:
+    validation_service: Any | None = None,
+) -> dict[str, BaseHandler]:
     """
     Create all file handlers.
 

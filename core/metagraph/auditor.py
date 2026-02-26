@@ -28,16 +28,15 @@ Usage:
 from __future__ import annotations
 
 import time
-from contextlib import contextmanager
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Dict, List, Optional, Set
 from collections import defaultdict
+from contextlib import contextmanager
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 
 # Optional telemetry integration (avoid hard dependency)
 try:
     from core.observability import PerformanceProfiler, get_profiler
+
     TELEMETRY_AVAILABLE = True
 except ImportError:
     TELEMETRY_AVAILABLE = False
@@ -48,6 +47,7 @@ except ImportError:
 @dataclass
 class QueryMetrics:
     """Metrics for a single query."""
+
     query_type: str  # "dependency_query", "impact_analysis", "semantic_search"
     query_target: str  # Symbol name or file path
     latency_ms: float
@@ -59,6 +59,7 @@ class QueryMetrics:
 @dataclass
 class GraphFreshnessMetrics:
     """Metrics for graph freshness."""
+
     last_scan_time: datetime
     last_update_time: datetime
     total_symbols: int
@@ -71,11 +72,12 @@ class GraphFreshnessMetrics:
 @dataclass
 class AuditStats:
     """Aggregated audit statistics."""
+
     # Query metrics
     total_queries: int
     total_query_time_ms: float
     avg_query_latency_ms: float
-    query_types: Dict[str, int]
+    query_types: dict[str, int]
 
     # Cache metrics
     cache_hits: int
@@ -103,13 +105,13 @@ class MetagraphAuditor:
     """
 
     def __init__(self):
-        self.query_history: List[QueryMetrics] = []
-        self.freshness_history: List[GraphFreshnessMetrics] = []
+        self.query_history: list[QueryMetrics] = []
+        self.freshness_history: list[GraphFreshnessMetrics] = []
 
         # Current state
-        self._last_scan_time: Optional[datetime] = None
-        self._last_update_time: Optional[datetime] = None
-        self._current_graph_stats: Dict[str, int] = {}
+        self._last_scan_time: datetime | None = None
+        self._last_update_time: datetime | None = None
+        self._current_graph_stats: dict[str, int] = {}
 
         # Performance tracking
         self._query_count = 0
@@ -168,7 +170,7 @@ class MetagraphAuditor:
         scan_duration_ms: float,
         files_scanned: int,
         files_failed: int,
-        graph_stats: Dict[str, int],
+        graph_stats: dict[str, int],
     ) -> None:
         """
         Track a codebase scan.
@@ -206,8 +208,8 @@ class MetagraphAuditor:
 
     def track_update(
         self,
-        updated_files: Set[str],
-        graph_stats: Dict[str, int],
+        updated_files: set[str],
+        graph_stats: dict[str, int],
     ) -> None:
         """
         Track an incremental graph update.
@@ -255,9 +257,7 @@ class MetagraphAuditor:
         # Performance
         queries_per_second = 0.0
         if self.query_history:
-            time_range = (
-                self.query_history[-1].timestamp - self.query_history[0].timestamp
-            ).total_seconds()
+            time_range = (self.query_history[-1].timestamp - self.query_history[0].timestamp).total_seconds()
             if time_range > 0:
                 queries_per_second = total_queries / time_range
 
@@ -325,21 +325,23 @@ class MetagraphAuditor:
         for query_type, count in sorted(stats.query_types.items()):
             report.append(f"  {query_type:20s} {count:5d} queries")
 
-        report.extend([
-            "",
-            "Cache Performance:",
-            f"  Cache hits:         {stats.cache_hits}",
-            f"  Cache misses:       {stats.cache_misses}",
-            f"  Hit rate:           {stats.cache_hit_rate:.1%}",
-            "",
-            "Graph Freshness:",
-            f"  Last scan:          {stats.last_scan_time.strftime('%Y-%m-%d %H:%M:%S')}",
-            f"  Age:                {stats.graph_age_seconds / 60:.1f} minutes",
-            f"  Total symbols:      {stats.total_symbols}",
-            f"  Total dependencies: {stats.total_dependencies}",
-            "",
-            "=" * 80,
-        ])
+        report.extend(
+            [
+                "",
+                "Cache Performance:",
+                f"  Cache hits:         {stats.cache_hits}",
+                f"  Cache misses:       {stats.cache_misses}",
+                f"  Hit rate:           {stats.cache_hit_rate:.1%}",
+                "",
+                "Graph Freshness:",
+                f"  Last scan:          {stats.last_scan_time.strftime('%Y-%m-%d %H:%M:%S')}",
+                f"  Age:                {stats.graph_age_seconds / 60:.1f} minutes",
+                f"  Total symbols:      {stats.total_symbols}",
+                f"  Total dependencies: {stats.total_dependencies}",
+                "",
+                "=" * 80,
+            ]
+        )
 
         return "\n".join(report)
 
@@ -356,7 +358,7 @@ class MetagraphAuditor:
 
 
 # Global singleton instance
-_auditor_instance: Optional[MetagraphAuditor] = None
+_auditor_instance: MetagraphAuditor | None = None
 
 
 def get_auditor() -> MetagraphAuditor:

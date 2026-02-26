@@ -18,22 +18,20 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.utils.output_validator import (
+    VALID_TYPES,
+    Field,
     OutputValidator,
     Schema,
-    Field,
-    ValidationResult,
     ValidationError,
-    VALID_TYPES,
+    ValidationResult,
     _check_type,
 )
-
 
 # =============================================================================
 # Field Tests
 # =============================================================================
+
 
 class TestField:
     """Test Field dataclass."""
@@ -67,29 +65,41 @@ class TestField:
 # Schema Tests
 # =============================================================================
 
+
 class TestSchema:
     """Test Schema dataclass."""
 
     def test_basic_creation(self):
-        s = Schema(name="test", fields=[
-            Field("a", required=True),
-            Field("b", required=False),
-        ])
+        s = Schema(
+            name="test",
+            fields=[
+                Field("a", required=True),
+                Field("b", required=False),
+            ],
+        )
         assert s.name == "test"
         assert len(s.fields) == 2
 
     def test_required_fields(self):
-        s = Schema(name="test", fields=[
-            Field("a", required=True),
-            Field("b", required=False),
-            Field("c", required=True),
-        ])
+        s = Schema(
+            name="test",
+            fields=[
+                Field("a", required=True),
+                Field("b", required=False),
+                Field("c", required=True),
+            ],
+        )
         assert s.required_fields == ["a", "c"]
 
     def test_field_names(self):
-        s = Schema(name="test", fields=[
-            Field("x"), Field("y"), Field("z"),
-        ])
+        s = Schema(
+            name="test",
+            fields=[
+                Field("x"),
+                Field("y"),
+                Field("z"),
+            ],
+        )
         assert s.field_names == ["x", "y", "z"]
 
     def test_get_field(self):
@@ -112,6 +122,7 @@ class TestSchema:
 # =============================================================================
 # Type Checking Tests
 # =============================================================================
+
 
 class TestTypeChecking:
     """Test type checking utilities."""
@@ -154,6 +165,7 @@ class TestTypeChecking:
 # JSON Validation Tests
 # =============================================================================
 
+
 class TestJSONValidation:
     """Test JSON parsing and validation."""
 
@@ -171,44 +183,56 @@ class TestJSONValidation:
 
     def test_valid_with_schema(self):
         v = OutputValidator()
-        schema = Schema(name="test", fields=[
-            Field("name", field_type="str", required=True),
-            Field("value", field_type="int", required=True),
-        ])
+        schema = Schema(
+            name="test",
+            fields=[
+                Field("name", field_type="str", required=True),
+                Field("value", field_type="int", required=True),
+            ],
+        )
         result = v.validate_json('{"name": "hello", "value": 42}', schema)
         assert result.valid is True
 
     def test_missing_required_field(self):
         v = OutputValidator()
-        schema = Schema(name="test", fields=[
-            Field("name", field_type="str", required=True),
-            Field("value", field_type="int", required=True),
-        ])
+        schema = Schema(
+            name="test",
+            fields=[
+                Field("name", field_type="str", required=True),
+                Field("value", field_type="int", required=True),
+            ],
+        )
         result = v.validate_json('{"name": "hello"}', schema)
         assert result.valid is False
         assert any("value" in e.message for e in result.errors)
 
     def test_optional_field_missing(self):
         v = OutputValidator()
-        schema = Schema(name="test", fields=[
-            Field("name", field_type="str", required=True),
-            Field("desc", field_type="str", required=False),
-        ])
+        schema = Schema(
+            name="test",
+            fields=[
+                Field("name", field_type="str", required=True),
+                Field("desc", field_type="str", required=False),
+            ],
+        )
         result = v.validate_json('{"name": "hello"}', schema)
         assert result.valid is True
 
     def test_wrong_type(self):
         v = OutputValidator()
-        schema = Schema(name="test", fields=[
-            Field("count", field_type="int", required=True),
-        ])
+        schema = Schema(
+            name="test",
+            fields=[
+                Field("count", field_type="int", required=True),
+            ],
+        )
         result = v.validate_json('{"count": "not a number"}', schema)
         assert result.valid is False
 
     def test_json_array_rejected_for_schema(self):
         v = OutputValidator()
         schema = Schema(name="test", fields=[Field("x")])
-        result = v.validate_json('[1, 2, 3]', schema)
+        result = v.validate_json("[1, 2, 3]", schema)
         assert result.valid is False
         assert any("object" in e.message.lower() for e in result.errors)
 
@@ -217,94 +241,128 @@ class TestJSONValidation:
 # Constraint Tests
 # =============================================================================
 
+
 class TestConstraints:
     """Test field constraints."""
 
     def test_min_value(self):
         v = OutputValidator()
-        schema = Schema(name="test", fields=[
-            Field("score", field_type="float", min_value=0.0),
-        ])
+        schema = Schema(
+            name="test",
+            fields=[
+                Field("score", field_type="float", min_value=0.0),
+            ],
+        )
         result = v.validate_json('{"score": -0.5}', schema)
         assert result.valid is False
 
     def test_max_value(self):
         v = OutputValidator()
-        schema = Schema(name="test", fields=[
-            Field("score", field_type="float", max_value=1.0),
-        ])
+        schema = Schema(
+            name="test",
+            fields=[
+                Field("score", field_type="float", max_value=1.0),
+            ],
+        )
         result = v.validate_json('{"score": 1.5}', schema)
         assert result.valid is False
 
     def test_value_in_range(self):
         v = OutputValidator()
-        schema = Schema(name="test", fields=[
-            Field("score", field_type="float", min_value=0.0, max_value=1.0),
-        ])
+        schema = Schema(
+            name="test",
+            fields=[
+                Field("score", field_type="float", min_value=0.0, max_value=1.0),
+            ],
+        )
         result = v.validate_json('{"score": 0.75}', schema)
         assert result.valid is True
 
     def test_min_length(self):
         v = OutputValidator()
-        schema = Schema(name="test", fields=[
-            Field("name", field_type="str", min_length=3),
-        ])
+        schema = Schema(
+            name="test",
+            fields=[
+                Field("name", field_type="str", min_length=3),
+            ],
+        )
         result = v.validate_json('{"name": "ab"}', schema)
         assert result.valid is False
 
     def test_max_length(self):
         v = OutputValidator()
-        schema = Schema(name="test", fields=[
-            Field("name", field_type="str", max_length=5),
-        ])
+        schema = Schema(
+            name="test",
+            fields=[
+                Field("name", field_type="str", max_length=5),
+            ],
+        )
         result = v.validate_json('{"name": "toolong"}', schema)
         assert result.valid is False
 
     def test_length_in_range(self):
         v = OutputValidator()
-        schema = Schema(name="test", fields=[
-            Field("name", field_type="str", min_length=2, max_length=10),
-        ])
+        schema = Schema(
+            name="test",
+            fields=[
+                Field("name", field_type="str", min_length=2, max_length=10),
+            ],
+        )
         result = v.validate_json('{"name": "hello"}', schema)
         assert result.valid is True
 
     def test_list_length(self):
         v = OutputValidator()
-        schema = Schema(name="test", fields=[
-            Field("items", field_type="list", min_length=1, max_length=3),
-        ])
+        schema = Schema(
+            name="test",
+            fields=[
+                Field("items", field_type="list", min_length=1, max_length=3),
+            ],
+        )
         result = v.validate_json('{"items": []}', schema)
         assert result.valid is False
 
     def test_pattern_match(self):
         v = OutputValidator()
-        schema = Schema(name="test", fields=[
-            Field("email", field_type="str", pattern=r"^\S+@\S+\.\S+$"),
-        ])
+        schema = Schema(
+            name="test",
+            fields=[
+                Field("email", field_type="str", pattern=r"^\S+@\S+\.\S+$"),
+            ],
+        )
         result = v.validate_json('{"email": "test@example.com"}', schema)
         assert result.valid is True
 
     def test_pattern_mismatch(self):
         v = OutputValidator()
-        schema = Schema(name="test", fields=[
-            Field("email", field_type="str", pattern=r"^\S+@\S+\.\S+$"),
-        ])
+        schema = Schema(
+            name="test",
+            fields=[
+                Field("email", field_type="str", pattern=r"^\S+@\S+\.\S+$"),
+            ],
+        )
         result = v.validate_json('{"email": "not-an-email"}', schema)
         assert result.valid is False
 
     def test_enum_valid(self):
         v = OutputValidator()
-        schema = Schema(name="test", fields=[
-            Field("status", field_type="str", enum_values=["ok", "error", "pending"]),
-        ])
+        schema = Schema(
+            name="test",
+            fields=[
+                Field("status", field_type="str", enum_values=["ok", "error", "pending"]),
+            ],
+        )
         result = v.validate_json('{"status": "ok"}', schema)
         assert result.valid is True
 
     def test_enum_invalid(self):
         v = OutputValidator()
-        schema = Schema(name="test", fields=[
-            Field("status", field_type="str", enum_values=["ok", "error"]),
-        ])
+        schema = Schema(
+            name="test",
+            fields=[
+                Field("status", field_type="str", enum_values=["ok", "error"]),
+            ],
+        )
         result = v.validate_json('{"status": "unknown"}', schema)
         assert result.valid is False
 
@@ -313,22 +371,30 @@ class TestConstraints:
 # Extra Fields Tests
 # =============================================================================
 
+
 class TestExtraFields:
     """Test extra field detection."""
 
     def test_extra_allowed_by_default(self):
         v = OutputValidator()
-        schema = Schema(name="test", fields=[
-            Field("name", field_type="str"),
-        ])
+        schema = Schema(
+            name="test",
+            fields=[
+                Field("name", field_type="str"),
+            ],
+        )
         result = v.validate_json('{"name": "hello", "extra": 42}', schema)
         assert result.valid is True
 
     def test_extra_rejected(self):
         v = OutputValidator()
-        schema = Schema(name="test", fields=[
-            Field("name", field_type="str"),
-        ], allow_extra_fields=False)
+        schema = Schema(
+            name="test",
+            fields=[
+                Field("name", field_type="str"),
+            ],
+            allow_extra_fields=False,
+        )
         result = v.validate_json('{"name": "hello", "extra": 42}', schema)
         assert result.valid is False
         assert any("extra" in e.message.lower() for e in result.errors)
@@ -338,15 +404,19 @@ class TestExtraFields:
 # Custom Rules Tests
 # =============================================================================
 
+
 class TestCustomRules:
     """Test custom validation rules."""
 
     def test_custom_rule_pass(self):
         v = OutputValidator()
-        schema = Schema(name="test", fields=[
-            Field("start", field_type="int"),
-            Field("end", field_type="int"),
-        ])
+        schema = Schema(
+            name="test",
+            fields=[
+                Field("start", field_type="int"),
+                Field("end", field_type="int"),
+            ],
+        )
         v.register_schema(schema)
         v.add_rule("test", lambda d: None if d.get("end", 0) > d.get("start", 0) else "end must be > start")
         result = v.validate_json('{"start": 1, "end": 10}', schema)
@@ -354,10 +424,13 @@ class TestCustomRules:
 
     def test_custom_rule_fail(self):
         v = OutputValidator()
-        schema = Schema(name="test", fields=[
-            Field("start", field_type="int"),
-            Field("end", field_type="int"),
-        ])
+        schema = Schema(
+            name="test",
+            fields=[
+                Field("start", field_type="int"),
+                Field("end", field_type="int"),
+            ],
+        )
         v.register_schema(schema)
         v.add_rule("test", lambda d: None if d.get("end", 0) > d.get("start", 0) else "end must be > start")
         result = v.validate_json('{"start": 10, "end": 1}', schema)
@@ -368,6 +441,7 @@ class TestCustomRules:
 # =============================================================================
 # Schema Registration Tests
 # =============================================================================
+
 
 class TestSchemaRegistration:
     """Test schema registration."""
@@ -382,9 +456,12 @@ class TestSchemaRegistration:
 
     def test_validate_by_name(self):
         v = OutputValidator()
-        schema = Schema(name="tool_call", fields=[
-            Field("name", field_type="str", required=True),
-        ])
+        schema = Schema(
+            name="tool_call",
+            fields=[
+                Field("name", field_type="str", required=True),
+            ],
+        )
         v.register_schema(schema)
         result = v.validate_json('{"name": "read"}', schema_name="tool_call")
         assert result.valid is True
@@ -412,14 +489,18 @@ class TestSchemaRegistration:
 # Extract and Validate Tests
 # =============================================================================
 
+
 class TestExtractAndValidate:
     """Test extract-and-validate from prose."""
 
     def test_extract_from_prose(self):
         v = OutputValidator()
-        schema = Schema(name="test", fields=[
-            Field("action", field_type="str", required=True),
-        ])
+        schema = Schema(
+            name="test",
+            fields=[
+                Field("action", field_type="str", required=True),
+            ],
+        )
         text = 'Here is my response: {"action": "read"} Hope that helps!'
         result = v.extract_and_validate(text, schema)
         assert result.valid is True
@@ -442,6 +523,7 @@ class TestExtractAndValidate:
 # Convenience Methods Tests
 # =============================================================================
 
+
 class TestConvenienceMethods:
     """Test convenience methods."""
 
@@ -459,9 +541,12 @@ class TestConvenienceMethods:
 
     def test_validate_dict(self):
         v = OutputValidator()
-        schema = Schema(name="test", fields=[
-            Field("name", field_type="str", required=True),
-        ])
+        schema = Schema(
+            name="test",
+            fields=[
+                Field("name", field_type="str", required=True),
+            ],
+        )
         result = v.validate_dict({"name": "hello"}, schema)
         assert result.valid is True
 
@@ -476,6 +561,7 @@ class TestConvenienceMethods:
 # =============================================================================
 # ValidationResult Tests
 # =============================================================================
+
 
 class TestValidationResult:
     """Test ValidationResult dataclass."""
@@ -513,27 +599,29 @@ class TestValidationResult:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_utils_package(self):
         from core.utils import (
+            Field,
             OutputValidator,
             Schema,
-            Field,
-            ValidationResult,
             ValidationError,
+            ValidationResult,
         )
+
         assert all([OutputValidator, Schema, Field, ValidationResult, ValidationError])
 
     def test_from_module(self):
         from core.utils.output_validator import (
+            Field,
             OutputValidator,
             Schema,
-            Field,
-            ValidationResult,
             ValidationError,
-            VALID_TYPES,
+            ValidationResult,
         )
+
         assert all([OutputValidator, Schema, Field, ValidationResult, ValidationError])
         assert "str" in VALID_TYPES

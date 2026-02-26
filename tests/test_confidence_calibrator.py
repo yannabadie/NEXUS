@@ -15,12 +15,13 @@ Tests cover:
 """
 
 import time
+
 import pytest
 
 from core.intelligence.reasoning.confidence_calibrator import (
     AgentCalibrationProfile,
-    CalibrationRecord,
     CalibratedConfidence,
+    CalibrationRecord,
     CalibratorStats,
     ConfidenceBias,
     ConfidenceCalibrator,
@@ -28,10 +29,10 @@ from core.intelligence.reasoning.confidence_calibrator import (
     reset_confidence_calibrator,
 )
 
-
 # =============================================================================
 # Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def calibrator():
@@ -50,6 +51,7 @@ def reset_singleton():
 # =============================================================================
 # 1. ConfidenceBias Enum
 # =============================================================================
+
 
 class TestConfidenceBias:
     """Tests for the ConfidenceBias enum."""
@@ -76,6 +78,7 @@ class TestConfidenceBias:
 # =============================================================================
 # 2. CalibrationRecord Dataclass
 # =============================================================================
+
 
 class TestCalibrationRecord:
     """Tests for the CalibrationRecord dataclass."""
@@ -113,9 +116,7 @@ class TestCalibrationRecord:
 
     def test_timestamp_auto_generated(self):
         before = time.time()
-        rec = CalibrationRecord(
-            agent_id="a", stated_confidence=0.5, actual_success=True
-        )
+        rec = CalibrationRecord(agent_id="a", stated_confidence=0.5, actual_success=True)
         after = time.time()
         assert before <= rec.timestamp <= after
 
@@ -123,6 +124,7 @@ class TestCalibrationRecord:
 # =============================================================================
 # 3. CalibratedConfidence Dataclass
 # =============================================================================
+
 
 class TestCalibratedConfidence:
     """Tests for the CalibratedConfidence dataclass and its property."""
@@ -196,6 +198,7 @@ class TestCalibratedConfidence:
 # 4. AgentCalibrationProfile Dataclass
 # =============================================================================
 
+
 class TestAgentCalibrationProfile:
     """Tests for the AgentCalibrationProfile dataclass."""
 
@@ -224,6 +227,7 @@ class TestAgentCalibrationProfile:
 # 5. CalibratorStats Dataclass
 # =============================================================================
 
+
 class TestCalibratorStats:
     """Tests for the CalibratorStats dataclass."""
 
@@ -245,6 +249,7 @@ class TestCalibratorStats:
 # =============================================================================
 # 6. record() Method
 # =============================================================================
+
 
 class TestRecord:
     """Tests for ConfidenceCalibrator.record()."""
@@ -282,7 +287,7 @@ class TestRecord:
         assert history[0].task_type == "general"
 
     def test_max_history_cap(self, calibrator):
-        for i in range(600):
+        for _i in range(600):
             calibrator.record("claude", 0.5, True)
         assert len(calibrator._records["claude"]) == ConfidenceCalibrator.MAX_HISTORY
 
@@ -300,6 +305,7 @@ class TestRecord:
 # =============================================================================
 # 7. calibrate() with Insufficient Data
 # =============================================================================
+
 
 class TestCalibrateInsufficientData:
     """Tests for calibrate() when there is insufficient history."""
@@ -336,6 +342,7 @@ class TestCalibrateInsufficientData:
 # 8. calibrate() with Overconfident Agent
 # =============================================================================
 
+
 class TestCalibrateOverconfident:
     """Tests for calibrate() with an overconfident agent."""
 
@@ -361,6 +368,7 @@ class TestCalibrateOverconfident:
 # 9. calibrate() with Underconfident Agent
 # =============================================================================
 
+
 class TestCalibrateUnderconfident:
     """Tests for calibrate() with an underconfident agent."""
 
@@ -385,6 +393,7 @@ class TestCalibrateUnderconfident:
 # =============================================================================
 # 10. calibrate() with Well-Calibrated Agent
 # =============================================================================
+
 
 class TestCalibrateWellCalibrated:
     """Tests for calibrate() with a well-calibrated agent."""
@@ -412,6 +421,7 @@ class TestCalibrateWellCalibrated:
 # 11. get_agent_profile()
 # =============================================================================
 
+
 class TestGetAgentProfile:
     """Tests for get_agent_profile()."""
 
@@ -436,7 +446,7 @@ class TestGetAgentProfile:
         assert profile.avg_actual_success_rate == pytest.approx(0.6, abs=0.01)
 
     def test_profile_ece_is_nonnegative(self, calibrator):
-        for i in range(20):
+        for _i in range(20):
             calibrator.record("claude", 0.5, True)
         profile = calibrator.get_agent_profile("claude")
         assert profile.ece >= 0.0
@@ -468,24 +478,23 @@ class TestGetAgentProfile:
         assert profile.correction_factor == pytest.approx(3.0, abs=0.01)
 
     def test_profile_bins_has_ten_entries(self, calibrator):
-        for i in range(20):
+        for _i in range(20):
             calibrator.record("claude", 0.5, True)
         profile = calibrator.get_agent_profile("claude")
         assert len(profile.bins) == 10
 
     def test_profile_bins_keys_format(self, calibrator):
-        for i in range(10):
+        for _i in range(10):
             calibrator.record("claude", 0.55, True)
         profile = calibrator.get_agent_profile("claude")
-        expected_keys = [
-            f"{i/10:.1f}-{(i+1)/10:.1f}" for i in range(10)
-        ]
+        expected_keys = [f"{i / 10:.1f}-{(i + 1) / 10:.1f}" for i in range(10)]
         assert sorted(profile.bins.keys()) == sorted(expected_keys)
 
 
 # =============================================================================
 # 12. get_stats()
 # =============================================================================
+
 
 class TestGetStats:
     """Tests for get_stats()."""
@@ -541,6 +550,7 @@ class TestGetStats:
 # 13. MAX_HISTORY Cap
 # =============================================================================
 
+
 class TestMaxHistoryCap:
     """Tests for the MAX_HISTORY trimming behavior."""
 
@@ -563,6 +573,7 @@ class TestMaxHistoryCap:
 # =============================================================================
 # 14. Bin Computation
 # =============================================================================
+
 
 class TestBinComputation:
     """Tests for internal _compute_bins() method."""
@@ -630,6 +641,7 @@ class TestBinComputation:
 # 15. ECE Computation
 # =============================================================================
 
+
 class TestECEComputation:
     """Tests for Expected Calibration Error computation."""
 
@@ -650,19 +662,14 @@ class TestECEComputation:
 
     def test_ece_high_for_miscalibrated(self, calibrator):
         # Agent always says 0.95 but always fails
-        records = [
-            CalibrationRecord("a", 0.95, False) for _ in range(20)
-        ]
+        records = [CalibrationRecord("a", 0.95, False) for _ in range(20)]
         bins = calibrator._compute_bins(records)
         ece = calibrator._compute_ece(bins)
         assert ece > 0.5  # Very high ECE
 
     def test_ece_is_weighted_average_of_gaps(self, calibrator):
         # All records in one bin: confidence=0.75, 50% accuracy
-        records = [
-            CalibrationRecord("a", 0.75, i < 5)
-            for i in range(10)
-        ]
+        records = [CalibrationRecord("a", 0.75, i < 5) for i in range(10)]
         bins = calibrator._compute_bins(records)
         ece = calibrator._compute_ece(bins)
         # Gap = 0.75 - 0.5 = 0.25, weighted by 10/10 = 1.0 => ECE = 0.25
@@ -672,6 +679,7 @@ class TestECEComputation:
 # =============================================================================
 # 16. Singleton Pattern
 # =============================================================================
+
 
 class TestSingleton:
     """Tests for the singleton pattern."""
@@ -703,6 +711,7 @@ class TestSingleton:
 # =============================================================================
 # 17. Edge Cases
 # =============================================================================
+
 
 class TestEdgeCases:
     """Tests for edge cases and boundary conditions."""
@@ -754,7 +763,7 @@ class TestEdgeCases:
 
     def test_reliability_scales_with_history_size(self, calibrator):
         # Reliability = min(1.0, len(history) / 50.0)
-        for i in range(10):
+        for _i in range(10):
             calibrator.record("claude", 0.5, True)
         result = calibrator.calibrate("claude", 0.5)
         assert result.reliability == pytest.approx(10 / 50.0, abs=0.01)
@@ -814,6 +823,7 @@ class TestEdgeCases:
 # Additional: _apply_correction internals
 # =============================================================================
 
+
 class TestApplyCorrection:
     """Tests for the internal _apply_correction behavior."""
 
@@ -846,6 +856,7 @@ class TestApplyCorrection:
 # =============================================================================
 # Constants
 # =============================================================================
+
 
 class TestConstants:
     """Tests for module constants."""

@@ -17,14 +17,14 @@ Trajectory Reduction" (arXiv:2509.23586)
 
 from __future__ import annotations
 
-import hashlib
 import logging
 import re
 import threading
 import time
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -33,24 +33,27 @@ logger = logging.getLogger(__name__)
 # Data types
 # ---------------------------------------------------------------------------
 
+
 class PruneReason(str, Enum):
     """Why a message was pruned."""
-    STALE = "stale"              # Superseded by newer info
-    REDUNDANT = "redundant"      # Near-duplicate of another message
-    IRRELEVANT = "irrelevant"    # Low relevance to current task context
-    EXPIRED = "expired"          # TTL exceeded
-    EMPTY = "empty"              # No useful content
+
+    STALE = "stale"  # Superseded by newer info
+    REDUNDANT = "redundant"  # Near-duplicate of another message
+    IRRELEVANT = "irrelevant"  # Low relevance to current task context
+    EXPIRED = "expired"  # TTL exceeded
+    EMPTY = "empty"  # No useful content
 
 
 @dataclass
 class TrajectoryMessage:
     """Single message in an agent trajectory."""
+
     content: str
-    role: str = "assistant"          # user / assistant / system / tool
+    role: str = "assistant"  # user / assistant / system / tool
     agent_id: str = ""
     timestamp: float = 0.0
     token_estimate: int = 0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if self.timestamp == 0.0:
@@ -63,25 +66,27 @@ class TrajectoryMessage:
 @dataclass
 class PruneDecision:
     """Decision about a single message."""
+
     index: int
     keep: bool
-    reason: Optional[PruneReason] = None
+    reason: PruneReason | None = None
     confidence: float = 1.0
 
 
 @dataclass
 class PruneResult:
     """Result of pruning a trajectory."""
+
     original_count: int
     pruned_count: int
     kept_count: int
     original_tokens: int
     pruned_tokens: int
     token_reduction_pct: float
-    decisions: List[PruneDecision] = field(default_factory=list)
-    kept_messages: List[TrajectoryMessage] = field(default_factory=list)
+    decisions: list[PruneDecision] = field(default_factory=list)
+    kept_messages: list[TrajectoryMessage] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "original_count": self.original_count,
             "pruned_count": self.pruned_count,
@@ -95,13 +100,14 @@ class PruneResult:
 @dataclass
 class PrunerStats:
     """Aggregate statistics for the pruner."""
+
     total_calls: int = 0
     total_messages_seen: int = 0
     total_messages_pruned: int = 0
     total_tokens_saved: int = 0
     avg_reduction_pct: float = 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_calls": self.total_calls,
             "total_messages_seen": self.total_messages_seen,
@@ -151,6 +157,7 @@ SUPERSEDE_PATTERNS = [
 # Core: TrajectoryPruner
 # ---------------------------------------------------------------------------
 
+
 class TrajectoryPruner:
     """
     AgentDiet-inspired trajectory pruner.
@@ -199,8 +206,12 @@ class TrajectoryPruner:
         """
         if not messages:
             return PruneResult(
-                original_count=0, pruned_count=0, kept_count=0,
-                original_tokens=0, pruned_tokens=0, token_reduction_pct=0.0,
+                original_count=0,
+                pruned_count=0,
+                kept_count=0,
+                original_tokens=0,
+                pruned_tokens=0,
+                token_reduction_pct=0.0,
                 kept_messages=[],
             )
 
@@ -209,16 +220,13 @@ class TrajectoryPruner:
         original_tokens = sum(m.token_estimate for m in msgs)
         now = time.time()
 
-        decisions: List[PruneDecision] = []
+        decisions: list[PruneDecision] = []
 
         # Phase 1: Mark empty/tiny messages
         for i, msg in enumerate(msgs):
-            if len(msg.content.strip()) < self._min_content_length:
-                if msg.role not in PROTECTED_ROLES:
-                    decisions.append(PruneDecision(
-                        index=i, keep=False, reason=PruneReason.EMPTY, confidence=0.95
-                    ))
-                    continue
+            if len(msg.content.strip()) < self._min_content_length and msg.role not in PROTECTED_ROLES:
+                decisions.append(PruneDecision(index=i, keep=False, reason=PruneReason.EMPTY, confidence=0.95))
+                continue
             decisions.append(PruneDecision(index=i, keep=True))
 
         # Phase 2: Staleness — older messages superseded by newer corrections
@@ -272,13 +280,14 @@ class TrajectoryPruner:
             self._stats.total_tokens_saved += pruned_tokens
             if self._stats.total_calls > 0:
                 self._stats.avg_reduction_pct = (
-                    (self._stats.avg_reduction_pct * (self._stats.total_calls - 1)
-                     + reduction_pct) / self._stats.total_calls
-                )
+                    self._stats.avg_reduction_pct * (self._stats.total_calls - 1) + reduction_pct
+                ) / self._stats.total_calls
 
         logger.debug(
             "TrajectoryPruner: %d→%d messages (%.1f%% token reduction)",
-            original_count, kept_count, reduction_pct,
+            original_count,
+            kept_count,
+            reduction_pct,
         )
 
         return result
@@ -303,8 +312,8 @@ class TrajectoryPruner:
 
     def _mark_stale(
         self,
-        msgs: List[TrajectoryMessage],
-        decisions: List[PruneDecision],
+        msgs: list[TrajectoryMessage],
+        decisions: list[PruneDecision],
         now: float,
     ) -> None:
         """Mark messages that have been superseded by later corrections."""
@@ -326,7 +335,8 @@ class TrajectoryPruner:
                                 overlap = self._word_overlap(msg.content, later.content)
                                 if overlap > 0.3:
                                     decisions[i] = PruneDecision(
-                                        index=i, keep=False,
+                                        index=i,
+                                        keep=False,
                                         reason=PruneReason.STALE,
                                         confidence=min(0.9, 0.5 + overlap),
                                     )
@@ -336,12 +346,12 @@ class TrajectoryPruner:
 
     def _mark_redundant(
         self,
-        msgs: List[TrajectoryMessage],
-        decisions: List[PruneDecision],
+        msgs: list[TrajectoryMessage],
+        decisions: list[PruneDecision],
     ) -> None:
         """Mark near-duplicate messages using trigram Jaccard similarity."""
         # Build trigram sets for kept messages
-        trigrams_cache: Dict[int, frozenset] = {}
+        trigrams_cache: dict[int, frozenset] = {}
         for i, d in enumerate(decisions):
             if d.keep:
                 trigrams_cache[i] = self._trigrams(msgs[i].content)
@@ -365,15 +375,16 @@ class TrajectoryPruner:
                     older = i if msgs[i].timestamp <= msgs[j].timestamp else j
                     if msgs[older].role not in PROTECTED_ROLES:
                         decisions[older] = PruneDecision(
-                            index=older, keep=False,
+                            index=older,
+                            keep=False,
                             reason=PruneReason.REDUNDANT,
                             confidence=sim,
                         )
 
     def _mark_irrelevant(
         self,
-        msgs: List[TrajectoryMessage],
-        decisions: List[PruneDecision],
+        msgs: list[TrajectoryMessage],
+        decisions: list[PruneDecision],
         task_context: str,
     ) -> None:
         """Mark messages with low relevance to the current task."""
@@ -392,32 +403,29 @@ class TrajectoryPruner:
             overlap = len(task_words & msg_words) / max(len(task_words), 1)
 
             # Messages with very low task relevance AND are tool outputs
-            is_tool_output = any(
-                pat.search(msgs[i].content) for pat in TOOL_OUTPUT_PATTERNS
-            )
+            is_tool_output = any(pat.search(msgs[i].content) for pat in TOOL_OUTPUT_PATTERNS)
 
             if overlap < 0.05 and is_tool_output and msgs[i].token_estimate > 200:
                 decisions[i] = PruneDecision(
-                    index=i, keep=False,
+                    index=i,
+                    keep=False,
                     reason=PruneReason.IRRELEVANT,
                     confidence=0.7,
                 )
 
     def _enforce_budget(
         self,
-        msgs: List[TrajectoryMessage],
-        decisions: List[PruneDecision],
+        msgs: list[TrajectoryMessage],
+        decisions: list[PruneDecision],
         budget: int,
     ) -> None:
         """Prune lowest-priority messages until within token budget."""
-        current_tokens = sum(
-            msgs[d.index].token_estimate for d in decisions if d.keep
-        )
+        current_tokens = sum(msgs[d.index].token_estimate for d in decisions if d.keep)
         if current_tokens <= budget:
             return
 
         # Score each kept message by priority (lower = prune first)
-        scored: List[Tuple[float, int]] = []
+        scored: list[tuple[float, int]] = []
         for d in decisions:
             if not d.keep:
                 continue
@@ -427,14 +435,15 @@ class TrajectoryPruner:
 
         scored.sort(key=lambda x: x[0])
 
-        for priority, idx in scored:
+        for _priority, idx in scored:
             if current_tokens <= budget:
                 break
             msg = msgs[idx]
             if msg.role in PROTECTED_ROLES:
                 continue
             decisions[idx] = PruneDecision(
-                index=idx, keep=False,
+                index=idx,
+                keep=False,
                 reason=PruneReason.IRRELEVANT,
                 confidence=0.6,
             )
@@ -442,8 +451,8 @@ class TrajectoryPruner:
 
     def _aggressive_prune(
         self,
-        msgs: List[TrajectoryMessage],
-        decisions: List[PruneDecision],
+        msgs: list[TrajectoryMessage],
+        decisions: list[PruneDecision],
     ) -> None:
         """Aggressively prune when trajectory exceeds max length."""
         kept_indices = [d.index for d in decisions if d.keep]
@@ -462,7 +471,8 @@ class TrajectoryPruner:
 
         for _, idx in scored[:excess]:
             decisions[idx] = PruneDecision(
-                index=idx, keep=False,
+                index=idx,
+                keep=False,
                 reason=PruneReason.EXPIRED,
                 confidence=0.5,
             )
@@ -493,10 +503,7 @@ class TrajectoryPruner:
         words = text.lower().split()[:100]  # Cap for performance
         if len(words) < 3:
             return frozenset(words)
-        return frozenset(
-            (words[i], words[i + 1], words[i + 2])
-            for i in range(len(words) - 2)
-        )
+        return frozenset((words[i], words[i + 1], words[i + 2]) for i in range(len(words) - 2))
 
     @staticmethod
     def _jaccard(a: frozenset, b: frozenset) -> float:
@@ -526,7 +533,7 @@ class TrajectoryPruner:
 # Singleton
 # ---------------------------------------------------------------------------
 
-_instance: Optional[TrajectoryPruner] = None
+_instance: TrajectoryPruner | None = None
 _instance_lock = threading.Lock()
 
 

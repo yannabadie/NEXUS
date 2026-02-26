@@ -29,7 +29,7 @@ import logging
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -48,14 +48,16 @@ MAX_AGENTS = 5000
 # Types
 # =============================================================================
 
+
 @dataclass
 class Role:
     """A named set of permissions."""
+
     name: str
-    permissions: Set[str] = field(default_factory=set)
+    permissions: set[str] = field(default_factory=set)
     description: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "permissions": sorted(self.permissions),
@@ -66,17 +68,18 @@ class Role:
 @dataclass
 class AgentAccess:
     """Access configuration for an agent."""
+
     agent_id: str
-    roles: Set[str] = field(default_factory=set)
-    extra_permissions: Set[str] = field(default_factory=set)
-    denied_permissions: Set[str] = field(default_factory=set)
+    roles: set[str] = field(default_factory=set)
+    extra_permissions: set[str] = field(default_factory=set)
+    denied_permissions: set[str] = field(default_factory=set)
     created_at: float = 0.0
 
     def __post_init__(self):
         if self.created_at == 0.0:
             self.created_at = time.monotonic()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "agent_id": self.agent_id,
             "roles": sorted(self.roles),
@@ -88,13 +91,14 @@ class AgentAccess:
 @dataclass
 class AccessCheckResult:
     """Result of an access check."""
+
     allowed: bool
     agent_id: str = ""
     permission: str = ""
     reason: str = ""
     matched_role: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "allowed": self.allowed,
             "agent_id": self.agent_id,
@@ -106,13 +110,14 @@ class AccessCheckResult:
 @dataclass
 class AccessStats:
     """Access control statistics."""
+
     total_roles: int
     total_agents: int
     total_checks: int
     total_allowed: int
     total_denied: int
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_roles": self.total_roles,
             "total_agents": self.total_agents,
@@ -125,6 +130,7 @@ class AccessStats:
 # =============================================================================
 # Access Control Manager
 # =============================================================================
+
 
 class AccessControlManager:
     """
@@ -141,8 +147,8 @@ class AccessControlManager:
     """
 
     def __init__(self):
-        self._roles: Dict[str, Role] = {}
-        self._agents: Dict[str, AgentAccess] = {}
+        self._roles: dict[str, Role] = {}
+        self._agents: dict[str, AgentAccess] = {}
         self._total_checks = 0
         self._total_allowed = 0
         self._total_denied = 0
@@ -156,7 +162,7 @@ class AccessControlManager:
         self,
         name: str,
         *,
-        permissions: Optional[Set[str]] = None,
+        permissions: set[str] | None = None,
         description: str = "",
     ) -> Role:
         """Define or update a role."""
@@ -182,11 +188,11 @@ class AccessControlManager:
                 agent.roles.discard(name)
             return True
 
-    def get_role(self, name: str) -> Optional[Role]:
+    def get_role(self, name: str) -> Role | None:
         """Get a role by name."""
         return self._roles.get(name)
 
-    def list_roles(self) -> List[Role]:
+    def list_roles(self) -> list[Role]:
         """List all defined roles."""
         return list(self._roles.values())
 
@@ -228,7 +234,7 @@ class AccessControlManager:
         with self._lock:
             return self._agents.pop(agent_id, None) is not None
 
-    def get_agent(self, agent_id: str) -> Optional[AgentAccess]:
+    def get_agent(self, agent_id: str) -> AgentAccess | None:
         """Get agent access configuration."""
         return self._agents.get(agent_id)
 
@@ -351,13 +357,13 @@ class AccessControlManager:
                 reason="No matching permission",
             )
 
-    def get_effective_permissions(self, agent_id: str) -> Set[str]:
+    def get_effective_permissions(self, agent_id: str) -> set[str]:
         """Get all effective permissions for an agent."""
         agent = self._agents.get(agent_id)
         if agent is None:
             return set()
 
-        perms: Set[str] = set()
+        perms: set[str] = set()
 
         # Admin gets everything (represented as {"*"})
         if ADMIN_ROLE in agent.roles:
@@ -413,7 +419,7 @@ class AccessControlManager:
             self._total_allowed = 0
             self._total_denied = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "role_count": self.role_count,
             "agent_count": self.agent_count,
@@ -425,7 +431,7 @@ class AccessControlManager:
 # Global Instance
 # =============================================================================
 
-_controller: Optional[AccessControlManager] = None
+_controller: AccessControlManager | None = None
 _controller_lock = threading.Lock()
 
 

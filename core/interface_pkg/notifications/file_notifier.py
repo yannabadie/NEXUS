@@ -4,18 +4,12 @@ File Notifier - PENDING_REVIEW.md
 Creates/checks file-based review notifications.
 """
 
-from pathlib import Path
-from datetime import datetime
-from typing import List, Dict, Optional
 import json
+from datetime import datetime
+from pathlib import Path
 
 
-def create_pending_review(
-    workspace_path: Path,
-    generation: int,
-    children: List[Dict],
-    created_at: datetime
-) -> Path:
+def create_pending_review(workspace_path: Path, generation: int, children: list[dict], created_at: datetime) -> Path:
     """
     Create PENDING_REVIEW.md file with child evaluation details.
 
@@ -34,33 +28,35 @@ def create_pending_review(
     pending_file = nexus_dir / "PENDING_REVIEW.md"
 
     # Format children summary
-    children_section = "\n\n".join([
-        f"""### {i+1}. {child['id']}
+    children_section = "\n\n".join(
+        [
+            f"""### {i + 1}. {child["id"]}
 
-**Fitness Score**: {child['score']:.3f} ({child['improvement']:+.1%} vs parent)
+**Fitness Score**: {child["score"]:.3f} ({child["improvement"]:+.1%} vs parent)
 
 **Improvements**:
-{child.get('improvements_summary', 'No improvements documented')}
+{child.get("improvements_summary", "No improvements documented")}
 
-**Files Modified**: {child.get('files_modified_count', 'Unknown')}
-**Lines Changed**: {child.get('lines_changed', 'Unknown')}
+**Files Modified**: {child.get("files_modified_count", "Unknown")}
+**Lines Changed**: {child.get("lines_changed", "Unknown")}
 
-**Birth Certificate**: `{child.get('birth_cert_path', 'Not found')}`
-**Evaluation Results**: `{child.get('eval_results_path', 'Not found')}`
+**Birth Certificate**: `{child.get("birth_cert_path", "Not found")}`
+**Evaluation Results**: `{child.get("eval_results_path", "Not found")}`
 
 **Actions**:
 - [A]pprove - Promote as new parent
 - [R]eject - Archive this child
 - [T]est - Run manual tests
 """
-        for i, child in enumerate(children)
-    ])
+            for i, child in enumerate(children)
+        ]
+    )
 
     content = f"""# PENDING REVIEW - Generation {generation}
 
 **Status**: [WARN]️ **AWAITING HUMAN REVIEW**
 
-**Created**: {created_at.strftime('%Y-%m-%d %H:%M:%S')}
+**Created**: {created_at.strftime("%Y-%m-%d %H:%M:%S")}
 **Children Awaiting Review**: {len(children)}
 
 ---
@@ -115,7 +111,7 @@ nexus (gen:{generation}) > /review
 """
 
     # Write file
-    pending_file.write_text(content, encoding='utf-8')
+    pending_file.write_text(content, encoding="utf-8")
 
     # Also create JSON metadata for automation
     metadata = {
@@ -123,11 +119,11 @@ nexus (gen:{generation}) > /review
         "created_at": created_at.isoformat(),
         "children_count": len(children),
         "children": children,
-        "reviewed": False
+        "reviewed": False,
     }
 
     metadata_file = nexus_dir / "PENDING_REVIEW.json"
-    with open(metadata_file, 'w', encoding='utf-8') as f:
+    with open(metadata_file, "w", encoding="utf-8") as f:
         json.dump(metadata, f, indent=2)
 
     print(f"[FILE] [OK] Created PENDING_REVIEW.md with {len(children)} children")
@@ -135,7 +131,7 @@ nexus (gen:{generation}) > /review
     return pending_file
 
 
-def check_pending_review(workspace_path: Path) -> Optional[Dict]:
+def check_pending_review(workspace_path: Path) -> dict | None:
     """
     Check if PENDING_REVIEW.md exists and return metadata.
 
@@ -151,14 +147,14 @@ def check_pending_review(workspace_path: Path) -> Optional[Dict]:
         return None
 
     try:
-        with open(metadata_file, 'r', encoding='utf-8') as f:
+        with open(metadata_file, encoding="utf-8") as f:
             metadata = json.load(f)
 
         # Calculate hours elapsed
-        created_at = datetime.fromisoformat(metadata['created_at'])
+        created_at = datetime.fromisoformat(metadata["created_at"])
         hours_elapsed = (datetime.now() - created_at).total_seconds() / 3600
 
-        metadata['hours_elapsed'] = hours_elapsed
+        metadata["hours_elapsed"] = hours_elapsed
 
         return metadata
 

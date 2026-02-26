@@ -25,7 +25,6 @@ import asyncio
 import sys
 import threading
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -65,9 +64,9 @@ class TestSessionContext:
     def test_use_context_sets_and_resets(self):
         """use_context properly sets and resets context."""
         from core.infrastructure.context import (
-            use_context,
             get_current_session,
             get_current_session_or_none,
+            use_context,
         )
 
         # Before context
@@ -84,7 +83,7 @@ class TestSessionContext:
 
     def test_nested_contexts(self):
         """Nested contexts work correctly."""
-        from core.infrastructure.context import use_context, get_current_session
+        from core.infrastructure.context import get_current_session, use_context
 
         with use_context(tenant_id="outer"):
             outer_ctx = get_current_session()
@@ -100,7 +99,7 @@ class TestSessionContext:
 
     def test_get_current_session_raises_without_context(self):
         """get_current_session raises RuntimeError without active context."""
-        from core.infrastructure.context import get_current_session, current_session
+        from core.infrastructure.context import current_session, get_current_session
 
         # Ensure no context
         current_session.set(None)
@@ -115,12 +114,13 @@ class TestServiceFactoryIsolation:
     def setup_method(self):
         """Clear factory cache before each test."""
         from core.factory import ServiceFactory
+
         ServiceFactory.clear_all_caches()
 
     def test_registry_isolation(self):
         """Different tenants get different registry instances."""
-        from core.infrastructure.context import use_context
         from core.factory import ServiceFactory
+        from core.infrastructure.context import use_context
 
         with use_context(tenant_id="tenant_a"):
             registry_a = ServiceFactory.get_registry()
@@ -133,8 +133,8 @@ class TestServiceFactoryIsolation:
 
     def test_same_tenant_gets_same_instance(self):
         """Same tenant gets cached instance."""
-        from core.infrastructure.context import use_context
         from core.factory import ServiceFactory
+        from core.infrastructure.context import use_context
 
         with use_context(tenant_id="acme"):
             registry_1 = ServiceFactory.get_registry()
@@ -145,8 +145,8 @@ class TestServiceFactoryIsolation:
 
     def test_workspace_path_isolation(self):
         """Different tenants get different workspace paths."""
-        from core.infrastructure.context import use_context
         from core.factory import ServiceFactory
+        from core.infrastructure.context import use_context
 
         ServiceFactory.initialize(NEXUS_ROOT)
 
@@ -162,8 +162,8 @@ class TestServiceFactoryIsolation:
 
     def test_cache_clear_per_tenant(self):
         """Clearing one tenant doesn't affect others."""
-        from core.infrastructure.context import use_context
         from core.factory import ServiceFactory
+        from core.infrastructure.context import use_context
 
         # Create instances for both tenants
         with use_context(tenant_id="tenant_a"):
@@ -192,7 +192,7 @@ class TestAsyncIsolation:
     @pytest.mark.asyncio
     async def test_async_context_isolation(self):
         """Async tasks maintain isolated contexts."""
-        from core.infrastructure.context import use_context_async, get_current_session
+        from core.infrastructure.context import get_current_session, use_context_async
 
         results = {}
 
@@ -216,8 +216,8 @@ class TestAsyncIsolation:
     @pytest.mark.asyncio
     async def test_concurrent_factory_calls(self):
         """Concurrent ServiceFactory calls get correct instances."""
-        from core.infrastructure.context import use_context_async
         from core.factory import ServiceFactory
+        from core.infrastructure.context import use_context_async
 
         ServiceFactory.clear_all_caches()
         instances = {}
@@ -245,7 +245,7 @@ class TestThreadIsolation:
 
     def test_thread_isolation(self):
         """Different threads with contexts are isolated."""
-        from core.infrastructure.context import use_context, get_current_session_or_none
+        from core.infrastructure.context import get_current_session_or_none, use_context
 
         results = {}
         errors = []
@@ -255,6 +255,7 @@ class TestThreadIsolation:
                 with use_context(tenant_id=tenant_id):
                     # Simulate some work
                     import time
+
                     time.sleep(0.01)
 
                     ctx = get_current_session_or_none()
@@ -292,7 +293,7 @@ class TestDatabaseModels:
 
     def test_tenant_creation(self):
         """Tenant model can be created."""
-        from core.infrastructure.db import Tenant, PlanTier
+        from core.infrastructure.db import PlanTier, Tenant
 
         tenant = Tenant(name="Acme Corp", slug="acme")
         assert tenant.name == "Acme Corp"
@@ -302,7 +303,8 @@ class TestDatabaseModels:
     def test_quota_defaults_by_plan(self):
         """Quota defaults vary by plan tier."""
         from uuid import uuid4
-        from core.infrastructure.db import create_quota_for_plan, PlanTier
+
+        from core.infrastructure.db import PlanTier, create_quota_for_plan
 
         tenant_id = uuid4()
 
@@ -322,6 +324,7 @@ class TestDatabaseModels:
     def test_quota_budget_checks(self):
         """Quota budget checking methods work."""
         from uuid import uuid4
+
         from core.infrastructure.db import Quota
 
         quota = Quota(
@@ -343,7 +346,7 @@ class TestBackwardCompatibility:
 
     def test_default_tenant_context(self):
         """Default context works for single-tenant mode."""
-        from core.infrastructure.context import get_default_context, DEFAULT_TENANT_ID
+        from core.infrastructure.context import DEFAULT_TENANT_ID, get_default_context
 
         ctx = get_default_context()
         assert ctx.tenant_id == DEFAULT_TENANT_ID
@@ -352,9 +355,9 @@ class TestBackwardCompatibility:
     def test_ensure_context_creates_default(self):
         """ensure_context creates default if none exists."""
         from core.infrastructure.context import (
-            ensure_context,
-            current_session,
             DEFAULT_TENANT_ID,
+            current_session,
+            ensure_context,
         )
 
         # Reset
@@ -372,8 +375,8 @@ class TestPathGuardianIntegration:
 
     def test_path_guardian_from_factory(self):
         """ServiceFactory creates PathGuardian with correct paths."""
-        from core.infrastructure.context import use_context
         from core.factory import ServiceFactory
+        from core.infrastructure.context import use_context
 
         ServiceFactory.initialize(NEXUS_ROOT)
 
@@ -388,6 +391,7 @@ class TestPathGuardianIntegration:
 # CRITICAL ISOLATION TEST
 # =============================================================================
 
+
 class TestCriticalIsolation:
     """
     CRITICAL: These tests verify no data bleeding between tenants.
@@ -399,20 +403,22 @@ class TestCriticalIsolation:
         """
         CRITICAL: Tenant A cannot access Tenant B's registered agents.
         """
-        from core.infrastructure.context import use_context
         from core.factory import ServiceFactory
         from core.foundation.agents.unified_registry import AgentDescriptor, AgentProvider
+        from core.infrastructure.context import use_context
 
         ServiceFactory.clear_all_caches()
 
         # Tenant A registers an agent
         with use_context(tenant_id="tenant_a"):
             registry_a = ServiceFactory.get_registry()
-            registry_a.register(AgentDescriptor(
-                id="secret_agent_a",
-                provider=AgentProvider.SPAWNED,
-                display_name="Secret Agent A",
-            ))
+            registry_a.register(
+                AgentDescriptor(
+                    id="secret_agent_a",
+                    provider=AgentProvider.SPAWNED,
+                    display_name="Secret Agent A",
+                )
+            )
 
         # Tenant B should NOT see it
         with use_context(tenant_id="tenant_b"):
@@ -424,8 +430,8 @@ class TestCriticalIsolation:
         """
         CRITICAL: Services are never shared between tenants.
         """
-        from core.infrastructure.context import use_context
         from core.factory import ServiceFactory
+        from core.infrastructure.context import use_context
 
         ServiceFactory.clear_all_caches()
 
@@ -443,7 +449,7 @@ class TestCriticalIsolation:
         # No service should be shared
         for svc_a in services_a:
             for svc_b in services_b:
-                assert svc_a is not svc_b, f"SECURITY: Shared service detected!"
+                assert svc_a is not svc_b, "SECURITY: Shared service detected!"
 
 
 if __name__ == "__main__":

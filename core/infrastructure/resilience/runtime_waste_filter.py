@@ -26,7 +26,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -35,34 +35,38 @@ logger = logging.getLogger(__name__)
 # Data types
 # ---------------------------------------------------------------------------
 
+
 class InterventionType(str, Enum):
     """Type of runtime intervention."""
-    REDUNDANCY = "redundancy"      # Agents repeating work
-    DIVERGENCE = "divergence"      # Going off-topic
-    STAGNATION = "stagnation"      # No progress
-    LOOP = "loop"                  # Circular exchange pattern
-    COST_LIMIT = "cost_limit"      # Token budget about to be exceeded
+
+    REDUNDANCY = "redundancy"  # Agents repeating work
+    DIVERGENCE = "divergence"  # Going off-topic
+    STAGNATION = "stagnation"  # No progress
+    LOOP = "loop"  # Circular exchange pattern
+    COST_LIMIT = "cost_limit"  # Token budget about to be exceeded
 
 
 class InterventionAction(str, Enum):
     """Recommended action for an intervention."""
-    CONTINUE = "continue"      # No intervention needed
-    SKIP = "skip"              # Skip this exchange
-    SUMMARIZE = "summarize"    # Compress and summarize before continuing
-    REDIRECT = "redirect"      # Redirect agents to the task
-    TERMINATE = "terminate"    # Stop the collaboration
+
+    CONTINUE = "continue"  # No intervention needed
+    SKIP = "skip"  # Skip this exchange
+    SUMMARIZE = "summarize"  # Compress and summarize before continuing
+    REDIRECT = "redirect"  # Redirect agents to the task
+    TERMINATE = "terminate"  # Stop the collaboration
 
 
 @dataclass
 class ExchangeRecord:
     """Record of a single agent exchange."""
+
     agent_id: str
     content_hash: str
     token_count: int
     timestamp: float
-    topic_words: Set[str] = field(default_factory=set)
+    topic_words: set[str] = field(default_factory=set)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "agent_id": self.agent_id,
             "content_hash": self.content_hash[:8],
@@ -73,13 +77,14 @@ class ExchangeRecord:
 @dataclass
 class Intervention:
     """A triggered intervention."""
+
     type: InterventionType
     action: InterventionAction
     confidence: float = 0.5
     reason: str = ""
     token_waste_estimate: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "type": self.type.value,
             "action": self.action.value,
@@ -92,13 +97,14 @@ class Intervention:
 @dataclass
 class FilterStats:
     """Aggregate statistics."""
+
     total_exchanges: int = 0
     interventions_triggered: int = 0
     tokens_saved: int = 0
-    intervention_counts: Dict[str, int] = field(default_factory=dict)
-    action_counts: Dict[str, int] = field(default_factory=dict)
+    intervention_counts: dict[str, int] = field(default_factory=dict)
+    action_counts: dict[str, int] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_exchanges": self.total_exchanges,
             "interventions_triggered": self.interventions_triggered,
@@ -134,25 +140,124 @@ COST_WARNING_THRESHOLD: float = 0.15
 DIVERGENCE_THRESHOLD: float = 0.80
 
 # Stop words to ignore in topic extraction
-STOP_WORDS: frozenset = frozenset({
-    "the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
-    "have", "has", "had", "do", "does", "did", "will", "would", "could",
-    "should", "may", "might", "shall", "can", "need", "dare", "ought",
-    "used", "to", "of", "in", "for", "on", "with", "at", "by", "from",
-    "as", "into", "through", "during", "before", "after", "above", "below",
-    "between", "out", "off", "over", "under", "again", "further", "then",
-    "once", "here", "there", "when", "where", "why", "how", "all", "each",
-    "every", "both", "few", "more", "most", "other", "some", "such", "no",
-    "nor", "not", "only", "own", "same", "so", "than", "too", "very",
-    "just", "because", "but", "and", "or", "if", "while", "that", "this",
-    "these", "those", "it", "its", "i", "me", "my", "we", "our", "you",
-    "your", "he", "she", "they", "them", "what", "which", "who", "whom",
-})
+STOP_WORDS: frozenset = frozenset(
+    {
+        "the",
+        "a",
+        "an",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "being",
+        "have",
+        "has",
+        "had",
+        "do",
+        "does",
+        "did",
+        "will",
+        "would",
+        "could",
+        "should",
+        "may",
+        "might",
+        "shall",
+        "can",
+        "need",
+        "dare",
+        "ought",
+        "used",
+        "to",
+        "of",
+        "in",
+        "for",
+        "on",
+        "with",
+        "at",
+        "by",
+        "from",
+        "as",
+        "into",
+        "through",
+        "during",
+        "before",
+        "after",
+        "above",
+        "below",
+        "between",
+        "out",
+        "off",
+        "over",
+        "under",
+        "again",
+        "further",
+        "then",
+        "once",
+        "here",
+        "there",
+        "when",
+        "where",
+        "why",
+        "how",
+        "all",
+        "each",
+        "every",
+        "both",
+        "few",
+        "more",
+        "most",
+        "other",
+        "some",
+        "such",
+        "no",
+        "nor",
+        "not",
+        "only",
+        "own",
+        "same",
+        "so",
+        "than",
+        "too",
+        "very",
+        "just",
+        "because",
+        "but",
+        "and",
+        "or",
+        "if",
+        "while",
+        "that",
+        "this",
+        "these",
+        "those",
+        "it",
+        "its",
+        "i",
+        "me",
+        "my",
+        "we",
+        "our",
+        "you",
+        "your",
+        "he",
+        "she",
+        "they",
+        "them",
+        "what",
+        "which",
+        "who",
+        "whom",
+    }
+)
 
 
 # ---------------------------------------------------------------------------
 # Core: RuntimeWasteFilter
 # ---------------------------------------------------------------------------
+
 
 class RuntimeWasteFilter:
     """
@@ -189,9 +294,9 @@ class RuntimeWasteFilter:
         self._stats = FilterStats()
 
         # Exchange history
-        self._exchanges: List[ExchangeRecord] = []
-        self._task_words: Set[str] = set()
-        self._all_topic_words: Set[str] = set()
+        self._exchanges: list[ExchangeRecord] = []
+        self._task_words: set[str] = set()
+        self._all_topic_words: set[str] = set()
         self._token_budget: int = 0
         self._tokens_used: int = 0
 
@@ -256,16 +361,13 @@ class RuntimeWasteFilter:
                     self._stats.interventions_triggered += 1
                     self._stats.tokens_saved += intervention.token_waste_estimate
                     key = intervention.type.value
-                    self._stats.intervention_counts[key] = (
-                        self._stats.intervention_counts.get(key, 0) + 1
-                    )
+                    self._stats.intervention_counts[key] = self._stats.intervention_counts.get(key, 0) + 1
                     akey = intervention.action.value
-                    self._stats.action_counts[akey] = (
-                        self._stats.action_counts.get(akey, 0) + 1
-                    )
+                    self._stats.action_counts[akey] = self._stats.action_counts.get(akey, 0) + 1
                 logger.debug(
                     "RuntimeWasteFilter: %s → %s (confidence=%.2f)",
-                    intervention.type.value, intervention.action.value,
+                    intervention.type.value,
+                    intervention.action.value,
                     intervention.confidence,
                 )
                 return intervention
@@ -302,7 +404,7 @@ class RuntimeWasteFilter:
 
     def _check_redundancy(self, record: ExchangeRecord) -> Intervention:
         """Check if this exchange is redundant (near-duplicate of recent)."""
-        recent = self._exchanges[-REDUNDANCY_HASH_WINDOW - 1:-1]  # Exclude current
+        recent = self._exchanges[-REDUNDANCY_HASH_WINDOW - 1 : -1]  # Exclude current
         for past in recent:
             if past.content_hash == record.content_hash:
                 return Intervention(
@@ -320,13 +422,13 @@ class RuntimeWasteFilter:
             return Intervention(type=InterventionType.LOOP, action=InterventionAction.CONTINUE)
 
         # Check for repeating agent-hash pairs
-        recent = self._exchanges[-self._loop_threshold * 2:]
+        recent = self._exchanges[-self._loop_threshold * 2 :]
         pairs = [(e.agent_id, e.content_hash) for e in recent]
 
         # Check if the pattern repeats
         half = len(pairs) // 2
         first_half = pairs[:half]
-        second_half = pairs[half:half + len(first_half)]
+        second_half = pairs[half : half + len(first_half)]
 
         if first_half == second_half:
             total_waste = sum(e.token_count for e in recent[half:])
@@ -346,27 +448,25 @@ class RuntimeWasteFilter:
                 action=InterventionAction.REDIRECT,
                 confidence=0.7,
                 reason=f"Agent '{recent_agents[0]}' monologue ({MAX_SAME_AGENT}+ consecutive exchanges).",
-                token_waste_estimate=sum(
-                    e.token_count for e in self._exchanges[-MAX_SAME_AGENT:]
-                ),
+                token_waste_estimate=sum(e.token_count for e in self._exchanges[-MAX_SAME_AGENT:]),
             )
 
         return Intervention(type=InterventionType.LOOP, action=InterventionAction.CONTINUE)
 
-    def _check_stagnation(self, current_words: Set[str]) -> Intervention:
+    def _check_stagnation(self, current_words: set[str]) -> Intervention:
         """Check if agents are making progress (new topic words)."""
         if len(self._exchanges) < self._stagnation_window:
             return Intervention(type=InterventionType.STAGNATION, action=InterventionAction.CONTINUE)
 
         # Count new words in recent window
-        window = self._exchanges[-self._stagnation_window:]
-        window_words: Set[str] = set()
+        window = self._exchanges[-self._stagnation_window :]
+        window_words: set[str] = set()
         for e in window:
             window_words.update(e.topic_words)
 
         # Words that appeared before the window
-        pre_window_words: Set[str] = set()
-        for e in self._exchanges[:-self._stagnation_window]:
+        pre_window_words: set[str] = set()
+        for e in self._exchanges[: -self._stagnation_window]:
             pre_window_words.update(e.topic_words)
 
         new_words = window_words - pre_window_words
@@ -385,7 +485,7 @@ class RuntimeWasteFilter:
 
         return Intervention(type=InterventionType.STAGNATION, action=InterventionAction.CONTINUE)
 
-    def _check_divergence(self, current_words: Set[str]) -> Intervention:
+    def _check_divergence(self, current_words: set[str]) -> Intervention:
         """Check if agents are diverging from the task."""
         if not self._task_words or not current_words:
             return Intervention(type=InterventionType.DIVERGENCE, action=InterventionAction.CONTINUE)
@@ -430,8 +530,7 @@ class RuntimeWasteFilter:
                 action=InterventionAction.SUMMARIZE,
                 confidence=0.8,
                 reason=(
-                    f"Only {remaining_ratio:.0%} of token budget remaining "
-                    f"({self._tokens_used}/{self._token_budget})."
+                    f"Only {remaining_ratio:.0%} of token budget remaining ({self._tokens_used}/{self._token_budget})."
                 ),
                 token_waste_estimate=0,
             )
@@ -441,7 +540,7 @@ class RuntimeWasteFilter:
     # -- utilities --
 
     @staticmethod
-    def _extract_topic_words(text: str) -> Set[str]:
+    def _extract_topic_words(text: str) -> set[str]:
         """Extract meaningful topic words from text."""
         words = set(re.findall(r"[a-z][a-z0-9_]+", text.lower()))
         return words - STOP_WORDS
@@ -457,7 +556,7 @@ class RuntimeWasteFilter:
 # Singleton
 # ---------------------------------------------------------------------------
 
-_instance: Optional[RuntimeWasteFilter] = None
+_instance: RuntimeWasteFilter | None = None
 _instance_lock = threading.Lock()
 
 

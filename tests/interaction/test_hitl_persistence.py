@@ -11,13 +11,13 @@ Author: Claude (NEXUS V12.2 IRONCLAD)
 Date: 2025-12-16
 """
 
-import asyncio
-import pytest
-from datetime import datetime, timedelta, timezone
+import sys
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
-import sys
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.infrastructure.db.engine import init_db, reset_engine
@@ -35,7 +35,7 @@ class TestHITLRequestModel:
             workspace_id="default",
             request_type="ask",
             prompt="Continue with deployment?",
-            expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=24),
+            expires_at=datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=24),
         )
 
         assert request.request_type == "ask"
@@ -60,7 +60,7 @@ class TestHITLRequestModel:
             workspace_id="default",
             request_type="confirm",
             prompt="Test?",
-            expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=1),
+            expires_at=datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=1),
         )
 
         assert request.status == HITLRequestStatus.PENDING

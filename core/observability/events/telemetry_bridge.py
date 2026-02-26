@@ -33,7 +33,7 @@ import logging
 import secrets
 import threading
 from contextvars import ContextVar
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Optional
 
 logger = logging.getLogger("nexus.telemetry.bridge")
 
@@ -41,7 +41,7 @@ logger = logging.getLogger("nexus.telemetry.bridge")
 # Async-safe Correlation Context (NOT dict - required for async)
 # =============================================================================
 
-_correlation_id: ContextVar[Optional[str]] = ContextVar("correlation_id", default=None)
+_correlation_id: ContextVar[str | None] = ContextVar("correlation_id", default=None)
 _sequence_counter: ContextVar[int] = ContextVar("sequence_counter", default=0)
 
 # =============================================================================
@@ -56,6 +56,7 @@ STATE_TTL = 86400  # 24 hours - V11.5 CORTEX state persistence (F5 recovery)
 # =============================================================================
 # TelemetryBridge Singleton
 # =============================================================================
+
 
 class TelemetryBridge:
     """
@@ -88,7 +89,7 @@ class TelemetryBridge:
     # Trace Management
     # =========================================================================
 
-    def start_trace(self, trace_id: Optional[str] = None) -> str:
+    def start_trace(self, trace_id: str | None = None) -> str:
         """
         Start a new correlation trace.
 
@@ -112,7 +113,7 @@ class TelemetryBridge:
         if tid:
             logger.debug(f"Ended trace: {tid}")
 
-    def get_correlation_id(self) -> Optional[str]:
+    def get_correlation_id(self) -> str | None:
         """Get current correlation ID, or None if no trace active."""
         return _correlation_id.get()
 
@@ -131,6 +132,7 @@ class TelemetryBridge:
         # V13.0 FIX: Check active subscribers first (most reliable)
         try:
             from core.observability.events.redis_bus import get_redis_bus
+
             bus = get_redis_bus()
             if bus._memory_subscribers:
                 first_key = next(iter(bus._memory_subscribers.keys()), None)
@@ -142,6 +144,7 @@ class TelemetryBridge:
         # Fallback to context
         try:
             from core.infrastructure.context import get_current_session_or_none
+
             ctx = get_current_session_or_none()
             if ctx and ctx.tenant_id and ctx.tenant_id != "anonymous":
                 return ctx.tenant_id
@@ -155,6 +158,7 @@ class TelemetryBridge:
         # V13.0 FIX: Check active subscribers first (most reliable)
         try:
             from core.observability.events.redis_bus import get_redis_bus
+
             bus = get_redis_bus()
             if bus._memory_subscribers:
                 first_key = next(iter(bus._memory_subscribers.keys()), None)
@@ -166,6 +170,7 @@ class TelemetryBridge:
         # Fallback to context
         try:
             from core.infrastructure.context import get_current_session_or_none
+
             ctx = get_current_session_or_none()
             if ctx and ctx.workspace_id:
                 return ctx.workspace_id
@@ -178,7 +183,7 @@ class TelemetryBridge:
     # Payload Truncation
     # =========================================================================
 
-    def _truncate_payload(self, payload: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
+    def _truncate_payload(self, payload: dict[str, Any]) -> tuple[dict[str, Any], bool]:
         """
         Truncate payload if it exceeds MAX_PAYLOAD_SIZE.
 
@@ -211,11 +216,7 @@ class TelemetryBridge:
     # =========================================================================
 
     async def _persist_state(
-        self,
-        tenant_id: str,
-        workspace_id: str,
-        event_type: "CerebroEventType",
-        payload: Dict[str, Any]
+        self, tenant_id: str, workspace_id: str, event_type: "CerebroEventType", payload: dict[str, Any]
     ) -> None:
         """
         Persist stateful events for snapshot recovery (F5 recovery).
@@ -232,7 +233,6 @@ class TelemetryBridge:
         """
         try:
             from core.observability.events.redis_bus import get_redis_bus
-            from core.observability.events.types import CerebroEventType
 
             bus = get_redis_bus()
 
@@ -241,37 +241,25 @@ class TelemetryBridge:
 
             # Also persist to Redis if connected
             if bus.is_connected() and bus._redis:
-                await self._persist_state_redis(
-                    bus._redis, tenant_id, workspace_id, event_type, payload
-                )
+                await self._persist_state_redis(bus._redis, tenant_id, workspace_id, event_type, payload)
 
         except Exception as e:
             # Fire-and-forget: never block, log at debug level
             logger.debug(f"State persistence failed (non-blocking): {e}")
 
     def _persist_state_memory(
-        self,
-        bus,
-        tenant_id: str,
-        workspace_id: str,
-        event_type: "CerebroEventType",
-        payload: Dict[str, Any]
+        self, bus, tenant_id: str, workspace_id: str, event_type: "CerebroEventType", payload: dict[str, Any]
     ) -> None:
         """Persist state to in-memory storage (V13.0)."""
         try:
             from core.observability.events.types import CerebroEventType
 
             # Phase state (HIVE_PHASE_START, HIVE_STATE_CHANGE)
-            if event_type in (CerebroEventType.HIVE_PHASE_START,
-                              CerebroEventType.HIVE_STATE_CHANGE):
+            if event_type in (CerebroEventType.HIVE_PHASE_START, CerebroEventType.HIVE_STATE_CHANGE):
                 bus.set_phase_state(tenant_id, workspace_id, payload)
 
             # Graph nodes (spawn/update)
-            elif event_type == CerebroEventType.GRAPH_NODE_SPAWN:
-                node_id = payload.get("node_id", "unknown")
-                bus.set_node(tenant_id, workspace_id, node_id, payload)
-
-            elif event_type == CerebroEventType.GRAPH_NODE_UPDATE:
+            elif event_type == CerebroEventType.GRAPH_NODE_SPAWN or event_type == CerebroEventType.GRAPH_NODE_UPDATE:
                 node_id = payload.get("node_id", "unknown")
                 bus.set_node(tenant_id, workspace_id, node_id, payload)
 
@@ -283,12 +271,7 @@ class TelemetryBridge:
             logger.warning(f"In-memory state persistence failed: {e}")
 
     async def _persist_state_redis(
-        self,
-        redis,
-        tenant_id: str,
-        workspace_id: str,
-        event_type: "CerebroEventType",
-        payload: Dict[str, Any]
+        self, redis, tenant_id: str, workspace_id: str, event_type: "CerebroEventType", payload: dict[str, Any]
     ) -> None:
         """Persist state to Redis (original implementation)."""
         from core.observability.events.types import CerebroEventType
@@ -296,13 +279,8 @@ class TelemetryBridge:
         base_key = f"nexus:{tenant_id}:{workspace_id}:state"
 
         # Phase state (HIVE_PHASE_START, HIVE_STATE_CHANGE)
-        if event_type in (CerebroEventType.HIVE_PHASE_START,
-                          CerebroEventType.HIVE_STATE_CHANGE):
-            await redis.set(
-                f"{base_key}:phase",
-                json.dumps(payload, default=str),
-                ex=STATE_TTL
-            )
+        if event_type in (CerebroEventType.HIVE_PHASE_START, CerebroEventType.HIVE_STATE_CHANGE):
+            await redis.set(f"{base_key}:phase", json.dumps(payload, default=str), ex=STATE_TTL)
 
         # Graph nodes (spawn/update)
         elif event_type == CerebroEventType.GRAPH_NODE_SPAWN:
@@ -329,9 +307,9 @@ class TelemetryBridge:
     async def emit(
         self,
         event_type: "CerebroEventType",
-        payload: Dict[str, Any],
-        tenant_id: Optional[str] = None,
-        workspace_id: Optional[str] = None
+        payload: dict[str, Any],
+        tenant_id: str | None = None,
+        workspace_id: str | None = None,
     ) -> bool:
         """
         Emit telemetry event (async). Fire-and-forget.
@@ -375,10 +353,7 @@ class TelemetryBridge:
 
             # V11.5 CORTEX: Persist stateful events for F5 recovery
             await self._persist_state(
-                tenant_id=event.tenant_id,
-                workspace_id=event.workspace_id,
-                event_type=event_type,
-                payload=payload_final
+                tenant_id=event.tenant_id, workspace_id=event.workspace_id, event_type=event_type, payload=payload_final
             )
 
             return result
@@ -390,9 +365,9 @@ class TelemetryBridge:
     def emit_sync(
         self,
         event_type: "CerebroEventType",
-        payload: Dict[str, Any],
-        tenant_id: Optional[str] = None,
-        workspace_id: Optional[str] = None
+        payload: dict[str, Any],
+        tenant_id: str | None = None,
+        workspace_id: str | None = None,
     ) -> bool:
         """
         Emit telemetry event from sync code. Thread-safe.
@@ -414,14 +389,14 @@ class TelemetryBridge:
             # This is required because worker threads don't have a running loop,
             # and asyncio.run() creates a NEW loop that can't access subscribers
             from core.observability.events.redis_bus import get_redis_bus
+
             bus = get_redis_bus()
             main_loop = bus._main_loop
 
             if main_loop and main_loop.is_running():
                 # Schedule in main loop (thread-safe)
                 future = asyncio.run_coroutine_threadsafe(
-                    self.emit(event_type, payload, tenant_id, workspace_id),
-                    main_loop
+                    self.emit(event_type, payload, tenant_id, workspace_id), main_loop
                 )
                 return future.result(timeout=EMIT_SYNC_TIMEOUT)
             else:
@@ -429,8 +404,7 @@ class TelemetryBridge:
                 try:
                     loop = asyncio.get_running_loop()
                     future = asyncio.run_coroutine_threadsafe(
-                        self.emit(event_type, payload, tenant_id, workspace_id),
-                        loop
+                        self.emit(event_type, payload, tenant_id, workspace_id), loop
                     )
                     return future.result(timeout=EMIT_SYNC_TIMEOUT)
                 except RuntimeError:
@@ -445,6 +419,7 @@ class TelemetryBridge:
 # =============================================================================
 # Module-level Accessors
 # =============================================================================
+
 
 def get_telemetry_bridge() -> TelemetryBridge:
     """Get the TelemetryBridge singleton instance."""
@@ -464,6 +439,7 @@ def reset_telemetry_bridge() -> None:
 # V13.0 CEREBRO LIVE: Agent Exchange Helpers
 # =============================================================================
 
+
 def _resolve_tenant_workspace() -> tuple:
     """
     Resolve tenant_id and workspace_id for telemetry events.
@@ -474,12 +450,11 @@ def _resolve_tenant_workspace() -> tuple:
     Returns:
         Tuple of (tenant_id, workspace_id)
     """
-    tenant_id = None
-    workspace_id = None
 
     # Priority 1: Active WebSocket subscribers (most reliable)
     try:
         from core.observability.events.redis_bus import get_redis_bus
+
         bus = get_redis_bus()
         if bus._memory_subscribers:
             first_key = next(iter(bus._memory_subscribers.keys()), None)
@@ -491,6 +466,7 @@ def _resolve_tenant_workspace() -> tuple:
     # Priority 2: Session context (works in main thread only)
     try:
         from core.infrastructure.context import get_current_session_or_none
+
         ctx = get_current_session_or_none()
         if ctx and ctx.tenant_id and ctx.tenant_id != "anonymous":
             return (ctx.tenant_id, ctx.workspace_id or "default")
@@ -506,7 +482,7 @@ def emit_agent_exchange(
     message: str,
     exchange_type: str = "message",
     tenant_id: str = None,
-    workspace_id: str = None
+    workspace_id: str = None,
 ) -> bool:
     """
     Emit GRAPH_EDGE_MESSAGE for agent-to-agent communication.
@@ -549,16 +525,12 @@ def emit_agent_exchange(
             "exchange_type": exchange_type,
         },
         tenant_id=tenant_id,
-        workspace_id=workspace_id
+        workspace_id=workspace_id,
     )
 
 
 def emit_agent_speak(
-    agent: str,
-    message: str,
-    action_type: str = "TALK",
-    tenant_id: str = None,
-    workspace_id: str = None
+    agent: str, message: str, action_type: str = "TALK", tenant_id: str = None, workspace_id: str = None
 ) -> bool:
     """
     Emit AGENT_SPEAK for agent message content.
@@ -599,13 +571,12 @@ def emit_agent_speak(
             "truncated": len(message) > max_len if message else False,
         },
         tenant_id=tenant_id,
-        workspace_id=workspace_id
+        workspace_id=workspace_id,
     )
 
 
 # Lazy import to get actual enum
-from core.observability.events.types import CerebroEventType
-
+from core.observability.events.types import CerebroEventType  # noqa: E402  # after module setup
 
 # Type hint import (deferred to avoid circular import at module load)
 if False:  # TYPE_CHECKING equivalent without import

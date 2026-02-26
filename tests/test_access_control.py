@@ -16,8 +16,6 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.security_pkg.security.access_control import (
     ADMIN_ROLE,
     AccessCheckResult,
@@ -29,10 +27,10 @@ from core.security_pkg.security.access_control import (
     reset_access_controller,
 )
 
-
 # =============================================================================
 # Role Tests
 # =============================================================================
+
 
 class TestRole:
     """Test Role dataclass."""
@@ -59,6 +57,7 @@ class TestRole:
 # AgentAccess Tests
 # =============================================================================
 
+
 class TestAgentAccess:
     """Test AgentAccess dataclass."""
 
@@ -82,6 +81,7 @@ class TestAgentAccess:
 # AccessCheckResult Tests
 # =============================================================================
 
+
 class TestAccessCheckResult:
     """Test AccessCheckResult dataclass."""
 
@@ -104,6 +104,7 @@ class TestAccessCheckResult:
 # AccessStats Tests
 # =============================================================================
 
+
 class TestAccessStats:
     """Test AccessStats dataclass."""
 
@@ -117,6 +118,7 @@ class TestAccessStats:
 # =============================================================================
 # Role Management Tests
 # =============================================================================
+
 
 class TestRoleManagement:
     """Test role CRUD operations."""
@@ -191,6 +193,7 @@ class TestRoleManagement:
 # =============================================================================
 # Agent Management Tests
 # =============================================================================
+
 
 class TestAgentManagement:
     """Test agent CRUD operations."""
@@ -268,6 +271,7 @@ class TestAgentManagement:
 # =============================================================================
 # Access Check Tests
 # =============================================================================
+
 
 class TestAccessChecks:
     """Test access checking."""
@@ -353,6 +357,7 @@ class TestAccessChecks:
 # Effective Permissions Tests
 # =============================================================================
 
+
 class TestEffectivePermissions:
     """Test effective permissions calculation."""
 
@@ -400,6 +405,7 @@ class TestEffectivePermissions:
 # Statistics Tests
 # =============================================================================
 
+
 class TestStatistics:
     """Test access control statistics."""
 
@@ -431,6 +437,7 @@ class TestStatistics:
 # =============================================================================
 # State Tests
 # =============================================================================
+
 
 class TestState:
     """Test state management."""
@@ -469,6 +476,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global access controller."""
 
@@ -495,25 +503,38 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_security_package(self):
         from core.security_pkg.security import (
-            AccessControlManager, Role, AgentAccess,
-            AccessCheckResult, AccessStats,
-            get_access_controller, reset_access_controller,
+            AccessCheckResult,
+            AccessControlManager,
+            AccessStats,
+            AgentAccess,
+            Role,
+            get_access_controller,
+            reset_access_controller,
         )
-        assert all([
-            AccessControlManager, Role, AgentAccess,
-            AccessCheckResult, AccessStats,
-            get_access_controller, reset_access_controller,
-        ])
+
+        assert all(
+            [
+                AccessControlManager,
+                Role,
+                AgentAccess,
+                AccessCheckResult,
+                AccessStats,
+                get_access_controller,
+                reset_access_controller,
+            ]
+        )
 
     def test_from_module(self):
         from core.security_pkg.security.access_control import (
-            AccessControlManager, ADMIN_ROLE,
-            DEFAULT_ROLE, MAX_ROLES, MAX_AGENTS,
+            ADMIN_ROLE,
+            DEFAULT_ROLE,
         )
+
         assert ADMIN_ROLE == "admin"
         assert DEFAULT_ROLE == "default"

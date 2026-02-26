@@ -32,9 +32,8 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -51,21 +50,23 @@ LEARNING_RATE = 0.1  # EMA for performance tracking
 # Types
 # =============================================================================
 
+
 @dataclass
 class MutationRecord:
     """A single mutation event."""
+
     parent_id: str
     child_id: str
     strategy: str
     generation: int = 1
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
     timestamp: float = 0.0
 
     def __post_init__(self):
         if self.timestamp == 0.0:
             self.timestamp = time.monotonic()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "parent_id": self.parent_id,
             "child_id": self.child_id,
@@ -78,11 +79,12 @@ class MutationRecord:
 @dataclass
 class AgentPerformance:
     """Performance metrics for an agent."""
+
     agent_id: str
     total_tasks: int = 0
     successful_tasks: int = 0
     avg_score: float = 0.0
-    scores: List[float] = field(default_factory=list)
+    scores: list[float] = field(default_factory=list)
 
     @property
     def success_rate(self) -> float:
@@ -94,7 +96,7 @@ class AgentPerformance:
     def latest_score(self) -> float:
         return self.scores[-1] if self.scores else 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "agent_id": self.agent_id,
             "total_tasks": self.total_tasks,
@@ -108,13 +110,14 @@ class AgentPerformance:
 @dataclass
 class LineageNode:
     """A node in the mutation tree."""
+
     agent_id: str
-    parent_id: Optional[str] = None
-    children: List[str] = field(default_factory=list)
+    parent_id: str | None = None
+    children: list[str] = field(default_factory=list)
     strategy: str = ""
     generation: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "agent_id": self.agent_id,
             "parent_id": self.parent_id,
@@ -127,12 +130,13 @@ class LineageNode:
 @dataclass
 class VariantComparison:
     """Comparison between sibling variants."""
+
     parent_id: str
-    variants: Dict[str, float]  # agent_id -> avg_score
+    variants: dict[str, float]  # agent_id -> avg_score
     best_variant: str
     worst_variant: str
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "parent_id": self.parent_id,
             "variants": {k: round(v, 4) for k, v in self.variants.items()},
@@ -144,13 +148,14 @@ class VariantComparison:
 @dataclass
 class TrackerStats:
     """Mutation tracker statistics."""
+
     total_mutations: int
     total_agents: int
     root_agents: int
     max_generation: int
     total_performance_records: int
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_mutations": self.total_mutations,
             "total_agents": self.total_agents,
@@ -163,6 +168,7 @@ class TrackerStats:
 # =============================================================================
 # Mutation Tracker
 # =============================================================================
+
 
 class MutationTracker:
     """
@@ -178,9 +184,9 @@ class MutationTracker:
     """
 
     def __init__(self, *, max_mutations: int = MAX_MUTATIONS):
-        self._mutations: List[MutationRecord] = []
-        self._nodes: Dict[str, LineageNode] = {}
-        self._performance: Dict[str, AgentPerformance] = {}
+        self._mutations: list[MutationRecord] = []
+        self._nodes: dict[str, LineageNode] = {}
+        self._performance: dict[str, AgentPerformance] = {}
         self._max_mutations = max_mutations
         self._lock = threading.Lock()
 
@@ -194,7 +200,7 @@ class MutationTracker:
         child_id: str,
         strategy: str,
         *,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> MutationRecord:
         """
         Record a mutation event.
@@ -248,24 +254,24 @@ class MutationTracker:
     # Lineage Queries
     # =========================================================================
 
-    def get_children(self, agent_id: str) -> List[str]:
+    def get_children(self, agent_id: str) -> list[str]:
         """Get direct children of an agent."""
         with self._lock:
             node = self._nodes.get(agent_id)
             return list(node.children) if node else []
 
-    def get_parent(self, agent_id: str) -> Optional[str]:
+    def get_parent(self, agent_id: str) -> str | None:
         """Get parent of an agent."""
         with self._lock:
             node = self._nodes.get(agent_id)
             return node.parent_id if node else None
 
-    def get_ancestors(self, agent_id: str) -> List[str]:
+    def get_ancestors(self, agent_id: str) -> list[str]:
         """Get all ancestors (oldest first)."""
         ancestors = []
         with self._lock:
             current = agent_id
-            visited: Set[str] = set()
+            visited: set[str] = set()
             while current in self._nodes:
                 node = self._nodes[current]
                 if node.parent_id is None or node.parent_id in visited:
@@ -276,12 +282,12 @@ class MutationTracker:
         ancestors.reverse()
         return ancestors
 
-    def get_descendants(self, agent_id: str) -> List[str]:
+    def get_descendants(self, agent_id: str) -> list[str]:
         """Get all descendants (breadth-first)."""
         descendants = []
         with self._lock:
             queue = list(self._nodes.get(agent_id, LineageNode(agent_id=agent_id)).children)
-            visited: Set[str] = set()
+            visited: set[str] = set()
             while queue:
                 child = queue.pop(0)
                 if child in visited:
@@ -293,7 +299,7 @@ class MutationTracker:
                     queue.extend(child_node.children)
         return descendants
 
-    def get_siblings(self, agent_id: str) -> List[str]:
+    def get_siblings(self, agent_id: str) -> list[str]:
         """Get sibling agents (same parent, excluding self)."""
         with self._lock:
             node = self._nodes.get(agent_id)
@@ -310,17 +316,14 @@ class MutationTracker:
             node = self._nodes.get(agent_id)
             return node.generation if node else -1
 
-    def get_lineage_node(self, agent_id: str) -> Optional[LineageNode]:
+    def get_lineage_node(self, agent_id: str) -> LineageNode | None:
         """Get the lineage node for an agent."""
         return self._nodes.get(agent_id)
 
-    def get_root_agents(self) -> List[str]:
+    def get_root_agents(self) -> list[str]:
         """Get agents with no parent (root of lineage trees)."""
         with self._lock:
-            return sorted(
-                aid for aid, node in self._nodes.items()
-                if node.parent_id is None
-            )
+            return sorted(aid for aid, node in self._nodes.items() if node.parent_id is None)
 
     # =========================================================================
     # Performance
@@ -354,17 +357,17 @@ class MutationTracker:
             else:
                 perf.avg_score = (1 - LEARNING_RATE) * perf.avg_score + LEARNING_RATE * score
 
-    def get_performance(self, agent_id: str) -> Optional[AgentPerformance]:
+    def get_performance(self, agent_id: str) -> AgentPerformance | None:
         """Get performance metrics for an agent."""
         return self._performance.get(agent_id)
 
-    def compare_variants(self, parent_id: str) -> Optional[VariantComparison]:
+    def compare_variants(self, parent_id: str) -> VariantComparison | None:
         """Compare performance of sibling variants from the same parent."""
         children = self.get_children(parent_id)
         if not children:
             return None
 
-        variants: Dict[str, float] = {}
+        variants: dict[str, float] = {}
         for child_id in children:
             perf = self._performance.get(child_id)
             if perf and perf.total_tasks > 0:
@@ -383,7 +386,7 @@ class MutationTracker:
             worst_variant=worst,
         )
 
-    def get_rollback_version(self, agent_id: str) -> Optional[str]:
+    def get_rollback_version(self, agent_id: str) -> str | None:
         """Get the stable ancestor to roll back to if this agent fails."""
         parent = self.get_parent(agent_id)
         if parent is None:
@@ -407,9 +410,7 @@ class MutationTracker:
                 (n.generation for n in self._nodes.values()),
                 default=0,
             )
-            root_count = sum(
-                1 for n in self._nodes.values() if n.parent_id is None
-            )
+            root_count = sum(1 for n in self._nodes.values() if n.parent_id is None)
             total_perf = sum(p.total_tasks for p in self._performance.values())
 
         return TrackerStats(
@@ -439,7 +440,7 @@ class MutationTracker:
             self._nodes.clear()
             self._performance.clear()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "mutation_count": self.mutation_count,
             "agent_count": self.agent_count,
@@ -451,7 +452,7 @@ class MutationTracker:
 # Global Instance
 # =============================================================================
 
-_tracker: Optional[MutationTracker] = None
+_tracker: MutationTracker | None = None
 _tracker_lock = threading.Lock()
 
 

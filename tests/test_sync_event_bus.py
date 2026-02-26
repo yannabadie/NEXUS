@@ -15,23 +15,19 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.utils.event_bus import (
-    EventBus,
-    Event,
-    Subscription,
     EmitResult,
+    Event,
+    EventBus,
+    Subscription,
     get_event_bus,
     reset_event_bus,
-    MAX_HISTORY,
-    DEFAULT_PRIORITY,
 )
-
 
 # =============================================================================
 # Event Tests
 # =============================================================================
+
 
 class TestEvent:
     """Test Event dataclass."""
@@ -57,6 +53,7 @@ class TestEvent:
 # Subscription Tests
 # =============================================================================
 
+
 class TestSubscription:
     """Test Subscription matching."""
 
@@ -77,7 +74,9 @@ class TestSubscription:
 
     def test_source_filter(self):
         sub = Subscription(
-            sub_id="s1", pattern="llm.*", handler=lambda e: None,
+            sub_id="s1",
+            pattern="llm.*",
+            handler=lambda e: None,
             source_filter="claude",
         )
         assert sub.matches("llm.response", "claude") is True
@@ -87,6 +86,7 @@ class TestSubscription:
 # =============================================================================
 # Subscribe/Unsubscribe Tests
 # =============================================================================
+
 
 class TestSubscribeUnsubscribe:
     """Test subscription management."""
@@ -129,6 +129,7 @@ class TestSubscribeUnsubscribe:
 # =============================================================================
 # Emit Tests
 # =============================================================================
+
 
 class TestEmit:
     """Test event emission."""
@@ -185,6 +186,7 @@ class TestEmit:
 # Priority Tests
 # =============================================================================
 
+
 class TestPriority:
     """Test handler priority ordering."""
 
@@ -201,6 +203,7 @@ class TestPriority:
 # =============================================================================
 # Once Tests
 # =============================================================================
+
 
 class TestOnce:
     """Test one-shot subscriptions."""
@@ -225,13 +228,16 @@ class TestOnce:
 # Error Handling Tests
 # =============================================================================
 
+
 class TestErrorHandling:
     """Test error handling in handlers."""
 
     def test_handler_error_captured(self):
         bus = EventBus()
+
         def bad_handler(e):
             raise ValueError("boom")
+
         bus.on("test", bad_handler)
         result = bus.emit("test")
         assert result.success is False
@@ -241,8 +247,10 @@ class TestErrorHandling:
     def test_error_doesnt_stop_other_handlers(self):
         bus = EventBus()
         received = []
+
         def bad_handler(e):
             raise ValueError("boom")
+
         bus.on("test", bad_handler, priority=10)
         bus.on("test", lambda e: received.append("ok"), priority=20)
         result = bus.emit("test")
@@ -253,6 +261,7 @@ class TestErrorHandling:
 # =============================================================================
 # History Tests
 # =============================================================================
+
 
 class TestHistory:
     """Test event history."""
@@ -317,6 +326,7 @@ class TestHistory:
 # EmitResult Tests
 # =============================================================================
 
+
 class TestEmitResult:
     """Test EmitResult dataclass."""
 
@@ -338,6 +348,7 @@ class TestEmitResult:
 # =============================================================================
 # Global Singleton Tests
 # =============================================================================
+
 
 class TestGlobalSingleton:
     """Test global event bus."""
@@ -365,6 +376,7 @@ class TestGlobalSingleton:
 # State Export Tests
 # =============================================================================
 
+
 class TestStateExport:
     """Test state export."""
 
@@ -382,16 +394,21 @@ class TestStateExport:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_utils_package(self):
-        from core.utils import EventBus, Event, get_event_bus, reset_event_bus
+        from core.utils import Event, EventBus, get_event_bus, reset_event_bus
+
         assert all([EventBus, Event, get_event_bus, reset_event_bus])
 
     def test_from_module(self):
         from core.utils.event_bus import (
-            EventBus, Event, Subscription, EmitResult,
-            get_event_bus, reset_event_bus,
+            EmitResult,
+            Event,
+            EventBus,
+            Subscription,
         )
+
         assert all([EventBus, Event, Subscription, EmitResult])

@@ -32,8 +32,8 @@ Usage:
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ _logger = logging.getLogger(__name__)
 # =============================================================================
 
 # Known model context window sizes (tokens)
-MODEL_CONTEXT_WINDOWS: Dict[str, int] = {
+MODEL_CONTEXT_WINDOWS: dict[str, int] = {
     # Claude models
     "claude-opus-4-6-20250116": 200_000,
     "claude-opus-4-6": 200_000,
@@ -73,9 +73,11 @@ CHARS_PER_TOKEN = 4
 # Types
 # =============================================================================
 
+
 @dataclass
 class ContextMessage:
     """A message in the context window."""
+
     role: str  # "system", "user", "assistant", "tool"
     content: str
     token_count: int = 0
@@ -85,7 +87,7 @@ class ContextMessage:
         if self.token_count == 0:
             self.token_count = estimate_tokens(self.content)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "role": self.role,
             "content_length": len(self.content),
@@ -97,6 +99,7 @@ class ContextMessage:
 @dataclass
 class ContextUtilization:
     """Context window utilization report."""
+
     model: str
     max_tokens: int
     used_tokens: int
@@ -106,7 +109,7 @@ class ContextUtilization:
     pinned_tokens: int
     truncatable_tokens: int
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "model": self.model,
             "max_tokens": self.max_tokens,
@@ -122,6 +125,7 @@ class ContextUtilization:
 # =============================================================================
 # Token Estimation
 # =============================================================================
+
 
 def estimate_tokens(text: str) -> int:
     """
@@ -168,6 +172,7 @@ def get_context_window(model: str) -> int:
 # Context Manager
 # =============================================================================
 
+
 class ContextManager:
     """
     Manages token budget and context window utilization for LLM conversations.
@@ -179,7 +184,7 @@ class ContextManager:
     def __init__(
         self,
         model: str = "claude-sonnet-4-5-20250929",
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
         reserve_tokens: int = 4000,
     ):
         """
@@ -193,7 +198,7 @@ class ContextManager:
         self._model = model
         self._max_tokens = max_tokens or get_context_window(model)
         self._reserve_tokens = reserve_tokens
-        self._messages: List[ContextMessage] = []
+        self._messages: list[ContextMessage] = []
 
     @property
     def model(self) -> str:
@@ -270,14 +275,14 @@ class ContextManager:
         """
         return tokens <= self.effective_remaining
 
-    def get_messages(self) -> List[ContextMessage]:
+    def get_messages(self) -> list[ContextMessage]:
         """Get all messages."""
         return list(self._messages)
 
     def get_truncated_history(
         self,
-        reserve_tokens: Optional[int] = None,
-    ) -> List[ContextMessage]:
+        reserve_tokens: int | None = None,
+    ) -> list[ContextMessage]:
         """
         Get conversation history, truncating oldest non-pinned messages
         if context window is exceeded.
@@ -345,7 +350,7 @@ class ContextManager:
             truncatable_tokens=truncatable,
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Export context manager state."""
         return {
             "model": self._model,

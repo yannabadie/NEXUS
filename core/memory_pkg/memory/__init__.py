@@ -14,143 +14,151 @@ Memory systems for NEXUS:
 - RAGNamespaceManager: Multi-namespace RAG support (V13.0)
 """
 
-from .auto_memory import AutoMemory, get_auto_memory, MemoryEntry
-from .project_memory import ProjectMemory
-from .types import Chunk, ScoredChunk, IndexStats
+from .auto_memory import AutoMemory, MemoryEntry, get_auto_memory
 
-# V12.4.1 Epic 1.4: LanceDB-backed memory V2 (CANONICAL)
-from .success_memory_v2 import (
-    SuccessMemoryV2,
-    SuccessEntry,  # SuccessEntry is now in V2
-    get_success_memory_v2,
-    reset_success_memory_v2,
+# V7.9 Phase 10f + 10g: Backend exports
+from .backends import (
+    BM25S_AVAILABLE,
+    LANCEDB_AVAILABLE,
+    SENTENCE_TRANSFORMERS_AVAILABLE,
+    Bm25Backend,
+    DenseBackend,
+    MemoryBackend,
+    TfidfBackend,
 )
+from .project_memory import ProjectMemory
 
-# Backward compatibility aliases (DEPRECATED - remove in V13.0)
-# Allows legacy imports to work transparently while we migrate
-SuccessMemory = SuccessMemoryV2
-get_success_memory = get_success_memory_v2
+# V9.1: Service Layer
+from .service import (
+    ForgetResult,
+    LearnResult,
+    MemoryService,
+    MemoryStatus,
+    QueryResult,
+)
 from .strategy_blacklist_v2 import (
-    StrategyBlacklistV2,
     BlacklistedStrategy,
+    StrategyBlacklistV2,
     get_strategy_blacklist_v2,
     reset_strategy_blacklist_v2,
 )
 
-# V7.9 Phase 10f + 10g: Backend exports
-from .backends import (
-    MemoryBackend, TfidfBackend, Bm25Backend, DenseBackend,
-    BM25S_AVAILABLE, LANCEDB_AVAILABLE, SENTENCE_TRANSFORMERS_AVAILABLE
+# V12.4.1 Epic 1.4: LanceDB-backed memory V2 (CANONICAL)
+from .success_memory_v2 import (
+    SuccessEntry,  # SuccessEntry is now in V2
+    SuccessMemoryV2,
+    get_success_memory_v2,
+    reset_success_memory_v2,
 )
-
-# V9.1: Service Layer
-from .service import (
-    MemoryService,
-    MemoryStatus,
-    LearnResult,
-    ForgetResult,
-    QueryResult,
-)
+from .types import Chunk, IndexStats, ScoredChunk
 
 # V13.0 MEMORIA UNIVERSALIS: Multi-format ingestion
 try:
-    from .ingestors import UniversalIngestor, DOCLING_AVAILABLE
+    from .ingestors import DOCLING_AVAILABLE, UniversalIngestor
 except ImportError:
     UniversalIngestor = None
     DOCLING_AVAILABLE = False
 
 # V13.0 MEMORIA UNIVERSALIS: Multi-namespace RAG
-from .namespace_manager import RAGNamespaceManager, NamespaceInfo
-
-# V12.4 OPERATION PRISM: Multi-tenant memory isolation
-from .tenant_memory import TenantMemoryService, DEFAULT_TENANT
-
-# V12.4 COGNITIVE BOOST: Conversation history
-from .conversation_store import (
-    ConversationStore,
-    ConversationSession,
-    ConversationTurn,
-    ConversationSummary,
-    SearchResult as ConversationSearchResult,
+# V12.4 COGNITIVE BOOST: Adaptive Memory Organizer (arxiv:2502.12110)
+from .adaptive_memory_organizer import (  # noqa: E402  # after optional dependency block
+    AdaptiveMemoryOrganizer,
+    MemoryNote,
+    OrganizerStats,
+    get_adaptive_memory_organizer,
+    reset_adaptive_memory_organizer,
 )
-
-# V12.4 COGNITIVE BOOST: Context Compressor
-from .context_compressor import (
-    ContextCompressor,
-    CompressTurn,
-    CompressionResult,
-    ContextShift,
-    get_compressor,
-    reset_compressor,
-)
-
-# V12.4 COGNITIVE BOOST: Plan-Aware Context Filter (arxiv:2512.16970)
-from .plan_context_filter import (
-    PlanContextFilter,
-    ScoredItem,
-    FilterResult,
-    FilterStats,
-    get_plan_context_filter,
-    reset_plan_context_filter,
+from .adaptive_memory_organizer import (  # noqa: E402
+    RetrievalResult as MemoryRetrievalResult,
 )
 
 # V12.4 COGNITIVE BOOST: Cache Manager
-from .cache_manager import (
-    CacheManager,
+from .cache_manager import (  # noqa: E402
     CacheEntry,
+    CacheManager,
     CacheStats,
     get_cache_manager,
     reset_cache_manager,
 )
 
+# V12.4 COGNITIVE BOOST: Context Compressor
+from .context_compressor import (  # noqa: E402
+    CompressionResult,
+    CompressTurn,
+    ContextCompressor,
+    ContextShift,
+    get_compressor,
+    reset_compressor,
+)
+
+# V12.4 COGNITIVE BOOST: Context Window Tracker
+from .context_window_tracker import (  # noqa: E402
+    CompressionEvent,
+    ContextTrackerStats,
+    ContextUsageRecord,
+    ContextWindowTracker,
+    get_context_tracker,
+    reset_context_tracker,
+)
+
+# V12.4 COGNITIVE BOOST: Conversation history
+from .conversation_store import (  # noqa: E402
+    ConversationSession,
+    ConversationStore,
+    ConversationSummary,
+    ConversationTurn,
+)
+from .conversation_store import (  # noqa: E402
+    SearchResult as ConversationSearchResult,
+)
+
+# V12.4 COGNITIVE BOOST: Memory Decay Scorer (Ebbinghaus forgetting curve)
+from .decay_scorer import (  # noqa: E402
+    AccessRecord,
+    DecayScorerStats,
+    MemoryDecayScorer,
+    get_decay_scorer,
+    reset_decay_scorer,
+)
+
 # V12.4 COGNITIVE BOOST: Memory Pressure Monitor
-from .memory_pressure_monitor import (
+from .memory_pressure_monitor import (  # noqa: E402
+    EvictionEvent,
     MemoryPressureMonitor,
     MemorySnapshot,
-    EvictionEvent,
     PressureLevel,
     PressureStats,
     get_pressure_monitor,
     reset_pressure_monitor,
 )
+from .namespace_manager import NamespaceInfo, RAGNamespaceManager  # noqa: E402
 
-# V12.4 COGNITIVE BOOST: Memory Decay Scorer (Ebbinghaus forgetting curve)
-from .decay_scorer import (
-    MemoryDecayScorer,
-    AccessRecord,
-    DecayScorerStats,
-    get_decay_scorer,
-    reset_decay_scorer,
-)
-
-# V12.4 COGNITIVE BOOST: Context Window Tracker
-from .context_window_tracker import (
-    ContextWindowTracker,
-    ContextUsageRecord,
-    CompressionEvent,
-    ContextTrackerStats,
-    get_context_tracker,
-    reset_context_tracker,
+# V12.4 COGNITIVE BOOST: Plan-Aware Context Filter (arxiv:2512.16970)
+from .plan_context_filter import (  # noqa: E402
+    FilterResult,
+    FilterStats,
+    PlanContextFilter,
+    ScoredItem,
+    get_plan_context_filter,
+    reset_plan_context_filter,
 )
 
 # V12.4 COGNITIVE BOOST: Pointer Memory (arxiv:2511.22729)
-from .pointer_memory import (
-    PointerMemory,
+from .pointer_memory import (  # noqa: E402
     Pointer,
+    PointerMemory,
     PointerStats,
     get_pointer_memory,
     reset_pointer_memory,
 )
 
-# V12.4 COGNITIVE BOOST: Adaptive Memory Organizer (arxiv:2502.12110)
-from .adaptive_memory_organizer import (
-    AdaptiveMemoryOrganizer,
-    MemoryNote,
-    RetrievalResult as MemoryRetrievalResult,
-    OrganizerStats,
-    get_adaptive_memory_organizer,
-    reset_adaptive_memory_organizer,
-)
+# V12.4 OPERATION PRISM: Multi-tenant memory isolation
+from .tenant_memory import DEFAULT_TENANT, TenantMemoryService  # noqa: E402
+
+# Backward compatibility aliases (DEPRECATED - remove in V13.0)
+# Allows legacy imports to work transparently while we migrate
+SuccessMemory = SuccessMemoryV2
+get_success_memory = get_success_memory_v2
 
 __all__ = [
     # Auto-Memory (V7.5)

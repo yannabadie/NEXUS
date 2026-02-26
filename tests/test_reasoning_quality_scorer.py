@@ -15,8 +15,6 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.intelligence.reasoning.reasoning_quality_scorer import (
     MAX_EVALUATIONS,
     AgentReasoningProfile,
@@ -27,10 +25,10 @@ from core.intelligence.reasoning.reasoning_quality_scorer import (
     reset_quality_scorer,
 )
 
-
 # =============================================================================
 # ReasoningEvaluation Tests
 # =============================================================================
+
 
 class TestReasoningEvaluation:
     """Test ReasoningEvaluation dataclass."""
@@ -49,8 +47,9 @@ class TestReasoningEvaluation:
         assert abs(e.confidence_calibration - 1.0) < 0.01
 
     def test_to_dict(self):
-        e = ReasoningEvaluation(evaluation_id="re_000001", agent_id="claude",
-                                depth_score=0.8, coherence_score=0.7, completeness_score=0.9)
+        e = ReasoningEvaluation(
+            evaluation_id="re_000001", agent_id="claude", depth_score=0.8, coherence_score=0.7, completeness_score=0.9
+        )
         d = e.to_dict()
         assert "composite_score" in d
         assert "confidence_calibration" in d
@@ -60,6 +59,7 @@ class TestReasoningEvaluation:
 # AgentReasoningProfile Tests
 # =============================================================================
 
+
 class TestAgentReasoningProfile:
     """Test AgentReasoningProfile dataclass."""
 
@@ -68,8 +68,9 @@ class TestAgentReasoningProfile:
         assert abs(p.avg_depth - 0.8) < 0.01
 
     def test_avg_composite(self):
-        p = AgentReasoningProfile(agent_id="claude", total_evaluations=4,
-                                  total_depth=3.2, total_coherence=2.8, total_completeness=3.6)
+        p = AgentReasoningProfile(
+            agent_id="claude", total_evaluations=4, total_depth=3.2, total_coherence=2.8, total_completeness=3.6
+        )
         # avg_depth=0.8, avg_coherence=0.7, avg_completeness=0.9 -> composite=0.8
         assert abs(p.avg_composite - 0.8) < 0.01
 
@@ -89,6 +90,7 @@ class TestAgentReasoningProfile:
 # ScorerStats Tests
 # =============================================================================
 
+
 class TestScorerStats:
     """Test ScorerStats dataclass."""
 
@@ -101,6 +103,7 @@ class TestScorerStats:
 # =============================================================================
 # Recording Tests
 # =============================================================================
+
 
 class TestRecording:
     """Test evaluation recording."""
@@ -130,6 +133,7 @@ class TestRecording:
 # Query Tests
 # =============================================================================
 
+
 class TestQueries:
     """Test query methods."""
 
@@ -156,7 +160,7 @@ class TestQueries:
 
     def test_recent_evaluations(self):
         s = ReasoningQualityScorer()
-        for i in range(5):
+        for _i in range(5):
             s.record_evaluation("claude", depth_score=0.5)
         recent = s.get_recent_evaluations(limit=3)
         assert len(recent) == 3
@@ -188,12 +192,13 @@ class TestQueries:
 # Bounded History Tests
 # =============================================================================
 
+
 class TestBoundedHistory:
     """Test bounded evaluation history."""
 
     def test_eviction(self):
         s = ReasoningQualityScorer(max_evaluations=5)
-        for i in range(10):
+        for _i in range(10):
             s.record_evaluation("claude", depth_score=0.5)
         assert s.evaluation_count == 5
 
@@ -201,6 +206,7 @@ class TestBoundedHistory:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test scorer statistics."""
@@ -228,6 +234,7 @@ class TestStatistics:
 # State Tests
 # =============================================================================
 
+
 class TestState:
     """Test state management."""
 
@@ -253,6 +260,7 @@ class TestState:
 # =============================================================================
 # Global Singleton Tests
 # =============================================================================
+
 
 class TestGlobalSingleton:
     """Test global quality scorer."""
@@ -280,21 +288,30 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_reasoning_package(self):
         from core.intelligence.reasoning import (
-            ReasoningQualityScorer, ReasoningEvaluation,
-            AgentReasoningProfile, ScorerStats,
-            get_quality_scorer, reset_quality_scorer,
+            AgentReasoningProfile,
+            ReasoningEvaluation,
+            ReasoningQualityScorer,
+            ScorerStats,
+            get_quality_scorer,
+            reset_quality_scorer,
         )
-        assert all([
-            ReasoningQualityScorer, ReasoningEvaluation,
-            AgentReasoningProfile, ScorerStats,
-            get_quality_scorer, reset_quality_scorer,
-        ])
+
+        assert all(
+            [
+                ReasoningQualityScorer,
+                ReasoningEvaluation,
+                AgentReasoningProfile,
+                ScorerStats,
+                get_quality_scorer,
+                reset_quality_scorer,
+            ]
+        )
 
     def test_constants(self):
-        from core.intelligence.reasoning.reasoning_quality_scorer import MAX_EVALUATIONS
         assert MAX_EVALUATIONS == 50000

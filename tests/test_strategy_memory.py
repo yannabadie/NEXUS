@@ -18,8 +18,6 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.intelligence.swarm.strategy_memory import (
     MAX_RECORDS,
     MIN_SAMPLES_FOR_SUGGESTION,
@@ -32,10 +30,10 @@ from core.intelligence.swarm.strategy_memory import (
     reset_strategy_memory,
 )
 
-
 # =============================================================================
 # StrategyRecord Tests
 # =============================================================================
+
 
 class TestStrategyRecord:
     """Test StrategyRecord dataclass."""
@@ -51,8 +49,12 @@ class TestStrategyRecord:
 
     def test_to_dict(self):
         r = StrategyRecord(
-            domain="coding", complexity="complex", mode="LEAD_SUPPORT",
-            quality=0.9, success=True, agents=["claude", "gemini"],
+            domain="coding",
+            complexity="complex",
+            mode="LEAD_SUPPORT",
+            quality=0.9,
+            success=True,
+            agents=["claude", "gemini"],
         )
         d = r.to_dict()
         assert d["domain"] == "coding"
@@ -63,6 +65,7 @@ class TestStrategyRecord:
 # =============================================================================
 # ModeEffectiveness Tests
 # =============================================================================
+
 
 class TestModeEffectiveness:
     """Test ModeEffectiveness dataclass."""
@@ -92,6 +95,7 @@ class TestModeEffectiveness:
 # ModeSuggestion Tests
 # =============================================================================
 
+
 class TestModeSuggestion:
     """Test ModeSuggestion dataclass."""
 
@@ -108,6 +112,7 @@ class TestModeSuggestion:
 # StrategyStats Tests
 # =============================================================================
 
+
 class TestStrategyStats:
     """Test StrategyStats dataclass."""
 
@@ -121,6 +126,7 @@ class TestStrategyStats:
 # =============================================================================
 # Recording Tests
 # =============================================================================
+
 
 class TestRecording:
     """Test strategy recording."""
@@ -165,6 +171,7 @@ class TestRecording:
 # Running Average Tests
 # =============================================================================
 
+
 class TestRunningAverage:
     """Test that effectiveness averages update correctly."""
 
@@ -196,6 +203,7 @@ class TestRunningAverage:
 # =============================================================================
 # Suggestion Tests
 # =============================================================================
+
 
 class TestSuggestions:
     """Test mode suggestions."""
@@ -264,6 +272,7 @@ class TestSuggestions:
 # Effectiveness Query Tests
 # =============================================================================
 
+
 class TestEffectivenessQueries:
     """Test effectiveness queries."""
 
@@ -292,6 +301,7 @@ class TestEffectivenessQueries:
 # =============================================================================
 # Domain Summary Tests
 # =============================================================================
+
 
 class TestDomainSummary:
     """Test domain summary and listing."""
@@ -328,6 +338,7 @@ class TestDomainSummary:
 # Bounded History Tests
 # =============================================================================
 
+
 class TestBoundedHistory:
     """Test bounded record history."""
 
@@ -341,6 +352,7 @@ class TestBoundedHistory:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test strategy memory statistics."""
@@ -371,6 +383,7 @@ class TestStatistics:
 # State Tests
 # =============================================================================
 
+
 class TestState:
     """Test state management."""
 
@@ -399,6 +412,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global strategy memory."""
 
@@ -425,22 +439,33 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_swarm_package(self):
         from core.intelligence.swarm import (
-            StrategyMemory, StrategyRecord, ModeEffectiveness,
-            ModeSuggestion, StrategyStats,
-            get_strategy_memory, reset_strategy_memory,
+            ModeEffectiveness,
+            ModeSuggestion,
+            StrategyMemory,
+            StrategyRecord,
+            StrategyStats,
+            get_strategy_memory,
+            reset_strategy_memory,
         )
-        assert all([
-            StrategyMemory, StrategyRecord, ModeEffectiveness,
-            ModeSuggestion, StrategyStats,
-            get_strategy_memory, reset_strategy_memory,
-        ])
+
+        assert all(
+            [
+                StrategyMemory,
+                StrategyRecord,
+                ModeEffectiveness,
+                ModeSuggestion,
+                StrategyStats,
+                get_strategy_memory,
+                reset_strategy_memory,
+            ]
+        )
 
     def test_constants(self):
-        from core.intelligence.swarm.strategy_memory import MAX_RECORDS, MIN_SAMPLES_FOR_SUGGESTION
         assert MAX_RECORDS == 50000
         assert MIN_SAMPLES_FOR_SUGGESTION == 3

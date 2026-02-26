@@ -15,11 +15,12 @@ which mode fits best for a given task.
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import List, Dict, Optional
+from typing import Optional
 
 
 class CollaborationMode(Enum):
     """6 collaboration modes for Hybrid Swarm"""
+
     PARALLEL = "parallel"
     SEQUENTIAL = "sequential"
     LEAD_SUPPORT = "lead_support"
@@ -72,6 +73,7 @@ class ModeCharacteristics:
 
     Used by ModeSelector to match tasks to optimal modes.
     """
+
     mode: CollaborationMode
 
     # Task complexity affinity (0=trivial tasks, 1=expert tasks)
@@ -87,10 +89,10 @@ class ModeCharacteristics:
     typical_rounds: int
 
     # Domains where Gemini excels in this mode
-    gemini_strength_fit: List[str] = field(default_factory=list)
+    gemini_strength_fit: list[str] = field(default_factory=list)
 
     # Domains where Claude excels in this mode
-    claude_strength_fit: List[str] = field(default_factory=list)
+    claude_strength_fit: list[str] = field(default_factory=list)
 
     # Description for negotiation context
     description: str = ""
@@ -98,7 +100,7 @@ class ModeCharacteristics:
     # When to use (natural language)
     when_to_use: str = ""
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "mode": self.mode.value,
             "complexity_affinity": self.complexity_affinity,
@@ -108,12 +110,12 @@ class ModeCharacteristics:
             "gemini_strength_fit": self.gemini_strength_fit,
             "claude_strength_fit": self.claude_strength_fit,
             "description": self.description,
-            "when_to_use": self.when_to_use
+            "when_to_use": self.when_to_use,
         }
 
 
 # Pre-defined characteristics for each mode
-MODE_CHARACTERISTICS: Dict[CollaborationMode, ModeCharacteristics] = {
+MODE_CHARACTERISTICS: dict[CollaborationMode, ModeCharacteristics] = {
     CollaborationMode.PARALLEL: ModeCharacteristics(
         mode=CollaborationMode.PARALLEL,
         complexity_affinity=0.5,
@@ -123,9 +125,8 @@ MODE_CHARACTERISTICS: Dict[CollaborationMode, ModeCharacteristics] = {
         gemini_strength_fit=["research", "web_search", "analysis"],
         claude_strength_fit=["coding", "architecture", "documentation"],
         description="Both agents work simultaneously on independent subtasks",
-        when_to_use="Independent subtasks, time-critical situations"
+        when_to_use="Independent subtasks, time-critical situations",
     ),
-
     CollaborationMode.SEQUENTIAL: ModeCharacteristics(
         mode=CollaborationMode.SEQUENTIAL,
         complexity_affinity=0.6,
@@ -135,9 +136,8 @@ MODE_CHARACTERISTICS: Dict[CollaborationMode, ModeCharacteristics] = {
         gemini_strength_fit=["research", "context_gathering"],
         claude_strength_fit=["implementation", "refinement"],
         description="First agent outputs, second agent refines/continues",
-        when_to_use="Clear dependencies, pipeline tasks"
+        when_to_use="Clear dependencies, pipeline tasks",
     ),
-
     CollaborationMode.LEAD_SUPPORT: ModeCharacteristics(
         mode=CollaborationMode.LEAD_SUPPORT,
         complexity_affinity=0.7,
@@ -147,9 +147,8 @@ MODE_CHARACTERISTICS: Dict[CollaborationMode, ModeCharacteristics] = {
         gemini_strength_fit=["research", "fact_checking", "web_verification"],
         claude_strength_fit=["coding", "debugging", "complex_reasoning"],
         description="Lead agent (80%) drives, support agent (20%) reviews",
-        when_to_use="Clear expertise dominance, complex coding tasks"
+        when_to_use="Clear expertise dominance, complex coding tasks",
     ),
-
     CollaborationMode.PING_PONG: ModeCharacteristics(
         mode=CollaborationMode.PING_PONG,
         complexity_affinity=0.6,
@@ -159,9 +158,8 @@ MODE_CHARACTERISTICS: Dict[CollaborationMode, ModeCharacteristics] = {
         gemini_strength_fit=["brainstorming", "idea_expansion"],
         claude_strength_fit=["creative_writing", "iteration", "refinement"],
         description="Rapid alternation, each builds on the other's output",
-        when_to_use="Creative tasks, brainstorming, iterative refinement"
+        when_to_use="Creative tasks, brainstorming, iterative refinement",
     ),
-
     CollaborationMode.SPECIALIST: ModeCharacteristics(
         mode=CollaborationMode.SPECIALIST,
         complexity_affinity=0.8,
@@ -171,9 +169,8 @@ MODE_CHARACTERISTICS: Dict[CollaborationMode, ModeCharacteristics] = {
         gemini_strength_fit=["terminal_operations", "long_horizon_planning"],
         claude_strength_fit=["swe_bench_tasks", "sustained_autonomy"],
         description="Single expert handles everything, other observes",
-        when_to_use="Exclusive expertise, highly specialized tasks"
+        when_to_use="Exclusive expertise, highly specialized tasks",
     ),
-
     CollaborationMode.RED_BLUE: ModeCharacteristics(
         mode=CollaborationMode.RED_BLUE,
         complexity_affinity=1.0,
@@ -183,8 +180,8 @@ MODE_CHARACTERISTICS: Dict[CollaborationMode, ModeCharacteristics] = {
         gemini_strength_fit=["security_analysis", "attack_vectors"],
         claude_strength_fit=["defense_strategies", "architectural_security"],
         description="Blue proposes, Red attacks/critiques, iterate to consensus",
-        when_to_use="Security reviews, critical decisions, risk assessment"
-    )
+        when_to_use="Security reviews, critical decisions, risk assessment",
+    ),
 }
 
 
@@ -193,25 +190,22 @@ def get_mode_characteristics(mode: CollaborationMode) -> ModeCharacteristics:
     return MODE_CHARACTERISTICS[mode]
 
 
-def get_all_modes() -> List[CollaborationMode]:
+def get_all_modes() -> list[CollaborationMode]:
     """Get all collaboration modes in order"""
     return list(CollaborationMode)
 
 
-def get_adversarial_modes() -> List[CollaborationMode]:
+def get_adversarial_modes() -> list[CollaborationMode]:
     """Get modes that are adversarial"""
     return [m for m, c in MODE_CHARACTERISTICS.items() if c.adversarial]
 
 
-def get_parallel_modes() -> List[CollaborationMode]:
+def get_parallel_modes() -> list[CollaborationMode]:
     """Get modes that benefit from parallelism"""
-    return [
-        m for m, c in MODE_CHARACTERISTICS.items()
-        if c.parallelism_benefit >= 0.5
-    ]
+    return [m for m, c in MODE_CHARACTERISTICS.items() if c.parallelism_benefit >= 0.5]
 
 
-def suggest_mode_for_complexity(complexity: int) -> List[CollaborationMode]:
+def suggest_mode_for_complexity(complexity: int) -> list[CollaborationMode]:
     """
     Suggest modes based on task complexity (1-5).
 
@@ -223,10 +217,7 @@ def suggest_mode_for_complexity(complexity: int) -> List[CollaborationMode]:
     """
     target = complexity / 5.0  # Normalize to 0-1
 
-    scored = [
-        (mode, 1.0 - abs(char.complexity_affinity - target))
-        for mode, char in MODE_CHARACTERISTICS.items()
-    ]
+    scored = [(mode, 1.0 - abs(char.complexity_affinity - target)) for mode, char in MODE_CHARACTERISTICS.items()]
 
     # Sort by score descending
     scored.sort(key=lambda x: x[1], reverse=True)

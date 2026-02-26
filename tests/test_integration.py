@@ -9,37 +9,33 @@ Tests integration between:
 V7.8.1: GoT (Graph of Thought) tests removed - Phase 14c cleanup
 """
 
-import pytest
-import tempfile
 import shutil
-from pathlib import Path
-from unittest.mock import Mock, patch
 import sys
+import tempfile
+from pathlib import Path
+
+import pytest
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.infrastructure.bootstrap import AutoBootstrap
+
 # V7.8.1: GoT imports removed (Phase 14c cleanup)
 from core.intelligence.swarm import HybridSwarmEngine
-from core.intelligence.swarm.task_analyzer import TaskComplexity, TaskDomain
-from core.interface_pkg.interface.commands import (
-    SLASH_COMMANDS,
-    is_slash_command,
-    parse_command
-)
-
+from core.interface_pkg.interface.commands import SLASH_COMMANDS, is_slash_command, parse_command
 
 # ============================================================================
 # AutoBootstrap + Commands Integration
 # ============================================================================
+
 
 class TestBootstrapCommandIntegration:
     """Test AutoBootstrap integration with commands system."""
 
     def test_bootstrap_command_registered(self):
         """Bootstrap command should be in SLASH_COMMANDS."""
-        assert any("/bootstrap" in cmd for cmd in SLASH_COMMANDS.keys())
+        assert any("/bootstrap" in cmd for cmd in SLASH_COMMANDS)
 
     def test_bootstrap_command_description(self):
         """Bootstrap command should have proper description."""
@@ -150,12 +146,13 @@ def test_placeholder():
         # 7. Verify file content matches (normalize line endings)
         saved_content = (temp_project / "NEXUS.md").read_text(encoding="utf-8")
         # Normalize line endings for cross-platform comparison
-        assert saved_content.replace('\r\n', '\n') == nexus_md.replace('\r\n', '\n')
+        assert saved_content.replace("\r\n", "\n") == nexus_md.replace("\r\n", "\n")
 
 
 # ============================================================================
 # Full Pipeline Integration (V7.8.1: GoT tests removed - Phase 14c cleanup)
 # ============================================================================
+
 
 class TestFullPipelineIntegration:
     """Test full NEXUS pipeline integration."""
@@ -177,6 +174,7 @@ class TestFullPipelineIntegration:
 
     def test_process_task_basic_flow(self):
         """Test basic task processing flow."""
+
         def mock_invoke(agent_id, task_type, context):
             return {"content": "Task completed", "status": "success"}
 
@@ -193,12 +191,14 @@ class TestFullPipelineIntegration:
 # Module Import Tests
 # ============================================================================
 
+
 class TestModuleImports:
     """Test that all modules can be imported correctly."""
 
     def test_import_bootstrap(self):
         """AutoBootstrap should be importable."""
         from core.infrastructure.bootstrap import AutoBootstrap
+
         assert AutoBootstrap is not None
 
     # V7.8.1: test_import_reasoning removed (GoT removed in Phase 14c)
@@ -206,17 +206,20 @@ class TestModuleImports:
     def test_import_swarm(self):
         """SwarmEngine should be importable."""
         from core.intelligence.swarm import HybridSwarmEngine
+
         assert HybridSwarmEngine is not None
 
     def test_import_security(self):
         """Security modules should be importable."""
-        from core.security_pkg.security import PathGuardian, MutationValidator
+        from core.security_pkg.security import MutationValidator, PathGuardian
+
         assert PathGuardian is not None
         assert MutationValidator is not None
 
     def test_import_commands(self):
         """Commands should be importable."""
         from core.interface_pkg.interface.commands import SLASH_COMMANDS, get_help_message
+
         assert SLASH_COMMANDS is not None
         assert callable(get_help_message)
 
@@ -224,6 +227,7 @@ class TestModuleImports:
 # ============================================================================
 # Cross-Module Integration
 # ============================================================================
+
 
 class TestCrossModuleIntegration:
     """Test integration between different modules."""

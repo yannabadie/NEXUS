@@ -37,19 +37,19 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from difflib import SequenceMatcher
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
-
 
 # =============================================================================
 # PREDICTION LEVELS
 # =============================================================================
 
+
 class PredictionLevel(Enum):
     """Stagnation prediction levels with recommended actions."""
-    CONTINUE = "continue"            # < 0.15 - Normal operation
-    MONITOR = "monitor"              # 0.15-0.25 - Watch closely
-    NUDGE = "nudge"                  # 0.25-0.40 - Gentle reminder
-    INTERVENE = "intervene"          # > 0.40 - Full intervention
+
+    CONTINUE = "continue"  # < 0.15 - Normal operation
+    MONITOR = "monitor"  # 0.15-0.25 - Watch closely
+    NUDGE = "nudge"  # 0.25-0.40 - Gentle reminder
+    INTERVENE = "intervene"  # > 0.40 - Full intervention
 
 
 # =============================================================================
@@ -104,9 +104,11 @@ TOOL_MENTION_PATTERNS = [
 # DATA CLASSES
 # =============================================================================
 
+
 @dataclass
 class MessageMetrics:
     """Metrics computed for a single message."""
+
     length: int
     has_tool_use: bool
     has_tool_mention: bool
@@ -117,16 +119,18 @@ class MessageMetrics:
 @dataclass
 class PredictionResult:
     """Result of stagnation prediction."""
+
     probability: float  # 0.0 to 1.0
     level: PredictionLevel
-    factors: Dict[str, float]  # Which factors contributed
+    factors: dict[str, float]  # Which factors contributed
     recommendation: str
-    nudge_message: Optional[str] = None
+    nudge_message: str | None = None
 
 
 # =============================================================================
 # STAGNATION PREDICTOR
 # =============================================================================
+
 
 class StagnationPredictor:
     """
@@ -157,13 +161,7 @@ class StagnationPredictor:
     NUDGE_THRESHOLD = 0.25
     INTERVENE_THRESHOLD = 0.40
 
-    def __init__(
-        self,
-        window_size: int = 5,
-        *,
-        enable_trajectory: bool = True,
-        enable_indicators: bool = True
-    ):
+    def __init__(self, window_size: int = 5, *, enable_trajectory: bool = True, enable_indicators: bool = True):
         """
         Initialize predictor.
 
@@ -177,18 +175,14 @@ class StagnationPredictor:
         self._enable_indicators = enable_indicators
 
         # Message history with metrics
-        self._messages: List[str] = []
-        self._metrics: List[MessageMetrics] = []
+        self._messages: list[str] = []
+        self._metrics: list[MessageMetrics] = []
 
         # Compiled patterns for efficiency
         self._indicator_patterns = [
-            (re.compile(pattern, re.IGNORECASE), weight)
-            for pattern, weight in LEADING_INDICATORS
+            (re.compile(pattern, re.IGNORECASE), weight) for pattern, weight in LEADING_INDICATORS
         ]
-        self._tool_mention_patterns = [
-            re.compile(pattern, re.IGNORECASE)
-            for pattern in TOOL_MENTION_PATTERNS
-        ]
+        self._tool_mention_patterns = [re.compile(pattern, re.IGNORECASE) for pattern in TOOL_MENTION_PATTERNS]
 
     def add_message(self, content: str, has_tool_use: bool = False) -> None:
         """
@@ -206,14 +200,14 @@ class StagnationPredictor:
             length=len(content),
             has_tool_use=has_tool_use,
             has_tool_mention=self._has_tool_mention(content),
-            leading_indicator_score=self._compute_indicator_score(content)
+            leading_indicator_score=self._compute_indicator_score(content),
         )
         self._metrics.append(metrics)
 
         # Maintain window
         if len(self._messages) > self._window_size:
-            self._messages = self._messages[-self._window_size:]
-            self._metrics = self._metrics[-self._window_size:]
+            self._messages = self._messages[-self._window_size :]
+            self._metrics = self._metrics[-self._window_size :]
 
     def predict(self) -> PredictionResult:
         """
@@ -227,7 +221,7 @@ class StagnationPredictor:
                 probability=0.0,
                 level=PredictionLevel.CONTINUE,
                 factors={},
-                recommendation="Not enough data for prediction"
+                recommendation="Not enough data for prediction",
             )
 
         factors = {}
@@ -274,11 +268,7 @@ class StagnationPredictor:
         recommendation, nudge = self._generate_recommendation(level, factors)
 
         return PredictionResult(
-            probability=probability,
-            level=level,
-            factors=factors,
-            recommendation=recommendation,
-            nudge_message=nudge
+            probability=probability, level=level, factors=factors, recommendation=recommendation, nudge_message=nudge
         )
 
     # -------------------------------------------------------------------------
@@ -298,7 +288,7 @@ class StagnationPredictor:
         if not self._metrics:
             return 0.0
 
-        recent = self._metrics[-min(3, len(self._metrics)):]
+        recent = self._metrics[-min(3, len(self._metrics)) :]
         avg_score = sum(m.leading_indicator_score for m in recent) / len(recent)
         return avg_score
 
@@ -372,11 +362,7 @@ class StagnationPredictor:
     # Recommendations
     # -------------------------------------------------------------------------
 
-    def _generate_recommendation(
-        self,
-        level: PredictionLevel,
-        factors: Dict[str, float]
-    ) -> Tuple[str, Optional[str]]:
+    def _generate_recommendation(self, level: PredictionLevel, factors: dict[str, float]) -> tuple[str, str | None]:
         """Generate recommendation and nudge message based on prediction."""
 
         if level == PredictionLevel.CONTINUE:
@@ -400,24 +386,15 @@ class StagnationPredictor:
         """Get a gentle nudge message based on the factor."""
         nudges = {
             "leading_indicators": (
-                "💡 I notice some hesitation. "
-                "Feel free to take action when ready - "
-                "what tool would help us progress?"
+                "💡 I notice some hesitation. Feel free to take action when ready - what tool would help us progress?"
             ),
             "trajectory": (
-                "💡 Our messages are getting shorter. "
-                "Let's move to concrete action - "
-                "what's the next step?"
+                "💡 Our messages are getting shorter. Let's move to concrete action - what's the next step?"
             ),
             "tool_mention_no_use": (
-                "💡 We've discussed using tools. "
-                "Shall we actually execute one? "
-                "Which would be most helpful right now?"
+                "💡 We've discussed using tools. Shall we actually execute one? Which would be most helpful right now?"
             ),
-            "similarity_increase": (
-                "💡 We seem to be converging on an approach. "
-                "Ready to take action?"
-            ),
+            "similarity_increase": ("💡 We seem to be converging on an approach. Ready to take action?"),
         }
         return nudges.get(factor, "💡 Let's move forward with a concrete action.")
 
@@ -456,15 +433,13 @@ Execute a concrete tool use NOW or explicitly decide to move on.
         self._messages.clear()
         self._metrics.clear()
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> dict:
         """Get predictor statistics for debugging."""
         return {
             "message_count": len(self._messages),
             "recent_lengths": [m.length for m in self._metrics[-3:]] if self._metrics else [],
             "recent_indicator_scores": [m.leading_indicator_score for m in self._metrics[-3:]] if self._metrics else [],
-            "tool_mentions_without_use": sum(
-                1 for m in self._metrics if m.has_tool_mention and not m.has_tool_use
-            ),
+            "tool_mentions_without_use": sum(1 for m in self._metrics if m.has_tool_mention and not m.has_tool_use),
         }
 
 

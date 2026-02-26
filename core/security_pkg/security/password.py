@@ -39,13 +39,14 @@ def _get_hasher():
     global _hasher
     if _hasher is None:
         from argon2 import PasswordHasher, Type
+
         _hasher = PasswordHasher(
-            time_cost=2,           # 2 iterations (OWASP minimum)
-            memory_cost=19456,     # ~19 MiB (OWASP first recommendation)
-            parallelism=1,         # Single-threaded (safe default)
-            hash_len=32,           # 32-byte output hash
-            salt_len=16,           # 16-byte random salt
-            type=Type.ID,          # Argon2id
+            time_cost=2,  # 2 iterations (OWASP minimum)
+            memory_cost=19456,  # ~19 MiB (OWASP first recommendation)
+            parallelism=1,  # Single-threaded (safe default)
+            hash_len=32,  # 32-byte output hash
+            salt_len=16,  # 16-byte random salt
+            type=Type.ID,  # Argon2id
         )
     return _hasher
 
@@ -53,6 +54,7 @@ def _get_hasher():
 # =============================================================================
 # Public API
 # =============================================================================
+
 
 def hash_password(plain_password: str) -> str:
     """
@@ -92,7 +94,8 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     # Argon2id hash
     if hashed_password.startswith("$argon2"):
         try:
-            from argon2.exceptions import VerifyMismatchError, VerificationError, InvalidHashError
+            from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
+
             return _get_hasher().verify(hashed_password, plain_password)
         except VerifyMismatchError:
             return False
@@ -103,6 +106,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     if hashed_password.startswith("$2b$") or hashed_password.startswith("$2a$"):
         try:
             import bcrypt
+
             return bcrypt.checkpw(
                 plain_password.encode("utf-8"),
                 hashed_password.encode("utf-8"),

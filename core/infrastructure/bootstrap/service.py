@@ -25,7 +25,7 @@ import json
 import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from core.interface_pkg.interface.console_v7 import ConsoleV7
@@ -46,11 +46,7 @@ class BootstrapService:
     V9.8 DETOX: Supports headless mode via InteractionProvider.
     """
 
-    def __init__(
-        self,
-        console: "ConsoleV7",
-        interaction: Optional["InteractionProvider"] = None
-    ):
+    def __init__(self, console: ConsoleV7, interaction: InteractionProvider | None = None):
         """
         Initialize BootstrapService.
 
@@ -64,7 +60,7 @@ class BootstrapService:
 
     # ==================== PUBLIC API ====================
 
-    def bootstrap(self, project_path: Optional[Path] = None) -> ServiceResult:
+    def bootstrap(self, project_path: Path | None = None) -> ServiceResult:
         """
         Run AutoBootstrap to analyze project and generate NEXUS.md.
 
@@ -110,7 +106,7 @@ class BootstrapService:
             self.console.print(f"   Has CI: {'Yes' if analysis.has_ci else 'No'}")
 
             if analysis.commands:
-                self.console.print(f"\n  Commands discovered:")
+                self.console.print("\n  Commands discovered:")
                 for cmd, desc in list(analysis.commands.items())[:5]:
                     self.console.print(f"   {cmd}: {desc}")
 
@@ -120,14 +116,14 @@ class BootstrapService:
             # Check if NEXUS.md already exists
             nexus_path = project_path / "NEXUS.md"
             if nexus_path.exists():
-                existing_size = len(nexus_path.read_text(encoding='utf-8'))
+                existing_size = len(nexus_path.read_text(encoding="utf-8"))
                 self.console.print(f"\n  NEXUS.md already exists at {nexus_path}")
                 self.console.print(f"   Existing file size: {existing_size} characters")
                 self.console.print(f"   New file size: {len(nexus_md)} characters")
 
                 if existing_size > len(nexus_md) * 2:
-                    self.console.print(f"\n   [bold red]WARNING: Existing file is much larger![/bold red]")
-                    self.console.print(f"   The existing NEXUS.md may contain important documentation.")
+                    self.console.print("\n   [bold red]WARNING: Existing file is much larger![/bold red]")
+                    self.console.print("   The existing NEXUS.md may contain important documentation.")
 
                 # V9.8 DETOX: Use interaction provider instead of raw input()
                 try:
@@ -156,7 +152,7 @@ class BootstrapService:
                     "size": len(nexus_md),
                     "project_name": analysis.project_name,
                     "languages": analysis.languages,
-                }
+                },
             )
 
         except Exception as e:
@@ -177,38 +173,33 @@ class BootstrapService:
             try:
                 loop = asyncio.get_running_loop()
                 future = asyncio.run_coroutine_threadsafe(
-                    self._interaction.confirm("Create backup and overwrite?", default=False),
-                    loop
+                    self._interaction.confirm("Create backup and overwrite?", default=False), loop
                 )
                 return future.result(timeout=30)
             except RuntimeError:
                 # No running loop - create one
-                return asyncio.run(
-                    self._interaction.confirm("Create backup and overwrite?", default=False)
-                )
+                return asyncio.run(self._interaction.confirm("Create backup and overwrite?", default=False))
         else:
             # Fallback: Use provider from factory
             from core.security_pkg.interaction import get_interaction_provider
+
             provider = get_interaction_provider()
 
             if provider.is_interactive:
                 # Direct sync input for CLI (avoid event loop issues)
                 response = input("   Create backup and overwrite? (y/N): ").strip().lower()
-                return response == 'y'
+                return response == "y"
             else:
                 # V11.4 ASYNC: Use run_coroutine_threadsafe when loop is running
                 try:
                     loop = asyncio.get_running_loop()
                     future = asyncio.run_coroutine_threadsafe(
-                        provider.confirm("Create backup and overwrite?", default=False),
-                        loop
+                        provider.confirm("Create backup and overwrite?", default=False), loop
                     )
                     return future.result(timeout=30)
                 except RuntimeError:
                     # No running loop - create one
-                    return asyncio.run(
-                        provider.confirm("Create backup and overwrite?", default=False)
-                    )
+                    return asyncio.run(provider.confirm("Create backup and overwrite?", default=False))
 
 
 class SpinoffService:
@@ -223,8 +214,8 @@ class SpinoffService:
 
     def __init__(
         self,
-        orchestrator: "OrchestratorV7",
-        console: "ConsoleV7",
+        orchestrator: OrchestratorV7,
+        console: ConsoleV7,
         workspace_path: Path,
         nexus_root: Path,
     ):
@@ -254,7 +245,7 @@ class SpinoffService:
         Returns:
             ServiceResult with spinoff outcome
         """
-        from core.intelligence.evolution.lineage import load_lineage, get_current_parent
+        from core.intelligence.evolution.lineage import get_current_parent, load_lineage
 
         self.console.print("\n" + "=" * 60)
         self.console.print("  SPECIALIZATION CYCLE STARTED")
@@ -271,10 +262,7 @@ class SpinoffService:
             mutations = self._brainstorm_spinoff(parent_id, parent_path, mission)
 
             if not mutations:
-                return ServiceResult(
-                    success=False,
-                    error="Failed to generate specialization mutations"
-                )
+                return ServiceResult(success=False, error="Failed to generate specialization mutations")
 
             # 2. Create Spinoff ID
             mission_slug = "".join(c if c.isalnum() else "_" for c in mission)[:30].upper()
@@ -294,12 +282,10 @@ class SpinoffService:
             shutil.copytree(
                 parent_path,
                 child_dir,
-                ignore=shutil.ignore_patterns(
-                    '__pycache__', '*.pyc', '.nexus', 'workspace', '.git'
-                ),
-                dirs_exist_ok=True
+                ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".nexus", "workspace", ".git"),
+                dirs_exist_ok=True,
             )
-            self.console.print(f"  Copied parent base")
+            self.console.print("  Copied parent base")
 
             # Copy KERNEL.py from project root (alignment file)
             project_root = parent_path.parent
@@ -309,7 +295,7 @@ class SpinoffService:
                 shutil.copy2(kernel_path, child_dir / "KERNEL.py")
                 if kernel_hash_path.exists():
                     shutil.copy2(kernel_hash_path, child_dir / "KERNEL_HASH.txt")
-                self.console.print(f"  Copied KERNEL.py (alignment file)")
+                self.console.print("  Copied KERNEL.py (alignment file)")
 
             # Create workspace directories required by drivers
             child_workspace = child_dir / "workspace"
@@ -317,15 +303,15 @@ class SpinoffService:
             (child_workspace / "_IO_BUFFER").mkdir(exist_ok=True)
             (child_workspace / ".nexus").mkdir(exist_ok=True)
             (child_workspace / "logs").mkdir(exist_ok=True)
-            self.console.print(f"  Created workspace directories")
+            self.console.print("  Created workspace directories")
 
             # 5. Apply Mutations
             for mutation in mutations:
-                target_file = child_dir / mutation['file']
+                target_file = child_dir / mutation["file"]
                 if target_file.exists():
-                    original = target_file.read_text(encoding='utf-8')
-                    updated = original + "\n\n" + mutation['change']
-                    target_file.write_text(updated, encoding='utf-8')
+                    original = target_file.read_text(encoding="utf-8")
+                    updated = original + "\n\n" + mutation["change"]
+                    target_file.write_text(updated, encoding="utf-8")
                     self.console.print(f"  Applied mutation to {mutation['file']}")
                 else:
                     self.console.print(f"  [yellow]File not found: {mutation['file']}[/yellow]")
@@ -337,11 +323,9 @@ class SpinoffService:
                 "mission": mission,
                 "parent": parent_id,
                 "created_at": datetime.now().isoformat(),
-                "mutations": mutations
+                "mutations": mutations,
             }
-            (child_dir / "SPINOFF_CERTIFICATE.json").write_text(
-                json.dumps(cert, indent=2), encoding='utf-8'
-            )
+            (child_dir / "SPINOFF_CERTIFICATE.json").write_text(json.dumps(cert, indent=2), encoding="utf-8")
 
             self.console.print("\n" + "=" * 60)
             self.console.print(f"  SPECIALIST CREATED: {spinoff_id}")
@@ -356,21 +340,17 @@ class SpinoffService:
                     "location": str(child_dir),
                     "mission": mission,
                     "mutations_count": len(mutations),
-                }
+                },
             )
 
         except Exception as e:
             self.console.print_error(f"Specialization failed: {e}")
             import traceback
+
             traceback.print_exc()
             return ServiceResult(success=False, error=str(e))
 
-    def _brainstorm_spinoff(
-        self,
-        parent_id: str,
-        parent_path: Path,
-        mission: str
-    ) -> List[Dict[str, Any]]:
+    def _brainstorm_spinoff(self, parent_id: str, parent_path: Path, mission: str) -> list[dict[str, Any]]:
         """
         Collaborative brainstorming for specialization.
 
@@ -391,7 +371,7 @@ class SpinoffService:
         self.console.print("\n" + "=" * 60)
         self.console.print(f"  MISSION SPECIALIZATION: {mission}")
         self.console.print("=" * 60)
-        self.console.print(f"Gemini + Claude will now design a Specialist NEXUS\n")
+        self.console.print("Gemini + Claude will now design a Specialist NEXUS\n")
 
         # Clear history for focused brainstorming
         self.console.print("  Clearing short-term memory for focused brainstorming...")
@@ -400,16 +380,14 @@ class SpinoffService:
 
         # Load prompt with includes resolved
         try:
-            brainstorm_task = load_prompt("specialization_mission", {
-                "mission": mission
-            })
+            brainstorm_task = load_prompt("specialization_mission", {"mission": mission})
         except FileNotFoundError as e:
             self.console.print_error(f"Missing prompt file: {e}")
             return []
 
         # Switch to EVOLUTION_BRAINSTORM mode (reused for debate)
         self.orchestrator._transition_to(OrchestratorState.EVOLUTION_BRAINSTORM)
-        self.console.print(f"[FSM] Mode: MISSION_SPECIALIZATION (via EVOLUTION_BRAINSTORM)\n")
+        self.console.print("[FSM] Mode: MISSION_SPECIALIZATION (via EVOLUTION_BRAINSTORM)\n")
 
         # Start brainstorming
         result = self.orchestrator.process_turn(brainstorm_task)
@@ -429,7 +407,7 @@ class SpinoffService:
         self.orchestrator._transition_to(OrchestratorState.IDLE)
 
         # Extract JSON
-        final_content = result.get('output') or ''
+        final_content = result.get("output") or ""
 
         # Use robust extractor
         proposals, _ = robust_extract_json(final_content, verbose=True)

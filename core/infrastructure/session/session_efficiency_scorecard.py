@@ -53,9 +53,8 @@ from __future__ import annotations
 import dataclasses
 import logging
 import threading
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from dataclasses import dataclass
+from datetime import UTC, datetime
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +70,7 @@ class SessionRecord:
     Captures metrics for a single task execution or session snapshot,
     including task completion, timing, tool usage, and agent coordination.
     """
+
     session_id: str = ""
     record_id: str = ""
     tasks_completed: int = 0
@@ -106,7 +106,7 @@ class SessionRecord:
             return 0.0
         return self.tool_calls_successful / self.tool_calls_total
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """
         Convert to dictionary, including computed properties.
 
@@ -127,6 +127,7 @@ class SessionProfile:
     Accumulates metrics across all SessionRecords for a given session,
     enabling longitudinal analysis of session performance.
     """
+
     session_id: str = ""
     total_records: int = 0
     total_tasks_completed: int = 0
@@ -172,7 +173,7 @@ class SessionProfile:
             return 0.0
         return self.total_duration_ms / self.total_records
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """
         Convert to dictionary, including computed properties.
 
@@ -193,6 +194,7 @@ class ScorecardStats:
 
     Provides high-level metrics for system-wide efficiency analysis.
     """
+
     total_records: int = 0
     unique_sessions: int = 0
     avg_completion_rate: float = 0.0
@@ -200,7 +202,7 @@ class ScorecardStats:
     avg_duration_ms: float = 0.0
     total_agent_switches: int = 0
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """
         Convert to dictionary.
 
@@ -237,8 +239,8 @@ class SessionEfficiencyScorecard:
         self._lock = threading.Lock()
         self._max_records = max_records
         self._counter = 0  # Auto-incrementing counter for record IDs
-        self._records: List[SessionRecord] = []
-        self._profiles: Dict[str, SessionProfile] = {}
+        self._records: list[SessionRecord] = []
+        self._profiles: dict[str, SessionProfile] = {}
         logger.info(f"SessionEfficiencyScorecard initialized (max_records={max_records})")
 
     def record_session(
@@ -250,7 +252,7 @@ class SessionEfficiencyScorecard:
         time_to_first_result_ms: float = 0.0,
         tool_calls_total: int = 0,
         tool_calls_successful: int = 0,
-        agent_switches: int = 0
+        agent_switches: int = 0,
     ) -> SessionRecord:
         """
         Record a session efficiency snapshot.
@@ -280,7 +282,7 @@ class SessionEfficiencyScorecard:
             self._counter += 1
 
             # Create record
-            timestamp = datetime.now(timezone.utc).isoformat()
+            timestamp = datetime.now(UTC).isoformat()
             record = SessionRecord(
                 session_id=session_id,
                 record_id=record_id,
@@ -291,7 +293,7 @@ class SessionEfficiencyScorecard:
                 tool_calls_total=tool_calls_total,
                 tool_calls_successful=tool_calls_successful,
                 agent_switches=agent_switches,
-                timestamp=timestamp
+                timestamp=timestamp,
             )
 
             # Update profile
@@ -334,7 +336,7 @@ class SessionEfficiencyScorecard:
         profile.total_tool_successes += record.tool_calls_successful
         profile.total_agent_switches += record.agent_switches
 
-    def get_session_profile(self, session_id: str) -> Optional[SessionProfile]:
+    def get_session_profile(self, session_id: str) -> SessionProfile | None:
         """
         Get aggregate profile for a session.
 
@@ -350,7 +352,7 @@ class SessionEfficiencyScorecard:
         with self._lock:
             return self._profiles.get(session_id)
 
-    def get_all_profiles(self) -> List[SessionProfile]:
+    def get_all_profiles(self) -> list[SessionProfile]:
         """
         Get all session profiles, sorted by total_records descending.
 
@@ -365,7 +367,7 @@ class SessionEfficiencyScorecard:
             profiles.sort(key=lambda p: p.total_records, reverse=True)
             return profiles
 
-    def get_best_session(self) -> Optional[str]:
+    def get_best_session(self) -> str | None:
         """
         Get session_id with highest average completion rate.
 
@@ -379,17 +381,10 @@ class SessionEfficiencyScorecard:
             if not self._profiles:
                 return None
 
-            best_profile = max(
-                self._profiles.values(),
-                key=lambda p: p.avg_completion_rate
-            )
+            best_profile = max(self._profiles.values(), key=lambda p: p.avg_completion_rate)
             return best_profile.session_id
 
-    def get_recent_records(
-        self,
-        limit: int = 10,
-        session_id: Optional[str] = None
-    ) -> List[SessionRecord]:
+    def get_recent_records(self, limit: int = 10, session_id: str | None = None) -> list[SessionRecord]:
         """
         Get most recent records, optionally filtered by session_id.
 
@@ -412,7 +407,7 @@ class SessionEfficiencyScorecard:
                 filtered = [r for r in self._records if r.session_id == session_id]
                 return list(reversed(filtered[-limit:]))
 
-    def list_sessions(self) -> List[str]:
+    def list_sessions(self) -> list[str]:
         """
         List all session IDs, sorted alphabetically.
 
@@ -462,7 +457,7 @@ class SessionEfficiencyScorecard:
                 avg_completion_rate=round(avg_completion, 4),
                 avg_tool_success_rate=round(avg_tool_success, 4),
                 avg_duration_ms=round(avg_duration, 2),
-                total_agent_switches=total_switches
+                total_agent_switches=total_switches,
             )
 
     @property
@@ -492,7 +487,7 @@ class SessionEfficiencyScorecard:
             self._counter = 0
             logger.info("SessionEfficiencyScorecard cleared")
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """
         Convert entire scorecard to dictionary.
 
@@ -511,26 +506,19 @@ class SessionEfficiencyScorecard:
         with self._lock:
             return {
                 "stats": stats.to_dict(),
-                "profiles": {
-                    session_id: profile.to_dict()
-                    for session_id, profile in self._profiles.items()
-                },
-                "recent_records": [
-                    r.to_dict() for r in self._records[-10:]
-                ],
+                "profiles": {session_id: profile.to_dict() for session_id, profile in self._profiles.items()},
+                "recent_records": [r.to_dict() for r in self._records[-10:]],
                 "total_records": len(self._records),
-                "max_records": self._max_records
+                "max_records": self._max_records,
             }
 
 
 # Singleton management
-_instance: Optional[SessionEfficiencyScorecard] = None
+_instance: SessionEfficiencyScorecard | None = None
 _lock = threading.Lock()
 
 
-def get_session_scorecard(
-    max_records: int = MAX_SESSION_RECORDS
-) -> SessionEfficiencyScorecard:
+def get_session_scorecard(max_records: int = MAX_SESSION_RECORDS) -> SessionEfficiencyScorecard:
     """
     Get or create the global SessionEfficiencyScorecard singleton.
 

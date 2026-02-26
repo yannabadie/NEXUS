@@ -5,12 +5,13 @@ V12.4 P2.1 OBSERVABILITY
 Provides timeline visualization of task execution events with cost, latency, and state diffs.
 """
 
-from fastapi import APIRouter, HTTPException, Depends
-from typing import Any
 from datetime import datetime
+from typing import Any
+
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from core.api.cerebro.deps import require_auth, AuthenticatedUser
+from core.api.cerebro.deps import AuthenticatedUser, require_auth
 from core.observability.events.event_store import EventStore
 from core.observability.telemetry.budget_tracker import BudgetTracker
 
@@ -26,8 +27,10 @@ def get_tenant_id(user: AuthenticatedUser = Depends(require_auth)) -> str:
 # Request/Response Models
 # ============================================================================
 
+
 class TokenMetrics(BaseModel):
     """Token usage metrics for an event."""
+
     input: int = 0
     output: int = 0
     cache_creation: int | None = None
@@ -36,6 +39,7 @@ class TokenMetrics(BaseModel):
 
 class TimelineEvent(BaseModel):
     """Single event in the causality timeline."""
+
     timestamp: str
     task_id: str
     phase: str  # analysis, debate, architecture, execution, diagnosis, retry, consolidation
@@ -53,17 +57,17 @@ class TimelineEvent(BaseModel):
 
 class TimelineResponse(BaseModel):
     """Timeline response with events and aggregated metrics."""
+
     events: list[TimelineEvent]
     total_cost: float = Field(default=0.0, description="Total cost across all events")
-    total_tokens: dict[str, int] = Field(
-        default_factory=lambda: {"input": 0, "output": 0, "cache_read": 0}
-    )
+    total_tokens: dict[str, int] = Field(default_factory=lambda: {"input": 0, "output": 0, "cache_read": 0})
     duration_ms: float = Field(default=0.0, description="Total task duration")
 
 
 # ============================================================================
 # Helper Functions
 # ============================================================================
+
 
 def calculate_event_cost(event: dict[str, Any]) -> float:
     """
@@ -86,10 +90,10 @@ def calculate_event_cost(event: dict[str, Any]) -> float:
             input_tokens=tokens.get("input", 0),
             output_tokens=tokens.get("output", 0),
             cache_creation_tokens=tokens.get("cache_creation", 0),
-            cache_read_tokens=tokens.get("cache_read", 0)
+            cache_read_tokens=tokens.get("cache_read", 0),
         )
         return cost
-    except Exception as e:
+    except Exception:
         # Fallback: rough estimate if pricing not available
         # Assume $3/MTok input, $15/MTok output (Claude Sonnet ballpark)
         input_cost = tokens.get("input", 0) * 3.0 / 1_000_000
@@ -129,7 +133,7 @@ def enrich_event(raw_event: dict[str, Any]) -> TimelineEvent:
             input=tokens_data.get("input", 0),
             output=tokens_data.get("output", 0),
             cache_creation=tokens_data.get("cache_creation"),
-            cache_read=tokens_data.get("cache_read")
+            cache_read=tokens_data.get("cache_read"),
         )
 
     # Calculate cost
@@ -151,7 +155,7 @@ def enrich_event(raw_event: dict[str, Any]) -> TimelineEvent:
         result=result,
         diff=state_diff,
         error=error,
-        metadata=metadata
+        metadata=metadata,
     )
 
 
@@ -159,11 +163,9 @@ def enrich_event(raw_event: dict[str, Any]) -> TimelineEvent:
 # API Endpoints
 # ============================================================================
 
+
 @router.get("/{task_id}", response_model=TimelineResponse)
-async def get_timeline_events(
-    task_id: str,
-    tenant_id: str = Depends(get_tenant_id)
-):
+async def get_timeline_events(task_id: str, tenant_id: str = Depends(get_tenant_id)):
     """
     Fetch causality timeline for a specific task.
 
@@ -182,16 +184,10 @@ async def get_timeline_events(
     try:
         # Fetch events from EventStore
         event_store = EventStore()
-        raw_events = await event_store.get_events(
-            task_id=task_id,
-            tenant_id=tenant_id
-        )
+        raw_events = await event_store.get_events(task_id=task_id, tenant_id=tenant_id)
 
         if not raw_events:
-            raise HTTPException(
-                status_code=404,
-                detail=f"No events found for task {task_id}"
-            )
+            raise HTTPException(status_code=404, detail=f"No events found for task {task_id}")
 
         # Enrich events with cost/latency
         enriched_events = [enrich_event(event) for event in raw_events]
@@ -202,7 +198,7 @@ async def get_timeline_events(
         total_tokens = {
             "input": sum(e.tokens.input if e.tokens else 0 for e in enriched_events),
             "output": sum(e.tokens.output if e.tokens else 0 for e in enriched_events),
-            "cache_read": sum(e.tokens.cache_read if e.tokens and e.tokens.cache_read else 0 for e in enriched_events)
+            "cache_read": sum(e.tokens.cache_read if e.tokens and e.tokens.cache_read else 0 for e in enriched_events),
         }
 
         # Calculate total duration (first to last event)
@@ -214,26 +210,17 @@ async def get_timeline_events(
             duration_ms = enriched_events[0].latency_ms or 0.0
 
         return TimelineResponse(
-            events=enriched_events,
-            total_cost=total_cost,
-            total_tokens=total_tokens,
-            duration_ms=duration_ms
+            events=enriched_events, total_cost=total_cost, total_tokens=total_tokens, duration_ms=duration_ms
         )
 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to fetch timeline: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to fetch timeline: {str(e)}") from e
 
 
 @router.get("/{task_id}/summary")
-async def get_timeline_summary(
-    task_id: str,
-    tenant_id: str = Depends(get_tenant_id)
-):
+async def get_timeline_summary(task_id: str, tenant_id: str = Depends(get_tenant_id)):
     """
     Get high-level summary of task timeline without full event details.
 
@@ -252,11 +239,10 @@ async def get_timeline_summary(
             "duration_ms": timeline.duration_ms,
             "phases_completed": list(set(e.phase for e in timeline.events)),
             "agents_involved": list(set(e.agent_id for e in timeline.events)),
-            "success_rate": sum(1 for e in timeline.events if e.result == "success") / len(timeline.events) if timeline.events else 0
+            "success_rate": sum(1 for e in timeline.events if e.result == "success") / len(timeline.events)
+            if timeline.events
+            else 0,
         }
 
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to fetch timeline summary: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to fetch timeline summary: {str(e)}") from e

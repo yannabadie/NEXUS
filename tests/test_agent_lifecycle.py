@@ -18,12 +18,9 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.foundation.agents.agent_lifecycle import (
     DEFAULT_MAX_CONSECUTIVE_FAILURES,
     DEFAULT_MIN_QUALITY,
-    DEFAULT_OBSERVATION_WINDOW,
     MAX_AGENTS,
     AgentHealthSnapshot,
     AgentLifecycleManager,
@@ -34,10 +31,10 @@ from core.foundation.agents.agent_lifecycle import (
     reset_lifecycle_manager,
 )
 
-
 # =============================================================================
 # RetirementPolicy Tests
 # =============================================================================
+
 
 class TestRetirementPolicy:
     """Test RetirementPolicy dataclass."""
@@ -57,6 +54,7 @@ class TestRetirementPolicy:
 # =============================================================================
 # AgentHealthSnapshot Tests
 # =============================================================================
+
 
 class TestAgentHealthSnapshot:
     """Test AgentHealthSnapshot dataclass."""
@@ -80,6 +78,7 @@ class TestAgentHealthSnapshot:
 # LifecycleEvent Tests
 # =============================================================================
 
+
 class TestLifecycleEvent:
     """Test LifecycleEvent dataclass."""
 
@@ -99,13 +98,18 @@ class TestLifecycleEvent:
 # LifecycleStats Tests
 # =============================================================================
 
+
 class TestLifecycleStats:
     """Test LifecycleStats dataclass."""
 
     def test_to_dict(self):
         s = LifecycleStats(
-            total_agents=5, active_agents=3, degraded_agents=1,
-            retired_agents=1, total_events=10, total_retirements=1,
+            total_agents=5,
+            active_agents=3,
+            degraded_agents=1,
+            retired_agents=1,
+            total_events=10,
+            total_retirements=1,
         )
         d = s.to_dict()
         assert d["active_agents"] == 3
@@ -114,6 +118,7 @@ class TestLifecycleStats:
 # =============================================================================
 # Registration Tests
 # =============================================================================
+
 
 class TestRegistration:
     """Test agent registration."""
@@ -167,6 +172,7 @@ class TestRegistration:
 # =============================================================================
 # Outcome Recording Tests
 # =============================================================================
+
 
 class TestOutcomeRecording:
     """Test outcome recording and quality tracking."""
@@ -228,6 +234,7 @@ class TestOutcomeRecording:
 # Degradation Tests
 # =============================================================================
 
+
 class TestDegradation:
     """Test degradation detection."""
 
@@ -280,6 +287,7 @@ class TestDegradation:
 # =============================================================================
 # Retirement Tests
 # =============================================================================
+
 
 class TestRetirement:
     """Test retirement logic."""
@@ -364,6 +372,7 @@ class TestRetirement:
 # Reinstatement Tests
 # =============================================================================
 
+
 class TestReinstatement:
     """Test agent reinstatement."""
 
@@ -397,6 +406,7 @@ class TestReinstatement:
 # =============================================================================
 # Replacement Tests
 # =============================================================================
+
 
 class TestReplacement:
     """Test replacement finding."""
@@ -444,6 +454,7 @@ class TestReplacement:
 # =============================================================================
 # Query Tests
 # =============================================================================
+
 
 class TestQueries:
     """Test query methods."""
@@ -503,6 +514,7 @@ class TestQueries:
 # Statistics Tests
 # =============================================================================
 
+
 class TestStatistics:
     """Test lifecycle statistics."""
 
@@ -533,6 +545,7 @@ class TestStatistics:
 # =============================================================================
 # State Tests
 # =============================================================================
+
 
 class TestState:
     """Test state management."""
@@ -570,6 +583,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global lifecycle manager."""
 
@@ -596,25 +610,37 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_agents_package(self):
         from core.foundation.agents import (
-            AgentLifecycleManager, RetirementPolicy,
-            AgentHealthSnapshot, LifecycleEvent, LifecycleStats,
-            get_lifecycle_manager, reset_lifecycle_manager,
+            AgentHealthSnapshot,
+            AgentLifecycleManager,
+            LifecycleEvent,
+            LifecycleStats,
+            RetirementPolicy,
+            get_lifecycle_manager,
+            reset_lifecycle_manager,
         )
-        assert all([
-            AgentLifecycleManager, RetirementPolicy,
-            AgentHealthSnapshot, LifecycleEvent, LifecycleStats,
-            get_lifecycle_manager, reset_lifecycle_manager,
-        ])
+
+        assert all(
+            [
+                AgentLifecycleManager,
+                RetirementPolicy,
+                AgentHealthSnapshot,
+                LifecycleEvent,
+                LifecycleStats,
+                get_lifecycle_manager,
+                reset_lifecycle_manager,
+            ]
+        )
 
     def test_constants(self):
         from core.foundation.agents.agent_lifecycle import (
-            DEFAULT_MIN_QUALITY, DEFAULT_MAX_CONSECUTIVE_FAILURES,
-            DEFAULT_OBSERVATION_WINDOW, MAX_AGENTS,
+            DEFAULT_MIN_QUALITY,
         )
+
         assert DEFAULT_MIN_QUALITY == 0.3
         assert MAX_AGENTS == 5000

@@ -6,19 +6,21 @@ Uses WorkspaceManager, BootstrapService, SpinoffService for business logic (Serv
 """
 
 from pathlib import Path
-from typing import List
-from .registry import Command, CommandContext, CommandResult, CommandStatus
+
+from .registry import Command, CommandContext, CommandRegistry, CommandResult, CommandStatus
 
 
 def _get_bootstrap_service(context: CommandContext):
     """Get or create BootstrapService from context."""
     from core.infrastructure.bootstrap import _get_bootstrap_service as get_service
+
     return get_service(context)
 
 
 def _get_spinoff_service(context: CommandContext):
     """Get or create SpinoffService from context."""
     from core.infrastructure.bootstrap import _get_spinoff_service as get_service
+
     return get_service(context)
 
 
@@ -37,7 +39,7 @@ def _get_workspace_manager(context: CommandContext):
 
     # Get nexus_root from extras or orchestrator
     nexus_root = context.extras.get("nexus_root")
-    if not nexus_root and hasattr(context.orchestrator, 'workspace_path'):
+    if not nexus_root and hasattr(context.orchestrator, "workspace_path"):
         # workspace_path is typically nexus_root/workspace, so go up one level
         workspace_path = context.orchestrator.workspace_path
         if workspace_path:
@@ -46,7 +48,7 @@ def _get_workspace_manager(context: CommandContext):
     if not nexus_root:
         # Fallback: try to get from repl if available
         repl = context.extras.get("repl")
-        if repl and hasattr(repl, 'nexus_root'):
+        if repl and hasattr(repl, "nexus_root"):
             nexus_root = repl.nexus_root
 
     if not nexus_root:
@@ -63,7 +65,7 @@ class BootstrapCommand(Command):
         return "/bootstrap"
 
     @property
-    def aliases(self) -> List[str]:
+    def aliases(self) -> list[str]:
         return ["/bs"]
 
     @property
@@ -90,18 +92,12 @@ class BootstrapCommand(Command):
             if result.success:
                 return CommandResult(
                     status=CommandStatus.SUCCESS,
-                    message=""  # Service handles its own output
+                    message="",  # Service handles its own output
                 )
             else:
-                return CommandResult(
-                    status=CommandStatus.ERROR,
-                    message=result.error or "Bootstrap failed"
-                )
+                return CommandResult(status=CommandStatus.ERROR, message=result.error or "Bootstrap failed")
         except Exception as e:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message=f"Bootstrap failed: {e}"
-            )
+            return CommandResult(status=CommandStatus.ERROR, message=f"Bootstrap failed: {e}")
 
 
 class SpecializeCommand(Command):
@@ -112,7 +108,7 @@ class SpecializeCommand(Command):
         return "/specialize"
 
     @property
-    def aliases(self) -> List[str]:
+    def aliases(self) -> list[str]:
         return ["/spec"]
 
     @property
@@ -129,10 +125,7 @@ class SpecializeCommand(Command):
         V9.1: Delegated to SpinoffService (Service Layer Pattern).
         """
         if not args.strip():
-            return CommandResult(
-                status=CommandStatus.INVALID_ARGS,
-                message="Usage: /specialize <mission_description>"
-            )
+            return CommandResult(status=CommandStatus.INVALID_ARGS, message="Usage: /specialize <mission_description>")
 
         try:
             service = _get_spinoff_service(context)
@@ -141,18 +134,12 @@ class SpecializeCommand(Command):
             if result.success:
                 return CommandResult(
                     status=CommandStatus.SUCCESS,
-                    message=""  # Service handles its own output
+                    message="",  # Service handles its own output
                 )
             else:
-                return CommandResult(
-                    status=CommandStatus.ERROR,
-                    message=result.error or "Specialization failed"
-                )
+                return CommandResult(status=CommandStatus.ERROR, message=result.error or "Specialization failed")
         except Exception as e:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message=f"Specialization failed: {e}"
-            )
+            return CommandResult(status=CommandStatus.ERROR, message=f"Specialization failed: {e}")
 
 
 class WorkspaceCommand(Command):
@@ -163,7 +150,7 @@ class WorkspaceCommand(Command):
         return "/workspace"
 
     @property
-    def aliases(self) -> List[str]:
+    def aliases(self) -> list[str]:
         return ["/ws"]
 
     @property
@@ -178,17 +165,14 @@ class WorkspaceCommand(Command):
         """Execute workspace command using WorkspaceManager."""
         from core.interface_pkg.interface_pkg.workspace import (
             WorkspaceError,
+            WorkspaceExistsError,
             WorkspaceNotFoundError,
-            WorkspaceExistsError
         )
 
         try:
             manager = _get_workspace_manager(context)
         except ValueError as e:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message=str(e)
-            )
+            return CommandResult(status=CommandStatus.ERROR, message=str(e))
 
         parts = args.strip().split(maxsplit=1)
         subcommand = parts[0].lower() if parts else ""
@@ -209,19 +193,13 @@ class WorkspaceCommand(Command):
                 if not sub_args:
                     context.console.print_error("Usage: /workspace switch <name>")
                     context.console.print("Use '/workspace list' to see available workspaces")
-                    return CommandResult(
-                        status=CommandStatus.INVALID_ARGS,
-                        message="Missing workspace name"
-                    )
+                    return CommandResult(status=CommandStatus.INVALID_ARGS, message="Missing workspace name")
                 self._switch_workspace(manager, context, sub_args)
 
             else:
                 context.console.print_error(f"Unknown subcommand: {subcommand}")
                 context.console.print("Usage: /workspace [new|list|switch] [args]")
-                return CommandResult(
-                    status=CommandStatus.INVALID_ARGS,
-                    message=f"Unknown subcommand: {subcommand}"
-                )
+                return CommandResult(status=CommandStatus.INVALID_ARGS, message=f"Unknown subcommand: {subcommand}")
 
             return CommandResult(status=CommandStatus.SUCCESS, message="")
 
@@ -241,10 +219,7 @@ class WorkspaceCommand(Command):
             return CommandResult(status=CommandStatus.ERROR, message=str(e))
 
         except Exception as e:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message=f"Workspace command failed: {e}"
-            )
+            return CommandResult(status=CommandStatus.ERROR, message=f"Workspace command failed: {e}")
 
     def _show_status(self, manager, context: CommandContext) -> None:
         """Display current workspace info."""
@@ -259,7 +234,7 @@ class WorkspaceCommand(Command):
             "",
             f"[dim]Created:[/dim]     {current.created_at.strftime('%Y-%m-%d %H:%M')}",
             f"[dim]Last used:[/dim]   {current.get_relative_time()}",
-            f"[dim]Task:[/dim]        \"{current.last_task[:50] + '...' if len(current.last_task or '') > 50 else current.last_task or 'None'}\"",
+            f'[dim]Task:[/dim]        "{current.last_task[:50] + "..." if len(current.last_task or "") > 50 else current.last_task or "None"}"',
             f"[dim]Iterations:[/dim]  {current.metrics.iterations}",
             f"[dim]Size:[/dim]        {current.get_size_human()}",
             f"[dim]Files:[/dim]       {current.metrics.files_count}",
@@ -268,7 +243,7 @@ class WorkspaceCommand(Command):
             "   /workspace new [name]     Create fresh workspace",
             "   /workspace list           Show all workspaces",
             "   /workspace switch <name>  Switch to another workspace",
-            ""
+            "",
         ]
 
         for line in lines:
@@ -309,7 +284,7 @@ class WorkspaceCommand(Command):
         if name:
             context.console.print(f"\n  New workspace: {name}")
         else:
-            context.console.print(f"\n  New workspace: [auto-generated]")
+            context.console.print("\n  New workspace: [auto-generated]")
 
         # Note: For non-interactive mode, we proceed without confirmation
         # In interactive mode, REPL handles confirmation
@@ -321,7 +296,7 @@ class WorkspaceCommand(Command):
 
         # Reinit orchestrator if needed (REPL handles this)
         repl = context.extras.get("repl")
-        if repl and hasattr(repl, '_reinit_orchestrator'):
+        if repl and hasattr(repl, "_reinit_orchestrator"):
             repl._reinit_orchestrator(new_ws.path)
 
     def _switch_workspace(self, manager, context: CommandContext, name: str) -> None:
@@ -359,7 +334,7 @@ class WorkspaceCommand(Command):
 
         # Reinit orchestrator if needed (REPL handles this)
         repl = context.extras.get("repl")
-        if repl and hasattr(repl, '_reinit_orchestrator'):
+        if repl and hasattr(repl, "_reinit_orchestrator"):
             repl._reinit_orchestrator(new_ws.path)
 
 

@@ -4,16 +4,11 @@ Verifies per-phase confidence tracking, trajectory analysis,
 abort recommendations, and trend detection for the HiveMind pipeline.
 """
 
-import pytest
-
 from core.intelligence.hive_mind.confidence_monitor import (
-    StepwiseConfidenceMonitor,
-    PhaseConfidence,
-    ConfidenceTrajectory,
-    AbortRecommendation,
     DEPTH_FLOOR,
-    DROP_THRESHOLD,
-    AVERAGE_FLOOR,
+    AbortRecommendation,
+    PhaseConfidence,
+    StepwiseConfidenceMonitor,
 )
 
 
@@ -120,14 +115,14 @@ class TestAbortRecommendation:
         # Depth floors: 0=0.40, 1=0.35, 2=0.30, 3=0.25, 4=0.20, 5=0.15
         # Use values just above floors but averaging below 0.30
         monitor = StepwiseConfidenceMonitor()
-        monitor.record("analysis", 0.42)       # depth 0, floor 0.40 -> OK
-        monitor.record("debate", 0.36)          # depth 1, floor 0.35 -> OK, drop 0.06
-        monitor.record("architecture", 0.31)    # depth 2, floor 0.30 -> OK, drop 0.05
-        monitor.record("execution", 0.26)       # depth 3, floor 0.25 -> OK, drop 0.05
-        monitor.record("diagnosis", 0.21)       # depth 4, floor 0.20 -> OK, drop 0.05
+        monitor.record("analysis", 0.42)  # depth 0, floor 0.40 -> OK
+        monitor.record("debate", 0.36)  # depth 1, floor 0.35 -> OK, drop 0.06
+        monitor.record("architecture", 0.31)  # depth 2, floor 0.30 -> OK, drop 0.05
+        monitor.record("execution", 0.26)  # depth 3, floor 0.25 -> OK, drop 0.05
+        monitor.record("diagnosis", 0.21)  # depth 4, floor 0.20 -> OK, drop 0.05
         # Average = (0.42 + 0.36 + 0.31 + 0.26 + 0.21) / 5 = 0.312
         # Still above 0.30, add one more
-        monitor.record("retry", 0.16)           # depth 5, floor 0.15 -> OK, drop 0.05
+        monitor.record("retry", 0.16)  # depth 5, floor 0.15 -> OK, drop 0.05
         # Average = (0.42+0.36+0.31+0.26+0.21+0.16)/6 = 0.287, below 0.30
         rec = monitor.should_abort()
         assert rec.should_abort
@@ -221,9 +216,7 @@ class TestSerialization:
     """Test to_dict serialization."""
 
     def test_phase_confidence_to_dict(self):
-        entry = PhaseConfidence(
-            phase="analysis", confidence=0.85, depth=0, metadata={"k": "v"}
-        )
+        entry = PhaseConfidence(phase="analysis", confidence=0.85, depth=0, metadata={"k": "v"})
         d = entry.to_dict()
         assert d["phase"] == "analysis"
         assert d["confidence"] == 0.85
@@ -240,9 +233,7 @@ class TestSerialization:
         assert len(d["phases"]) == 2
 
     def test_abort_recommendation_to_dict(self):
-        rec = AbortRecommendation(
-            should_abort=True, reason="test", confidence=0.2, threshold=0.4
-        )
+        rec = AbortRecommendation(should_abort=True, reason="test", confidence=0.2, threshold=0.4)
         d = rec.to_dict()
         assert d["should_abort"] is True
         assert d["reason"] == "test"

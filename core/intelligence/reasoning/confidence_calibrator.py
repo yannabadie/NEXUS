@@ -41,13 +41,11 @@ Usage:
 """
 
 import logging
-import math
 import threading
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -56,8 +54,10 @@ logger = logging.getLogger(__name__)
 # Data Structures
 # =============================================================================
 
+
 class ConfidenceBias(Enum):
     """Direction of confidence miscalibration."""
+
     WELL_CALIBRATED = "well_calibrated"
     OVERCONFIDENT = "overconfident"
     UNDERCONFIDENT = "underconfident"
@@ -67,9 +67,10 @@ class ConfidenceBias(Enum):
 @dataclass
 class CalibrationRecord:
     """A single confidence-outcome observation."""
+
     agent_id: str
-    stated_confidence: float    # Agent's stated confidence [0, 1]
-    actual_success: bool        # True if the output was correct/successful
+    stated_confidence: float  # Agent's stated confidence [0, 1]
+    actual_success: bool  # True if the output was correct/successful
     task_type: str = "general"
     timestamp: float = field(default_factory=time.time)
 
@@ -77,11 +78,12 @@ class CalibrationRecord:
 @dataclass
 class CalibratedConfidence:
     """Result of calibrating a raw confidence score."""
-    raw_confidence: float       # Original stated confidence
+
+    raw_confidence: float  # Original stated confidence
     adjusted_confidence: float  # Calibrated confidence
-    correction: float           # Amount of adjustment (positive = boosted)
+    correction: float  # Amount of adjustment (positive = boosted)
     agent_bias: ConfidenceBias  # Detected bias direction
-    reliability: float          # How reliable is this calibration (0-1)
+    reliability: float  # How reliable is this calibration (0-1)
 
     @property
     def is_significant_correction(self) -> bool:
@@ -92,21 +94,23 @@ class CalibratedConfidence:
 @dataclass
 class AgentCalibrationProfile:
     """Calibration statistics for a single agent."""
+
     agent_id: str
     total_observations: int
-    ece: float                  # Expected Calibration Error (lower = better)
+    ece: float  # Expected Calibration Error (lower = better)
     bias: ConfidenceBias
     avg_stated_confidence: float
     avg_actual_success_rate: float
-    correction_factor: float    # Multiplicative correction
-    bins: Dict[str, dict]       # Binned calibration data
+    correction_factor: float  # Multiplicative correction
+    bins: dict[str, dict]  # Binned calibration data
 
 
 @dataclass
 class CalibratorStats:
     """Overall calibrator statistics."""
+
     total_records: int
-    agents_tracked: List[str]
+    agents_tracked: list[str]
     avg_ece: float
     best_calibrated_agent: str
     worst_calibrated_agent: str
@@ -115,6 +119,7 @@ class CalibratorStats:
 # =============================================================================
 # Confidence Calibrator
 # =============================================================================
+
 
 class ConfidenceCalibrator:
     """
@@ -127,14 +132,14 @@ class ConfidenceCalibrator:
     No external models required — pure statistical calibration.
     """
 
-    NUM_BINS = 10               # Number of calibration bins
-    MIN_OBSERVATIONS = 5        # Minimum observations before calibrating
-    MAX_HISTORY = 500           # Max records per agent
-    ECE_GOOD_THRESHOLD = 0.1    # ECE below this = well calibrated
-    BIAS_THRESHOLD = 0.05       # Difference threshold for bias detection
+    NUM_BINS = 10  # Number of calibration bins
+    MIN_OBSERVATIONS = 5  # Minimum observations before calibrating
+    MAX_HISTORY = 500  # Max records per agent
+    ECE_GOOD_THRESHOLD = 0.1  # ECE below this = well calibrated
+    BIAS_THRESHOLD = 0.05  # Difference threshold for bias detection
 
     def __init__(self):
-        self._records: Dict[str, List[CalibrationRecord]] = defaultdict(list)
+        self._records: dict[str, list[CalibrationRecord]] = defaultdict(list)
         self._lock = threading.Lock()
 
     # -------------------------------------------------------------------------
@@ -171,7 +176,7 @@ class ConfidenceCalibrator:
             history.append(record)
             # Cap history size
             if len(history) > self.MAX_HISTORY:
-                self._records[agent_id] = history[-self.MAX_HISTORY:]
+                self._records[agent_id] = history[-self.MAX_HISTORY :]
 
     def calibrate(
         self,
@@ -302,11 +307,9 @@ class ConfidenceCalibrator:
     # Internal: Binned Calibration
     # -------------------------------------------------------------------------
 
-    def _compute_bins(
-        self, history: List[CalibrationRecord]
-    ) -> Dict[str, dict]:
+    def _compute_bins(self, history: list[CalibrationRecord]) -> dict[str, dict]:
         """Compute calibration bins from history."""
-        bins: Dict[str, dict] = {}
+        bins: dict[str, dict] = {}
 
         for i in range(self.NUM_BINS):
             low = i / self.NUM_BINS
@@ -314,9 +317,9 @@ class ConfidenceCalibrator:
             bin_key = f"{low:.1f}-{high:.1f}"
 
             bin_records = [
-                r for r in history
-                if low <= r.stated_confidence < high
-                or (i == self.NUM_BINS - 1 and r.stated_confidence == high)
+                r
+                for r in history
+                if low <= r.stated_confidence < high or (i == self.NUM_BINS - 1 and r.stated_confidence == high)
             ]
 
             if bin_records:
@@ -338,17 +341,13 @@ class ConfidenceCalibrator:
 
         return bins
 
-    def _compute_ece(self, bins: Dict[str, dict]) -> float:
+    def _compute_ece(self, bins: dict[str, dict]) -> float:
         """Compute Expected Calibration Error from bins."""
         total_samples = sum(b["count"] for b in bins.values())
         if total_samples == 0:
             return 0.0
 
-        ece = sum(
-            (b["count"] / total_samples) * abs(b["gap"])
-            for b in bins.values()
-            if b["count"] > 0
-        )
+        ece = sum((b["count"] / total_samples) * abs(b["gap"]) for b in bins.values() if b["count"] > 0)
 
         return ece
 
@@ -356,7 +355,7 @@ class ConfidenceCalibrator:
     # Internal: Bias Detection
     # -------------------------------------------------------------------------
 
-    def _detect_bias(self, history: List[CalibrationRecord]) -> ConfidenceBias:
+    def _detect_bias(self, history: list[CalibrationRecord]) -> ConfidenceBias:
         """Detect if the agent is systematically over/under-confident."""
         if len(history) < self.MIN_OBSERVATIONS:
             return ConfidenceBias.INSUFFICIENT_DATA
@@ -377,9 +376,7 @@ class ConfidenceCalibrator:
     # Internal: Correction
     # -------------------------------------------------------------------------
 
-    def _compute_correction_factor(
-        self, history: List[CalibrationRecord]
-    ) -> float:
+    def _compute_correction_factor(self, history: list[CalibrationRecord]) -> float:
         """Compute multiplicative correction factor."""
         if len(history) < self.MIN_OBSERVATIONS:
             return 1.0
@@ -395,7 +392,7 @@ class ConfidenceCalibrator:
     def _apply_correction(
         self,
         raw: float,
-        bins: Dict[str, dict],
+        bins: dict[str, dict],
         correction_factor: float,
     ) -> float:
         """Apply calibration correction to raw confidence."""
@@ -421,7 +418,7 @@ class ConfidenceCalibrator:
 # Singleton
 # =============================================================================
 
-_instance: Optional[ConfidenceCalibrator] = None
+_instance: ConfidenceCalibrator | None = None
 _instance_lock = threading.Lock()
 
 

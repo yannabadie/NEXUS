@@ -16,27 +16,24 @@ Validates:
 - Module exports
 """
 
-import time
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock
 
-import pytest
-
 from core.observability.telemetry.health_aggregator import (
-    HealthCheck,
-    TelemetrySummary,
-    HealthReport,
-    HealthAggregator,
-    AggregateStatus,
-    ComponentCategory,
     DEFAULT_WEIGHTS,
     STATUS_SCORES,
+    AggregateStatus,
+    ComponentCategory,
+    HealthAggregator,
+    HealthCheck,
+    HealthReport,
+    TelemetrySummary,
 )
-
 
 # =============================================================================
 # HealthCheck Tests
 # =============================================================================
+
 
 class TestHealthCheck:
     """Test HealthCheck dataclass."""
@@ -95,6 +92,7 @@ class TestHealthCheck:
 # TelemetrySummary Tests
 # =============================================================================
 
+
 class TestTelemetrySummary:
     """Test TelemetrySummary dataclass."""
 
@@ -142,6 +140,7 @@ class TestTelemetrySummary:
 # =============================================================================
 # HealthReport Tests
 # =============================================================================
+
 
 class TestHealthReport:
     """Test HealthReport dataclass."""
@@ -191,6 +190,7 @@ class TestHealthReport:
 # HealthAggregator - Initialization Tests
 # =============================================================================
 
+
 class TestAggregatorInit:
     """Test aggregator initialization."""
 
@@ -217,6 +217,7 @@ class TestAggregatorInit:
 # =============================================================================
 # HealthAggregator - Recording Tests
 # =============================================================================
+
 
 class TestRecording:
     """Test recording health checks."""
@@ -274,6 +275,7 @@ class TestRecording:
 # HealthAggregator - History Tests
 # =============================================================================
 
+
 class TestHistory:
     """Test component health history."""
 
@@ -312,6 +314,7 @@ class TestHistory:
 # =============================================================================
 # HealthAggregator - Scoring Tests
 # =============================================================================
+
 
 class TestScoring:
     """Test composite health scoring."""
@@ -363,6 +366,7 @@ class TestScoring:
 # HealthAggregator - Overall Status Tests
 # =============================================================================
 
+
 class TestOverallStatus:
     """Test overall status determination."""
 
@@ -404,6 +408,7 @@ class TestOverallStatus:
 # HealthAggregator - Report Tests
 # =============================================================================
 
+
 class TestReport:
     """Test report generation."""
 
@@ -421,9 +426,13 @@ class TestReport:
     def test_report_with_telemetry(self):
         agg = HealthAggregator()
         agg.record_check("redis", status="healthy")
-        agg.update_telemetry(TelemetrySummary(
-            api_calls=50, total_tokens=25000, cost_usd=0.01,
-        ))
+        agg.update_telemetry(
+            TelemetrySummary(
+                api_calls=50,
+                total_tokens=25000,
+                cost_usd=0.01,
+            )
+        )
         report = agg.get_report()
         assert report.telemetry["api_calls"] == 50
         assert report.telemetry["total_tokens"] == 25000
@@ -465,10 +474,14 @@ class TestReport:
     def test_report_summary_with_telemetry(self):
         agg = HealthAggregator()
         agg.record_check("redis", status="healthy")
-        agg.update_telemetry(TelemetrySummary(
-            api_calls=10, total_errors=2, cost_usd=0.005,
-            budget_utilization_pct=15.0,
-        ))
+        agg.update_telemetry(
+            TelemetrySummary(
+                api_calls=10,
+                total_errors=2,
+                cost_usd=0.005,
+                budget_utilization_pct=15.0,
+            )
+        )
         report = agg.get_report()
         assert "API Calls: 10" in report.summary
         assert "Errors: 2" in report.summary
@@ -476,11 +489,13 @@ class TestReport:
     def test_report_summary_with_budget_warning(self):
         agg = HealthAggregator()
         agg.record_check("redis", status="healthy")
-        agg.update_telemetry(TelemetrySummary(
-            budget_warning_level="critical",
-            cost_usd=0.01,
-            budget_utilization_pct=92.0,
-        ))
+        agg.update_telemetry(
+            TelemetrySummary(
+                budget_warning_level="critical",
+                cost_usd=0.01,
+                budget_utilization_pct=92.0,
+            )
+        )
         report = agg.get_report()
         assert "Budget Warning: critical" in report.summary
 
@@ -488,6 +503,7 @@ class TestReport:
 # =============================================================================
 # HealthAggregator - Telemetry Integration Tests
 # =============================================================================
+
 
 class TestTelemetryIntegration:
     """Test telemetry collector integration."""
@@ -564,6 +580,7 @@ class TestTelemetryIntegration:
 # HealthAggregator - Stale Detection Tests
 # =============================================================================
 
+
 class TestStaleDetection:
     """Test stale component detection."""
 
@@ -574,10 +591,8 @@ class TestStaleDetection:
 
     def test_old_check_is_stale(self):
         agg = HealthAggregator(stale_threshold_seconds=1.0)
-        old_ts = (datetime.now(timezone.utc) - timedelta(seconds=10)).isoformat()
-        check = HealthCheck(
-            component="redis", status="healthy", timestamp=old_ts
-        )
+        old_ts = (datetime.now(UTC) - timedelta(seconds=10)).isoformat()
+        check = HealthCheck(component="redis", status="healthy", timestamp=old_ts)
         with agg._lock:
             agg._latest["redis"] = check
         stale = agg.get_stale_components()
@@ -591,6 +606,7 @@ class TestStaleDetection:
 # =============================================================================
 # HealthAggregator - Clear/Remove Tests
 # =============================================================================
+
 
 class TestClearRemove:
     """Test clearing and removing components."""
@@ -629,6 +645,7 @@ class TestClearRemove:
 # HealthAggregator - State Export Tests
 # =============================================================================
 
+
 class TestStateExport:
     """Test aggregator state export."""
 
@@ -651,6 +668,7 @@ class TestStateExport:
 # =============================================================================
 # Constants Tests
 # =============================================================================
+
 
 class TestConstants:
     """Test module-level constants."""
@@ -679,28 +697,29 @@ class TestConstants:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test that health aggregator types are importable."""
 
     def test_from_telemetry_package(self):
         from core.observability.telemetry import (
+            AggregateStatus,
             HealthAggregator,
             HealthCheck,
             HealthReport,
             TelemetrySummary,
-            AggregateStatus,
         )
-        assert all([HealthAggregator, HealthCheck, HealthReport,
-                     TelemetrySummary, AggregateStatus])
+
+        assert all([HealthAggregator, HealthCheck, HealthReport, TelemetrySummary, AggregateStatus])
 
     def test_from_module(self):
         from core.observability.telemetry.health_aggregator import (
+            AggregateStatus,
+            ComponentCategory,
             HealthAggregator,
             HealthCheck,
             HealthReport,
             TelemetrySummary,
-            AggregateStatus,
-            ComponentCategory,
         )
-        assert all([HealthAggregator, HealthCheck, HealthReport,
-                     TelemetrySummary, AggregateStatus, ComponentCategory])
+
+        assert all([HealthAggregator, HealthCheck, HealthReport, TelemetrySummary, AggregateStatus, ComponentCategory])

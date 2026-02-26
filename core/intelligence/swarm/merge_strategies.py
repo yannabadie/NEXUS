@@ -13,12 +13,12 @@ Future strategies (require LLM):
 - SUMMARY: LLM synthesizes into coherent summary
 """
 
+import os
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Any, TYPE_CHECKING
 from enum import Enum
-import re
-import os
+from typing import TYPE_CHECKING, Any
 
 from core.foundation.agents.unified_registry import get_registry  # V8.4.0
 
@@ -28,9 +28,10 @@ if TYPE_CHECKING:
 
 class MergeStrategyType(Enum):
     """Available merge strategies for PARALLEL mode"""
-    NAIVE = "naive"              # Current behavior (backward compat)
+
+    NAIVE = "naive"  # Current behavior (backward compat)
     DEDUPLICATE = "deduplicate"  # Remove semantic duplicates
-    WEIGHTED = "weighted"        # Weight by domain fit scores
+    WEIGHTED = "weighted"  # Weight by domain fit scores
     # Future: requires LLM invocation
     # CONSENSUS = "consensus"    # LLM identifies agreements/conflicts
     # SUMMARY = "summary"        # LLM synthesizes into coherent summary
@@ -43,10 +44,11 @@ class MergeContext:
 
     Contains all information needed to intelligently merge parallel outputs.
     """
+
     task_input: str
-    outputs: List["AgentResponse"]
-    task_analysis: Optional[Dict[str, Any]] = None  # From blackboard
-    agent_assignments: Optional[List[Any]] = None   # AgentAssignment list
+    outputs: list["AgentResponse"]
+    task_analysis: dict[str, Any] | None = None  # From blackboard
+    agent_assignments: list[Any] | None = None  # AgentAssignment list
 
 
 @dataclass
@@ -56,9 +58,10 @@ class MergeResult:
 
     Contains the merged content and metadata about the merge process.
     """
+
     content: str
     strategy_used: MergeStrategyType
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class MergeStrategy(ABC):
@@ -112,19 +115,14 @@ class NaiveMergeStrategy(MergeStrategy):
         for output in context.outputs:
             agent_name = self._get_agent_name(output.agent_id)
             if output.status == "error":
-                merged_parts.append(
-                    f"[{agent_name}] ❌ Error:\n{output.error or output.content}"
-                )
+                merged_parts.append(f"[{agent_name}] ❌ Error:\n{output.error or output.content}")
             else:
                 merged_parts.append(f"[{agent_name}]:\n{output.content}")
 
         return MergeResult(
             content="\n\n---\n\n".join(merged_parts),
             strategy_used=self.strategy_type,
-            metadata={
-                "agent_count": len(context.outputs),
-                "total_chars": sum(len(o.content) for o in context.outputs)
-            }
+            metadata={"agent_count": len(context.outputs), "total_chars": sum(len(o.content) for o in context.outputs)},
         )
 
 
@@ -145,7 +143,7 @@ class DeduplicateMergeStrategy(MergeStrategy):
 
     def merge(self, context: MergeContext) -> MergeResult:
         # Collect all sentences with their source
-        all_sentences: List[tuple] = []  # (sentence, agent_name, output_idx)
+        all_sentences: list[tuple] = []  # (sentence, agent_name, output_idx)
 
         for idx, output in enumerate(context.outputs):
             if output.status == "error":
@@ -157,7 +155,7 @@ class DeduplicateMergeStrategy(MergeStrategy):
                     all_sentences.append((sentence.strip(), agent_name, idx))
 
         # Deduplicate using Jaccard similarity
-        unique_sentences: List[tuple] = []
+        unique_sentences: list[tuple] = []
         duplicates_removed = 0
 
         for sentence, agent, idx in all_sentences:
@@ -176,7 +174,7 @@ class DeduplicateMergeStrategy(MergeStrategy):
                 unique_sentences.append((sentence, agent, idx))
 
         # Group by agent for organized output
-        agent_sentences: Dict[str, List[str]] = {}
+        agent_sentences: dict[str, list[str]] = {}
         for sentence, agent, _ in unique_sentences:
             if agent not in agent_sentences:
                 agent_sentences[agent] = []
@@ -191,9 +189,7 @@ class DeduplicateMergeStrategy(MergeStrategy):
         for output in context.outputs:
             if output.status == "error":
                 agent_name = self._get_agent_name(output.agent_id)
-                merged_parts.append(
-                    f"[{agent_name}] ❌ Error:\n{output.error or output.content}"
-                )
+                merged_parts.append(f"[{agent_name}] ❌ Error:\n{output.error or output.content}")
 
         return MergeResult(
             content="\n\n---\n\n".join(merged_parts),
@@ -203,25 +199,23 @@ class DeduplicateMergeStrategy(MergeStrategy):
                 "original_sentences": len(all_sentences),
                 "unique_sentences": len(unique_sentences),
                 "duplicates_removed": duplicates_removed,
-                "dedup_ratio": round(
-                    duplicates_removed / max(len(all_sentences), 1), 2
-                )
-            }
+                "dedup_ratio": round(duplicates_removed / max(len(all_sentences), 1), 2),
+            },
         )
 
-    def _split_into_sentences(self, text: str) -> List[str]:
+    def _split_into_sentences(self, text: str) -> list[str]:
         """Split text into sentences using basic punctuation rules"""
         # Split on sentence-ending punctuation followed by space or newline
-        sentences = re.split(r'(?<=[.!?])\s+', text)
+        sentences = re.split(r"(?<=[.!?])\s+", text)
         # Also split on newlines for list items
         result = []
         for s in sentences:
-            result.extend(s.split('\n'))
+            result.extend(s.split("\n"))
         return [s.strip() for s in result if s.strip()]
 
     def _get_word_set(self, text: str) -> set:
         """Extract set of lowercase words from text"""
-        words = re.findall(r'\b\w+\b', text.lower())
+        words = re.findall(r"\b\w+\b", text.lower())
         # Filter out very short words (articles, etc.)
         return set(w for w in words if len(w) > 2)
 
@@ -267,11 +261,7 @@ class WeightedMergeStrategy(MergeStrategy):
                 return claude_fit
             return 0.5
 
-        sorted_outputs = sorted(
-            context.outputs,
-            key=get_fit_score,
-            reverse=True
-        )
+        sorted_outputs = sorted(context.outputs, key=get_fit_score, reverse=True)
 
         # Build merged output with fit indicators
         merged_parts = []
@@ -280,17 +270,13 @@ class WeightedMergeStrategy(MergeStrategy):
             fit_score = get_fit_score(output)
 
             if output.status == "error":
-                merged_parts.append(
-                    f"[{agent_name}] ❌ Error:\n{output.error or output.content}"
-                )
+                merged_parts.append(f"[{agent_name}] ❌ Error:\n{output.error or output.content}")
             else:
                 # Add fit indicator for high-scoring agents
                 fit_indicator = ""
                 if fit_score >= 0.7:
                     fit_indicator = " ⭐ (domain expert)"
-                merged_parts.append(
-                    f"[{agent_name}{fit_indicator}]:\n{output.content}"
-                )
+                merged_parts.append(f"[{agent_name}{fit_indicator}]:\n{output.content}")
 
         return MergeResult(
             content="\n\n---\n\n".join(merged_parts),
@@ -300,22 +286,20 @@ class WeightedMergeStrategy(MergeStrategy):
                 "primary_domain": primary_domain,
                 "gemini_fit_score": gemini_fit,
                 "claude_fit_score": claude_fit,
-                "lead_agent": sorted_outputs[0].agent_id if sorted_outputs else None
-            }
+                "lead_agent": sorted_outputs[0].agent_id if sorted_outputs else None,
+            },
         )
 
 
 # Strategy registry
-_STRATEGY_REGISTRY: Dict[MergeStrategyType, type] = {
+_STRATEGY_REGISTRY: dict[MergeStrategyType, type] = {
     MergeStrategyType.NAIVE: NaiveMergeStrategy,
     MergeStrategyType.DEDUPLICATE: DeduplicateMergeStrategy,
     MergeStrategyType.WEIGHTED: WeightedMergeStrategy,
 }
 
 
-def get_merge_strategy(
-    strategy_type: MergeStrategyType = MergeStrategyType.NAIVE
-) -> MergeStrategy:
+def get_merge_strategy(strategy_type: MergeStrategyType = MergeStrategyType.NAIVE) -> MergeStrategy:
     """
     Factory function for merge strategies.
 
@@ -329,10 +313,7 @@ def get_merge_strategy(
         ValueError: If strategy_type is not registered
     """
     if strategy_type not in _STRATEGY_REGISTRY:
-        raise ValueError(
-            f"Unknown merge strategy: {strategy_type}. "
-            f"Available: {list(_STRATEGY_REGISTRY.keys())}"
-        )
+        raise ValueError(f"Unknown merge strategy: {strategy_type}. Available: {list(_STRATEGY_REGISTRY.keys())}")
     return _STRATEGY_REGISTRY[strategy_type]()
 
 

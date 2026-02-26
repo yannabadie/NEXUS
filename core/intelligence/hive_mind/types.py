@@ -5,14 +5,14 @@ Core dataclasses and enums for the Hive Mind architecture.
 """
 
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Any
-from enum import Enum
 from datetime import datetime
-
+from enum import Enum
+from typing import Any
 
 # =============================================================================
 # ENUMS
 # =============================================================================
+
 
 class HiveMindState(Enum):
     """FSM states for TRUE HIVE MIND V8.0."""
@@ -62,6 +62,7 @@ class HiveMindState(Enum):
 
 class UserBreakpoint(Enum):
     """Points where user can intervene."""
+
     AFTER_DEBATE = "after_debate"
     BEFORE_SPAWN = "before_spawn"
     AFTER_DIAGNOSIS = "after_diagnosis"
@@ -70,6 +71,7 @@ class UserBreakpoint(Enum):
 
 class RetentionDecision(Enum):
     """Decisions for agent/knowledge retention."""
+
     KEEP_PERMANENT = "keep_permanent"
     ARCHIVE_KNOWLEDGE = "archive_knowledge"
     MERGE_INTO_EXISTING = "merge_into_existing"
@@ -78,6 +80,7 @@ class RetentionDecision(Enum):
 
 class IssueSeverity(Enum):
     """Severity levels for execution issues."""
+
     INFO = "info"
     WARNING = "warning"
     ERROR = "error"
@@ -90,6 +93,7 @@ class FailureType(Enum):
     Taxonomy inspired by PALADIN (arxiv:2509.25238) and AgentDebug
     (arxiv:2509.25370). Each type maps to a specific RecoveryStrategy.
     """
+
     TIMEOUT = "timeout"
     CAPABILITY_MISSING = "capability_missing"
     HALLUCINATION = "hallucination"
@@ -98,8 +102,8 @@ class FailureType(Enum):
     CONTEXT_LOST = "context_lost"
     BUDGET_EXCEEDED = "budget_exceeded"
     # V12.4: PALADIN-inspired additions
-    MEMORY_ERROR = "memory_error"        # Lost track of prior context/decisions
-    PLANNING_ERROR = "planning_error"    # Plan was infeasible or incomplete
+    MEMORY_ERROR = "memory_error"  # Lost track of prior context/decisions
+    PLANNING_ERROR = "planning_error"  # Plan was infeasible or incomplete
     UNKNOWN = "unknown"
 
 
@@ -109,14 +113,15 @@ class RecoveryStrategy(Enum):
     Based on PALADIN (arxiv:2509.25238): each failure type has a
     specific recovery action rather than generic retry.
     """
-    RETRY_SAME = "retry_same"                # Transient failure, retry as-is
-    RETRY_MODIFIED = "retry_modified"        # Same approach, modified parameters
-    FALLBACK_MODEL = "fallback_model"        # Try cheaper/different model
-    SIMPLIFY_TASK = "simplify_task"          # Break into smaller subtasks
-    SPAWN_SPECIALIST = "spawn_specialist"    # Need domain-specific agent
-    CONTEXT_RESET = "context_reset"          # Compress/reset context window
-    ESCALATE_USER = "escalate_user"          # Needs human intervention
-    ABORT = "abort"                          # Unrecoverable, stop
+
+    RETRY_SAME = "retry_same"  # Transient failure, retry as-is
+    RETRY_MODIFIED = "retry_modified"  # Same approach, modified parameters
+    FALLBACK_MODEL = "fallback_model"  # Try cheaper/different model
+    SIMPLIFY_TASK = "simplify_task"  # Break into smaller subtasks
+    SPAWN_SPECIALIST = "spawn_specialist"  # Need domain-specific agent
+    CONTEXT_RESET = "context_reset"  # Compress/reset context window
+    ESCALATE_USER = "escalate_user"  # Needs human intervention
+    ABORT = "abort"  # Unrecoverable, stop
 
 
 # Maps each failure type to its default recovery strategy
@@ -138,20 +143,22 @@ FAILURE_RECOVERY_MAP: dict = {
 # PHASE 1: INDEPENDENT ANALYSIS
 # =============================================================================
 
+
 @dataclass
 class IndependentAnalysis:
     """Result of independent analysis by one agent."""
+
     agent_id: str
     task_understanding: str
     complexity_assessment: str
     proposed_approach: str
-    required_capabilities: List[str]
-    potential_risks: List[str]
+    required_capabilities: list[str]
+    potential_risks: list[str]
     confidence: float
     reasoning: str
     timestamp: datetime = field(default_factory=datetime.now)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "agent_id": self.agent_id,
             "task_understanding": self.task_understanding,
@@ -161,62 +168,67 @@ class IndependentAnalysis:
             "potential_risks": self.potential_risks,
             "confidence": self.confidence,
             "reasoning": self.reasoning,
-            "timestamp": self.timestamp.isoformat()
+            "timestamp": self.timestamp.isoformat(),
         }
 
 
 @dataclass
 class Disagreement:
     """A specific point of disagreement between agents."""
+
     topic: str  # "complexity", "approach", "capabilities", etc.
     gemini_position: Any
     claude_position: Any
     severity: float = 0.5  # 0-1, how significant is this disagreement
-    gemini_only: List[str] = field(default_factory=list)
-    claude_only: List[str] = field(default_factory=list)
+    gemini_only: list[str] = field(default_factory=list)
+    claude_only: list[str] = field(default_factory=list)
 
 
 @dataclass
 class AnalysisComparison:
     """Comparison of two independent analyses."""
+
     gemini_analysis: IndependentAnalysis
     claude_analysis: IndependentAnalysis
-    disagreements: List[Disagreement]
+    disagreements: list[Disagreement]
     agreement_score: float  # 0-1
     needs_debate: bool
-    merged_capabilities: List[str]
-    merged_risks: List[str]
+    merged_capabilities: list[str]
+    merged_risks: list[str]
 
 
 # =============================================================================
 # PHASE 2: STRATEGIC DEBATE
 # =============================================================================
 
+
 @dataclass
 class DebateArgument:
     """A single argument in the debate."""
+
     agent_id: str
     turn_number: int
     position: str  # "SUPPORT" or "OPPOSE"
     target_point: str  # Which point of the other's argument is addressed
     argument: str
-    evidence: List[str]
-    proposed_modification: Optional[str] = None
-    concession: Optional[str] = None  # What they concede to the other
+    evidence: list[str]
+    proposed_modification: str | None = None
+    concession: str | None = None  # What they concede to the other
     timestamp: datetime = field(default_factory=datetime.now)
 
 
 @dataclass
 class DebateResult:
     """Result of strategic debate."""
+
     status: str  # "IMMEDIATE_CONSENSUS", "CONSENSUS_REACHED", "FORCED_VOTE", "TIMEOUT"
     final_approach: str
-    final_capabilities: List[str]
+    final_capabilities: list[str]
     final_mode: str  # Collaboration mode decided
-    debate_history: List[DebateArgument]
+    debate_history: list[DebateArgument]
     total_turns: int
-    resolved_disagreements: List[str]
-    unresolved_disagreements: List[str]
+    resolved_disagreements: list[str]
+    unresolved_disagreements: list[str]
     consensus_confidence: float
     gemini_satisfaction: float  # How satisfied Gemini is with outcome
     claude_satisfaction: float  # How satisfied Claude is with outcome
@@ -226,13 +238,15 @@ class DebateResult:
 # PHASE 3: ARCHITECTURE GENERATION
 # =============================================================================
 
+
 @dataclass
 class AgentSpec:
     """Specification for an agent to spawn."""
+
     role: str
     mission: str
-    capabilities: List[str]
-    tools_priority: List[str] = field(default_factory=list)
+    capabilities: list[str]
+    tools_priority: list[str] = field(default_factory=list)
     spawn_if_missing: bool = True
     fallback_agent: str = "claude"
     estimated_cost: int = 500  # tokens
@@ -241,31 +255,34 @@ class AgentSpec:
 @dataclass
 class RAGConfig:
     """RAG configuration for architecture."""
+
     enabled: bool = True
     depth: str = "standard"  # "shallow", "standard", "deep"
-    sources: List[str] = field(default_factory=lambda: ["codebase"])
+    sources: list[str] = field(default_factory=lambda: ["codebase"])
     max_chunks: int = 10
 
 
 @dataclass
 class ExecutionStep:
     """A step in the execution plan."""
+
     name: str
     agent_id: str
     action: str
     expected_duration: float = 30.0  # seconds
-    depends_on: List[str] = field(default_factory=list)
+    depends_on: list[str] = field(default_factory=list)
     verification_required: bool = False
     # V8.3: Optional Swarm mode for delegation
     # If set, step is executed via SwarmBridge instead of direct driver call
-    swarm_mode: Optional[str] = None  # "parallel", "red_blue", etc.
+    swarm_mode: str | None = None  # "parallel", "red_blue", etc.
 
 
 @dataclass
 class ExecutionPlan:
     """Plan for executing the architecture."""
+
     strategy: str  # "sequential", "parallel", "pipeline"
-    steps: List[ExecutionStep] = field(default_factory=list)
+    steps: list[ExecutionStep] = field(default_factory=list)
     estimated_total_duration: float = 0.0
     estimated_total_tokens: int = 0
 
@@ -273,13 +290,14 @@ class ExecutionPlan:
 @dataclass
 class AgentArchitecture:
     """Generated architecture for a task."""
+
     status: str  # "READY", "SPAWN_SUGGESTED", "SPAWN_REQUIRED"
     collaboration_mode: str
-    agents_to_use: List[str]
-    agents_to_spawn: List[AgentSpec]
+    agents_to_use: list[str]
+    agents_to_spawn: list[AgentSpec]
     rag_config: RAGConfig
     execution_plan: ExecutionPlan
-    spawn_commands: List[str] = field(default_factory=list)
+    spawn_commands: list[str] = field(default_factory=list)
     estimated_cost: int = 0
     reasoning: str = ""
 
@@ -288,20 +306,23 @@ class AgentArchitecture:
 # PHASE 4: MONITORED EXECUTION
 # =============================================================================
 
+
 @dataclass
 class ExecutionIssue:
     """An issue detected during execution."""
+
     issue_type: str
     severity: IssueSeverity
     details: str
     step_name: str
     timestamp: datetime = field(default_factory=datetime.now)
-    error_category: Optional[str] = None
+    error_category: str | None = None
 
 
 @dataclass
 class MonitoredStepResult:
     """Result of a monitored execution step."""
+
     step_name: str
     agent_id: str
     status: str  # "success", "warning", "error"
@@ -309,8 +330,8 @@ class MonitoredStepResult:
     duration: float
     expected_duration: float
     tokens_used: int
-    issues: List[ExecutionIssue] = field(default_factory=list)
-    artifacts_created: List[str] = field(default_factory=list)
+    issues: list[ExecutionIssue] = field(default_factory=list)
+    artifacts_created: list[str] = field(default_factory=list)
     artifacts_verified: bool = True
 
 
@@ -318,20 +339,22 @@ class MonitoredStepResult:
 # PHASE 5: FAILURE ANALYSIS
 # =============================================================================
 
+
 @dataclass
 class FailureDiagnosis:
     """Detailed diagnosis of a failure."""
+
     failure_type: FailureType
     root_cause: str
-    contributing_factors: List[str]
-    evidence: List[str]
-    recommended_changes: List[str]
+    contributing_factors: list[str]
+    evidence: list[str]
+    recommended_changes: list[str]
     confidence: float
-    gemini_diagnosis: Optional[str] = None
-    claude_diagnosis: Optional[str] = None
-    missing_capability: Optional[str] = None
+    gemini_diagnosis: str | None = None
+    claude_diagnosis: str | None = None
+    missing_capability: str | None = None
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "failure_type": self.failure_type.value,
             "root_cause": self.root_cause,
@@ -339,7 +362,7 @@ class FailureDiagnosis:
             "evidence": self.evidence,
             "recommended_changes": self.recommended_changes,
             "confidence": self.confidence,
-            "missing_capability": self.missing_capability
+            "missing_capability": self.missing_capability,
         }
 
 
@@ -347,58 +370,64 @@ class FailureDiagnosis:
 # PHASE 6: ADAPTIVE RETRY
 # =============================================================================
 
+
 @dataclass
 class RetryDecision:
     """Decision about whether and how to retry."""
+
     action: str  # "RETRY", "STOP", "ESCALATE"
     reason: str
-    new_architecture: Optional[AgentArchitecture] = None
-    changes_made: List[str] = field(default_factory=list)
+    new_architecture: AgentArchitecture | None = None
+    changes_made: list[str] = field(default_factory=list)
     expected_improvement: float = 0.0
-    suggestion: Optional[str] = None
+    suggestion: str | None = None
 
 
 # =============================================================================
 # PHASE 7: KNOWLEDGE CONSOLIDATION
 # =============================================================================
 
+
 @dataclass
 class AgentRetention:
     """Decision about retaining a spawned agent."""
+
     agent_id: str
     decision: RetentionDecision
     reason: str
     gemini_vote: RetentionDecision
     claude_vote: RetentionDecision
-    user_override: Optional[RetentionDecision] = None
-    capabilities_to_merge: List[str] = field(default_factory=list)
+    user_override: RetentionDecision | None = None
+    capabilities_to_merge: list[str] = field(default_factory=list)
 
 
 @dataclass
 class KnowledgeEntry:
     """A piece of knowledge to archive."""
+
     category: str  # "pattern", "antipattern", "recipe", "insight"
     content: str
     source_task: str
     usefulness_score: float
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
 
 
 @dataclass
 class KnowledgeConsolidation:
     """Result of knowledge consolidation phase."""
+
     # What was learned
-    learned_patterns: List[str]
-    learned_antipatterns: List[str]
-    new_capabilities_identified: List[str]
+    learned_patterns: list[str]
+    learned_antipatterns: list[str]
+    new_capabilities_identified: list[str]
 
     # Decisions on assets
-    agents_retention: List[AgentRetention]
-    knowledge_to_archive: List[KnowledgeEntry]
-    tools_to_create: List[str]
+    agents_retention: list[AgentRetention]
+    knowledge_to_archive: list[KnowledgeEntry]
+    tools_to_create: list[str]
 
     # Suggestions for NEXUS improvement
-    nexus_improvements: List[str]
+    nexus_improvements: list[str]
 
     # Metrics
     task_success: bool
@@ -411,9 +440,11 @@ class KnowledgeConsolidation:
 # USER BREAKPOINTS
 # =============================================================================
 
+
 @dataclass
 class BreakpointOption:
     """An option presented to the user at a breakpoint."""
+
     id: str
     label: str
     description: str
@@ -423,20 +454,22 @@ class BreakpointOption:
 @dataclass
 class BreakpointRequest:
     """Request for user decision at a breakpoint."""
+
     breakpoint_type: UserBreakpoint
     context: str
     recommendation: str
-    options: List[BreakpointOption]
+    options: list[BreakpointOption]
     timeout_seconds: int = 60
     default_action: str = "accept"
-    metadata: Dict = field(default_factory=dict)
+    metadata: dict = field(default_factory=dict)
 
 
 @dataclass
 class BreakpointResponse:
     """User's response to a breakpoint."""
+
     breakpoint_type: UserBreakpoint
     chosen_option: str
-    custom_input: Optional[str] = None
+    custom_input: str | None = None
     was_timeout: bool = False
     timestamp: datetime = field(default_factory=datetime.now)

@@ -4,6 +4,31 @@ NEXUS V9.1 - Agents Module
 Centralized agent management, registry, and services.
 """
 
+# V12.4 Agent Lifecycle
+from .agent_lifecycle import (
+    AgentHealthSnapshot,
+    AgentLifecycleManager,
+    LifecycleEvent,
+    LifecycleStats,
+    RetirementPolicy,
+    get_lifecycle_manager,
+    reset_lifecycle_manager,
+)
+
+# V12.4 Capability Profiler
+from .capability_profiler import (
+    KNOWN_CAPABILITIES,
+    AgentProfile,
+    CapabilityProfiler,
+    CapabilityRecord,
+    MatchResult,
+)
+from .service import (
+    AgentInfo,
+    AgentService,
+    PoolStats,
+    SpawnResult,
+)
 from .unified_registry import (
     AgentCapability,
     AgentDescriptor,
@@ -11,33 +36,6 @@ from .unified_registry import (
     DriverProtocol,
     UnifiedAgentRegistry,
     get_registry,
-)
-
-from .service import (
-    AgentService,
-    SpawnResult,
-    AgentInfo,
-    PoolStats,
-)
-
-# V12.4 Capability Profiler
-from .capability_profiler import (
-    CapabilityProfiler,
-    AgentProfile,
-    CapabilityRecord,
-    MatchResult,
-    KNOWN_CAPABILITIES,
-)
-
-# V12.4 Agent Lifecycle
-from .agent_lifecycle import (
-    AgentLifecycleManager,
-    RetirementPolicy,
-    AgentHealthSnapshot,
-    LifecycleEvent,
-    LifecycleStats,
-    get_lifecycle_manager,
-    reset_lifecycle_manager,
 )
 
 __all__ = [

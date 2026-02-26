@@ -52,12 +52,13 @@ Date: 2025-12-13
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from threading import RLock
-from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 # V11 FIX F20: AsyncRWLock for async methods (prevents event loop blocking)
 from core.foundation.async_primitives.rwlock import AsyncRWLock
@@ -74,8 +75,10 @@ logger = logging.getLogger("nexus.sync_bridge")
 # EVENT TYPES
 # =============================================================================
 
+
 class SyncEventType(Enum):
     """Types of synchronization events between HiveMind and Swarm."""
+
     TASK_CREATED = "task_created"
     CHECKPOINT_CREATED = "checkpoint_created"
     CHECKPOINT_RESTORED = "checkpoint_restored"
@@ -101,14 +104,15 @@ class SyncEvent:
         data: Additional event-specific data
         propagated_to: List of systems that received the event
     """
+
     event_type: SyncEventType
     source: str  # "hivemind" | "swarm" | "sync_bridge"
     task_id: str
     timestamp: datetime = field(default_factory=datetime.now)
-    data: Dict[str, Any] = field(default_factory=dict)
-    propagated_to: List[str] = field(default_factory=list)
+    data: dict[str, Any] = field(default_factory=dict)
+    propagated_to: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize event for logging/storage."""
         return {
             "event_type": self.event_type.value,
@@ -116,13 +120,14 @@ class SyncEvent:
             "task_id": self.task_id,
             "timestamp": self.timestamp.isoformat(),
             "data": self.data,
-            "propagated_to": self.propagated_to
+            "propagated_to": self.propagated_to,
         }
 
 
 # =============================================================================
 # SYNC BRIDGE
 # =============================================================================
+
 
 class OrchestratorSyncBridge:
     """
@@ -157,9 +162,9 @@ class OrchestratorSyncBridge:
 
     def __init__(
         self,
-        saga_manager: Optional["SagaManager"] = None,
-        session_manager: Optional["SwarmSessionManager"] = None,
-        workspace_path: Optional[Path] = None
+        saga_manager: SagaManager | None = None,
+        session_manager: SwarmSessionManager | None = None,
+        workspace_path: Path | None = None,
     ):
         """
         Initialize OrchestratorSyncBridge.
@@ -169,8 +174,8 @@ class OrchestratorSyncBridge:
             session_manager: Swarm's SwarmSessionManager (can be set later)
             workspace_path: Workspace for any persistent sync metadata
         """
-        self._saga: Optional["SagaManager"] = saga_manager
-        self._session: Optional["SwarmSessionManager"] = session_manager
+        self._saga: SagaManager | None = saga_manager
+        self._session: SwarmSessionManager | None = session_manager
         self._workspace = Path(workspace_path) if workspace_path else None
         self._lock = RLock()  # For sync methods
 
@@ -178,13 +183,13 @@ class OrchestratorSyncBridge:
         self._async_lock = AsyncRWLock()
 
         # Event history for audit
-        self._events: List[SyncEvent] = []
+        self._events: list[SyncEvent] = []
 
         # Callbacks for extensibility (e.g., telemetry)
-        self._on_sync_callbacks: List[Callable[[SyncEvent], None]] = []
+        self._on_sync_callbacks: list[Callable[[SyncEvent], None]] = []
 
         # Task ID mapping: HiveMind task_id → Swarm task_id correlation
-        self._task_correlation: Dict[str, Dict[str, str]] = {}
+        self._task_correlation: dict[str, dict[str, str]] = {}
 
         # V10 SYNAPSE: Setup telemetry hook
         self._setup_telemetry()
@@ -195,7 +200,7 @@ class OrchestratorSyncBridge:
     # Manager Registration
     # =========================================================================
 
-    def set_saga_manager(self, saga: "SagaManager") -> None:
+    def set_saga_manager(self, saga: SagaManager) -> None:
         """
         Set or update the SagaManager reference.
 
@@ -208,7 +213,7 @@ class OrchestratorSyncBridge:
             self._saga = saga
             logger.debug(f"SagaManager set: task={saga.task_id[:8] if saga else 'None'}...")
 
-    def set_session_manager(self, session: "SwarmSessionManager") -> None:
+    def set_session_manager(self, session: SwarmSessionManager) -> None:
         """
         Set or update the SwarmSessionManager reference.
 
@@ -231,10 +236,7 @@ class OrchestratorSyncBridge:
     # =========================================================================
 
     def create_unified_task(
-        self,
-        objective: str,
-        swarm_mode: str = "SPECIALIST",
-        metadata: Optional[Dict[str, Any]] = None
+        self, objective: str, swarm_mode: str = "SPECIALIST", metadata: dict[str, Any] | None = None
     ) -> str:
         """
         Create a task tracked by both SagaManager and SwarmSessionManager.
@@ -265,8 +267,8 @@ class OrchestratorSyncBridge:
                             "objective": objective[:200],
                             "sync_bridge": True,
                             "created_by": "OrchestratorSyncBridge",
-                            **(metadata or {})
-                        }
+                            **(metadata or {}),
+                        },
                     )
                 except ValueError:
                     # Task already exists (shouldn't happen with generate_task_id)
@@ -276,30 +278,27 @@ class OrchestratorSyncBridge:
             self._task_correlation[task_id] = {
                 "created_at": datetime.now().isoformat(),
                 "objective": objective[:100],
-                "swarm_mode": swarm_mode
+                "swarm_mode": swarm_mode,
             }
 
             # Record event
-            self._record_event(SyncEvent(
-                event_type=SyncEventType.TASK_CREATED,
-                source="sync_bridge",
-                task_id=task_id,
-                data={
-                    "objective": objective[:100],
-                    "swarm_mode": swarm_mode,
-                    "session_manager_available": self._session is not None
-                }
-            ))
+            self._record_event(
+                SyncEvent(
+                    event_type=SyncEventType.TASK_CREATED,
+                    source="sync_bridge",
+                    task_id=task_id,
+                    data={
+                        "objective": objective[:100],
+                        "swarm_mode": swarm_mode,
+                        "session_manager_available": self._session is not None,
+                    },
+                )
+            )
 
             logger.info(f"Unified task created: {task_id[:12]}...")
             return task_id
 
-    def complete_unified_task(
-        self,
-        task_id: str,
-        success: bool = True,
-        cleanup_saga: bool = True
-    ) -> bool:
+    def complete_unified_task(self, task_id: str, success: bool = True, cleanup_saga: bool = True) -> bool:
         """
         Mark a unified task as completed in both systems.
 
@@ -318,24 +317,26 @@ class OrchestratorSyncBridge:
             # Complete in SwarmSessionManager
             if self._session:
                 from core.intelligence.swarm.session_manager import SessionStatus
+
                 status = SessionStatus.COMPLETED if success else SessionStatus.FAILED
                 swarm_success = self._session.complete_task(task_id, status)
 
             # Cleanup SagaManager (optional)
-            if self._saga and self._saga.task_id == task_id:
-                if cleanup_saga and success:
-                    saga_success = self._saga.cleanup()
+            if self._saga and self._saga.task_id == task_id and cleanup_saga and success:
+                saga_success = self._saga.cleanup()
 
-            self._record_event(SyncEvent(
-                event_type=SyncEventType.TASK_COMPLETED,
-                source="sync_bridge",
-                task_id=task_id,
-                data={
-                    "success": success,
-                    "swarm_completed": swarm_success,
-                    "saga_cleaned": saga_success if cleanup_saga else "skipped"
-                }
-            ))
+            self._record_event(
+                SyncEvent(
+                    event_type=SyncEventType.TASK_COMPLETED,
+                    source="sync_bridge",
+                    task_id=task_id,
+                    data={
+                        "success": success,
+                        "swarm_completed": swarm_success,
+                        "saga_cleaned": saga_success if cleanup_saga else "skipped",
+                    },
+                )
+            )
 
             return swarm_success and saga_success
 
@@ -344,11 +345,7 @@ class OrchestratorSyncBridge:
     # =========================================================================
 
     async def sync_checkpoint(
-        self,
-        source: str,
-        task_id: str,
-        phase_or_mode: str,
-        checkpoint_data: Optional[Dict[str, Any]] = None
+        self, source: str, task_id: str, phase_or_mode: str, checkpoint_data: dict[str, Any] | None = None
     ) -> bool:
         """
         Propagate checkpoint from one system to the other.
@@ -374,20 +371,17 @@ class OrchestratorSyncBridge:
                 try:
                     checkpoint_id = self._session.create_checkpoint(task_id)
                     if checkpoint_id:
-                        self._record_event(SyncEvent(
-                            event_type=SyncEventType.CHECKPOINT_CREATED,
-                            source=source,
-                            task_id=task_id,
-                            data={
-                                "phase": phase_or_mode,
-                                "swarm_checkpoint_id": checkpoint_id,
-                                **checkpoint_data
-                            },
-                            propagated_to=["swarm"]
-                        ))
+                        self._record_event(
+                            SyncEvent(
+                                event_type=SyncEventType.CHECKPOINT_CREATED,
+                                source=source,
+                                task_id=task_id,
+                                data={"phase": phase_or_mode, "swarm_checkpoint_id": checkpoint_id, **checkpoint_data},
+                                propagated_to=["swarm"],
+                            )
+                        )
                         logger.debug(
-                            f"Checkpoint synced: HiveMind phase '{phase_or_mode}' "
-                            f"→ Swarm checkpoint '{checkpoint_id}'"
+                            f"Checkpoint synced: HiveMind phase '{phase_or_mode}' → Swarm checkpoint '{checkpoint_id}'"
                         )
                         return True
                 except Exception as e:
@@ -396,16 +390,15 @@ class OrchestratorSyncBridge:
 
             elif source == "swarm":
                 # Swarm checkpointed → Record correlation (Saga is phase-based)
-                self._record_event(SyncEvent(
-                    event_type=SyncEventType.CHECKPOINT_CREATED,
-                    source=source,
-                    task_id=task_id,
-                    data={
-                        "mode": phase_or_mode,
-                        **checkpoint_data
-                    },
-                    propagated_to=["hivemind_notified"]
-                ))
+                self._record_event(
+                    SyncEvent(
+                        event_type=SyncEventType.CHECKPOINT_CREATED,
+                        source=source,
+                        task_id=task_id,
+                        data={"mode": phase_or_mode, **checkpoint_data},
+                        propagated_to=["hivemind_notified"],
+                    )
+                )
                 logger.debug(f"Swarm checkpoint recorded for mode '{phase_or_mode}'")
                 return True
 
@@ -414,11 +407,7 @@ class OrchestratorSyncBridge:
             return False
 
     def sync_checkpoint_sync(
-        self,
-        source: str,
-        task_id: str,
-        phase_or_mode: str,
-        checkpoint_data: Optional[Dict[str, Any]] = None
+        self, source: str, task_id: str, phase_or_mode: str, checkpoint_data: dict[str, Any] | None = None
     ) -> bool:
         """
         Synchronous version of sync_checkpoint for non-async contexts.
@@ -433,27 +422,21 @@ class OrchestratorSyncBridge:
             True if propagation succeeded
         """
         import asyncio
+
         try:
-            loop = asyncio.get_running_loop()
+            asyncio.get_running_loop()
             # Already in async context - this shouldn't be called
             logger.warning("sync_checkpoint_sync called from async context")
             return False
         except RuntimeError:
             # No running loop - safe to create one
-            return asyncio.run(self.sync_checkpoint(
-                source, task_id, phase_or_mode, checkpoint_data
-            ))
+            return asyncio.run(self.sync_checkpoint(source, task_id, phase_or_mode, checkpoint_data))
 
     # =========================================================================
     # Rollback Coordination
     # =========================================================================
 
-    async def coordinated_rollback(
-        self,
-        task_id: str,
-        target_phase: str,
-        context_manager: Optional[Any] = None
-    ) -> bool:
+    async def coordinated_rollback(self, task_id: str, target_phase: str, context_manager: Any | None = None) -> bool:
         """
         Perform rollback in both HiveMind and Swarm atomically.
 
@@ -470,12 +453,14 @@ class OrchestratorSyncBridge:
         """
         # V11 FIX F20: Use async lock instead of threading RLock
         async with self._async_lock.write():
-            self._record_event(SyncEvent(
-                event_type=SyncEventType.ROLLBACK_STARTED,
-                source="sync_bridge",
-                task_id=task_id,
-                data={"target_phase": target_phase}
-            ))
+            self._record_event(
+                SyncEvent(
+                    event_type=SyncEventType.ROLLBACK_STARTED,
+                    source="sync_bridge",
+                    task_id=task_id,
+                    data={"target_phase": target_phase},
+                )
+            )
 
             saga_success = True
             swarm_success = True
@@ -485,9 +470,7 @@ class OrchestratorSyncBridge:
             if self._saga and self._saga.task_id == task_id:
                 if target_phase in self._saga.checkpointed_phases:
                     try:
-                        saga_success = await self._saga.rollback_to(
-                            target_phase, context_manager
-                        )
+                        saga_success = await self._saga.rollback_to(target_phase, context_manager)
                         if not saga_success:
                             errors.append("SagaManager rollback returned False")
                     except Exception as e:
@@ -504,9 +487,7 @@ class OrchestratorSyncBridge:
                         # Restore to most recent checkpoint
                         # Future: Map phase → checkpoint for precise restore
                         latest_cp = checkpoints[-1]
-                        swarm_success = self._session.restore_checkpoint(
-                            task_id, latest_cp
-                        )
+                        swarm_success = self._session.restore_checkpoint(task_id, latest_cp)
                         if not swarm_success:
                             errors.append("SwarmSessionManager restore returned False")
                     else:
@@ -517,18 +498,20 @@ class OrchestratorSyncBridge:
 
             # Record completion
             overall_success = saga_success and swarm_success
-            self._record_event(SyncEvent(
-                event_type=SyncEventType.ROLLBACK_COMPLETED,
-                source="sync_bridge",
-                task_id=task_id,
-                data={
-                    "target_phase": target_phase,
-                    "saga_success": saga_success,
-                    "swarm_success": swarm_success,
-                    "overall_success": overall_success,
-                    "errors": errors
-                }
-            ))
+            self._record_event(
+                SyncEvent(
+                    event_type=SyncEventType.ROLLBACK_COMPLETED,
+                    source="sync_bridge",
+                    task_id=task_id,
+                    data={
+                        "target_phase": target_phase,
+                        "saga_success": saga_success,
+                        "swarm_success": swarm_success,
+                        "overall_success": overall_success,
+                        "errors": errors,
+                    },
+                )
+            )
 
             if overall_success:
                 logger.info(f"Coordinated rollback to '{target_phase}' succeeded")
@@ -541,7 +524,7 @@ class OrchestratorSyncBridge:
     # Validation
     # =========================================================================
 
-    def validate_consistency(self, task_id: str) -> Dict[str, Any]:
+    def validate_consistency(self, task_id: str) -> dict[str, Any]:
         """
         Validate that both systems have consistent state for a task.
 
@@ -557,13 +540,7 @@ class OrchestratorSyncBridge:
             Validation result dict with 'consistent' flag and any 'issues'
         """
         with self._lock:
-            result = {
-                "task_id": task_id,
-                "consistent": True,
-                "issues": [],
-                "swarm_state": None,
-                "saga_state": None
-            }
+            result = {"task_id": task_id, "consistent": True, "issues": [], "swarm_state": None, "saga_state": None}
 
             # Check SwarmSessionManager
             swarm_task = None
@@ -573,9 +550,7 @@ class OrchestratorSyncBridge:
                     result["swarm_state"] = {
                         "status": swarm_task.status.value,
                         "roles_count": len(swarm_task.roles),
-                        "checkpoints_count": len(
-                            swarm_task.metadata.get("checkpoints", {})
-                        )
+                        "checkpoints_count": len(swarm_task.metadata.get("checkpoints", {})),
                     }
                 else:
                     result["issues"].append("Task not found in SwarmSessionManager")
@@ -588,7 +563,7 @@ class OrchestratorSyncBridge:
                 result["saga_state"] = {
                     "recovery_point": self._saga.recovery_point,
                     "checkpoints": self._saga.checkpointed_phases,
-                    "context_flags": self._saga.context.to_dict()
+                    "context_flags": self._saga.context.to_dict(),
                 }
                 if not self._saga.checkpointed_phases:
                     result["issues"].append("SagaManager has no checkpoints")
@@ -600,30 +575,22 @@ class OrchestratorSyncBridge:
                 saga_completed = self._saga.recovery_point == "consolidation"
 
                 if swarm_completed and not saga_completed:
-                    result["issues"].append(
-                        f"Swarm completed but Saga at '{self._saga.recovery_point}'"
-                    )
+                    result["issues"].append(f"Swarm completed but Saga at '{self._saga.recovery_point}'")
                     result["consistent"] = False
                 elif saga_completed and not swarm_completed:
-                    result["issues"].append(
-                        f"Saga completed but Swarm status is '{swarm_task.status.value}'"
-                    )
+                    result["issues"].append(f"Saga completed but Swarm status is '{swarm_task.status.value}'")
                     result["consistent"] = False
 
             # Record validation event
-            event_type = (
-                SyncEventType.VALIDATION_PASSED if result["consistent"]
-                else SyncEventType.VALIDATION_FAILED
+            event_type = SyncEventType.VALIDATION_PASSED if result["consistent"] else SyncEventType.VALIDATION_FAILED
+            self._record_event(
+                SyncEvent(
+                    event_type=event_type,
+                    source="sync_bridge",
+                    task_id=task_id,
+                    data={"consistent": result["consistent"], "issues": result["issues"]},
+                )
             )
-            self._record_event(SyncEvent(
-                event_type=event_type,
-                source="sync_bridge",
-                task_id=task_id,
-                data={
-                    "consistent": result["consistent"],
-                    "issues": result["issues"]
-                }
-            ))
 
             return result
 
@@ -677,7 +644,7 @@ class OrchestratorSyncBridge:
                         "event_type": event.event_type.value,
                         "task_id": event.task_id[:12] if event.task_id else "unknown",
                         "payload_preview": str(event.data)[:100] if event.data else "",
-                    }
+                    },
                 )
 
             self.on_sync(telemetry_callback)
@@ -687,11 +654,8 @@ class OrchestratorSyncBridge:
             logger.debug("V10 SYNAPSE: Telemetry not available (import error)")
 
     def get_events(
-        self,
-        task_id: Optional[str] = None,
-        event_type: Optional[SyncEventType] = None,
-        limit: int = 100
-    ) -> List[SyncEvent]:
+        self, task_id: str | None = None, event_type: SyncEventType | None = None, limit: int = 100
+    ) -> list[SyncEvent]:
         """
         Get sync events, optionally filtered.
 
@@ -725,7 +689,7 @@ class OrchestratorSyncBridge:
     # Status & Debugging
     # =========================================================================
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """
         Get sync bridge status for monitoring.
 
@@ -735,13 +699,9 @@ class OrchestratorSyncBridge:
         with self._lock:
             return {
                 "saga_connected": self._saga is not None,
-                "saga_task_id": (
-                    self._saga.task_id[:12] + "..." if self._saga else None
-                ),
+                "saga_task_id": (self._saga.task_id[:12] + "..." if self._saga else None),
                 "session_connected": self._session is not None,
-                "session_stats": (
-                    self._session.get_stats() if self._session else None
-                ),
+                "session_stats": (self._session.get_stats() if self._session else None),
                 "total_events": len(self._events),
                 "tasks_correlated": len(self._task_correlation),
                 "recent_events": [
@@ -749,10 +709,10 @@ class OrchestratorSyncBridge:
                         "type": e.event_type.value,
                         "source": e.source,
                         "task_id": e.task_id[:8] + "...",
-                        "timestamp": e.timestamp.isoformat()
+                        "timestamp": e.timestamp.isoformat(),
                     }
                     for e in self._events[-5:]
-                ]
+                ],
             }
 
     def __repr__(self) -> str:
@@ -768,7 +728,7 @@ class OrchestratorSyncBridge:
 # FACTORY FUNCTION
 # =============================================================================
 
-_global_sync_bridge: Optional[OrchestratorSyncBridge] = None
+_global_sync_bridge: OrchestratorSyncBridge | None = None
 
 
 def get_sync_bridge() -> OrchestratorSyncBridge:

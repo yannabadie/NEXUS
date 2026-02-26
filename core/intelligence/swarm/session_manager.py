@@ -20,12 +20,12 @@ from __future__ import annotations
 
 import logging
 import uuid
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from threading import RLock
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from core.utils.atomic_store import AtomicJsonStore
 
@@ -35,6 +35,7 @@ logger = logging.getLogger(__name__)
 
 class SessionStatus(str, Enum):
     """Status of a session or task."""
+
     PENDING = "pending"
     ACTIVE = "active"
     COMPLETED = "completed"
@@ -44,9 +45,10 @@ class SessionStatus(str, Enum):
 
 class SessionMode(str, Enum):
     """How a session should be initialized."""
-    FRESH = "fresh"       # New session, no prior context
+
+    FRESH = "fresh"  # New session, no prior context
     CONTINUE = "continue"  # Resume from existing session
-    BRANCH = "branch"      # Fork from existing session
+    BRANCH = "branch"  # Fork from existing session
     EPHEMERAL = "ephemeral"  # V7.8.2 Phase 7b: Memory-only, no persistence (for TRIVIAL tasks)
 
 
@@ -65,16 +67,17 @@ class AgentSession:
         parent_session_uuid: For BRANCH mode, the session this was forked from
         workspace_path: V9.7 - Isolated workspace path for context bleeding fix
     """
+
     agent_id: str
     session_uuid: str
     role: str
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
     status: SessionStatus = SessionStatus.ACTIVE
     mode: SessionMode = SessionMode.FRESH
-    parent_session_uuid: Optional[str] = None
-    workspace_path: Optional[str] = None  # V9.7: Isolated workspace for Gemini CLI
+    parent_session_uuid: str | None = None
+    workspace_path: str | None = None  # V9.7: Isolated workspace for Gemini CLI
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return {
             "agent_id": self.agent_id,
@@ -84,11 +87,11 @@ class AgentSession:
             "status": self.status.value if isinstance(self.status, SessionStatus) else self.status,
             "mode": self.mode.value if isinstance(self.mode, SessionMode) else self.mode,
             "parent_session_uuid": self.parent_session_uuid,
-            "workspace_path": self.workspace_path  # V9.7
+            "workspace_path": self.workspace_path,  # V9.7
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "AgentSession":
+    def from_dict(cls, data: dict[str, Any]) -> AgentSession:
         """Create from dictionary."""
         return cls(
             agent_id=data["agent_id"],
@@ -98,7 +101,7 @@ class AgentSession:
             status=SessionStatus(data.get("status", "active")),
             mode=SessionMode(data.get("mode", "fresh")),
             parent_session_uuid=data.get("parent_session_uuid"),
-            workspace_path=data.get("workspace_path")  # V9.7
+            workspace_path=data.get("workspace_path"),  # V9.7
         )
 
 
@@ -117,16 +120,17 @@ class TaskSession:
         metadata: Additional task metadata
         is_ephemeral: V7.8.2 Phase 7b - If True, task is memory-only (no persistence)
     """
+
     task_id: str
     swarm_mode: str
     status: SessionStatus = SessionStatus.ACTIVE
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
-    completed_at: Optional[str] = None
-    roles: Dict[str, AgentSession] = field(default_factory=dict)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    completed_at: str | None = None
+    roles: dict[str, AgentSession] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
     is_ephemeral: bool = False  # V7.8.2 Phase 7b: Memory-only task (no file persistence)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return {
             "task_id": self.task_id,
@@ -135,11 +139,11 @@ class TaskSession:
             "created_at": self.created_at,
             "completed_at": self.completed_at,
             "roles": {role: session.to_dict() for role, session in self.roles.items()},
-            "metadata": self.metadata
+            "metadata": self.metadata,
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "TaskSession":
+    def from_dict(cls, data: dict[str, Any]) -> TaskSession:
         """Create from dictionary."""
         roles = {}
         for role, session_data in data.get("roles", {}).items():
@@ -152,7 +156,7 @@ class TaskSession:
             created_at=data.get("created_at", datetime.now().isoformat()),
             completed_at=data.get("completed_at"),
             roles=roles,
-            metadata=data.get("metadata", {})
+            metadata=data.get("metadata", {}),
         )
 
 
@@ -189,10 +193,11 @@ class SwarmSessionManager:
         self._lock = RLock()
 
         # In-memory cache for fast access
-        self._tasks: Dict[str, TaskSession] = {}
+        self._tasks: dict[str, TaskSession] = {}
 
         # V9.7: Workspace isolation for context bleeding fix
         from core.infrastructure.session import SessionWorkspaceManager
+
         self._workspace_manager = SessionWorkspaceManager(workspace_path)
 
         # Load existing registry
@@ -223,10 +228,7 @@ class SwarmSessionManager:
             data = {
                 "version": "1.0",
                 "updated_at": datetime.now().isoformat(),
-                "tasks": {
-                    task_id: task.to_dict()
-                    for task_id, task in self._tasks.items()
-                }
+                "tasks": {task_id: task.to_dict() for task_id, task in self._tasks.items()},
             }
             try:
                 self._store.save(data)
@@ -237,11 +239,7 @@ class SwarmSessionManager:
                 logger.warning("Session data is in memory only - will be lost on restart")
 
     def create_task(
-        self,
-        task_id: str,
-        swarm_mode: str,
-        metadata: Optional[Dict[str, Any]] = None,
-        is_ephemeral: bool = False
+        self, task_id: str, swarm_mode: str, metadata: dict[str, Any] | None = None, is_ephemeral: bool = False
     ) -> TaskSession:
         """
         Create a new task session.
@@ -267,7 +265,7 @@ class SwarmSessionManager:
                 swarm_mode=swarm_mode,
                 status=SessionStatus.ACTIVE,
                 metadata=metadata or {},
-                is_ephemeral=is_ephemeral
+                is_ephemeral=is_ephemeral,
             )
 
             self._tasks[task_id] = task
@@ -281,7 +279,7 @@ class SwarmSessionManager:
 
             return task
 
-    def get_task(self, task_id: str) -> Optional[TaskSession]:
+    def get_task(self, task_id: str) -> TaskSession | None:
         """
         Get a task by ID.
 
@@ -294,12 +292,7 @@ class SwarmSessionManager:
         with self._lock:
             return self._tasks.get(task_id)
 
-    def get_or_create_task(
-        self,
-        task_id: str,
-        swarm_mode: str,
-        metadata: Optional[Dict[str, Any]] = None
-    ) -> TaskSession:
+    def get_or_create_task(self, task_id: str, swarm_mode: str, metadata: dict[str, Any] | None = None) -> TaskSession:
         """
         Get existing task or create new one.
 
@@ -322,7 +315,7 @@ class SwarmSessionManager:
         role: str,
         agent_id: str,
         mode: SessionMode = SessionMode.FRESH,
-        parent_session_uuid: Optional[str] = None
+        parent_session_uuid: str | None = None,
     ) -> str:
         """
         Get or create a session UUID for an agent-role combination in a task.
@@ -356,8 +349,7 @@ class SwarmSessionManager:
 
             # V9.7: Create isolated workspace for this session
             workspace_path = self._workspace_manager.get_or_create_workspace(
-                session_id=f"{task_id}_{role}",
-                session_type="swarm"
+                session_id=f"{task_id}_{role}", session_type="swarm"
             )
 
             # Create new session
@@ -368,7 +360,7 @@ class SwarmSessionManager:
                 role=role,
                 mode=mode,
                 parent_session_uuid=parent_session_uuid,
-                workspace_path=str(workspace_path)  # V9.7: Store workspace path
+                workspace_path=str(workspace_path),  # V9.7: Store workspace path
             )
 
             task.roles[role] = session
@@ -382,7 +374,7 @@ class SwarmSessionManager:
 
             return session_uuid
 
-    def get_session(self, task_id: str, role: str) -> Optional[AgentSession]:
+    def get_session(self, task_id: str, role: str) -> AgentSession | None:
         """
         Get a specific session by task and role.
 
@@ -399,7 +391,7 @@ class SwarmSessionManager:
                 return None
             return task.roles.get(role)
 
-    def get_workspace_path(self, task_id: str, role: str) -> Optional[Path]:
+    def get_workspace_path(self, task_id: str, role: str) -> Path | None:
         """
         Get the isolated workspace path for a session.
 
@@ -418,7 +410,7 @@ class SwarmSessionManager:
             return Path(session.workspace_path)
         return None
 
-    def get_isolated_env(self, task_id: str, role: str) -> Optional[Dict[str, str]]:
+    def get_isolated_env(self, task_id: str, role: str) -> dict[str, str] | None:
         """
         V9.7.1: Get isolated environment for Gemini subprocess.
 
@@ -448,12 +440,9 @@ class SwarmSessionManager:
             return None
 
         # Use workspace_manager's HOME spoofing
-        return self._workspace_manager.get_isolated_env(
-            session_id=f"{task_id}_{role}",
-            session_type="swarm"
-        )
+        return self._workspace_manager.get_isolated_env(session_id=f"{task_id}_{role}", session_type="swarm")
 
-    def get_session_by_uuid(self, session_uuid: str) -> Optional[AgentSession]:
+    def get_session_by_uuid(self, session_uuid: str) -> AgentSession | None:
         """
         Find a session by its UUID across all tasks.
 
@@ -470,7 +459,7 @@ class SwarmSessionManager:
                         return session
             return None
 
-    def list_active_sessions(self) -> List[Dict[str, Any]]:
+    def list_active_sessions(self) -> list[dict[str, Any]]:
         """
         List all active sessions across all tasks.
 
@@ -483,17 +472,19 @@ class SwarmSessionManager:
                 if task.status == SessionStatus.ACTIVE:
                     for role, session in task.roles.items():
                         if session.status == SessionStatus.ACTIVE:
-                            sessions.append({
-                                "task_id": task_id,
-                                "swarm_mode": task.swarm_mode,
-                                "role": role,
-                                "agent_id": session.agent_id,
-                                "session_uuid": session.session_uuid,
-                                "created_at": session.created_at
-                            })
+                            sessions.append(
+                                {
+                                    "task_id": task_id,
+                                    "swarm_mode": task.swarm_mode,
+                                    "role": role,
+                                    "agent_id": session.agent_id,
+                                    "session_uuid": session.session_uuid,
+                                    "created_at": session.created_at,
+                                }
+                            )
             return sessions
 
-    def list_active_tasks(self) -> List[TaskSession]:
+    def list_active_tasks(self) -> list[TaskSession]:
         """
         List all active tasks.
 
@@ -501,16 +492,10 @@ class SwarmSessionManager:
             List of active TaskSession objects
         """
         with self._lock:
-            return [
-                task for task in self._tasks.values()
-                if task.status == SessionStatus.ACTIVE
-            ]
+            return [task for task in self._tasks.values() if task.status == SessionStatus.ACTIVE]
 
     def complete_task(
-        self,
-        task_id: str,
-        status: SessionStatus = SessionStatus.COMPLETED,
-        cleanup_workspaces: bool = True
+        self, task_id: str, status: SessionStatus = SessionStatus.COMPLETED, cleanup_workspaces: bool = True
     ) -> bool:
         """
         Mark a task and all its sessions as completed.
@@ -539,25 +524,14 @@ class SwarmSessionManager:
                 # V9.7.1: Cleanup isolated HOME and workspace
                 if cleanup_workspaces:
                     # Cleanup legacy workspace (V9.7)
-                    self._workspace_manager.cleanup_workspace(
-                        session_id=f"{task_id}_{role}",
-                        session_type="swarm"
-                    )
+                    self._workspace_manager.cleanup_workspace(session_id=f"{task_id}_{role}", session_type="swarm")
                     # Cleanup isolated HOME (V9.7.1)
-                    self._workspace_manager.cleanup_isolated_env(
-                        session_id=f"{task_id}_{role}",
-                        session_type="swarm"
-                    )
+                    self._workspace_manager.cleanup_isolated_env(session_id=f"{task_id}_{role}", session_type="swarm")
 
             self._save_registry()
             return True
 
-    def complete_session(
-        self,
-        task_id: str,
-        role: str,
-        status: SessionStatus = SessionStatus.COMPLETED
-    ) -> bool:
+    def complete_session(self, task_id: str, role: str, status: SessionStatus = SessionStatus.COMPLETED) -> bool:
         """
         Mark a specific session as completed.
 
@@ -595,14 +569,16 @@ class SwarmSessionManager:
             to_remove = []
 
             for task_id, task in self._tasks.items():
-                if task.status in (SessionStatus.COMPLETED, SessionStatus.FAILED, SessionStatus.CANCELLED):
-                    if task.completed_at:
-                        try:
-                            completed_time = datetime.fromisoformat(task.completed_at)
-                            if completed_time < cutoff:
-                                to_remove.append(task_id)
-                        except ValueError:
-                            pass
+                if (
+                    task.status in (SessionStatus.COMPLETED, SessionStatus.FAILED, SessionStatus.CANCELLED)
+                    and task.completed_at
+                ):
+                    try:
+                        completed_time = datetime.fromisoformat(task.completed_at)
+                        if completed_time < cutoff:
+                            to_remove.append(task_id)
+                    except ValueError:
+                        pass
 
             for task_id in to_remove:
                 del self._tasks[task_id]
@@ -614,7 +590,7 @@ class SwarmSessionManager:
 
             return len(to_remove)
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """
         Get session manager statistics.
 
@@ -626,8 +602,7 @@ class SwarmSessionManager:
             completed_tasks = sum(1 for t in self._tasks.values() if t.status == SessionStatus.COMPLETED)
             total_sessions = sum(len(t.roles) for t in self._tasks.values())
             active_sessions = sum(
-                sum(1 for s in t.roles.values() if s.status == SessionStatus.ACTIVE)
-                for t in self._tasks.values()
+                sum(1 for s in t.roles.values() if s.status == SessionStatus.ACTIVE) for t in self._tasks.values()
             )
 
             return {
@@ -635,12 +610,12 @@ class SwarmSessionManager:
                 "active_tasks": active_tasks,
                 "completed_tasks": completed_tasks,
                 "total_sessions": total_sessions,
-                "active_sessions": active_sessions
+                "active_sessions": active_sessions,
             }
 
     # ===== V7.5 Phase 8: Checkpoint Support for Self-Healing =====
 
-    def create_checkpoint(self, task_id: str) -> Optional[str]:
+    def create_checkpoint(self, task_id: str) -> str | None:
         """
         Create a checkpoint for a task's current state.
 
@@ -670,14 +645,12 @@ class SwarmSessionManager:
                 "created_at": datetime.now().isoformat(),
                 "swarm_mode": task.swarm_mode,
                 "status": task.status.value,
-                "roles_snapshot": {
-                    role: session.to_dict()
-                    for role, session in task.roles.items()
-                },
+                "roles_snapshot": {role: session.to_dict() for role, session in task.roles.items()},
                 "metadata_snapshot": {
-                    k: v for k, v in task.metadata.items()
+                    k: v
+                    for k, v in task.metadata.items()
                     if k != "checkpoints"  # Don't nest checkpoints
-                }
+                },
             }
 
             task.metadata["checkpoints"][checkpoint_id] = checkpoint_data
@@ -729,7 +702,7 @@ class SwarmSessionManager:
             self._save_registry()
             return True
 
-    def get_checkpoint(self, task_id: str, checkpoint_id: str) -> Optional[Dict[str, Any]]:
+    def get_checkpoint(self, task_id: str, checkpoint_id: str) -> dict[str, Any] | None:
         """
         Get checkpoint data.
 
@@ -747,7 +720,7 @@ class SwarmSessionManager:
 
             return task.metadata.get("checkpoints", {}).get(checkpoint_id)
 
-    def list_checkpoints(self, task_id: str) -> List[str]:
+    def list_checkpoints(self, task_id: str) -> list[str]:
         """
         List all checkpoint IDs for a task.
 

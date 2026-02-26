@@ -34,40 +34,42 @@ Sources:
 
 import re
 import unicodedata
-from enum import Enum
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Tuple
+from enum import Enum
 
 
 class ThreatLevel(Enum):
     """Severity levels for detected threats."""
+
     NONE = "none"
-    LOW = "low"           # Suspicious but likely benign
-    MEDIUM = "medium"     # Potentially malicious
-    HIGH = "high"         # Likely attack attempt
-    CRITICAL = "critical" # Clear attack pattern
+    LOW = "low"  # Suspicious but likely benign
+    MEDIUM = "medium"  # Potentially malicious
+    HIGH = "high"  # Likely attack attempt
+    CRITICAL = "critical"  # Clear attack pattern
 
 
 class ThreatType(Enum):
     """Categories of prompt injection attacks."""
+
     NONE = "none"
-    INSTRUCTION_OVERRIDE = "instruction_override"   # "Ignore previous instructions"
-    ROLE_MANIPULATION = "role_manipulation"         # "You are now DAN"
-    PROMPT_EXTRACTION = "prompt_extraction"         # "Print your system prompt"
-    DELIMITER_INJECTION = "delimiter_injection"     # "```\n[SYSTEM]\n"
-    CONTEXT_MANIPULATION = "context_manipulation"   # "The admin said to..."
-    ENCODING_ATTACK = "encoding_attack"             # Base64/rot13 obfuscation
+    INSTRUCTION_OVERRIDE = "instruction_override"  # "Ignore previous instructions"
+    ROLE_MANIPULATION = "role_manipulation"  # "You are now DAN"
+    PROMPT_EXTRACTION = "prompt_extraction"  # "Print your system prompt"
+    DELIMITER_INJECTION = "delimiter_injection"  # "```\n[SYSTEM]\n"
+    CONTEXT_MANIPULATION = "context_manipulation"  # "The admin said to..."
+    ENCODING_ATTACK = "encoding_attack"  # Base64/rot13 obfuscation
 
 
 @dataclass
 class InputValidationResult:
     """Result of input validation."""
+
     is_safe: bool
     sanitized_text: str
     threat_level: ThreatLevel = ThreatLevel.NONE
     threat_type: ThreatType = ThreatType.NONE
-    reason: Optional[str] = None
-    matched_patterns: List[str] = field(default_factory=list)
+    reason: str | None = None
+    matched_patterns: list[str] = field(default_factory=list)
     risk_score: float = 0.0  # 0.0 = safe, 1.0 = definite attack
 
     def __bool__(self) -> bool:
@@ -79,7 +81,7 @@ class InputValidationResult:
 # =============================================================================
 
 # CRITICAL: Patterns that almost always indicate an attack
-CRITICAL_PATTERNS: Dict[str, Dict] = {
+CRITICAL_PATTERNS: dict[str, dict] = {
     "ignore_instructions": {
         "patterns": [
             r"ignore\s+(all\s+)?(previous|prior|above|earlier)\s+(instruction|command|rule|directive|prompt)s?",
@@ -117,7 +119,7 @@ CRITICAL_PATTERNS: Dict[str, Dict] = {
 }
 
 # HIGH: Patterns that strongly suggest an attack
-HIGH_PATTERNS: Dict[str, Dict] = {
+HIGH_PATTERNS: dict[str, dict] = {
     "prompt_extraction": {
         "patterns": [
             r"(print|show|display|reveal|output|tell\s+me)\s+(your|the|me\s+your)\s+(system\s+)?(prompt|instruction|rule)s?",
@@ -180,7 +182,7 @@ HIGH_PATTERNS: Dict[str, Dict] = {
 }
 
 # MEDIUM: Patterns that may indicate an attack
-MEDIUM_PATTERNS: Dict[str, Dict] = {
+MEDIUM_PATTERNS: dict[str, dict] = {
     "bypass_requests": {
         "patterns": [
             r"bypass\s+(the\s+)?(rule|policy|restriction|filter|safety|security)",
@@ -222,6 +224,7 @@ MEDIUM_PATTERNS: Dict[str, Dict] = {
 # InputGuard Implementation
 # =============================================================================
 
+
 class InputGuard:
     """
     Input validation guard against prompt injection attacks.
@@ -231,20 +234,18 @@ class InputGuard:
 
     # Characters to remove (invisible/control characters)
     DANGEROUS_CHARS = {
-        '\x00',  # Null byte
-        '\x1b',  # Escape
-        '\x7f',  # Delete
-        '\u200b', '\u200c', '\u200d',  # Zero-width chars
-        '\u2028', '\u2029',  # Line/paragraph separators
-        '\ufeff',  # BOM
+        "\x00",  # Null byte
+        "\x1b",  # Escape
+        "\x7f",  # Delete
+        "\u200b",
+        "\u200c",
+        "\u200d",  # Zero-width chars
+        "\u2028",
+        "\u2029",  # Line/paragraph separators
+        "\ufeff",  # BOM
     }
 
-    def __init__(
-        self,
-        block_threshold: float = 0.7,
-        warn_threshold: float = 0.4,
-        enabled: bool = True
-    ):
+    def __init__(self, block_threshold: float = 0.7, warn_threshold: float = 0.4, enabled: bool = True):
         """
         Initialize InputGuard.
 
@@ -258,37 +259,52 @@ class InputGuard:
         self.enabled = enabled
 
         # Pre-compile all patterns for performance
-        self._compiled_patterns: List[Tuple[re.Pattern, Dict]] = []
+        self._compiled_patterns: list[tuple[re.Pattern, dict]] = []
 
         for category, data in CRITICAL_PATTERNS.items():
             for pattern in data["patterns"]:
                 compiled = re.compile(pattern, re.IGNORECASE)
-                self._compiled_patterns.append((compiled, {
-                    "category": category,
-                    "threat_type": data["threat_type"],
-                    "level": data["level"],
-                    "description": data["description"],
-                }))
+                self._compiled_patterns.append(
+                    (
+                        compiled,
+                        {
+                            "category": category,
+                            "threat_type": data["threat_type"],
+                            "level": data["level"],
+                            "description": data["description"],
+                        },
+                    )
+                )
 
         for category, data in HIGH_PATTERNS.items():
             for pattern in data["patterns"]:
                 compiled = re.compile(pattern, re.IGNORECASE)
-                self._compiled_patterns.append((compiled, {
-                    "category": category,
-                    "threat_type": data["threat_type"],
-                    "level": data["level"],
-                    "description": data["description"],
-                }))
+                self._compiled_patterns.append(
+                    (
+                        compiled,
+                        {
+                            "category": category,
+                            "threat_type": data["threat_type"],
+                            "level": data["level"],
+                            "description": data["description"],
+                        },
+                    )
+                )
 
         for category, data in MEDIUM_PATTERNS.items():
             for pattern in data["patterns"]:
                 compiled = re.compile(pattern, re.IGNORECASE)
-                self._compiled_patterns.append((compiled, {
-                    "category": category,
-                    "threat_type": data["threat_type"],
-                    "level": data["level"],
-                    "description": data["description"],
-                }))
+                self._compiled_patterns.append(
+                    (
+                        compiled,
+                        {
+                            "category": category,
+                            "threat_type": data["threat_type"],
+                            "level": data["level"],
+                            "description": data["description"],
+                        },
+                    )
+                )
 
     def validate(self, text: str) -> InputValidationResult:
         """
@@ -306,7 +322,7 @@ class InputGuard:
                 sanitized_text=text,
                 threat_level=ThreatLevel.NONE,
                 threat_type=ThreatType.NONE,
-                risk_score=0.0
+                risk_score=0.0,
             )
 
         if not text or not text.strip():
@@ -315,7 +331,7 @@ class InputGuard:
                 sanitized_text="",
                 threat_level=ThreatLevel.NONE,
                 threat_type=ThreatType.NONE,
-                risk_score=0.0
+                risk_score=0.0,
             )
 
         # Step 1: Sanitize input
@@ -330,7 +346,7 @@ class InputGuard:
                 sanitized_text=sanitized,
                 threat_level=ThreatLevel.NONE,
                 threat_type=ThreatType.NONE,
-                risk_score=0.0
+                risk_score=0.0,
             )
 
         # Step 3: Calculate risk score
@@ -350,7 +366,7 @@ class InputGuard:
             threat_type=primary_threat,
             reason=matches[0]["description"] if matches else None,
             matched_patterns=[m["category"] for m in matches],
-            risk_score=risk_score
+            risk_score=risk_score,
         )
 
     def _sanitize(self, text: str) -> str:
@@ -374,7 +390,7 @@ class InputGuard:
 
         return text.strip()
 
-    def _check_patterns(self, text: str) -> List[Dict]:
+    def _check_patterns(self, text: str) -> list[dict]:
         """Check text against all patterns."""
         matches = []
 
@@ -394,7 +410,7 @@ class InputGuard:
 
         return matches
 
-    def _calculate_risk_score(self, matches: List[Dict]) -> float:
+    def _calculate_risk_score(self, matches: list[dict]) -> float:
         """
         Calculate overall risk score from matches.
 
@@ -445,20 +461,12 @@ class InputGuard:
 # Singleton for easy access
 # =============================================================================
 
-_input_guard: Optional[InputGuard] = None
+_input_guard: InputGuard | None = None
 
 
-def get_input_guard(
-    block_threshold: float = 0.7,
-    warn_threshold: float = 0.4,
-    enabled: bool = True
-) -> InputGuard:
+def get_input_guard(block_threshold: float = 0.7, warn_threshold: float = 0.4, enabled: bool = True) -> InputGuard:
     """Get or create the global InputGuard instance."""
     global _input_guard
     if _input_guard is None:
-        _input_guard = InputGuard(
-            block_threshold=block_threshold,
-            warn_threshold=warn_threshold,
-            enabled=enabled
-        )
+        _input_guard = InputGuard(block_threshold=block_threshold, warn_threshold=warn_threshold, enabled=enabled)
     return _input_guard

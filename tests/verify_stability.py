@@ -1,22 +1,16 @@
 import sys
-import os
-import json
 from pathlib import Path
-from unittest.mock import MagicMock
 
 # Add path to find core modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.orchestration_v7 import OrchestratorV7
 from core.config import Config
+from core.orchestration_v7 import OrchestratorV7
+
 
 def mock_cli_info():
-    return {
-        "available": True,
-        "model": "mock-model",
-        "context_window": 100000,
-        "version": "1.0"
-    }
+    return {"available": True, "model": "mock-model", "context_window": 100000, "version": "1.0"}
+
 
 class MockDriver:
     def __init__(self, name):
@@ -26,18 +20,18 @@ class MockDriver:
     def invoke(self, context: str):
         self.call_count += 1
         print(f"\n[{self.name} Driver invoked]")
-        
+
         # Verify Context Content
         if "PLAN STRATÉGIQUE" in context:
-            print(f"  [OK] Context contains PLAN STRATÉGIQUE")
+            print("  [OK] Context contains PLAN STRATÉGIQUE")
         else:
-            print(f"  [FAIL] Context MISSING PLAN STRATÉGIQUE")
-            
+            print("  [FAIL] Context MISSING PLAN STRATÉGIQUE")
+
         if "CAPABILITIES" in context:
-            print(f"  [OK] Context contains CAPABILITIES")
+            print("  [OK] Context contains CAPABILITIES")
         else:
-            print(f"  [FAIL] Context MISSING CAPABILITIES")
-            
+            print("  [FAIL] Context MISSING CAPABILITIES")
+
         # Simulate responses based on state/content
         # Simple turn simulation
         if "Create a file" in context and self.call_count == 1:
@@ -48,7 +42,9 @@ class MockDriver:
                 "content": "I will delegate file creation to Claude.",
                 "next_agent": "Claude",
                 "status": "CONTINUE",
-                "strategic_plan_update": [{"step_id": 1, "description": "Create file", "status": "IN_PROGRESS", "assigned_agent": "Claude"}]
+                "strategic_plan_update": [
+                    {"step_id": 1, "description": "Create file", "status": "IN_PROGRESS", "assigned_agent": "Claude"}
+                ],
             }
         elif "Create a file" in context and self.name == "Claude":
             # Claude executing
@@ -58,25 +54,21 @@ class MockDriver:
                 "content": "Creating file.",
                 "tool_use": {
                     "tool_name": "write",
-                    "arguments": {"file_path": "stability_test.txt", "content": "Step 1"}
+                    "arguments": {"file_path": "stability_test.txt", "content": "Step 1"},
                 },
-                "status": "CONTINUE"
+                "status": "CONTINUE",
             }
         elif "TOOL RESULT" in context:
-             # Validation
-             return {
-                 "sender": self.name,
-                 "action_type": "TALK",
-                 "content": "File created successfully.",
-                 "status": "FINISHED"
-             }
-             
-        return {
-            "sender": self.name,
-            "action_type": "TALK",
-            "content": "Generic response",
-            "status": "FINISHED"
-        }
+            # Validation
+            return {
+                "sender": self.name,
+                "action_type": "TALK",
+                "content": "File created successfully.",
+                "status": "FINISHED",
+            }
+
+        return {"sender": self.name, "action_type": "TALK", "content": "Generic response", "status": "FINISHED"}
+
 
 def test_stability_and_context():
     print("Testing NEXUS V7 Logic, Stability and Context Injection...")
@@ -98,7 +90,7 @@ def test_stability_and_context():
     # Mock drivers
     orchestrator.drivers["Gemini"] = MockDriver("Gemini")
     orchestrator.drivers["Claude"] = MockDriver("Claude")
-    
+
     # --- Turn 1 ---
     print("\n--- Turn 1: Define Objective ---")
     user_input = "Create a file named stability_test.txt"
@@ -114,11 +106,12 @@ def test_stability_and_context():
         result = orchestrator.process_turn()
         print(f"State: {result['state']}")
         iterations += 1
-        
+
     if result["state"] == "IDLE":
         print("SUCCESS: Turn 1 completed.")
     else:
         print("FAILED: Turn 1 did not complete.")
+
 
 if __name__ == "__main__":
     test_stability_and_context()

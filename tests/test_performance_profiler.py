@@ -20,20 +20,18 @@ import time
 import pytest
 
 from core.observability.telemetry.performance_profiler import (
-    Bottleneck,
+    MAX_RECORDS,
     PerformanceProfiler,
-    ProfileReport,
     TimingRecord,
     TimingStats,
     get_profiler,
     reset_profiler,
-    MAX_RECORDS,
 )
-
 
 # =============================================================================
 # TimingRecord Tests
 # =============================================================================
+
 
 class TestTimingRecord:
     """Test TimingRecord dataclass."""
@@ -51,14 +49,18 @@ class TestTimingRecord:
 
     def test_custom_tags(self):
         r = TimingRecord(
-            category="test", name="op", duration_ms=10.0,
+            category="test",
+            name="op",
+            duration_ms=10.0,
             tags={"model": "opus"},
         )
         assert r.tags["model"] == "opus"
 
     def test_failure_record(self):
         r = TimingRecord(
-            category="test", name="op", duration_ms=10.0,
+            category="test",
+            name="op",
+            duration_ms=10.0,
             success=False,
         )
         assert r.success is False
@@ -68,20 +70,27 @@ class TestTimingRecord:
 # TimingStats Tests
 # =============================================================================
 
+
 class TestTimingStats:
     """Test TimingStats dataclass."""
 
     def test_success_rate_all_success(self):
         stats = TimingStats(
-            category="test", name="op",
-            count=10, success_count=10, failure_count=0,
+            category="test",
+            name="op",
+            count=10,
+            success_count=10,
+            failure_count=0,
         )
         assert stats.success_rate == 1.0
 
     def test_success_rate_mixed(self):
         stats = TimingStats(
-            category="test", name="op",
-            count=10, success_count=7, failure_count=3,
+            category="test",
+            name="op",
+            count=10,
+            success_count=7,
+            failure_count=3,
         )
         assert stats.success_rate == 0.7
 
@@ -91,12 +100,19 @@ class TestTimingStats:
 
     def test_to_dict(self):
         stats = TimingStats(
-            category="llm.call", name="claude/opus",
-            count=5, total_ms=500.0,
-            min_ms=50.0, max_ms=200.0,
-            mean_ms=100.0, median_ms=95.0,
-            p90_ms=180.0, p95_ms=190.0, p99_ms=198.0,
-            success_count=4, failure_count=1,
+            category="llm.call",
+            name="claude/opus",
+            count=5,
+            total_ms=500.0,
+            min_ms=50.0,
+            max_ms=200.0,
+            mean_ms=100.0,
+            median_ms=95.0,
+            p90_ms=180.0,
+            p95_ms=190.0,
+            p99_ms=198.0,
+            success_count=4,
+            failure_count=1,
         )
         d = stats.to_dict()
         assert d["category"] == "llm.call"
@@ -114,6 +130,7 @@ class TestTimingStats:
 # =============================================================================
 # Recording Tests
 # =============================================================================
+
 
 class TestRecording:
     """Test recording timing data."""
@@ -174,6 +191,7 @@ class TestRecording:
 # Span Context Manager Tests
 # =============================================================================
 
+
 class TestSpan:
     """Test span context manager."""
 
@@ -215,9 +233,8 @@ class TestSpan:
 
     def test_span_exception_marks_failure(self):
         p = PerformanceProfiler()
-        with pytest.raises(ValueError):
-            with p.span("test", "op"):
-                raise ValueError("boom")
+        with pytest.raises(ValueError), p.span("test", "op"):
+            raise ValueError("boom")
         stats = p.get_stats("test", "op")
         assert stats.failure_count == 1
         assert stats.count == 1
@@ -235,6 +252,7 @@ class TestSpan:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test statistics computation."""
@@ -308,12 +326,13 @@ class TestStatistics:
         stats = p.get_stats("test", "op")
         assert stats.success_count == 2
         assert stats.failure_count == 1
-        assert abs(stats.success_rate - 2/3) < 0.01
+        assert abs(stats.success_rate - 2 / 3) < 0.01
 
 
 # =============================================================================
 # Bottleneck Detection Tests
 # =============================================================================
+
 
 class TestBottleneckDetection:
     """Test bottleneck identification."""
@@ -398,6 +417,7 @@ class TestBottleneckDetection:
 # Report Tests
 # =============================================================================
 
+
 class TestReport:
     """Test report generation."""
 
@@ -449,6 +469,7 @@ class TestReport:
 # =============================================================================
 # State Management Tests
 # =============================================================================
+
 
 class TestState:
     """Test state management."""
@@ -508,6 +529,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global profiler."""
 
@@ -534,23 +556,32 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_telemetry_package(self):
         from core.observability.telemetry import (
-            PerformanceProfiler, TimingRecord, TimingStats,
-            Bottleneck, ProfileReport, get_profiler, reset_profiler,
+            Bottleneck,
+            PerformanceProfiler,
+            ProfileReport,
+            TimingRecord,
+            TimingStats,
+            get_profiler,
+            reset_profiler,
         )
-        assert all([
-            PerformanceProfiler, TimingRecord, TimingStats,
-            Bottleneck, ProfileReport, get_profiler, reset_profiler,
-        ])
+
+        assert all(
+            [
+                PerformanceProfiler,
+                TimingRecord,
+                TimingStats,
+                Bottleneck,
+                ProfileReport,
+                get_profiler,
+                reset_profiler,
+            ]
+        )
 
     def test_from_module(self):
-        from core.observability.telemetry.performance_profiler import (
-            PerformanceProfiler, TimingRecord, TimingStats,
-            Bottleneck, ProfileReport, get_profiler, reset_profiler,
-            MAX_RECORDS,
-        )
         assert MAX_RECORDS == 10_000

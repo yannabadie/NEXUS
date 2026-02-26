@@ -36,39 +36,41 @@ Usage:
 
 import logging
 import threading
+from collections import deque
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Any, TYPE_CHECKING
 from datetime import datetime
 from enum import Enum
-from collections import deque
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from core.memory_pkg.memory.project_memory import ProjectMemory
 
 # V9.2: Import scoped context types
-from .context_scope import ContextScope, ScopedContext, ContextScopePolicy, get_scope_policy
+from .context_scope import ContextScope, ScopedContext
 
 logger = logging.getLogger(__name__)
 
 
 class ContextPriority(Enum):
     """Priority levels for context items."""
+
     CRITICAL = 4  # Never evict (task definition, final decisions)
-    HIGH = 3      # Evict last (current analysis, active debate)
-    MEDIUM = 2    # Standard eviction (historical debate turns)
-    LOW = 1       # Evict first (verbose tool outputs, logs)
+    HIGH = 3  # Evict last (current analysis, active debate)
+    MEDIUM = 2  # Standard eviction (historical debate turns)
+    LOW = 1  # Evict first (verbose tool outputs, logs)
 
 
 @dataclass
 class ContextItem:
     """A single item in the context window."""
+
     category: str  # "analysis", "debate", "execution", "diagnosis", etc.
-    source: str    # "gemini", "claude", "system", "tool"
+    source: str  # "gemini", "claude", "system", "tool"
     content: str
     priority: ContextPriority = ContextPriority.MEDIUM
     timestamp: datetime = field(default_factory=datetime.now)
     token_estimate: int = 0
-    metadata: Dict = field(default_factory=dict)
+    metadata: dict = field(default_factory=dict)
 
     def __post_init__(self):
         if self.token_estimate == 0:
@@ -79,9 +81,10 @@ class ContextItem:
 @dataclass
 class ContextSnapshot:
     """Snapshot of context for a specific operation."""
-    items: List[ContextItem]
+
+    items: list[ContextItem]
     total_tokens: int
-    categories_included: List[str]
+    categories_included: list[str]
     truncated: bool = False
 
 
@@ -97,12 +100,12 @@ class HiveMindContextManager:
 
     # Token budgets by operation type
     OPERATION_BUDGETS = {
-        "analysis": 10000,      # Independent analysis
-        "debate": 8000,         # Each debate turn
-        "architecture": 6000,   # Architecture generation
-        "execution": 5000,      # Execution context
-        "diagnosis": 12000,     # Failure diagnosis (needs more context)
-        "consolidation": 15000, # Knowledge consolidation
+        "analysis": 10000,  # Independent analysis
+        "debate": 8000,  # Each debate turn
+        "architecture": 6000,  # Architecture generation
+        "execution": 5000,  # Execution context
+        "diagnosis": 12000,  # Failure diagnosis (needs more context)
+        "consolidation": 15000,  # Knowledge consolidation
         "swarm_delegation": 8000,  # V8.3.0: Context for Swarm Bridge delegation
         "swarm_tool_invocation": 6000,  # V8.3.1: Tool invocation from any phase
         "default": 8000,
@@ -122,7 +125,7 @@ class HiveMindContextManager:
         self.max_tokens = max_tokens
         self._items: deque[ContextItem] = deque()
         self._current_tokens = 0
-        self._archived_insights: List[Dict] = []  # Insights to index in RAG
+        self._archived_insights: list[dict] = []  # Insights to index in RAG
         # V12.4 FIX F23: RLock for thread-safe concurrent access
         # RLock allows reentrant calls (e.g., add_analysis -> add_item)
         self._lock = threading.RLock()
@@ -143,7 +146,7 @@ class HiveMindContextManager:
         source: str,
         content: str,
         priority: ContextPriority = ContextPriority.MEDIUM,
-        metadata: Dict = None
+        metadata: dict = None,
     ):
         """
         Add an item to context.
@@ -158,11 +161,7 @@ class HiveMindContextManager:
         # V12.4 FIX F23: Thread-safe access to shared state
         with self._lock:
             item = ContextItem(
-                category=category,
-                source=source,
-                content=content,
-                priority=priority,
-                metadata=metadata or {}
+                category=category, source=source, content=content, priority=priority, metadata=metadata or {}
             )
 
             # V10 FIX F12: Truncate CRITICAL items if too large
@@ -181,10 +180,7 @@ class HiveMindContextManager:
             while self._current_tokens + item.token_estimate > self.max_tokens:
                 if not self._evict_one():
                     # Can't evict anything, truncate new item
-                    logger.warning(
-                        f"Cannot fit item ({item.token_estimate} tokens), "
-                        f"truncating content"
-                    )
+                    logger.warning(f"Cannot fit item ({item.token_estimate} tokens), truncating content")
                     # Truncate to fit
                     available = self.max_tokens - self._current_tokens
                     if available > 100:
@@ -200,8 +196,7 @@ class HiveMindContextManager:
             self._items.append(item)
             self._current_tokens += item.token_estimate
             logger.debug(
-                f"Added context item: {category}/{source} "
-                f"({item.token_estimate} tokens, total: {self._current_tokens})"
+                f"Added context item: {category}/{source} ({item.token_estimate} tokens, total: {self._current_tokens})"
             )
 
     def _evict_one(self) -> bool:
@@ -243,10 +238,10 @@ class HiveMindContextManager:
             source="user",
             content=task,
             priority=ContextPriority.CRITICAL,
-            metadata={"type": "task_definition"}
+            metadata={"type": "task_definition"},
         )
 
-    def add_analysis(self, agent_id: str, analysis: Dict):
+    def add_analysis(self, agent_id: str, analysis: dict):
         """Add independent analysis result."""
         content = self._format_analysis(analysis)
         self.add_item(
@@ -254,7 +249,7 @@ class HiveMindContextManager:
             source=agent_id,
             content=content,
             priority=ContextPriority.HIGH,
-            metadata={"agent": agent_id, "type": "independent_analysis"}
+            metadata={"agent": agent_id, "type": "independent_analysis"},
         )
 
     def add_debate_turn(self, turn_number: int, agent_id: str, argument: str):
@@ -266,7 +261,7 @@ class HiveMindContextManager:
             source=agent_id,
             content=f"[Turn {turn_number}] {argument}",
             priority=priority,
-            metadata={"turn": turn_number, "agent": agent_id}
+            metadata={"turn": turn_number, "agent": agent_id},
         )
 
     def add_execution_result(self, step_name: str, result: str, success: bool):
@@ -277,7 +272,7 @@ class HiveMindContextManager:
             source="system",
             content=f"[{step_name}] {'SUCCESS' if success else 'FAILED'}: {result}",
             priority=priority,
-            metadata={"step": step_name, "success": success}
+            metadata={"step": step_name, "success": success},
         )
 
     def add_diagnosis(self, agent_id: str, diagnosis: str):
@@ -287,10 +282,10 @@ class HiveMindContextManager:
             source=agent_id,
             content=diagnosis,
             priority=ContextPriority.HIGH,
-            metadata={"agent": agent_id, "type": "diagnosis"}
+            metadata={"agent": agent_id, "type": "diagnosis"},
         )
 
-    def add_insight(self, category: str, content: str, tags: List[str] = None):
+    def add_insight(self, category: str, content: str, tags: list[str] = None):
         """
         Add a learned insight (will be archived to RAG).
 
@@ -304,22 +299,19 @@ class HiveMindContextManager:
             source="hive_mind",
             content=content,
             priority=ContextPriority.MEDIUM,
-            metadata={"insight_category": category, "tags": tags or []}
+            metadata={"insight_category": category, "tags": tags or []},
         )
         # Queue for RAG archival
-        self._archived_insights.append({
-            "category": category,
-            "content": content,
-            "tags": tags or [],
-            "timestamp": datetime.now().isoformat()
-        })
+        self._archived_insights.append(
+            {"category": category, "content": content, "tags": tags or [], "timestamp": datetime.now().isoformat()}
+        )
 
     def get_context_for(
         self,
         operation: str,
         max_tokens: int = None,
-        include_categories: List[str] = None,
-        exclude_categories: List[str] = None
+        include_categories: list[str] = None,
+        exclude_categories: list[str] = None,
     ) -> ContextSnapshot:
         """
         Get context snapshot for a specific operation.
@@ -333,10 +325,7 @@ class HiveMindContextManager:
         Returns:
             ContextSnapshot with relevant items
         """
-        budget = max_tokens or self.OPERATION_BUDGETS.get(
-            operation,
-            self.OPERATION_BUDGETS["default"]
-        )
+        budget = max_tokens or self.OPERATION_BUDGETS.get(operation, self.OPERATION_BUDGETS["default"])
 
         # Filter items
         filtered = []
@@ -348,10 +337,7 @@ class HiveMindContextManager:
             filtered.append(item)
 
         # Sort by priority (descending) then recency
-        filtered.sort(
-            key=lambda x: (-x.priority.value, x.timestamp),
-            reverse=True
-        )
+        filtered.sort(key=lambda x: (-x.priority.value, x.timestamp), reverse=True)
 
         # Select items within budget
         selected = []
@@ -370,12 +356,7 @@ class HiveMindContextManager:
 
         categories = list(set(item.category for item in selected))
 
-        return ContextSnapshot(
-            items=selected,
-            total_tokens=total,
-            categories_included=categories,
-            truncated=truncated
-        )
+        return ContextSnapshot(items=selected, total_tokens=total, categories_included=categories, truncated=truncated)
 
     def get_full_context_string(self, operation: str = "default") -> str:
         """Get context as a formatted string."""
@@ -394,7 +375,7 @@ class HiveMindContextManager:
 
         return "\n".join(lines)
 
-    def _format_analysis(self, analysis: Dict) -> str:
+    def _format_analysis(self, analysis: dict) -> str:
         """Format analysis dict as string."""
         parts = []
         if "task_understanding" in analysis:
@@ -417,11 +398,7 @@ class HiveMindContextManager:
 
     # RAG Integration
 
-    def archive_to_rag(
-        self,
-        project_memory: "ProjectMemory",
-        session_id: str
-    ) -> int:
+    def archive_to_rag(self, project_memory: "ProjectMemory", session_id: str) -> int:
         """
         Archive accumulated insights to ProjectMemory RAG.
 
@@ -440,29 +417,27 @@ class HiveMindContextManager:
             try:
                 # Create a document for the insight
                 doc_content = f"""
-# Hive Mind Insight: {insight['category']}
+# Hive Mind Insight: {insight["category"]}
 
-{insight['content']}
+{insight["content"]}
 
-Tags: {', '.join(insight['tags'])}
+Tags: {", ".join(insight["tags"])}
 Session: {session_id}
-Timestamp: {insight['timestamp']}
+Timestamp: {insight["timestamp"]}
 """
                 # Use project_memory's add_document if available
-                if hasattr(project_memory, 'add_document'):
+                if hasattr(project_memory, "add_document"):
                     project_memory.add_document(
                         content=doc_content,
                         metadata={
                             "type": "hive_mind_insight",
-                            "category": insight['category'],
-                            "tags": insight['tags'],
-                            "session": session_id
-                        }
+                            "category": insight["category"],
+                            "tags": insight["tags"],
+                            "session": session_id,
+                        },
                     )
                     archived += 1
-                    logger.info(
-                        f"Archived insight to RAG: {insight['category']}"
-                    )
+                    logger.info(f"Archived insight to RAG: {insight['category']}")
             except Exception as e:
                 logger.warning(f"Failed to archive insight: {e}")
 
@@ -470,13 +445,13 @@ Timestamp: {insight['timestamp']}
         self._archived_insights.clear()
         return archived
 
-    def get_pending_insights(self) -> List[Dict]:
+    def get_pending_insights(self) -> list[dict]:
         """Get insights pending RAG archival."""
         return self._archived_insights.copy()
 
     # State management
 
-    def compress_with_afm(self, target_budget: Optional[int] = None) -> Dict:
+    def compress_with_afm(self, target_budget: int | None = None) -> dict:
         """
         Compress context using Adaptive Focus Memory (arxiv:2511.12712).
 
@@ -491,6 +466,7 @@ Timestamp: {insight['timestamp']}
         """
         try:
             from core.memory_pkg.memory.adaptive_focus import AdaptiveFocusManager
+
             budget = target_budget or int(self.max_tokens * 0.6)
             afm = AdaptiveFocusManager(token_budget=budget)
 
@@ -534,6 +510,7 @@ Timestamp: {insight['timestamp']}
         """
         try:
             from core.memory_pkg.memory.spotlighting import get_spotlighter
+
             spotlighter = get_spotlighter()
             return spotlighter.spotlight(content, source=source)
         except Exception:
@@ -549,17 +526,14 @@ Timestamp: {insight['timestamp']}
         # V12.4 FIX F23: Thread-safe access to shared state
         with self._lock:
             if keep_critical:
-                critical = [
-                    item for item in self._items
-                    if item.priority == ContextPriority.CRITICAL
-                ]
+                critical = [item for item in self._items if item.priority == ContextPriority.CRITICAL]
                 self._items = deque(critical)
                 self._current_tokens = sum(item.token_estimate for item in critical)
             else:
                 self._items.clear()
                 self._current_tokens = 0
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> dict:
         """Get context statistics."""
         category_counts = {}
         priority_counts = {p.name: 0 for p in ContextPriority}
@@ -572,12 +546,10 @@ Timestamp: {insight['timestamp']}
             "total_items": len(self._items),
             "total_tokens": self._current_tokens,
             "max_tokens": self.max_tokens,
-            "utilization_percent": round(
-                self._current_tokens / self.max_tokens * 100, 1
-            ),
+            "utilization_percent": round(self._current_tokens / self.max_tokens * 100, 1),
             "category_counts": category_counts,
             "priority_counts": priority_counts,
-            "pending_insights": len(self._archived_insights)
+            "pending_insights": len(self._archived_insights),
         }
 
     # ===== V9.2: Scoped Context for Controlled Inheritance =====
@@ -585,11 +557,11 @@ Timestamp: {insight['timestamp']}
     def create_scoped_context(
         self,
         scope: ContextScope,
-        from_phase: Optional[str] = None,
-        session_uuid: Optional[str] = None,
-        relevant_files: Optional[List[str]] = None,
-        model_id: Optional[str] = None,
-        max_summary_tokens: int = 2000
+        from_phase: str | None = None,
+        session_uuid: str | None = None,
+        relevant_files: list[str] | None = None,
+        model_id: str | None = None,
+        max_summary_tokens: int = 2000,
     ) -> ScopedContext:
         """
         Create a scoped context for phase transitions or agent spawning.
@@ -621,10 +593,7 @@ Timestamp: {insight['timestamp']}
         # Get parent summary based on phase
         parent_summary = ""
         if scope in [ContextScope.FULL, ContextScope.TASK_PLUS_RESULTS, ContextScope.RESULTS_ONLY]:
-            parent_summary = self.summarize_for_inheritance(
-                from_phase=from_phase,
-                max_tokens=max_summary_tokens
-            )
+            parent_summary = self.summarize_for_inheritance(from_phase=from_phase, max_tokens=max_summary_tokens)
 
         # Get full history only for FULL scope
         full_history = []
@@ -634,7 +603,7 @@ Timestamp: {insight['timestamp']}
                     "category": item.category,
                     "source": item.source,
                     "content": item.content,
-                    "timestamp": item.timestamp.isoformat()
+                    "timestamp": item.timestamp.isoformat(),
                 }
                 for item in self._items
             ]
@@ -650,10 +619,7 @@ Timestamp: {insight['timestamp']}
             full_history=full_history,
             session_uuid=session_uuid,
             model_context=model_context,
-            metadata={
-                "from_phase": from_phase,
-                "created_by": "HiveMindContextManager"
-            }
+            metadata={"from_phase": from_phase, "created_by": "HiveMindContextManager"},
         )
 
     async def compress_for_next_phase(
@@ -684,6 +650,7 @@ Timestamp: {insight['timestamp']}
 
         try:
             from .semantic_compressor import get_semantic_compressor
+
             compressor = get_semantic_compressor()
 
             # Check if Ollama is available
@@ -709,11 +676,7 @@ Timestamp: {insight['timestamp']}
             logger.warning(f"Semantic compression failed: {e} - using basic summarization")
             return content
 
-    def summarize_for_inheritance(
-        self,
-        from_phase: Optional[str] = None,
-        max_tokens: int = 2000
-    ) -> str:
+    def summarize_for_inheritance(self, from_phase: str | None = None, max_tokens: int = 2000) -> str:
         """
         Summarize context for inheritance to next phase/agent.
 
@@ -735,7 +698,7 @@ Timestamp: {insight['timestamp']}
             "architecture": ["architecture", "debate"],
             "execution": ["execution", "architecture"],
             "diagnosis": ["diagnosis", "execution"],
-            "consolidation": ["consolidation", "execution"]
+            "consolidation": ["consolidation", "execution"],
         }
 
         # Get relevant categories
@@ -762,9 +725,7 @@ Timestamp: {insight['timestamp']}
                 break
 
             # Add to summary
-            summary_parts.append(
-                f"[{item.category.upper()}:{item.source}] {item.content[:500]}"
-            )
+            summary_parts.append(f"[{item.category.upper()}:{item.source}] {item.content[:500]}")
             token_count += item.token_estimate
 
         if not summary_parts:
@@ -802,8 +763,7 @@ Timestamp: {insight['timestamp']}
                 "structured outputs, large context handling."
             ),
             "gemini-3-flash": (
-                "You are Gemini 3 Flash, optimized for speed. "
-                "Strengths: Fast responses, simple tasks, high throughput."
+                "You are Gemini 3 Flash, optimized for speed. Strengths: Fast responses, simple tasks, high throughput."
             ),
         }
 
@@ -818,10 +778,10 @@ Timestamp: {insight['timestamp']}
         self,
         instruction: str,
         scope: ContextScope,
-        from_phase: Optional[str] = None,
-        session_uuid: Optional[str] = None,
-        relevant_files: Optional[List[str]] = None,
-        model_id: Optional[str] = None
+        from_phase: str | None = None,
+        session_uuid: str | None = None,
+        relevant_files: list[str] | None = None,
+        model_id: str | None = None,
     ) -> str:
         """
         Create a complete prompt with scoped context prefix.
@@ -844,7 +804,7 @@ Timestamp: {insight['timestamp']}
             from_phase=from_phase,
             session_uuid=session_uuid,
             relevant_files=relevant_files,
-            model_id=model_id
+            model_id=model_id,
         )
 
         prefix = scoped.to_prompt_prefix()

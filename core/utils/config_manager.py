@@ -32,7 +32,7 @@ import logging
 import threading
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -41,9 +41,11 @@ _logger = logging.getLogger(__name__)
 # Types
 # =============================================================================
 
+
 @dataclass
 class ConfigEntry:
     """A single configuration entry."""
+
     section: str
     key: str
     value: Any
@@ -54,7 +56,7 @@ class ConfigEntry:
         if not self.value_type:
             self.value_type = type(self.value).__name__
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "section": self.section,
             "key": self.key,
@@ -67,11 +69,12 @@ class ConfigEntry:
 @dataclass
 class ConfigValidation:
     """Result of config validation."""
-    is_valid: bool
-    missing_keys: List[str] = field(default_factory=list)
-    type_errors: List[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    is_valid: bool
+    missing_keys: list[str] = field(default_factory=list)
+    type_errors: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
         return {
             "is_valid": self.is_valid,
             "missing_keys": self.missing_keys,
@@ -82,6 +85,7 @@ class ConfigValidation:
 # =============================================================================
 # Config Manager
 # =============================================================================
+
 
 class ConfigManager:
     """
@@ -98,8 +102,8 @@ class ConfigManager:
     """
 
     def __init__(self):
-        self._data: Dict[str, Dict[str, ConfigEntry]] = defaultdict(dict)
-        self._required: Dict[str, Set[str]] = defaultdict(set)
+        self._data: dict[str, dict[str, ConfigEntry]] = defaultdict(dict)
+        self._required: dict[str, set[str]] = defaultdict(set)
         self._lock = threading.Lock()
 
     # =========================================================================
@@ -124,7 +128,7 @@ class ConfigManager:
         with self._lock:
             self._data[section][key] = entry
 
-    def set_many(self, section: str, values: Dict[str, Any]) -> int:
+    def set_many(self, section: str, values: dict[str, Any]) -> int:
         """Set multiple values in a section. Returns count set."""
         count = 0
         with self._lock:
@@ -134,7 +138,7 @@ class ConfigManager:
                 count += 1
         return count
 
-    def load_dict(self, data: Dict[str, Dict[str, Any]]) -> int:
+    def load_dict(self, data: dict[str, dict[str, Any]]) -> int:
         """Load configuration from a nested dict (section -> key -> value). Returns count."""
         count = 0
         with self._lock:
@@ -195,7 +199,7 @@ class ConfigManager:
             return val.lower() in ("true", "1", "yes")
         return bool(val)
 
-    def get_entry(self, section: str, key: str) -> Optional[ConfigEntry]:
+    def get_entry(self, section: str, key: str) -> ConfigEntry | None:
         """Get the full ConfigEntry."""
         with self._lock:
             return self._data.get(section, {}).get(key)
@@ -253,29 +257,26 @@ class ConfigManager:
     # Listing
     # =========================================================================
 
-    def list_sections(self) -> List[str]:
+    def list_sections(self) -> list[str]:
         """List all sections."""
         with self._lock:
             return sorted(self._data.keys())
 
-    def list_keys(self, section: str) -> List[str]:
+    def list_keys(self, section: str) -> list[str]:
         """List all keys in a section."""
         with self._lock:
             return sorted(self._data.get(section, {}).keys())
 
-    def get_section(self, section: str) -> Dict[str, Any]:
+    def get_section(self, section: str) -> dict[str, Any]:
         """Get all key-value pairs in a section."""
         with self._lock:
             entries = self._data.get(section, {})
             return {k: e.value for k, e in entries.items()}
 
-    def get_all(self) -> Dict[str, Dict[str, Any]]:
+    def get_all(self) -> dict[str, dict[str, Any]]:
         """Get all configuration as nested dict."""
         with self._lock:
-            return {
-                section: {k: e.value for k, e in entries.items()}
-                for section, entries in self._data.items()
-            }
+            return {section: {k: e.value for k, e in entries.items()} for section, entries in self._data.items()}
 
     # =========================================================================
     # State
@@ -295,7 +296,7 @@ class ConfigManager:
             self._data.clear()
             self._required.clear()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "section_count": self.section_count,
             "key_count": self.key_count,
@@ -307,7 +308,7 @@ class ConfigManager:
 # Global Instance
 # =============================================================================
 
-_manager: Optional[ConfigManager] = None
+_manager: ConfigManager | None = None
 _manager_lock = threading.Lock()
 
 

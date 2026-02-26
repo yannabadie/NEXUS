@@ -18,8 +18,8 @@ Comprehensive test coverage for:
 """
 
 import sys
-import time
 import threading
+import time
 from pathlib import Path
 
 # Ensure project root on path
@@ -28,27 +28,27 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import pytest
 
 from core.intelligence.swarm.dynamic_role_assigner import (
-    RoleType,
-    CapabilityProposal,
-    RoleScore,
-    RoleAssignmentResult,
-    AssignerStats,
-    DynamicRoleAssigner,
-    get_dynamic_role_assigner,
-    reset_dynamic_role_assigner,
+    DEFAULT_DOMAIN_PROFILES,
+    HISTORY_WINDOW,
+    MIN_SCORE_DIFF,
+    W_CONFIDENCE,
     W_DOMAIN,
     W_HISTORY,
-    W_CONFIDENCE,
     W_PEER,
-    DEFAULT_DOMAIN_PROFILES,
-    MIN_SCORE_DIFF,
-    HISTORY_WINDOW,
+    AssignerStats,
+    CapabilityProposal,
+    DynamicRoleAssigner,
+    RoleAssignmentResult,
+    RoleScore,
+    RoleType,
+    get_dynamic_role_assigner,
+    reset_dynamic_role_assigner,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def assigner():
@@ -70,12 +70,18 @@ def custom_profiles():
     """
     return {
         "alpha": {
-            "coding": 0.99, "security": 0.99, "analysis": 0.50,
-            "research": 0.10, "writing": 0.10,
+            "coding": 0.99,
+            "security": 0.99,
+            "analysis": 0.50,
+            "research": 0.10,
+            "writing": 0.10,
         },
         "beta": {
-            "coding": 0.10, "security": 0.10, "analysis": 0.50,
-            "research": 0.99, "writing": 0.99,
+            "coding": 0.10,
+            "security": 0.10,
+            "analysis": 0.50,
+            "research": 0.99,
+            "writing": 0.99,
         },
     }
 
@@ -97,6 +103,7 @@ def reset_singleton():
 # ===========================================================================
 # 1. RoleType Enum
 # ===========================================================================
+
 
 class TestRoleType:
     """Tests for the RoleType enumeration."""
@@ -127,6 +134,7 @@ class TestRoleType:
 # ===========================================================================
 # 2. CapabilityProposal
 # ===========================================================================
+
 
 class TestCapabilityProposal:
     """Tests for CapabilityProposal dataclass."""
@@ -197,6 +205,7 @@ class TestCapabilityProposal:
 # 3. RoleScore
 # ===========================================================================
 
+
 class TestRoleScore:
     """Tests for RoleScore dataclass."""
 
@@ -234,6 +243,7 @@ class TestRoleScore:
 # 4. RoleAssignmentResult
 # ===========================================================================
 
+
 class TestRoleAssignmentResult:
     """Tests for RoleAssignmentResult dataclass."""
 
@@ -258,15 +268,14 @@ class TestRoleAssignmentResult:
         assert d["reasoning"] == "Claude is better for this task."
 
     def test_to_dict_confidence_rounding(self):
-        r = RoleAssignmentResult(
-            assignments={}, confidence=0.33333
-        )
+        r = RoleAssignmentResult(assignments={}, confidence=0.33333)
         assert r.to_dict()["confidence"] == 0.333
 
 
 # ===========================================================================
 # 5. AssignerStats
 # ===========================================================================
+
 
 class TestAssignerStats:
     """Tests for AssignerStats dataclass."""
@@ -304,6 +313,7 @@ class TestAssignerStats:
 # 6. Single Agent Assignment -> SPECIALIST
 # ===========================================================================
 
+
 class TestSingleAgentAssignment:
     """Single agent should always get SPECIALIST role."""
 
@@ -324,9 +334,7 @@ class TestSingleAgentAssignment:
         assert result.assignments["unknown_agent_xyz"] is RoleType.SPECIALIST
 
     def test_single_agent_ignores_proposals(self, assigner):
-        proposal = CapabilityProposal(
-            agent_id="claude", role=RoleType.LEAD, confidence=0.99
-        )
+        proposal = CapabilityProposal(agent_id="claude", role=RoleType.LEAD, confidence=0.99)
         result = assigner.assign_roles(
             task_domains=["coding"],
             agent_ids=["claude"],
@@ -350,6 +358,7 @@ class TestSingleAgentAssignment:
 # ===========================================================================
 # 7. Two Agents with Clear Domain Difference -> Lead/Support
 # ===========================================================================
+
 
 class TestLeadSupportAssignment:
     """When one agent clearly dominates a domain, it should be LEAD."""
@@ -410,6 +419,7 @@ class TestLeadSupportAssignment:
 # 8. Two Agents with Similar Scores -> EQUAL
 # ===========================================================================
 
+
 class TestEqualAssignment:
     """When agent scores are close, both should get EQUAL roles."""
 
@@ -456,6 +466,7 @@ class TestEqualAssignment:
 # 9. Score Calculation with All 4 Weights
 # ===========================================================================
 
+
 class TestScoreWeights:
     """Verify weighted scoring formula."""
 
@@ -493,6 +504,7 @@ class TestScoreWeights:
 # ===========================================================================
 # 10. Proposals with domain_strengths Boosting
 # ===========================================================================
+
 
 class TestProposalBoosting:
     """Proposals with matching domain_strengths should boost domain_match."""
@@ -548,13 +560,9 @@ class TestProposalBoosting:
         a = DynamicRoleAssigner(domain_profiles=profiles)
 
         # Overconfident proposal
-        proposal_over = CapabilityProposal(
-            agent_id="a", role=RoleType.LEAD, confidence=1.0
-        )
+        proposal_over = CapabilityProposal(agent_id="a", role=RoleType.LEAD, confidence=1.0)
         # Well-calibrated proposal
-        proposal_good = CapabilityProposal(
-            agent_id="b", role=RoleType.LEAD, confidence=0.7
-        )
+        proposal_good = CapabilityProposal(agent_id="b", role=RoleType.LEAD, confidence=0.7)
         result = a.assign_roles(
             task_domains=["coding"],
             agent_ids=["a", "b"],
@@ -572,12 +580,8 @@ class TestProposalBoosting:
         profiles = {"a": {"coding": 0.70}, "b": {"coding": 0.70}}
         a = DynamicRoleAssigner(domain_profiles=profiles)
 
-        proposal_under = CapabilityProposal(
-            agent_id="a", role=RoleType.LEAD, confidence=0.1
-        )
-        proposal_good = CapabilityProposal(
-            agent_id="b", role=RoleType.LEAD, confidence=0.7
-        )
+        proposal_under = CapabilityProposal(agent_id="a", role=RoleType.LEAD, confidence=0.1)
+        proposal_good = CapabilityProposal(agent_id="b", role=RoleType.LEAD, confidence=0.7)
         result = a.assign_roles(
             task_domains=["coding"],
             agent_ids=["a", "b"],
@@ -615,6 +619,7 @@ class TestProposalBoosting:
 # ===========================================================================
 # 11. Historical Outcome Learning
 # ===========================================================================
+
 
 class TestHistoricalOutcomeLearning:
     """record_outcome should influence future assignments."""
@@ -662,7 +667,7 @@ class TestHistoricalOutcomeLearning:
     def test_history_window_trimming(self):
         a = DynamicRoleAssigner(history_window=5)
         # Fill with more than 2*window entries
-        for i in range(15):
+        for _i in range(15):
             a.record_outcome("coding", "a", True)
         # Should trim to last 5
         # Verify no crash and internal state is bounded
@@ -703,6 +708,7 @@ class TestHistoricalOutcomeLearning:
 # ===========================================================================
 # 12. MIN_SCORE_DIFF Threshold Behavior
 # ===========================================================================
+
 
 class TestMinScoreDiffThreshold:
     """Score differences below MIN_SCORE_DIFF should yield EQUAL roles."""
@@ -749,6 +755,7 @@ class TestMinScoreDiffThreshold:
 # ===========================================================================
 # 13. Trivial/Simple Tasks -> EQUAL Roles
 # ===========================================================================
+
 
 class TestTrivialSimpleTasks:
     """Trivial and simple tasks should always yield EQUAL roles."""
@@ -818,6 +825,7 @@ class TestTrivialSimpleTasks:
 # 14. Default Domain Profiles for Claude/Gemini
 # ===========================================================================
 
+
 class TestDefaultDomainProfiles:
     """Verify the built-in DEFAULT_DOMAIN_PROFILES."""
 
@@ -829,14 +837,30 @@ class TestDefaultDomainProfiles:
 
     def test_claude_domains(self):
         p = DEFAULT_DOMAIN_PROFILES["claude"]
-        expected_domains = {"coding", "analysis", "security", "architecture",
-                           "writing", "research", "debugging", "review"}
+        expected_domains = {
+            "coding",
+            "analysis",
+            "security",
+            "architecture",
+            "writing",
+            "research",
+            "debugging",
+            "review",
+        }
         assert set(p.keys()) == expected_domains
 
     def test_gemini_domains(self):
         p = DEFAULT_DOMAIN_PROFILES["gemini"]
-        expected_domains = {"coding", "analysis", "security", "architecture",
-                           "writing", "research", "debugging", "review"}
+        expected_domains = {
+            "coding",
+            "analysis",
+            "security",
+            "architecture",
+            "writing",
+            "research",
+            "debugging",
+            "review",
+        }
         assert set(p.keys()) == expected_domains
 
     def test_claude_writing_is_highest(self):
@@ -869,6 +893,7 @@ class TestDefaultDomainProfiles:
 # ===========================================================================
 # 15. Singleton get/reset Pattern
 # ===========================================================================
+
 
 class TestSingleton:
     """Test the module-level singleton accessors."""
@@ -921,6 +946,7 @@ class TestSingleton:
 # ===========================================================================
 # 16. Statistics Tracking
 # ===========================================================================
+
 
 class TestStatisticsTracking:
     """Verify statistics are correctly accumulated."""
@@ -1038,6 +1064,7 @@ class TestStatisticsTracking:
 # 17. Edge Cases
 # ===========================================================================
 
+
 class TestEdgeCases:
     """Edge case handling."""
 
@@ -1099,9 +1126,7 @@ class TestEdgeCases:
 
     def test_partial_proposals(self, assigner):
         """Only one agent submits a proposal."""
-        proposal = CapabilityProposal(
-            agent_id="claude", role=RoleType.LEAD, confidence=0.7
-        )
+        proposal = CapabilityProposal(agent_id="claude", role=RoleType.LEAD, confidence=0.7)
         result = assigner.assign_roles(
             task_domains=["coding"],
             agent_ids=["claude", "gemini"],
@@ -1160,7 +1185,8 @@ class TestEdgeCases:
         profiles = {"a": {"coding": 0.70}, "b": {"coding": 0.70}}
         a = DynamicRoleAssigner(domain_profiles=profiles)
         proposal = CapabilityProposal(
-            agent_id="a", role=RoleType.LEAD,
+            agent_id="a",
+            role=RoleType.LEAD,
             domain_strengths=["CODING"],
             confidence=0.7,
         )
@@ -1210,6 +1236,7 @@ class TestEdgeCases:
 # 18. Peer Score Computation
 # ===========================================================================
 
+
 class TestPeerScore:
     """Tests for _compute_peer_score complementarity logic."""
 
@@ -1242,6 +1269,7 @@ class TestPeerScore:
 # ===========================================================================
 # 19. Full Integration Scenarios
 # ===========================================================================
+
 
 class TestIntegrationScenarios:
     """End-to-end integration scenarios."""
@@ -1305,7 +1333,8 @@ class TestIntegrationScenarios:
 
         # But 'a' submits a strong proposal
         proposal_a = CapabilityProposal(
-            agent_id="a", role=RoleType.LEAD,
+            agent_id="a",
+            role=RoleType.LEAD,
             domain_strengths=["coding"],
             confidence=0.7,
         )
@@ -1360,6 +1389,7 @@ class TestIntegrationScenarios:
 # ===========================================================================
 # 20. Constants
 # ===========================================================================
+
 
 class TestConstants:
     """Verify module-level constants."""

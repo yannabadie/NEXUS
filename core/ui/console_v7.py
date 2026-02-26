@@ -6,13 +6,14 @@ Principes:
 - Cache: JSON, thought_process, internal state (sauf mode verbose)
 - Utilise Rich pour: spinners, panels, formatting
 """
+
+import os
+
 from rich.console import Console
-from rich.panel import Panel
-from rich.spinner import Spinner
 from rich.live import Live
 from rich.markdown import Markdown
-from typing import Dict, Optional
-import os
+from rich.panel import Panel
+from rich.spinner import Spinner
 
 from core.foundation.agents.unified_registry import get_registry  # V8.4.0
 
@@ -62,7 +63,7 @@ Type your task or use slash commands (/help for list)
 """
         self.console.print(banner, style="bold cyan")
 
-    def display_result(self, result: Dict):
+    def display_result(self, result: dict):
         """
         Display turn result (appelé après chaque process_turn)
 
@@ -124,7 +125,7 @@ Type your task or use slash commands (/help for list)
         elif "✗" in str(output):
             self.console.print(output, style="yellow")
 
-    def print_status(self, status: Dict):
+    def print_status(self, status: dict):
         """
         Print orchestrator status (/status command)
 
@@ -136,19 +137,15 @@ Type your task or use slash commands (/help for list)
                 "objective": str
             }
         """
-        content = f"""State: {status['state']}
-Active Agent: {status['agent']}
-Iteration: {status['iteration']}
-Objective: {status['objective']}"""
+        content = f"""State: {status["state"]}
+Active Agent: {status["agent"]}
+Iteration: {status["iteration"]}
+Objective: {status["objective"]}"""
 
-        panel = Panel(
-            content,
-            title="📊 Orchestrator Status",
-            border_style="cyan"
-        )
+        panel = Panel(content, title="📊 Orchestrator Status", border_style="cyan")
         self.console.print(panel)
 
-    def print_doctor_results(self, results: Dict):
+    def print_doctor_results(self, results: dict):
         """
         Print diagnostics results (/doctor command)
 
@@ -166,15 +163,15 @@ Objective: {status['objective']}"""
         gemini_status = "✓" if gemini["available"] else "❌"
         claude_status = "✓" if claude["available"] else "❌"
 
-        content = f"""{gemini_status} Gemini CLI: {gemini.get('model', 'N/A')}
-{claude_status} Claude CLI: {claude.get('model', 'N/A')}
-{"✓" if results.get('workspace') else "❌"} Workspace directory
-{"✓" if results.get('io_buffer') else "❌"} IO Buffer directory"""
+        content = f"""{gemini_status} Gemini CLI: {gemini.get("model", "N/A")}
+{claude_status} Claude CLI: {claude.get("model", "N/A")}
+{"✓" if results.get("workspace") else "❌"} Workspace directory
+{"✓" if results.get("io_buffer") else "❌"} IO Buffer directory"""
 
         panel = Panel(
             content,
             title="🔍 System Diagnostics",
-            border_style="green" if results.get("workspace") and results.get("io_buffer") else "yellow"
+            border_style="green" if results.get("workspace") and results.get("io_buffer") else "yellow",
         )
         self.console.print(panel)
 
@@ -186,7 +183,7 @@ Objective: {status['objective']}"""
         """Print error message"""
         self.console.print(f"[red]❌ {error}[/red]")
 
-    def print(self, message: str, style: Optional[str] = None):
+    def print(self, message: str, style: str | None = None):
         """
         Print simple message
 
@@ -201,7 +198,7 @@ Objective: {status['objective']}"""
 
     def clear(self):
         """Clear terminal screen"""
-        os.system('cls' if os.name == 'nt' else 'clear')
+        os.system("cls" if os.name == "nt" else "clear")
 
     def show_spinner(self, text: str):
         """
@@ -215,11 +212,7 @@ Objective: {status['objective']}"""
         Args:
             text: Spinner text
         """
-        return Live(
-            Spinner("dots", text=text),
-            console=self.console,
-            refresh_per_second=10
-        )
+        return Live(Spinner("dots", text=text), console=self.console, refresh_per_second=10)
 
     def print_markdown(self, markdown_text: str):
         """

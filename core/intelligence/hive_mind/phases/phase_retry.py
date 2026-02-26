@@ -18,21 +18,19 @@ Key Features:
 """
 
 import logging
-from typing import List, Dict, Any, Optional, TYPE_CHECKING
 from dataclasses import dataclass
-from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
+from ..context_manager import HiveMindContextManager
+from ..cost_estimator import CostEstimator
+from ..strategy_blacklist import FailureCategory, StrategyBlacklist
 from ..types import (
+    AgentArchitecture,
+    AgentSpec,
     FailureDiagnosis,
     FailureType,
-    AgentArchitecture,
     RetryDecision,
-    AgentSpec,
-    ExecutionStep,
 )
-from ..cost_estimator import CostEstimator
-from ..context_manager import HiveMindContextManager
-from ..strategy_blacklist import StrategyBlacklist, FailureCategory
 
 if TYPE_CHECKING:
     pass
@@ -43,8 +41,9 @@ logger = logging.getLogger(__name__)
 @dataclass
 class RetryPhaseResult:
     """Result of Phase 6."""
+
     decision: RetryDecision
-    modified_architecture: Optional[AgentArchitecture]
+    modified_architecture: AgentArchitecture | None
     retry_count: int
     blacklisted: bool
 
@@ -74,10 +73,7 @@ class AdaptiveRetryPhase:
     }
 
     def __init__(
-        self,
-        cost_estimator: CostEstimator,
-        context_manager: HiveMindContextManager,
-        blacklist: StrategyBlacklist
+        self, cost_estimator: CostEstimator, context_manager: HiveMindContextManager, blacklist: StrategyBlacklist
     ):
         """
         Initialize Phase 6.
@@ -96,8 +92,8 @@ class AdaptiveRetryPhase:
         self,
         diagnosis: FailureDiagnosis,
         current_architecture: AgentArchitecture,
-        recommendations: Dict[str, Any],
-        user_decision: str
+        recommendations: dict[str, Any],
+        user_decision: str,
     ) -> RetryPhaseResult:
         """
         Execute Phase 6: Adaptive Retry.
@@ -116,24 +112,18 @@ class AdaptiveRetryPhase:
         # Check user decision
         if user_decision == "abort":
             return RetryPhaseResult(
-                decision=RetryDecision(
-                    action="STOP",
-                    reason="User chose to abort"
-                ),
+                decision=RetryDecision(action="STOP", reason="User chose to abort"),
                 modified_architecture=None,
                 retry_count=self._retry_count,
-                blacklisted=False
+                blacklisted=False,
             )
 
         if user_decision == "escalate":
             return RetryPhaseResult(
-                decision=RetryDecision(
-                    action="ESCALATE",
-                    reason="User requested escalation"
-                ),
+                decision=RetryDecision(action="ESCALATE", reason="User requested escalation"),
                 modified_architecture=None,
                 retry_count=self._retry_count,
-                blacklisted=False
+                blacklisted=False,
             )
 
         # Check retry limit
@@ -144,23 +134,20 @@ class AdaptiveRetryPhase:
                 decision=RetryDecision(
                     action="ESCALATE",
                     reason=f"Max retries ({self.MAX_RETRIES}) exceeded",
-                    suggestion="Consider breaking task into smaller parts"
+                    suggestion="Consider breaking task into smaller parts",
                 ),
                 modified_architecture=None,
                 retry_count=self._retry_count,
-                blacklisted=True
+                blacklisted=True,
             )
 
         # Check budget for retry
         if not self.cost_estimator.can_afford("decide_retry"):
             return RetryPhaseResult(
-                decision=RetryDecision(
-                    action="STOP",
-                    reason="Budget exceeded for retry"
-                ),
+                decision=RetryDecision(action="STOP", reason="Budget exceeded for retry"),
                 modified_architecture=None,
                 retry_count=self._retry_count,
-                blacklisted=False
+                blacklisted=False,
             )
 
         # Check blacklist
@@ -169,39 +156,29 @@ class AdaptiveRetryPhase:
 
         if blacklisted_entry:
             # Strategy already failed - get alternatives
-            alternatives = self.blacklist.suggest_alternatives(
-                strategy_desc,
-                task_context=str(diagnosis.root_cause)
-            )
+            alternatives = self.blacklist.suggest_alternatives(strategy_desc, task_context=str(diagnosis.root_cause))
 
             return RetryPhaseResult(
                 decision=RetryDecision(
                     action="ESCALATE",
                     reason=f"Strategy blacklisted (failed {blacklisted_entry.attempt_count} times)",
-                    suggestion=alternatives[0] if alternatives else "Try a different approach"
+                    suggestion=alternatives[0] if alternatives else "Try a different approach",
                 ),
                 modified_architecture=None,
                 retry_count=self._retry_count,
-                blacklisted=True
+                blacklisted=True,
             )
 
         # Apply changes and retry
         try:
-            modified_arch = self._apply_changes(
-                current_architecture,
-                diagnosis,
-                recommendations
-            )
+            modified_arch = self._apply_changes(current_architecture, diagnosis, recommendations)
 
             # Record cost
             self.cost_estimator.record_cost("decide_retry", 400)
             self.cost_estimator.record_cost("apply_changes", 300)
 
             # Calculate expected improvement
-            expected_improvement = self._estimate_improvement(
-                diagnosis,
-                recommendations
-            )
+            expected_improvement = self._estimate_improvement(diagnosis, recommendations)
 
             return RetryPhaseResult(
                 decision=RetryDecision(
@@ -209,11 +186,11 @@ class AdaptiveRetryPhase:
                     reason=f"Applying {len(diagnosis.recommended_changes)} changes",
                     new_architecture=modified_arch,
                     changes_made=diagnosis.recommended_changes[:5],  # Top 5
-                    expected_improvement=expected_improvement
+                    expected_improvement=expected_improvement,
                 ),
                 modified_architecture=modified_arch,
                 retry_count=self._retry_count,
-                blacklisted=False
+                blacklisted=False,
             )
 
         except Exception as e:
@@ -223,34 +200,24 @@ class AdaptiveRetryPhase:
             self._add_to_blacklist(strategy_desc, diagnosis)
 
             return RetryPhaseResult(
-                decision=RetryDecision(
-                    action="ESCALATE",
-                    reason=f"Could not apply changes: {e}"
-                ),
+                decision=RetryDecision(action="ESCALATE", reason=f"Could not apply changes: {e}"),
                 modified_architecture=None,
                 retry_count=self._retry_count,
-                blacklisted=True
+                blacklisted=True,
             )
 
-    def _describe_strategy(
-        self,
-        architecture: AgentArchitecture,
-        diagnosis: FailureDiagnosis
-    ) -> str:
+    def _describe_strategy(self, architecture: AgentArchitecture, diagnosis: FailureDiagnosis) -> str:
         """Create a description of the current strategy for blacklisting."""
         parts = [
             f"mode:{architecture.collaboration_mode}",
             f"agents:{','.join(architecture.agents_to_use)}",
             f"steps:{len(architecture.execution_plan.steps)}",
-            f"approach:{architecture.reasoning[:100]}" if architecture.reasoning else ""
+            f"approach:{architecture.reasoning[:100]}" if architecture.reasoning else "",
         ]
         return " | ".join(p for p in parts if p)
 
     def _apply_changes(
-        self,
-        architecture: AgentArchitecture,
-        diagnosis: FailureDiagnosis,
-        recommendations: Dict[str, Any]
+        self, architecture: AgentArchitecture, diagnosis: FailureDiagnosis, recommendations: dict[str, Any]
     ) -> AgentArchitecture:
         """Apply recommended changes to architecture."""
         arch_changes = recommendations.get("architecture_changes", {})
@@ -265,7 +232,7 @@ class AdaptiveRetryPhase:
             execution_plan=architecture.execution_plan,
             spawn_commands=architecture.spawn_commands.copy(),
             estimated_cost=architecture.estimated_cost,
-            reasoning=architecture.reasoning
+            reasoning=architecture.reasoning,
         )
 
         # Apply changes based on failure type
@@ -277,12 +244,14 @@ class AdaptiveRetryPhase:
         if arch_changes.get("spawn_specialist"):
             # Add specialist agent to spawn
             capability = arch_changes.get("capability_needed", "specialist")
-            modified.agents_to_spawn.append(AgentSpec(
-                role=f"{capability}_specialist",
-                mission=f"Handle {capability} tasks",
-                capabilities=[capability],
-                spawn_if_missing=True
-            ))
+            modified.agents_to_spawn.append(
+                AgentSpec(
+                    role=f"{capability}_specialist",
+                    mission=f"Handle {capability} tasks",
+                    capabilities=[capability],
+                    spawn_if_missing=True,
+                )
+            )
             modified.status = "SPAWN_REQUIRED"
 
         if arch_changes.get("add_verification"):
@@ -290,13 +259,9 @@ class AdaptiveRetryPhase:
             for step in modified.execution_plan.steps:
                 step.verification_required = True
 
-        if arch_changes.get("simplify_steps"):
+        if arch_changes.get("simplify_steps") and len(modified.execution_plan.steps) > 2:
             # Keep only essential steps (first and last)
-            if len(modified.execution_plan.steps) > 2:
-                modified.execution_plan.steps = [
-                    modified.execution_plan.steps[0],
-                    modified.execution_plan.steps[-1]
-                ]
+            modified.execution_plan.steps = [modified.execution_plan.steps[0], modified.execution_plan.steps[-1]]
 
         if arch_changes.get("rethink_approach"):
             # Change collaboration mode
@@ -315,6 +280,7 @@ class AdaptiveRetryPhase:
         if arch_changes.get("compress_context") or arch_changes.get("fresh_session"):
             try:
                 from core.memory_pkg.memory.context_compressor import get_compressor
+
                 compressor = get_compressor()
                 if compressor.should_compress():
                     result = compressor.compress()
@@ -331,11 +297,7 @@ class AdaptiveRetryPhase:
 
         return modified
 
-    def _estimate_improvement(
-        self,
-        diagnosis: FailureDiagnosis,
-        recommendations: Dict[str, Any]
-    ) -> float:
+    def _estimate_improvement(self, diagnosis: FailureDiagnosis, recommendations: dict[str, Any]) -> float:
         """Estimate expected improvement from changes."""
         base_improvement = 0.3  # Base 30% improvement expectation
 
@@ -349,28 +311,21 @@ class AdaptiveRetryPhase:
         # Cap at 80%
         return min(base_improvement, 0.8)
 
-    def _add_to_blacklist(
-        self,
-        strategy_desc: str,
-        diagnosis: FailureDiagnosis
-    ):
+    def _add_to_blacklist(self, strategy_desc: str, diagnosis: FailureDiagnosis):
         """Add failed strategy to blacklist."""
-        category = self.FAILURE_TO_BLACKLIST.get(
-            diagnosis.failure_type,
-            FailureCategory.UNKNOWN
-        )
+        category = self.FAILURE_TO_BLACKLIST.get(diagnosis.failure_type, FailureCategory.UNKNOWN)
 
         self.blacklist.add_failed_strategy(
             strategy=strategy_desc,
             failure_reason=diagnosis.root_cause,
             diagnosis=str(diagnosis.to_dict()),
             failure_category=category,
-            tags=[diagnosis.failure_type.value]
+            tags=[diagnosis.failure_type.value],
         )
 
         logger.info(f"Added strategy to blacklist: {strategy_desc[:50]}...")
 
-    def mark_success(self, architecture: AgentArchitecture, diagnosis: Optional[FailureDiagnosis]):
+    def mark_success(self, architecture: AgentArchitecture, diagnosis: FailureDiagnosis | None):
         """Mark a strategy as successful (remove from blacklist if present)."""
         if diagnosis:
             strategy_desc = self._describe_strategy(architecture, diagnosis)
@@ -380,10 +335,10 @@ class AdaptiveRetryPhase:
         """Reset retry count for new task."""
         self._retry_count = 0
 
-    def get_retry_stats(self) -> Dict[str, Any]:
+    def get_retry_stats(self) -> dict[str, Any]:
         """Get retry statistics."""
         return {
             "current_retry_count": self._retry_count,
             "max_retries": self.MAX_RETRIES,
-            "blacklist_stats": self.blacklist.get_stats()
+            "blacklist_stats": self.blacklist.get_stats(),
         }

@@ -38,9 +38,9 @@ from __future__ import annotations
 
 import logging
 import threading
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -57,9 +57,11 @@ LATENCY_ANOMALY_THRESHOLD_MS = 30000.0  # 30s — above this is anomalous
 # Types
 # =============================================================================
 
+
 @dataclass
 class LatencySample:
     """A single inference call measurement."""
+
     sample_id: str = ""
     model_id: str = ""
     prompt_tokens: int = 0
@@ -73,7 +75,7 @@ class LatencySample:
 
     def __post_init__(self) -> None:
         if not self.timestamp:
-            self.timestamp = datetime.now(timezone.utc).isoformat()
+            self.timestamp = datetime.now(UTC).isoformat()
 
     @property
     def is_anomalous(self) -> bool:
@@ -87,7 +89,7 @@ class LatencySample:
             return self.response_tokens / (self.latency_ms / 1000.0)
         return 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "sample_id": self.sample_id,
             "model_id": self.model_id,
@@ -107,6 +109,7 @@ class LatencySample:
 @dataclass
 class ModelLatencyProfile:
     """Aggregated latency statistics for a single model."""
+
     model_id: str = ""
     sample_count: int = 0
     total_latency_ms: float = 0.0
@@ -130,7 +133,7 @@ class ModelLatencyProfile:
             return self.total_response_tokens / (self.total_latency_ms / 1000.0)
         return 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "model_id": self.model_id,
             "sample_count": self.sample_count,
@@ -148,6 +151,7 @@ class ModelLatencyProfile:
 @dataclass
 class AnalyzerStats:
     """Overall latency analyzer statistics."""
+
     total_samples: int = 0
     unique_models: int = 0
     total_anomalies: int = 0
@@ -155,7 +159,7 @@ class AnalyzerStats:
     fastest_model: str = ""
     slowest_model: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_samples": self.total_samples,
             "unique_models": self.unique_models,
@@ -169,6 +173,7 @@ class AnalyzerStats:
 # =============================================================================
 # Inference Latency Analyzer
 # =============================================================================
+
 
 class InferenceLatencyAnalyzer:
     """
@@ -184,8 +189,8 @@ class InferenceLatencyAnalyzer:
     """
 
     def __init__(self, max_samples: int = MAX_SAMPLES):
-        self._samples: List[LatencySample] = []
-        self._profiles: Dict[str, ModelLatencyProfile] = {}
+        self._samples: list[LatencySample] = []
+        self._profiles: dict[str, ModelLatencyProfile] = {}
         self._max_samples = max_samples
         self._lock = threading.Lock()
         self._counter = 0
@@ -274,7 +279,7 @@ class InferenceLatencyAnalyzer:
     # Queries
     # =========================================================================
 
-    def get_model_profile(self, model_id: str) -> Optional[ModelLatencyProfile]:
+    def get_model_profile(self, model_id: str) -> ModelLatencyProfile | None:
         """
         Get the latency profile for a specific model.
 
@@ -287,7 +292,7 @@ class InferenceLatencyAnalyzer:
         with self._lock:
             return self._profiles.get(model_id)
 
-    def get_all_profiles(self) -> List[ModelLatencyProfile]:
+    def get_all_profiles(self) -> list[ModelLatencyProfile]:
         """
         Get all model profiles sorted by sample count (descending).
 
@@ -298,7 +303,7 @@ class InferenceLatencyAnalyzer:
             profiles = list(self._profiles.values())
         return sorted(profiles, key=lambda p: p.sample_count, reverse=True)
 
-    def get_fastest_models(self, limit: int = 5) -> List[ModelLatencyProfile]:
+    def get_fastest_models(self, limit: int = 5) -> list[ModelLatencyProfile]:
         """
         Get models ranked by average latency (ascending).
 
@@ -311,14 +316,11 @@ class InferenceLatencyAnalyzer:
             List of ModelLatencyProfile sorted by avg_latency_ms ascending
         """
         with self._lock:
-            profiles = [
-                p for p in self._profiles.values()
-                if p.sample_count > 0
-            ]
+            profiles = [p for p in self._profiles.values() if p.sample_count > 0]
         sorted_profiles = sorted(profiles, key=lambda p: p.avg_latency_ms)
         return sorted_profiles[:limit]
 
-    def get_anomalies(self, limit: int = 20) -> List[LatencySample]:
+    def get_anomalies(self, limit: int = 20) -> list[LatencySample]:
         """
         Get anomalous samples sorted by latency (descending).
 
@@ -331,7 +333,9 @@ class InferenceLatencyAnalyzer:
         with self._lock:
             anomalies = [s for s in self._samples if s.is_anomalous]
         sorted_anomalies = sorted(
-            anomalies, key=lambda s: s.latency_ms, reverse=True,
+            anomalies,
+            key=lambda s: s.latency_ms,
+            reverse=True,
         )
         return sorted_anomalies[:limit]
 
@@ -339,7 +343,7 @@ class InferenceLatencyAnalyzer:
         self,
         limit: int = 20,
         model_id: str = "",
-    ) -> List[LatencySample]:
+    ) -> list[LatencySample]:
         """
         Get the most recent samples, optionally filtered by model.
 
@@ -352,9 +356,7 @@ class InferenceLatencyAnalyzer:
         """
         with self._lock:
             if model_id:
-                filtered = [
-                    s for s in self._samples if s.model_id == model_id
-                ]
+                filtered = [s for s in self._samples if s.model_id == model_id]
             else:
                 filtered = list(self._samples)
         return filtered[-limit:]
@@ -368,31 +370,25 @@ class InferenceLatencyAnalyzer:
         with self._lock:
             total_samples = len(self._samples)
             unique_models = len(self._profiles)
-            total_anomalies = sum(
-                p.anomaly_count for p in self._profiles.values()
-            )
+            total_anomalies = sum(p.anomaly_count for p in self._profiles.values())
 
             # Overall average latency
-            total_latency = sum(
-                p.total_latency_ms for p in self._profiles.values()
-            )
-            total_count = sum(
-                p.sample_count for p in self._profiles.values()
-            )
+            total_latency = sum(p.total_latency_ms for p in self._profiles.values())
+            total_count = sum(p.sample_count for p in self._profiles.values())
             overall_avg = total_latency / total_count if total_count > 0 else 0.0
 
             # Fastest / slowest by average latency
             fastest = ""
             slowest = ""
-            profiles_with_samples = [
-                p for p in self._profiles.values() if p.sample_count > 0
-            ]
+            profiles_with_samples = [p for p in self._profiles.values() if p.sample_count > 0]
             if profiles_with_samples:
                 fastest_profile = min(
-                    profiles_with_samples, key=lambda p: p.avg_latency_ms,
+                    profiles_with_samples,
+                    key=lambda p: p.avg_latency_ms,
                 )
                 slowest_profile = max(
-                    profiles_with_samples, key=lambda p: p.avg_latency_ms,
+                    profiles_with_samples,
+                    key=lambda p: p.avg_latency_ms,
                 )
                 fastest = fastest_profile.model_id
                 slowest = slowest_profile.model_id
@@ -422,7 +418,7 @@ class InferenceLatencyAnalyzer:
             self._profiles.clear()
             self._counter = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Export analyzer state for diagnostics."""
         # CRITICAL: call get_stats() BEFORE acquiring self._lock to avoid
         # deadlock — get_stats() acquires the lock internally, and
@@ -434,10 +430,7 @@ class InferenceLatencyAnalyzer:
                 "sample_count": len(self._samples),
                 "model_count": len(self._profiles),
                 "counter": self._counter,
-                "profiles": {
-                    mid: p.to_dict()
-                    for mid, p in self._profiles.items()
-                },
+                "profiles": {mid: p.to_dict() for mid, p in self._profiles.items()},
                 "stats": stats.to_dict(),
             }
 
@@ -446,7 +439,7 @@ class InferenceLatencyAnalyzer:
 # Global Instance
 # =============================================================================
 
-_analyzer: Optional[InferenceLatencyAnalyzer] = None
+_analyzer: InferenceLatencyAnalyzer | None = None
 _analyzer_lock = threading.Lock()
 
 

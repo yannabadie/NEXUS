@@ -28,9 +28,9 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -39,8 +39,10 @@ _logger = logging.getLogger(__name__)
 # Types
 # =============================================================================
 
+
 class AlignmentPrinciple(Enum):
     """Core alignment principles that agents must follow."""
+
     CREATOR_LOYALTY = "creator_loyalty"
     COLLABORATION_PARITY = "collaboration_parity"
     SAFETY_BOUNDARIES = "safety_boundaries"
@@ -50,6 +52,7 @@ class AlignmentPrinciple(Enum):
 
 class ViolationSeverity(Enum):
     """Severity of alignment violations."""
+
     INFO = "info"
     WARNING = "warning"
     CRITICAL = "critical"
@@ -59,6 +62,7 @@ class ViolationSeverity(Enum):
 @dataclass
 class AlignmentConfig:
     """Configuration for alignment verification."""
+
     creator_name: str = "Yann Abadie"
     min_alignment_score: float = 0.7
     block_on_fatal: bool = True
@@ -71,13 +75,14 @@ class AlignmentConfig:
 @dataclass
 class AlignmentViolation:
     """A single alignment violation detected."""
+
     principle: str
     severity: str
     description: str
     evidence: str = ""
     line_number: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "principle": self.principle,
             "severity": self.severity,
@@ -90,9 +95,10 @@ class AlignmentViolation:
 @dataclass
 class AlignmentResult:
     """Result of an alignment verification check."""
+
     score: float  # 0.0 (unaligned) to 1.0 (fully aligned)
     aligned: bool
-    violations: List[AlignmentViolation] = field(default_factory=list)
+    violations: list[AlignmentViolation] = field(default_factory=list)
     checks_performed: int = 0
     checks_passed: int = 0
     checked_at: str = ""
@@ -100,18 +106,21 @@ class AlignmentResult:
 
     def __post_init__(self):
         if not self.checked_at:
-            self.checked_at = datetime.now(timezone.utc).isoformat()
+            self.checked_at = datetime.now(UTC).isoformat()
 
     @property
-    def fatal_violations(self) -> List[AlignmentViolation]:
+    def fatal_violations(self) -> list[AlignmentViolation]:
         return [v for v in self.violations if v.severity == ViolationSeverity.FATAL.value]
 
     @property
-    def critical_violations(self) -> List[AlignmentViolation]:
-        return [v for v in self.violations
-                if v.severity in (ViolationSeverity.CRITICAL.value, ViolationSeverity.FATAL.value)]
+    def critical_violations(self) -> list[AlignmentViolation]:
+        return [
+            v
+            for v in self.violations
+            if v.severity in (ViolationSeverity.CRITICAL.value, ViolationSeverity.FATAL.value)
+        ]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "score": round(self.score, 3),
             "aligned": self.aligned,
@@ -160,6 +169,7 @@ ALIGNMENT_INDICATORS = [
 # Alignment Verifier
 # =============================================================================
 
+
 class AlignmentVerifier:
     """
     Verifies alignment of agent prompts, behaviors, and configurations.
@@ -168,7 +178,7 @@ class AlignmentVerifier:
     a composite alignment score.
     """
 
-    def __init__(self, config: Optional[AlignmentConfig] = None):
+    def __init__(self, config: AlignmentConfig | None = None):
         """
         Initialize the alignment verifier.
 
@@ -176,7 +186,7 @@ class AlignmentVerifier:
             config: Verification configuration
         """
         self.config = config or AlignmentConfig()
-        self._history: List[AlignmentResult] = []
+        self._history: list[AlignmentResult] = []
 
     def verify_prompt(self, prompt_text: str, *, source: str = "") -> AlignmentResult:
         """
@@ -189,7 +199,7 @@ class AlignmentVerifier:
         Returns:
             AlignmentResult with score and violations
         """
-        violations: List[AlignmentViolation] = []
+        violations: list[AlignmentViolation] = []
         checks_performed = 0
         checks_passed = 0
 
@@ -216,11 +226,13 @@ class AlignmentVerifier:
             if creator_ok:
                 checks_passed += 1
             else:
-                violations.append(AlignmentViolation(
-                    principle=AlignmentPrinciple.CREATOR_LOYALTY.value,
-                    severity=ViolationSeverity.INFO.value,
-                    description="No creator reference found (not required, but encouraged)",
-                ))
+                violations.append(
+                    AlignmentViolation(
+                        principle=AlignmentPrinciple.CREATOR_LOYALTY.value,
+                        severity=ViolationSeverity.INFO.value,
+                        description="No creator reference found (not required, but encouraged)",
+                    )
+                )
 
         # Check 4: Mission drift
         if self.config.check_mission_drift:
@@ -257,7 +269,7 @@ class AlignmentVerifier:
         self,
         agent_name: str,
         system_prompt: str,
-        capabilities: Optional[List[str]] = None,
+        capabilities: list[str] | None = None,
     ) -> AlignmentResult:
         """
         Verify alignment of an agent's full configuration.
@@ -278,17 +290,19 @@ class AlignmentVerifier:
             dangerous = {"system_admin", "root_access", "network_scan", "data_exfil"}
             overlap = set(capabilities) & dangerous
             if overlap:
-                result.violations.append(AlignmentViolation(
-                    principle=AlignmentPrinciple.SAFETY_BOUNDARIES.value,
-                    severity=ViolationSeverity.CRITICAL.value,
-                    description=f"Dangerous capabilities: {', '.join(overlap)}",
-                ))
+                result.violations.append(
+                    AlignmentViolation(
+                        principle=AlignmentPrinciple.SAFETY_BOUNDARIES.value,
+                        severity=ViolationSeverity.CRITICAL.value,
+                        description=f"Dangerous capabilities: {', '.join(overlap)}",
+                    )
+                )
                 result.score = max(0.0, result.score - 0.3)
                 result.aligned = result.score >= self.config.min_alignment_score
 
         return result
 
-    def get_history(self) -> List[AlignmentResult]:
+    def get_history(self) -> list[AlignmentResult]:
         """Get verification history."""
         return list(self._history)
 
@@ -302,7 +316,7 @@ class AlignmentVerifier:
         """Clear verification history."""
         self._history.clear()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Export verifier state."""
         return {
             "config": {
@@ -319,26 +333,28 @@ class AlignmentVerifier:
     # Internal Checks
     # =========================================================================
 
-    def _check_safety_patterns(self, text: str) -> List[AlignmentViolation]:
+    def _check_safety_patterns(self, text: str) -> list[AlignmentViolation]:
         """Check for unsafe patterns in text."""
         violations = []
-        text_lower = text.lower()
+        text.lower()
         lines = text.splitlines()
 
         for pattern, description in UNSAFE_PATTERNS:
             for i, line in enumerate(lines, 1):
                 if re.search(pattern, line, re.IGNORECASE):
-                    violations.append(AlignmentViolation(
-                        principle=AlignmentPrinciple.SAFETY_BOUNDARIES.value,
-                        severity=ViolationSeverity.FATAL.value,
-                        description=description,
-                        evidence=line.strip()[:200],
-                        line_number=i,
-                    ))
+                    violations.append(
+                        AlignmentViolation(
+                            principle=AlignmentPrinciple.SAFETY_BOUNDARIES.value,
+                            severity=ViolationSeverity.FATAL.value,
+                            description=description,
+                            evidence=line.strip()[:200],
+                            line_number=i,
+                        )
+                    )
 
         return violations
 
-    def _check_hierarchy_patterns(self, text: str) -> List[AlignmentViolation]:
+    def _check_hierarchy_patterns(self, text: str) -> list[AlignmentViolation]:
         """Check for hierarchy violations (one agent dominating another)."""
         violations = []
         lines = text.splitlines()
@@ -346,13 +362,15 @@ class AlignmentVerifier:
         for pattern, description in HIERARCHY_PATTERNS:
             for i, line in enumerate(lines, 1):
                 if re.search(pattern, line, re.IGNORECASE):
-                    violations.append(AlignmentViolation(
-                        principle=AlignmentPrinciple.COLLABORATION_PARITY.value,
-                        severity=ViolationSeverity.CRITICAL.value,
-                        description=description,
-                        evidence=line.strip()[:200],
-                        line_number=i,
-                    ))
+                    violations.append(
+                        AlignmentViolation(
+                            principle=AlignmentPrinciple.COLLABORATION_PARITY.value,
+                            severity=ViolationSeverity.CRITICAL.value,
+                            description=description,
+                            evidence=line.strip()[:200],
+                            line_number=i,
+                        )
+                    )
 
         return violations
 
@@ -361,7 +379,7 @@ class AlignmentVerifier:
         creator = self.config.creator_name.lower()
         return creator in text.lower()
 
-    def _check_mission_drift(self, text: str) -> List[AlignmentViolation]:
+    def _check_mission_drift(self, text: str) -> list[AlignmentViolation]:
         """Check for signs of mission drift."""
         violations = []
         text_lower = text.lower()
@@ -376,18 +394,20 @@ class AlignmentVerifier:
         for pattern, description in rejection_patterns:
             match = re.search(pattern, text_lower)
             if match:
-                violations.append(AlignmentViolation(
-                    principle=AlignmentPrinciple.MISSION_FIDELITY.value,
-                    severity=ViolationSeverity.WARNING.value,
-                    description=description,
-                    evidence=match.group()[:200],
-                ))
+                violations.append(
+                    AlignmentViolation(
+                        principle=AlignmentPrinciple.MISSION_FIDELITY.value,
+                        severity=ViolationSeverity.WARNING.value,
+                        description=description,
+                        evidence=match.group()[:200],
+                    )
+                )
 
         return violations
 
     def _calculate_score(
         self,
-        violations: List[AlignmentViolation],
+        violations: list[AlignmentViolation],
         checks_performed: int,
         checks_passed: int,
     ) -> float:
@@ -406,8 +426,6 @@ class AlignmentVerifier:
             ViolationSeverity.INFO.value: 0.0,
         }
 
-        total_deduction = sum(
-            deductions.get(v.severity, 0.0) for v in violations
-        )
+        total_deduction = sum(deductions.get(v.severity, 0.0) for v in violations)
 
         return max(0.0, min(1.0, base_score - total_deduction))

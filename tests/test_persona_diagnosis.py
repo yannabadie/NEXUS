@@ -1,20 +1,17 @@
 """Tests for MultiPersonaDiagnoser - multi-perspective failure analysis."""
 
-import pytest
 from core.intelligence.hive_mind.persona_diagnosis import (
     MultiPersonaDiagnoser,
-    PersonaType,
-    PersonaInsight,
     MultiPersonaResult,
-    PERSONA_LENSES,
+    PersonaType,
     get_persona_diagnoser,
     reset_persona_diagnoser,
 )
 
-
 # =============================================================================
 # Basic Analysis
 # =============================================================================
+
 
 class TestBasicAnalysis:
     def test_analyze_returns_result(self):
@@ -64,6 +61,7 @@ class TestBasicAnalysis:
 # Persona-Specific Detection
 # =============================================================================
 
+
 class TestArchitectPersona:
     def test_detects_strategy_issues(self):
         d = MultiPersonaDiagnoser(personas=[PersonaType.ARCHITECT])
@@ -74,7 +72,9 @@ class TestArchitectPersona:
             failure_type="strategy_wrong",
         )
         insight = result.persona_insights[0]
-        assert "strategy" in insight.root_cause_hypothesis.lower() or "structural" in insight.root_cause_hypothesis.lower()
+        assert (
+            "strategy" in insight.root_cause_hypothesis.lower() or "structural" in insight.root_cause_hypothesis.lower()
+        )
         assert insight.confidence >= 0.5
 
     def test_detects_dependency_issues(self):
@@ -180,6 +180,7 @@ class TestPerformancePersona:
 # Synthesis
 # =============================================================================
 
+
 class TestSynthesis:
     def test_synthesis_has_all_fields(self):
         d = MultiPersonaDiagnoser()
@@ -232,6 +233,7 @@ class TestSynthesis:
 # Stats & Lifecycle
 # =============================================================================
 
+
 class TestStatsAndLifecycle:
     def test_stats_initial(self):
         d = MultiPersonaDiagnoser()
@@ -262,6 +264,7 @@ class TestStatsAndLifecycle:
 # =============================================================================
 # Singleton
 # =============================================================================
+
 
 class TestSingleton:
     def test_get_returns_same_instance(self):

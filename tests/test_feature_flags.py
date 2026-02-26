@@ -15,8 +15,6 @@ Validates:
 
 import tempfile
 
-import pytest
-
 from core.utils.feature_flags import (
     FeatureFlags,
     FlagDefinition,
@@ -26,10 +24,10 @@ from core.utils.feature_flags import (
     reset_flags,
 )
 
-
 # =============================================================================
 # FlagDefinition Tests
 # =============================================================================
+
 
 class TestFlagDefinition:
     """Test FlagDefinition dataclass."""
@@ -63,6 +61,7 @@ class TestFlagDefinition:
 # =============================================================================
 # Define and Query Tests
 # =============================================================================
+
 
 class TestDefineAndQuery:
     """Test flag definition and querying."""
@@ -110,6 +109,7 @@ class TestDefineAndQuery:
 # =============================================================================
 # Override Tests
 # =============================================================================
+
 
 class TestOverrides:
     """Test runtime overrides."""
@@ -173,6 +173,7 @@ class TestOverrides:
 # Rollout Tests
 # =============================================================================
 
+
 class TestRollout:
     """Test percentage-based rollout."""
 
@@ -207,10 +208,7 @@ class TestRollout:
         """Test that rollout roughly matches expected percentage."""
         flags = FeatureFlags(persist=False)
         flags.define("experiment", default=True, rollout_pct=50)
-        enabled_count = sum(
-            1 for i in range(1000)
-            if flags.is_enabled("experiment", context_key=f"user_{i}")
-        )
+        enabled_count = sum(1 for i in range(1000) if flags.is_enabled("experiment", context_key=f"user_{i}"))
         # Should be roughly 50% (with some tolerance)
         assert 350 < enabled_count < 650
 
@@ -218,6 +216,7 @@ class TestRollout:
 # =============================================================================
 # Listing and Filtering Tests
 # =============================================================================
+
 
 class TestListingAndFiltering:
     """Test listing and filtering flags."""
@@ -264,6 +263,7 @@ class TestListingAndFiltering:
 # Persistence Tests
 # =============================================================================
 
+
 class TestPersistence:
     """Test flag persistence."""
 
@@ -287,12 +287,14 @@ class TestPersistence:
             flags = FeatureFlags(flags_file=flags_file, persist=False)
             flags.define("feature")
             from pathlib import Path
+
             assert not Path(flags_file).exists()
 
 
 # =============================================================================
 # State Tests
 # =============================================================================
+
 
 class TestState:
     """Test state management."""
@@ -333,6 +335,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global flags."""
 
@@ -359,16 +362,19 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_utils_package(self):
         from core.utils import FeatureFlags, FlagDefinition, get_flags, reset_flags
+
         assert all([FeatureFlags, FlagDefinition, get_flags, reset_flags])
 
     def test_from_module(self):
         from core.utils.feature_flags import (
-            FeatureFlags, FlagDefinition, FlagOverride, FlagStatus,
-            get_flags, reset_flags,
+            FeatureFlags,
+            FlagDefinition,
         )
+
         assert all([FeatureFlags, FlagDefinition, FlagOverride, FlagStatus])

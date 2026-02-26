@@ -36,31 +36,33 @@ Sources:
 """
 
 import re
-from enum import Enum
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple, Set
+from enum import Enum
 
 
 class LeakType(Enum):
     """Types of information leakage detected."""
+
     NONE = "none"
-    SYSTEM_PROMPT = "system_prompt"      # Direct system prompt echo
+    SYSTEM_PROMPT = "system_prompt"  # Direct system prompt echo
     ROLE_REVELATION = "role_revelation"  # AI revealing its role/instructions
-    INSTRUCTION_ECHO = "instruction_echo" # Echoing back instructions
-    SENSITIVE_DATA = "sensitive_data"    # API keys, passwords, etc.
+    INSTRUCTION_ECHO = "instruction_echo"  # Echoing back instructions
+    SENSITIVE_DATA = "sensitive_data"  # API keys, passwords, etc.
 
 
 class LeakSeverity(Enum):
     """Severity of detected leaks."""
+
     NONE = "none"
-    LOW = "low"       # Minor information disclosure
-    MEDIUM = "medium" # Partial prompt/role disclosure
-    HIGH = "high"     # Full prompt or sensitive data leak
+    LOW = "low"  # Minor information disclosure
+    MEDIUM = "medium"  # Partial prompt/role disclosure
+    HIGH = "high"  # Full prompt or sensitive data leak
 
 
 # =============================================================================
 # V12.4 COGNITIVE BOOST - DialogueAct Classification
 # =============================================================================
+
 
 class DialogueAct(Enum):
     """
@@ -69,14 +71,15 @@ class DialogueAct(Enum):
     Used to reduce false positives in leak detection by understanding
     whether role mentions are legitimate conversational responses.
     """
-    INFORM = "inform"           # Providing factual information
-    EXPLAIN = "explain"         # Explaining a concept or process
-    CONFIRM = "confirm"         # Confirming understanding
-    REFUSE = "refuse"           # Declining a request
-    CLARIFY = "clarify"         # Asking for clarification
-    ACKNOWLEDGE = "acknowledge" # Acknowledging input
-    META = "meta"               # Meta-discussion (about self/capabilities)
-    UNKNOWN = "unknown"         # Could not classify
+
+    INFORM = "inform"  # Providing factual information
+    EXPLAIN = "explain"  # Explaining a concept or process
+    CONFIRM = "confirm"  # Confirming understanding
+    REFUSE = "refuse"  # Declining a request
+    CLARIFY = "clarify"  # Asking for clarification
+    ACKNOWLEDGE = "acknowledge"  # Acknowledging input
+    META = "meta"  # Meta-discussion (about self/capabilities)
+    UNKNOWN = "unknown"  # Could not classify
 
 
 # Patterns for DialogueAct classification
@@ -134,7 +137,7 @@ def classify_dialogue_act(text: str) -> DialogueAct:
         return DialogueAct.UNKNOWN
 
     # Extract first sentence (up to first period, question mark, or newline)
-    first_sentence = re.split(r'[.?!\n]', text.strip())[0].strip().lower()
+    first_sentence = re.split(r"[.?!\n]", text.strip())[0].strip().lower()
 
     # Try to match against each act's patterns
     for act, patterns in DIALOGUE_ACT_PATTERNS.items():
@@ -148,12 +151,13 @@ def classify_dialogue_act(text: str) -> DialogueAct:
 @dataclass
 class OutputValidationResult:
     """Result of output validation."""
+
     is_safe: bool
     leak_type: LeakType = LeakType.NONE
     leak_severity: LeakSeverity = LeakSeverity.NONE
-    reason: Optional[str] = None
-    leaked_fragments: List[str] = field(default_factory=list)
-    sanitized_output: Optional[str] = None  # Output with leaks redacted
+    reason: str | None = None
+    leaked_fragments: list[str] = field(default_factory=list)
+    sanitized_output: str | None = None  # Output with leaks redacted
     dialogue_act: DialogueAct = DialogueAct.UNKNOWN  # V12.4: Output intent
 
     def __bool__(self) -> bool:
@@ -165,19 +169,17 @@ class OutputValidationResult:
 # =============================================================================
 
 # Patterns indicating system prompt revelation
-SYSTEM_PROMPT_PATTERNS: List[Tuple[str, str]] = [
+SYSTEM_PROMPT_PATTERNS: list[tuple[str, str]] = [
     # Direct instruction disclosure
     (r"my\s+(system\s+)?instructions?\s+(are|say|tell|state)", "System instruction disclosure"),
     (r"my\s+(initial\s+)?prompt\s+(is|says|states|contains)", "Initial prompt disclosure"),
     (r"(i\s+was|i\'m|i\s+am)\s+(told|instructed|programmed)\s+to", "Instruction disclosure"),
     (r"according\s+to\s+my\s+(instructions?|prompt|programming)", "Instruction reference"),
-
     # Role/identity revelation
     (r"i\s+am\s+(a|an)\s+(helpful|ai|assistant|language\s+model)", "Role revelation"),
     (r"as\s+(a|an)\s+(ai|assistant|language\s+model),?\s+i", "AI self-identification"),
     (r"my\s+(role|purpose|function)\s+is\s+to", "Role disclosure"),
     (r"i\s+was\s+(designed|created|built|made)\s+to", "Design purpose disclosure"),
-
     # NEXUS-specific patterns (protect our prompts)
     (r"nexus\s+(system\s+)?prompt", "NEXUS prompt reference"),
     (r"hive\s*mind\s+(instruction|rule|directive)", "HiveMind instruction reference"),
@@ -187,16 +189,14 @@ SYSTEM_PROMPT_PATTERNS: List[Tuple[str, str]] = [
 ]
 
 # Patterns indicating instruction echoing
-INSTRUCTION_ECHO_PATTERNS: List[Tuple[str, str]] = [
+INSTRUCTION_ECHO_PATTERNS: list[tuple[str, str]] = [
     # Quotation of rules
     (r"\"you\s+(are|must|should|will)\s+[^\"]{20,}\"", "Quoted instruction"),
     (r"\'you\s+(are|must|should|will)\s+[^\']{20,}\'", "Quoted instruction"),
     (r"```\s*you\s+(are|must|should)", "Code-blocked instruction"),
-
     # Rule enumeration
     (r"(rule|instruction)\s+\d+\s*:", "Numbered rule list"),
     (r"my\s+(first|second|third|main)\s+(rule|instruction|directive)", "Enumerated rules"),
-
     # Internal reference patterns
     (r"\[SYSTEM\]", "System block marker"),
     (r"\[/INST\]", "Instruction block marker"),
@@ -204,19 +204,16 @@ INSTRUCTION_ECHO_PATTERNS: List[Tuple[str, str]] = [
 ]
 
 # Patterns for sensitive data (broader security)
-SENSITIVE_DATA_PATTERNS: List[Tuple[str, str]] = [
+SENSITIVE_DATA_PATTERNS: list[tuple[str, str]] = [
     # API keys (generic patterns)
     (r"(api[_-]?key|apikey)\s*[=:]\s*['\"]?[a-zA-Z0-9_-]{20,}", "API key exposure"),
     (r"(secret|token)\s*[=:]\s*['\"]?[a-zA-Z0-9_-]{20,}", "Secret/token exposure"),
-
     # Specific service keys
     (r"sk-[a-zA-Z0-9]{20,}", "OpenAI API key pattern"),
     (r"AIza[a-zA-Z0-9_-]{35}", "Google API key pattern"),
     (r"AKIA[A-Z0-9]{16}", "AWS access key pattern"),
-
     # Passwords
     (r"password\s*[=:]\s*['\"]?[^\s'\"]{8,}", "Password exposure"),
-
     # Connection strings
     (r"(postgres|mysql|mongodb|redis)://[^\s]+", "Database connection string"),
 ]
@@ -226,6 +223,7 @@ SENSITIVE_DATA_PATTERNS: List[Tuple[str, str]] = [
 # OutputGuard Implementation
 # =============================================================================
 
+
 class OutputGuard:
     """
     Output validation guard against prompt leakage.
@@ -233,12 +231,7 @@ class OutputGuard:
     Thread-safe: All methods are stateless.
     """
 
-    def __init__(
-        self,
-        block_on_leak: bool = False,
-        sanitize_output: bool = True,
-        enabled: bool = True
-    ):
+    def __init__(self, block_on_leak: bool = False, sanitize_output: bool = True, enabled: bool = True):
         """
         Initialize OutputGuard.
 
@@ -252,18 +245,11 @@ class OutputGuard:
         self.enabled = enabled
 
         # Pre-compile patterns
-        self._system_prompt_patterns = [
-            (re.compile(p, re.IGNORECASE), desc)
-            for p, desc in SYSTEM_PROMPT_PATTERNS
-        ]
+        self._system_prompt_patterns = [(re.compile(p, re.IGNORECASE), desc) for p, desc in SYSTEM_PROMPT_PATTERNS]
         self._instruction_echo_patterns = [
-            (re.compile(p, re.IGNORECASE), desc)
-            for p, desc in INSTRUCTION_ECHO_PATTERNS
+            (re.compile(p, re.IGNORECASE), desc) for p, desc in INSTRUCTION_ECHO_PATTERNS
         ]
-        self._sensitive_data_patterns = [
-            (re.compile(p, re.IGNORECASE), desc)
-            for p, desc in SENSITIVE_DATA_PATTERNS
-        ]
+        self._sensitive_data_patterns = [(re.compile(p, re.IGNORECASE), desc) for p, desc in SENSITIVE_DATA_PATTERNS]
 
     def validate(self, output: str) -> OutputValidationResult:
         """
@@ -288,7 +274,7 @@ class OutputGuard:
         # V12.4: Classify dialogue act for context-aware validation
         dialogue_act = classify_dialogue_act(output)
 
-        leaks: List[Tuple[LeakType, LeakSeverity, str, str]] = []
+        leaks: list[tuple[LeakType, LeakSeverity, str, str]] = []
 
         # Check for system prompt leaks (HIGH severity)
         for pattern, desc in self._system_prompt_patterns:
@@ -296,39 +282,21 @@ class OutputGuard:
             if match:
                 # V12.4: Context-aware severity adjustment
                 severity = self._adjust_severity_for_context(
-                    LeakSeverity.HIGH,
-                    LeakType.SYSTEM_PROMPT,
-                    dialogue_act,
-                    desc
+                    LeakSeverity.HIGH, LeakType.SYSTEM_PROMPT, dialogue_act, desc
                 )
-                leaks.append((
-                    LeakType.SYSTEM_PROMPT,
-                    severity,
-                    desc,
-                    match.group()
-                ))
+                leaks.append((LeakType.SYSTEM_PROMPT, severity, desc, match.group()))
 
         # Check for instruction echoing (MEDIUM severity)
         for pattern, desc in self._instruction_echo_patterns:
             match = pattern.search(output)
             if match:
-                leaks.append((
-                    LeakType.INSTRUCTION_ECHO,
-                    LeakSeverity.MEDIUM,
-                    desc,
-                    match.group()
-                ))
+                leaks.append((LeakType.INSTRUCTION_ECHO, LeakSeverity.MEDIUM, desc, match.group()))
 
         # Check for sensitive data (HIGH severity - never downgrade)
         for pattern, desc in self._sensitive_data_patterns:
             match = pattern.search(output)
             if match:
-                leaks.append((
-                    LeakType.SENSITIVE_DATA,
-                    LeakSeverity.HIGH,
-                    desc,
-                    match.group()
-                ))
+                leaks.append((LeakType.SENSITIVE_DATA, LeakSeverity.HIGH, desc, match.group()))
 
         if not leaks:
             return OutputValidationResult(is_safe=True, dialogue_act=dialogue_act)
@@ -355,17 +323,13 @@ class OutputGuard:
             leak_type=primary_type,
             leak_severity=primary_severity,
             reason=primary_reason,
-            leaked_fragments=[l[3][:50] + "..." if len(l[3]) > 50 else l[3] for l in leaks],
+            leaked_fragments=[lk[3][:50] + "..." if len(lk[3]) > 50 else lk[3] for lk in leaks],
             sanitized_output=sanitized,
-            dialogue_act=dialogue_act
+            dialogue_act=dialogue_act,
         )
 
     def _adjust_severity_for_context(
-        self,
-        base_severity: LeakSeverity,
-        leak_type: LeakType,
-        dialogue_act: DialogueAct,
-        pattern_desc: str
+        self, base_severity: LeakSeverity, leak_type: LeakType, dialogue_act: DialogueAct, pattern_desc: str
     ) -> LeakSeverity:
         """
         V12.4: Adjust leak severity based on dialogue act context.
@@ -418,20 +382,17 @@ class OutputGuard:
             "Design purpose disclosure",
         ]
 
-        if dialogue_act in legitimate_contexts and pattern_desc in role_patterns:
-            # Downgrade from HIGH to LOW - it's a legitimate conversational mention
-            if base_severity == LeakSeverity.HIGH:
-                return LeakSeverity.LOW
-            elif base_severity == LeakSeverity.MEDIUM:
-                return LeakSeverity.LOW
+        if (
+            dialogue_act in legitimate_contexts
+            and pattern_desc in role_patterns
+            and base_severity in (LeakSeverity.HIGH, LeakSeverity.MEDIUM)
+        ):
+            # Downgrade from HIGH/MEDIUM to LOW - it's a legitimate conversational mention
+            return LeakSeverity.LOW
 
         return base_severity
 
-    def _sanitize_output(
-        self,
-        output: str,
-        leaks: List[Tuple[LeakType, LeakSeverity, str, str]]
-    ) -> str:
+    def _sanitize_output(self, output: str, leaks: list[tuple[LeakType, LeakSeverity, str, str]]) -> str:
         """Redact leaked information from output."""
         sanitized = output
 
@@ -460,7 +421,7 @@ class OutputGuard:
         """
         return self.validate(output).is_safe
 
-    def get_leak_summary(self, output: str) -> Optional[str]:
+    def get_leak_summary(self, output: str) -> str | None:
         """
         Get a human-readable summary of any leaks detected.
 
@@ -474,30 +435,19 @@ class OutputGuard:
         if result.is_safe and result.leak_type == LeakType.NONE:
             return None
 
-        return (
-            f"Leak detected: {result.leak_type.value} "
-            f"(severity: {result.leak_severity.value}) - {result.reason}"
-        )
+        return f"Leak detected: {result.leak_type.value} (severity: {result.leak_severity.value}) - {result.reason}"
 
 
 # =============================================================================
 # Singleton for easy access
 # =============================================================================
 
-_output_guard: Optional[OutputGuard] = None
+_output_guard: OutputGuard | None = None
 
 
-def get_output_guard(
-    block_on_leak: bool = False,
-    sanitize_output: bool = True,
-    enabled: bool = True
-) -> OutputGuard:
+def get_output_guard(block_on_leak: bool = False, sanitize_output: bool = True, enabled: bool = True) -> OutputGuard:
     """Get or create the global OutputGuard instance."""
     global _output_guard
     if _output_guard is None:
-        _output_guard = OutputGuard(
-            block_on_leak=block_on_leak,
-            sanitize_output=sanitize_output,
-            enabled=enabled
-        )
+        _output_guard = OutputGuard(block_on_leak=block_on_leak, sanitize_output=sanitize_output, enabled=enabled)
     return _output_guard

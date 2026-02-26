@@ -32,13 +32,10 @@ Usage:
 """
 
 import logging
-import math
 import re
 import threading
-import time
 from collections import Counter
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
@@ -47,21 +44,24 @@ logger = logging.getLogger(__name__)
 # Data Structures
 # =============================================================================
 
+
 @dataclass
 class ScoredItem:
     """A context item scored for plan relevance."""
+
     content: str
-    relevance_score: float       # 0-1 relevance to upcoming steps
-    matched_steps: List[str]     # Steps this item is relevant to
-    keyword_overlap: float       # Raw keyword overlap score
-    position_score: float        # Proximity to next step (closer = higher)
+    relevance_score: float  # 0-1 relevance to upcoming steps
+    matched_steps: list[str]  # Steps this item is relevant to
+    keyword_overlap: float  # Raw keyword overlap score
+    position_score: float  # Proximity to next step (closer = higher)
 
 
 @dataclass
 class FilterResult:
     """Result of plan-aware context filtering."""
-    kept_items: List[ScoredItem]
-    dropped_items: List[ScoredItem]
+
+    kept_items: list[ScoredItem]
+    dropped_items: list[ScoredItem]
     total_items: int
     kept_count: int
     tokens_before: int
@@ -72,6 +72,7 @@ class FilterResult:
 @dataclass
 class FilterStats:
     """Statistics for the plan context filter."""
+
     total_filter_calls: int
     total_items_processed: int
     total_items_dropped: int
@@ -83,18 +84,53 @@ class FilterStats:
 # Tokenization Helpers
 # =============================================================================
 
+
 def _extract_keywords(text: str) -> Counter:
     """Extract meaningful keywords from text."""
     # Simple tokenization: alphanumeric words, lowercase
-    tokens = re.findall(r'[a-zA-Z_]\w{2,}', text.lower())
+    tokens = re.findall(r"[a-zA-Z_]\w{2,}", text.lower())
 
     # Filter stop words
     stop_words = {
-        'the', 'and', 'for', 'that', 'this', 'with', 'from', 'are',
-        'was', 'were', 'been', 'have', 'has', 'had', 'will', 'would',
-        'could', 'should', 'not', 'but', 'can', 'all', 'each', 'which',
-        'their', 'said', 'its', 'into', 'than', 'other', 'some',
-        'them', 'these', 'then', 'her', 'two', 'how', 'our', 'out',
+        "the",
+        "and",
+        "for",
+        "that",
+        "this",
+        "with",
+        "from",
+        "are",
+        "was",
+        "were",
+        "been",
+        "have",
+        "has",
+        "had",
+        "will",
+        "would",
+        "could",
+        "should",
+        "not",
+        "but",
+        "can",
+        "all",
+        "each",
+        "which",
+        "their",
+        "said",
+        "its",
+        "into",
+        "than",
+        "other",
+        "some",
+        "them",
+        "these",
+        "then",
+        "her",
+        "two",
+        "how",
+        "our",
+        "out",
     }
 
     return Counter(t for t in tokens if t not in stop_words)
@@ -125,6 +161,7 @@ def _estimate_tokens(text: str) -> int:
 # Plan-Aware Context Filter
 # =============================================================================
 
+
 class PlanContextFilter:
     """
     Scores and filters context items based on relevance to upcoming
@@ -137,7 +174,7 @@ class PlanContextFilter:
     """
 
     # Position decay: closer upcoming steps have more weight
-    POSITION_DECAY = 0.8       # Each step further reduces weight
+    POSITION_DECAY = 0.8  # Each step further reduces weight
 
     # Minimum relevance to keep (items below this are candidates for dropping)
     MIN_RELEVANCE = 0.1
@@ -160,9 +197,9 @@ class PlanContextFilter:
 
     def score_context_items(
         self,
-        context_items: List[str],
-        upcoming_steps: List[str],
-    ) -> List[ScoredItem]:
+        context_items: list[str],
+        upcoming_steps: list[str],
+    ) -> list[ScoredItem]:
         """
         Score context items by relevance to upcoming steps.
 
@@ -190,10 +227,10 @@ class PlanContextFilter:
             ]
 
         # Extract keywords from upcoming steps with position weighting
-        step_keywords: List[Tuple[Counter, float]] = []
+        step_keywords: list[tuple[Counter, float]] = []
         for i, step in enumerate(upcoming_steps):
             kw = _extract_keywords(step)
-            weight = self.POSITION_DECAY ** i  # Closer steps weighted higher
+            weight = self.POSITION_DECAY**i  # Closer steps weighted higher
             step_keywords.append((kw, weight))
 
         # Merge all step keywords with position weighting
@@ -218,18 +255,20 @@ class PlanContextFilter:
                     best_position = min(best_position, i)
 
             # Position score: items relevant to closer steps score higher
-            position_score = self.POSITION_DECAY ** best_position if matched else 0.0
+            position_score = self.POSITION_DECAY**best_position if matched else 0.0
 
             # Combined relevance
             relevance = overlap * 0.6 + position_score * 0.4
 
-            scored.append(ScoredItem(
-                content=item,
-                relevance_score=relevance,
-                matched_steps=matched,
-                keyword_overlap=overlap,
-                position_score=position_score,
-            ))
+            scored.append(
+                ScoredItem(
+                    content=item,
+                    relevance_score=relevance,
+                    matched_steps=matched,
+                    keyword_overlap=overlap,
+                    position_score=position_score,
+                )
+            )
 
         # Track stats
         with self._lock:
@@ -241,8 +280,8 @@ class PlanContextFilter:
 
     def filter(
         self,
-        context_items: List[str],
-        upcoming_steps: List[str],
+        context_items: list[str],
+        upcoming_steps: list[str],
         budget_ratio: float = 0.0,
     ) -> FilterResult:
         """
@@ -317,7 +356,7 @@ class PlanContextFilter:
 # Singleton
 # =============================================================================
 
-_instance: Optional[PlanContextFilter] = None
+_instance: PlanContextFilter | None = None
 _instance_lock = threading.Lock()
 
 

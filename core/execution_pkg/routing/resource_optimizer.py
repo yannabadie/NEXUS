@@ -33,8 +33,8 @@ import threading
 import time
 import uuid
 from collections import defaultdict
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -50,9 +50,11 @@ LEARNING_RATE = 0.1  # EMA for accuracy tracking
 # Types
 # =============================================================================
 
+
 @dataclass
 class ModelSpec:
     """A registered model with cost information."""
+
     model_id: str
     cost_per_1k_input: float = 0.0
     cost_per_1k_output: float = 0.0
@@ -65,12 +67,9 @@ class ModelSpec:
         """Estimate cost for given token counts."""
         if output_tokens == 0:
             output_tokens = int(input_tokens * 0.5)  # Default estimate
-        return (
-            (input_tokens / 1000) * self.cost_per_1k_input
-            + (output_tokens / 1000) * self.cost_per_1k_output
-        )
+        return (input_tokens / 1000) * self.cost_per_1k_input + (output_tokens / 1000) * self.cost_per_1k_output
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "model_id": self.model_id,
             "cost_per_1k_input": self.cost_per_1k_input,
@@ -85,6 +84,7 @@ class ModelSpec:
 @dataclass
 class OptimizationDecision:
     """A model selection decision."""
+
     decision_id: str
     model_id: str
     estimated_cost: float
@@ -97,7 +97,7 @@ class OptimizationDecision:
         if self.timestamp == 0.0:
             self.timestamp = time.monotonic()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "decision_id": self.decision_id,
             "model_id": self.model_id,
@@ -111,6 +111,7 @@ class OptimizationDecision:
 @dataclass
 class UsageRecord:
     """Actual usage data for a decision."""
+
     decision_id: str
     model_id: str
     estimated_tokens: int
@@ -140,15 +141,16 @@ class UsageRecord:
 @dataclass
 class OptimizationReport:
     """Report on optimization performance."""
+
     total_decisions: int
     total_estimated_cost: float
     total_actual_cost: float
     avg_token_accuracy: float
     avg_cost_accuracy: float
-    model_usage: Dict[str, int]
+    model_usage: dict[str, int]
     cost_savings: float  # Estimated - Actual (positive = under-budget)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_decisions": self.total_decisions,
             "total_estimated_cost": round(self.total_estimated_cost, 6),
@@ -164,6 +166,7 @@ class OptimizationReport:
 # Resource Optimizer
 # =============================================================================
 
+
 class ResourceOptimizer:
     """
     Optimizes model selection based on cost, latency, and quality.
@@ -176,10 +179,10 @@ class ResourceOptimizer:
     """
 
     def __init__(self):
-        self._models: Dict[str, ModelSpec] = {}
-        self._decisions: Dict[str, OptimizationDecision] = {}
-        self._usage: List[UsageRecord] = []
-        self._model_usage_count: Dict[str, int] = defaultdict(int)
+        self._models: dict[str, ModelSpec] = {}
+        self._decisions: dict[str, OptimizationDecision] = {}
+        self._usage: list[UsageRecord] = []
+        self._model_usage_count: dict[str, int] = defaultdict(int)
         self._lock = threading.Lock()
 
     # =========================================================================
@@ -223,7 +226,7 @@ class ResourceOptimizer:
             spec.available = available
         return True
 
-    def get_model(self, model_id: str) -> Optional[ModelSpec]:
+    def get_model(self, model_id: str) -> ModelSpec | None:
         """Get a model spec."""
         return self._models.get(model_id)
 
@@ -239,7 +242,7 @@ class ResourceOptimizer:
         max_latency_ms: float = 0.0,
         min_quality: float = 0.0,
         prefer: str = "cost",  # "cost", "quality", "latency"
-    ) -> Optional[OptimizationDecision]:
+    ) -> OptimizationDecision | None:
         """
         Select the optimal model based on constraints.
 
@@ -255,8 +258,7 @@ class ResourceOptimizer:
         """
         with self._lock:
             candidates = [
-                spec for spec in self._models.values()
-                if spec.available and estimated_tokens <= spec.max_context
+                spec for spec in self._models.values() if spec.available and estimated_tokens <= spec.max_context
             ]
 
         if not candidates:
@@ -327,7 +329,11 @@ class ResourceOptimizer:
             record = UsageRecord(
                 decision_id=decision_id,
                 model_id=decision.model_id,
-                estimated_tokens=int(decision.estimated_cost * 1000 / max(0.001, self._models.get(decision.model_id, ModelSpec(model_id="")).cost_per_1k_input or 0.001)),
+                estimated_tokens=int(
+                    decision.estimated_cost
+                    * 1000
+                    / max(0.001, self._models.get(decision.model_id, ModelSpec(model_id="")).cost_per_1k_input or 0.001)
+                ),
                 actual_tokens=actual_tokens,
                 estimated_cost=decision.estimated_cost,
                 actual_cost=actual_cost,
@@ -372,21 +378,21 @@ class ResourceOptimizer:
     # Listing
     # =========================================================================
 
-    def list_models(self, *, available_only: bool = False) -> List[ModelSpec]:
+    def list_models(self, *, available_only: bool = False) -> list[ModelSpec]:
         """List all registered models."""
         models = list(self._models.values())
         if available_only:
             models = [m for m in models if m.available]
         return sorted(models, key=lambda m: m.model_id)
 
-    def cheapest_model(self, estimated_tokens: int = 1000) -> Optional[ModelSpec]:
+    def cheapest_model(self, estimated_tokens: int = 1000) -> ModelSpec | None:
         """Get the cheapest available model."""
         available = [m for m in self._models.values() if m.available]
         if not available:
             return None
         return min(available, key=lambda m: m.estimate_cost(estimated_tokens))
 
-    def best_quality_model(self) -> Optional[ModelSpec]:
+    def best_quality_model(self) -> ModelSpec | None:
         """Get the highest quality available model."""
         available = [m for m in self._models.values() if m.available]
         if not available:
@@ -417,15 +423,12 @@ class ResourceOptimizer:
             self._usage.clear()
             self._model_usage_count.clear()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "model_count": self.model_count,
             "decision_count": self.decision_count,
             "usage_count": self.usage_count,
-            "models": {
-                mid: spec.to_dict()
-                for mid, spec in sorted(self._models.items())
-            },
+            "models": {mid: spec.to_dict() for mid, spec in sorted(self._models.items())},
         }
 
 
@@ -433,7 +436,7 @@ class ResourceOptimizer:
 # Global Instance
 # =============================================================================
 
-_optimizer: Optional[ResourceOptimizer] = None
+_optimizer: ResourceOptimizer | None = None
 _optimizer_lock = threading.Lock()
 
 

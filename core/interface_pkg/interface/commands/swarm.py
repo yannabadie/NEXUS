@@ -5,8 +5,7 @@ These commands manage the Hybrid Swarm Engine for multi-agent collaboration.
 Uses SwarmService for business logic (Service Layer Pattern).
 """
 
-from typing import List
-from .registry import Command, CommandContext, CommandResult, CommandStatus
+from .registry import Command, CommandContext, CommandRegistry, CommandResult, CommandStatus
 
 
 def _get_swarm_service(context: CommandContext):
@@ -24,20 +23,16 @@ def _get_swarm_service(context: CommandContext):
 
     # Get config from extras or orchestrator
     config = context.config
-    if not config and hasattr(context.orchestrator, 'config'):
+    if not config and hasattr(context.orchestrator, "config"):
         config = context.orchestrator.config
 
     if not config:
         # Fallback: try to get from repl if available
         repl = context.extras.get("repl")
-        if repl and hasattr(repl, 'config'):
+        if repl and hasattr(repl, "config"):
             config = repl.config
 
-    return SwarmService(
-        orchestrator=context.orchestrator,
-        console=context.console,
-        config=config
-    )
+    return SwarmService(orchestrator=context.orchestrator, console=context.console, config=config)
 
 
 class SwarmCommand(Command):
@@ -48,7 +43,7 @@ class SwarmCommand(Command):
         return "/swarm"
 
     @property
-    def aliases(self) -> List[str]:
+    def aliases(self) -> list[str]:
         return []
 
     @property
@@ -64,7 +59,7 @@ class SwarmCommand(Command):
         if not args.strip():
             return CommandResult(
                 status=CommandStatus.INVALID_ARGS,
-                message="Usage: /swarm <task description>\nExample: /swarm Analyze this codebase and find bugs"
+                message="Usage: /swarm <task description>\nExample: /swarm Analyze this codebase and find bugs",
             )
 
         try:
@@ -72,20 +67,11 @@ class SwarmCommand(Command):
             result = service.run_task(args.strip())
 
             if result.success:
-                return CommandResult(
-                    status=CommandStatus.SUCCESS,
-                    message=""
-                )
+                return CommandResult(status=CommandStatus.SUCCESS, message="")
             else:
-                return CommandResult(
-                    status=CommandStatus.ERROR,
-                    message=result.error or "Swarm task failed"
-                )
+                return CommandResult(status=CommandStatus.ERROR, message=result.error or "Swarm task failed")
         except Exception as e:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message=f"Swarm task failed: {e}"
-            )
+            return CommandResult(status=CommandStatus.ERROR, message=f"Swarm task failed: {e}")
 
 
 class SwarmStatusCommand(Command):
@@ -96,7 +82,7 @@ class SwarmStatusCommand(Command):
         return "/swarm-status"
 
     @property
-    def aliases(self) -> List[str]:
+    def aliases(self) -> list[str]:
         return ["/ss"]
 
     @property
@@ -108,15 +94,9 @@ class SwarmStatusCommand(Command):
         try:
             service = _get_swarm_service(context)
             service.get_status()
-            return CommandResult(
-                status=CommandStatus.SUCCESS,
-                message=""
-            )
+            return CommandResult(status=CommandStatus.SUCCESS, message="")
         except Exception as e:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message=f"Failed to get swarm status: {e}"
-            )
+            return CommandResult(status=CommandStatus.ERROR, message=f"Failed to get swarm status: {e}")
 
 
 class SwarmFSMCommand(Command):
@@ -127,7 +107,7 @@ class SwarmFSMCommand(Command):
         return "/swarm-fsm"
 
     @property
-    def aliases(self) -> List[str]:
+    def aliases(self) -> list[str]:
         return []
 
     @property
@@ -143,7 +123,7 @@ class SwarmFSMCommand(Command):
         if not args.strip():
             return CommandResult(
                 status=CommandStatus.INVALID_ARGS,
-                message="Usage: /swarm-fsm <task description>\nDebug: Uses FSM states (SWARM_ANALYZING -> NEGOTIATING -> EXECUTING)"
+                message="Usage: /swarm-fsm <task description>\nDebug: Uses FSM states (SWARM_ANALYZING -> NEGOTIATING -> EXECUTING)",
             )
 
         try:
@@ -151,20 +131,11 @@ class SwarmFSMCommand(Command):
             result = service.run_task_fsm(args.strip())
 
             if result.success:
-                return CommandResult(
-                    status=CommandStatus.SUCCESS,
-                    message=""
-                )
+                return CommandResult(status=CommandStatus.SUCCESS, message="")
             else:
-                return CommandResult(
-                    status=CommandStatus.ERROR,
-                    message=result.error or "Swarm FSM task failed"
-                )
+                return CommandResult(status=CommandStatus.ERROR, message=result.error or "Swarm FSM task failed")
         except Exception as e:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message=f"Swarm FSM task failed: {e}"
-            )
+            return CommandResult(status=CommandStatus.ERROR, message=f"Swarm FSM task failed: {e}")
 
 
 def register_swarm_commands(registry: "CommandRegistry") -> None:

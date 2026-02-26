@@ -20,20 +20,20 @@ import pytest
 from core.intelligence.reasoning.inspector_guard import (
     ERROR_INDICATORS,
     HALLUCINATION_INDICATORS,
+    STAGNATION_INDICATORS,
     GuardStats,
     InspectionResult,
     InspectorGuard,
     IssuePattern,
     RiskLevel,
-    STAGNATION_INDICATORS,
     get_inspector_guard,
     reset_inspector_guard,
 )
 
-
 # =============================================================================
 # Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def guard():
@@ -76,6 +76,7 @@ def _make_inspection(
 # 1. RiskLevel Enum
 # =============================================================================
 
+
 class TestRiskLevel:
     """Tests for the RiskLevel enum."""
 
@@ -102,6 +103,7 @@ class TestRiskLevel:
 # =============================================================================
 # 2. IssuePattern Enum
 # =============================================================================
+
 
 class TestIssuePattern:
     """Tests for the IssuePattern enum."""
@@ -131,6 +133,7 @@ class TestIssuePattern:
 # =============================================================================
 # 3. InspectionResult Dataclass
 # =============================================================================
+
 
 class TestInspectionResult:
     """Tests for InspectionResult fields and properties."""
@@ -164,9 +167,7 @@ class TestInspectionResult:
         assert before <= result.inspected_at <= after
 
     def test_detected_patterns_list(self):
-        result = _make_inspection(
-            detected_patterns=[IssuePattern.STAGNATION, IssuePattern.REPEATED_ERROR]
-        )
+        result = _make_inspection(detected_patterns=[IssuePattern.STAGNATION, IssuePattern.REPEATED_ERROR])
         assert len(result.detected_patterns) == 2
         assert IssuePattern.STAGNATION in result.detected_patterns
 
@@ -182,6 +183,7 @@ class TestInspectionResult:
 # =============================================================================
 # 4. GuardStats Dataclass
 # =============================================================================
+
 
 class TestGuardStats:
     """Tests for GuardStats dataclass."""
@@ -216,6 +218,7 @@ class TestGuardStats:
 # 5. inspect_step: Clean Output (LOW risk)
 # =============================================================================
 
+
 class TestCleanOutput:
     """Tests that clean output produces LOW risk."""
 
@@ -249,6 +252,7 @@ class TestCleanOutput:
 # =============================================================================
 # 6. inspect_step: Error Status
 # =============================================================================
+
 
 class TestErrorStatus:
     """Tests that error status boosts risk score."""
@@ -311,20 +315,24 @@ class TestErrorStatus:
 # 7. inspect_step: Hallucination Indicators
 # =============================================================================
 
+
 class TestHallucinationIndicators:
     """Tests for hallucination detection in output."""
 
-    @pytest.mark.parametrize("indicator", [
-        "I cannot access the file",
-        "file not found in the system",
-        "the module does not exist",
-        "no such file or directory",
-        "unable to locate the resource",
-        "I don't have access to that",
-        "I'm unable to complete this",
-        "As an AI, I cannot do that",
-        "I apologize for the confusion",
-    ])
+    @pytest.mark.parametrize(
+        "indicator",
+        [
+            "I cannot access the file",
+            "file not found in the system",
+            "the module does not exist",
+            "no such file or directory",
+            "unable to locate the resource",
+            "I don't have access to that",
+            "I'm unable to complete this",
+            "As an AI, I cannot do that",
+            "I apologize for the confusion",
+        ],
+    )
     def test_single_hallucination_indicator(self, guard, indicator):
         result = guard.inspect_step(
             step_name="halluc_step",
@@ -334,11 +342,7 @@ class TestHallucinationIndicators:
         assert result.risk_score > 0.0
 
     def test_multiple_hallucination_indicators_boost_score(self, guard):
-        output = (
-            "I cannot access the file. "
-            "I apologize for the confusion. "
-            "As an AI, I'm unable to help."
-        )
+        output = "I cannot access the file. I apologize for the confusion. As an AI, I'm unable to help."
         result = guard.inspect_step(
             step_name="multi_halluc",
             step_output=output,
@@ -358,22 +362,26 @@ class TestHallucinationIndicators:
 # 8. inspect_step: Error Indicators
 # =============================================================================
 
+
 class TestErrorIndicators:
     """Tests for error pattern detection in output."""
 
-    @pytest.mark.parametrize("indicator", [
-        "Error: something failed",
-        "Exception: unexpected value",
-        "Traceback (most recent call last):",
-        "Failed: test_something",
-        "SyntaxError: invalid syntax",
-        "TypeError: unsupported operand",
-        "NameError: name 'x' is not defined",
-        "KeyError: 'missing_key'",
-        "ValueError: invalid literal",
-        "ImportError: cannot import name",
-        "AttributeError: object has no attribute",
-    ])
+    @pytest.mark.parametrize(
+        "indicator",
+        [
+            "Error: something failed",
+            "Exception: unexpected value",
+            "Traceback (most recent call last):",
+            "Failed: test_something",
+            "SyntaxError: invalid syntax",
+            "TypeError: unsupported operand",
+            "NameError: name 'x' is not defined",
+            "KeyError: 'missing_key'",
+            "ValueError: invalid literal",
+            "ImportError: cannot import name",
+            "AttributeError: object has no attribute",
+        ],
+    )
     def test_single_error_indicator(self, guard, indicator):
         result = guard.inspect_step(
             step_name="err_indicator",
@@ -400,17 +408,21 @@ class TestErrorIndicators:
 # 9. inspect_step: Stagnation Indicators
 # =============================================================================
 
+
 class TestStagnationIndicators:
     """Tests for stagnation pattern detection."""
 
-    @pytest.mark.parametrize("indicator", [
-        "let me try again with a different approach",
-        "I'll attempt to fix this issue",
-        "Trying a different approach now",
-        "Same result as before",
-        "Still failing after multiple attempts",
-        "No change in the output",
-    ])
+    @pytest.mark.parametrize(
+        "indicator",
+        [
+            "let me try again with a different approach",
+            "I'll attempt to fix this issue",
+            "Trying a different approach now",
+            "Same result as before",
+            "Still failing after multiple attempts",
+            "No change in the output",
+        ],
+    )
     def test_single_stagnation_indicator(self, guard, indicator):
         result = guard.inspect_step(
             step_name="stag_step",
@@ -430,6 +442,7 @@ class TestStagnationIndicators:
 # =============================================================================
 # 10. inspect_step: Issues List
 # =============================================================================
+
 
 class TestIssuesList:
     """Tests for issue scoring based on severity."""
@@ -507,6 +520,7 @@ class TestIssuesList:
 # 11. Pattern Detection: REPEATED_ERROR
 # =============================================================================
 
+
 class TestRepeatedErrorPattern:
     """Tests for REPEATED_ERROR pattern detection."""
 
@@ -541,6 +555,7 @@ class TestRepeatedErrorPattern:
 # =============================================================================
 # 12. Pattern Detection: ESCALATING_SEVERITY
 # =============================================================================
+
 
 class TestEscalatingSeverityPattern:
     """Tests for ESCALATING_SEVERITY pattern detection."""
@@ -602,6 +617,7 @@ class TestEscalatingSeverityPattern:
 # 13. Pattern Detection: CASCADING_FAILURE
 # =============================================================================
 
+
 class TestCascadingFailurePattern:
     """Tests for CASCADING_FAILURE pattern detection."""
 
@@ -649,6 +665,7 @@ class TestCascadingFailurePattern:
 # 14. Pattern Detection: HALLUCINATION_CLUSTER
 # =============================================================================
 
+
 class TestHallucinationClusterPattern:
     """Tests for HALLUCINATION_CLUSTER pattern detection."""
 
@@ -669,12 +686,7 @@ class TestHallucinationClusterPattern:
         assert IssuePattern.HALLUCINATION_CLUSTER not in result.detected_patterns
 
     def test_cluster_with_many_indicators(self, guard):
-        output = (
-            "I cannot access the file. "
-            "File not found. "
-            "Unable to locate the resource. "
-            "I apologize for the error."
-        )
+        output = "I cannot access the file. File not found. Unable to locate the resource. I apologize for the error."
         result = guard.inspect_step(
             step_name="many_halluc",
             step_output=output,
@@ -685,6 +697,7 @@ class TestHallucinationClusterPattern:
 # =============================================================================
 # 15. Pattern Detection: STAGNATION
 # =============================================================================
+
 
 class TestStagnationPattern:
     """Tests for STAGNATION pattern detection."""
@@ -709,6 +722,7 @@ class TestStagnationPattern:
 # =============================================================================
 # 16. Risk Score Boosting
 # =============================================================================
+
 
 class TestRiskScoreBoosting:
     """Tests that detected patterns boost the composite risk score."""
@@ -792,6 +806,7 @@ class TestRiskScoreBoosting:
 # 17. requires_diagnosis Threshold
 # =============================================================================
 
+
 class TestDiagnosisThreshold:
     """Tests for the diagnosis threshold behavior."""
 
@@ -846,6 +861,7 @@ class TestDiagnosisThreshold:
 # =============================================================================
 # 18. Suggestions Generation
 # =============================================================================
+
 
 class TestSuggestions:
     """Tests for suggestion generation per pattern."""
@@ -920,8 +936,7 @@ class TestSuggestions:
             previous_inspections=history,
         )
         if IssuePattern.OUTPUT_DEGRADATION in result.detected_patterns:
-            assert any("declining" in s.lower() or "degradation" in s.lower()
-                        for s in result.suggestions)
+            assert any("declining" in s.lower() or "degradation" in s.lower() for s in result.suggestions)
 
     def test_high_risk_no_pattern_suggestion(self, guard):
         """High risk score without specific patterns triggers manual review."""
@@ -940,6 +955,7 @@ class TestSuggestions:
 # =============================================================================
 # 19. get_stats Tracking
 # =============================================================================
+
 
 class TestGetStats:
     """Tests for statistics tracking via get_stats()."""
@@ -1000,6 +1016,7 @@ class TestGetStats:
 # 20. Singleton Pattern
 # =============================================================================
 
+
 class TestSingleton:
     """Tests for get_inspector_guard() / reset_inspector_guard() singleton."""
 
@@ -1047,6 +1064,7 @@ class TestSingleton:
 # =============================================================================
 # 21. Edge Cases
 # =============================================================================
+
 
 class TestEdgeCases:
     """Edge case testing for robustness."""
@@ -1102,8 +1120,7 @@ class TestEdgeCases:
             previous_inspections=[],
         )
         assert result.detected_patterns == [] or all(
-            p in (IssuePattern.HALLUCINATION_CLUSTER, IssuePattern.STAGNATION)
-            for p in result.detected_patterns
+            p in (IssuePattern.HALLUCINATION_CLUSTER, IssuePattern.STAGNATION) for p in result.detected_patterns
         )
 
     def test_empty_history_list(self, guard):
@@ -1171,6 +1188,7 @@ class TestEdgeCases:
 # Additional: Issue Summary
 # =============================================================================
 
+
 class TestIssueSummary:
     """Tests for the issue summary output."""
 
@@ -1218,6 +1236,7 @@ class TestIssueSummary:
 # Additional: Regex Pattern Lists
 # =============================================================================
 
+
 class TestRegexPatterns:
     """Tests that the regex pattern lists are properly defined."""
 
@@ -1243,6 +1262,7 @@ class TestRegexPatterns:
 # =============================================================================
 # Additional: Output Degradation Pattern
 # =============================================================================
+
 
 class TestOutputDegradationPattern:
     """Tests for OUTPUT_DEGRADATION pattern detection."""
@@ -1279,6 +1299,7 @@ class TestOutputDegradationPattern:
 # Additional: Threshold property
 # =============================================================================
 
+
 class TestThresholdProperty:
     """Tests for the threshold property."""
 
@@ -1299,6 +1320,7 @@ class TestThresholdProperty:
 # =============================================================================
 # Additional: Combined Scenario Tests
 # =============================================================================
+
 
 class TestCombinedScenarios:
     """Integration-style tests combining multiple signals."""

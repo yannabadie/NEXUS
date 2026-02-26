@@ -18,8 +18,6 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.utils.schema_registry import (
     FieldSchema,
     SchemaDefinition,
@@ -30,10 +28,10 @@ from core.utils.schema_registry import (
     reset_schema_registry,
 )
 
-
 # =============================================================================
 # FieldSchema Tests
 # =============================================================================
+
 
 class TestFieldSchema:
     """Test FieldSchema dataclass."""
@@ -60,22 +58,29 @@ class TestFieldSchema:
 # SchemaDefinition Tests
 # =============================================================================
 
+
 class TestSchemaDefinition:
     """Test SchemaDefinition dataclass."""
 
     def test_required_fields(self):
-        s = SchemaDefinition(name="test", fields={
-            "a": FieldSchema(name="a", required=True),
-            "b": FieldSchema(name="b", required=False),
-            "c": FieldSchema(name="c", required=True),
-        })
+        s = SchemaDefinition(
+            name="test",
+            fields={
+                "a": FieldSchema(name="a", required=True),
+                "b": FieldSchema(name="b", required=False),
+                "c": FieldSchema(name="c", required=True),
+            },
+        )
         assert sorted(s.required_fields) == ["a", "c"]
 
     def test_optional_fields(self):
-        s = SchemaDefinition(name="test", fields={
-            "a": FieldSchema(name="a", required=True),
-            "b": FieldSchema(name="b", required=False),
-        })
+        s = SchemaDefinition(
+            name="test",
+            fields={
+                "a": FieldSchema(name="a", required=True),
+                "b": FieldSchema(name="b", required=False),
+            },
+        )
         assert s.optional_fields == ["b"]
 
     def test_to_dict(self):
@@ -88,6 +93,7 @@ class TestSchemaDefinition:
 # =============================================================================
 # Validation Result Tests
 # =============================================================================
+
 
 class TestValidationResult:
     """Test validation result types."""
@@ -109,6 +115,7 @@ class TestValidationResult:
 # Register Tests
 # =============================================================================
 
+
 class TestRegister:
     """Test schema registration."""
 
@@ -125,11 +132,14 @@ class TestRegister:
 
     def test_register_field_types(self):
         reg = SchemaRegistry()
-        s = reg.register("test", {
-            "name": {"type": "str", "required": True},
-            "count": {"type": "int", "default": 0},
-            "tags": {"type": "list"},
-        })
+        s = reg.register(
+            "test",
+            {
+                "name": {"type": "str", "required": True},
+                "count": {"type": "int", "default": 0},
+                "tags": {"type": "list"},
+            },
+        )
         assert s.fields["name"].field_type == "str"
         assert s.fields["count"].default == 0
 
@@ -165,23 +175,30 @@ class TestRegister:
 # Validate Tests - Required Fields
 # =============================================================================
 
+
 class TestValidateRequired:
     """Test required field validation."""
 
     def test_all_required_present(self):
         reg = SchemaRegistry()
-        reg.register("test", {
-            "a": {"type": "str", "required": True},
-            "b": {"type": "str", "required": True},
-        })
+        reg.register(
+            "test",
+            {
+                "a": {"type": "str", "required": True},
+                "b": {"type": "str", "required": True},
+            },
+        )
         result = reg.validate("test", {"a": "x", "b": "y"})
         assert result.is_valid is True
 
     def test_missing_required(self):
         reg = SchemaRegistry()
-        reg.register("test", {
-            "a": {"type": "str", "required": True},
-        })
+        reg.register(
+            "test",
+            {
+                "a": {"type": "str", "required": True},
+            },
+        )
         result = reg.validate("test", {})
         assert result.is_valid is False
         assert len(result.errors) == 1
@@ -189,9 +206,12 @@ class TestValidateRequired:
 
     def test_optional_missing_ok(self):
         reg = SchemaRegistry()
-        reg.register("test", {
-            "a": {"type": "str", "required": False},
-        })
+        reg.register(
+            "test",
+            {
+                "a": {"type": "str", "required": False},
+            },
+        )
         result = reg.validate("test", {})
         assert result.is_valid is True
 
@@ -199,6 +219,7 @@ class TestValidateRequired:
 # =============================================================================
 # Validate Tests - Type Checking
 # =============================================================================
+
 
 class TestValidateTypes:
     """Test type checking validation."""
@@ -266,6 +287,7 @@ class TestValidateTypes:
 # Validate Tests - Choices
 # =============================================================================
 
+
 class TestValidateChoices:
     """Test choice validation."""
 
@@ -285,6 +307,7 @@ class TestValidateChoices:
 # =============================================================================
 # Validate Tests - Edge Cases
 # =============================================================================
+
 
 class TestValidateEdge:
     """Test edge cases."""
@@ -309,10 +332,13 @@ class TestValidateEdge:
 
     def test_multiple_errors(self):
         reg = SchemaRegistry()
-        reg.register("t", {
-            "a": {"type": "str", "required": True},
-            "b": {"type": "int", "required": True},
-        })
+        reg.register(
+            "t",
+            {
+                "a": {"type": "str", "required": True},
+                "b": {"type": "int", "required": True},
+            },
+        )
         result = reg.validate("t", {})
         assert len(result.errors) == 2
 
@@ -320,6 +346,7 @@ class TestValidateEdge:
 # =============================================================================
 # Listing Tests
 # =============================================================================
+
 
 class TestListing:
     """Test schema listing."""
@@ -355,6 +382,7 @@ class TestListing:
 # State Tests
 # =============================================================================
 
+
 class TestState:
     """Test state management."""
 
@@ -383,6 +411,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global schema registry."""
 
@@ -409,23 +438,33 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_utils_package(self):
         from core.utils import (
-            SchemaRegistry, SchemaDefinition, SchemaValidationResult,
-            get_schema_registry, reset_schema_registry,
+            SchemaDefinition,
+            SchemaRegistry,
+            SchemaValidationResult,
+            get_schema_registry,
+            reset_schema_registry,
         )
-        assert all([
-            SchemaRegistry, SchemaDefinition, SchemaValidationResult,
-            get_schema_registry, reset_schema_registry,
-        ])
+
+        assert all(
+            [
+                SchemaRegistry,
+                SchemaDefinition,
+                SchemaValidationResult,
+                get_schema_registry,
+                reset_schema_registry,
+            ]
+        )
 
     def test_from_module(self):
         from core.utils.schema_registry import (
-            SchemaRegistry, FieldSchema, SchemaValidationError,
             VALID_TYPES,
         )
+
         assert "str" in VALID_TYPES
         assert "any" in VALID_TYPES

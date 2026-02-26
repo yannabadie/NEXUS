@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any
 
 from .base import BaseHandler, ToolResult
 
@@ -30,7 +30,7 @@ class GlobHandler(BaseHandler):
     def tool_name(self) -> str:
         return "glob"
 
-    def execute(self, args: Dict[str, Any]) -> ToolResult:
+    def execute(self, args: dict[str, Any]) -> ToolResult:
         """
         Find files matching a pattern.
 
@@ -61,7 +61,7 @@ class GlobHandler(BaseHandler):
                     tool_name=self.tool_name,
                     status="BLOCKED",
                     output="",
-                    error=f"[SECURITY] Search not allowed for: {search_path}"
+                    error=f"[SECURITY] Search not allowed for: {search_path}",
                 )
 
             if not search_path.exists():
@@ -109,7 +109,7 @@ class GrepHandler(BaseHandler):
     def tool_name(self) -> str:
         return "grep"
 
-    def execute(self, args: Dict[str, Any]) -> ToolResult:
+    def execute(self, args: dict[str, Any]) -> ToolResult:
         """
         Search code for patterns.
 
@@ -144,7 +144,7 @@ class GrepHandler(BaseHandler):
                     tool_name=self.tool_name,
                     status="BLOCKED",
                     output="",
-                    error=f"[SECURITY] Search not allowed for: {search_path}"
+                    error=f"[SECURITY] Search not allowed for: {search_path}",
                 )
 
             if not search_path.exists():
@@ -168,8 +168,8 @@ class GrepHandler(BaseHandler):
                 files_searched += 1
 
                 try:
-                    content = file_path.read_text(encoding='utf-8', errors='replace')
-                    lines = content.split('\n')
+                    content = file_path.read_text(encoding="utf-8", errors="replace")
+                    lines = content.split("\n")
 
                     for line_num, line in enumerate(lines, start=1):
                         if regex.search(line):
@@ -208,8 +208,8 @@ class GrepHandler(BaseHandler):
 # Factory function
 def create_search_handlers(
     workspace_path: Path,
-    validation_service: Optional[Any] = None,
-) -> Dict[str, BaseHandler]:
+    validation_service: Any | None = None,
+) -> dict[str, BaseHandler]:
     """
     Create search handlers.
 

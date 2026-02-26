@@ -7,23 +7,26 @@ Tests cover:
 - AsyncBlackboard: Task status tracking
 """
 
-import pytest
 import asyncio
 import sys
-from pathlib import Path
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from datetime import datetime
+from unittest.mock import MagicMock
+
+import pytest
 
 # Add project root to path
-sys.path.insert(0, str(__file__).replace("\\tests\\test_async_hive_mind.py", "").replace("/tests/test_async_hive_mind.py", ""))
+sys.path.insert(
+    0, str(__file__).replace("\\tests\\test_async_hive_mind.py", "").replace("/tests/test_async_hive_mind.py", "")
+)
 
-from core.foundation.async_primitives import CancellationToken, AsyncBlackboard
+import contextlib
+
+from core.foundation.async_primitives import AsyncBlackboard, CancellationToken
 from core.intelligence.hive_mind.async_adapter import AsyncHiveMindAdapter
-
 
 # ============================================================================
 # Mock HiveMind
 # ============================================================================
+
 
 def create_mock_hive_mind(success: bool = True, duration: float = 0.1):
     """Create a mock TrueHiveMind."""
@@ -52,6 +55,7 @@ def create_mock_hive_mind(success: bool = True, duration: float = 0.1):
 # AsyncHiveMindAdapter Tests
 # ============================================================================
 
+
 class TestAsyncHiveMindAdapter:
     """Tests for AsyncHiveMindAdapter."""
 
@@ -68,11 +72,7 @@ class TestAsyncHiveMindAdapter:
     @pytest.fixture
     def adapter(self, mock_hive_mind, blackboard):
         """Create adapter with mocks."""
-        return AsyncHiveMindAdapter(
-            hive_mind=mock_hive_mind,
-            driver_factory=None,
-            blackboard=blackboard
-        )
+        return AsyncHiveMindAdapter(hive_mind=mock_hive_mind, driver_factory=None, blackboard=blackboard)
 
     @pytest.mark.asyncio
     async def test_process_task_success(self, adapter):
@@ -130,7 +130,7 @@ class TestAsyncHiveMindAdapter:
 
         async def slow_process(task, complexity=None):
             # Simulate checking cancellation during work
-            for i in range(5):
+            for _i in range(5):
                 await asyncio.sleep(0.02)
                 if cancel_token_ref[0] and cancel_token_ref[0].is_cancelled:
                     raise asyncio.CancelledError("Cancelled during execution")
@@ -138,10 +138,7 @@ class TestAsyncHiveMindAdapter:
 
         slow_mock.process_task = slow_process
 
-        adapter = AsyncHiveMindAdapter(
-            hive_mind=slow_mock,
-            blackboard=blackboard
-        )
+        adapter = AsyncHiveMindAdapter(hive_mind=slow_mock, blackboard=blackboard)
 
         token = CancellationToken()
         cancel_token_ref[0] = token
@@ -156,10 +153,8 @@ class TestAsyncHiveMindAdapter:
             await adapter.process_task("Test task", token=token, session_uuid="slow-task")
 
         cancel_task.cancel()
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             await cancel_task
-        except asyncio.CancelledError:
-            pass
 
     @pytest.mark.asyncio
     async def test_cancel_task_by_uuid(self, adapter):
@@ -227,6 +222,7 @@ class TestAsyncHiveMindAdapter:
 # Integration Tests
 # ============================================================================
 
+
 class TestAsyncHiveMindIntegration:
     """Integration tests for async hive mind."""
 
@@ -235,10 +231,7 @@ class TestAsyncHiveMindIntegration:
         """Should handle multiple tasks concurrently."""
         mock_hive = create_mock_hive_mind()
         blackboard = AsyncBlackboard()
-        adapter = AsyncHiveMindAdapter(
-            hive_mind=mock_hive,
-            blackboard=blackboard
-        )
+        adapter = AsyncHiveMindAdapter(hive_mind=mock_hive, blackboard=blackboard)
 
         # Run multiple tasks concurrently
         results = await asyncio.gather(
@@ -263,7 +256,7 @@ class TestAsyncHiveMindIntegration:
 
         async def slow_process(task, complexity=None):
             # Simulate work that checks cancellation
-            for i in range(10):
+            for _i in range(10):
                 await asyncio.sleep(0.02)
                 if cancel_token_ref[0] and cancel_token_ref[0].is_cancelled:
                     raise asyncio.CancelledError("Cancelled during work")
@@ -272,10 +265,7 @@ class TestAsyncHiveMindIntegration:
         slow_mock.process_task = slow_process
 
         blackboard = AsyncBlackboard()
-        adapter = AsyncHiveMindAdapter(
-            hive_mind=slow_mock,
-            blackboard=blackboard
-        )
+        adapter = AsyncHiveMindAdapter(hive_mind=slow_mock, blackboard=blackboard)
 
         token = CancellationToken()
         cancel_token_ref[0] = token
@@ -287,11 +277,7 @@ class TestAsyncHiveMindIntegration:
         asyncio.create_task(cancel_soon())
 
         with pytest.raises(asyncio.CancelledError):
-            await adapter.process_task(
-                "Cancellable task",
-                token=token,
-                session_uuid="cancel-test"
-            )
+            await adapter.process_task("Cancellable task", token=token, session_uuid="cancel-test")
 
         # Started timestamp should still be in blackboard
         started = await blackboard.get("task_cancel-test_started")

@@ -8,10 +8,11 @@ Validates:
 4. AsyncDriverFactory integration
 5. Ctrl+C cancellation flow
 """
-import pytest
+
 import asyncio
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from pathlib import Path
+from unittest.mock import AsyncMock, Mock
+
+import pytest
 
 
 class TestCyborgEntryPoint:
@@ -21,12 +22,14 @@ class TestCyborgEntryPoint:
         """Verify asyncio is imported in nexus7."""
         # This would fail if asyncio wasn't imported
         import nexus7
-        assert hasattr(nexus7, 'asyncio') or 'asyncio' in dir(nexus7)
+
+        assert hasattr(nexus7, "asyncio") or "asyncio" in dir(nexus7)
 
     def test_async_main_exists(self):
         """Verify async_main function exists."""
         import nexus7
-        assert hasattr(nexus7, 'async_main')
+
+        assert hasattr(nexus7, "async_main")
         assert asyncio.iscoroutinefunction(nexus7.async_main)
 
 
@@ -36,19 +39,22 @@ class TestCyborgREPL:
     def test_run_async_method_exists(self):
         """Verify run_async method exists on REPL class."""
         from core.interface_pkg.interface.repl import InteractiveNexusV7
-        assert hasattr(InteractiveNexusV7, 'run_async')
+
+        assert hasattr(InteractiveNexusV7, "run_async")
         assert asyncio.iscoroutinefunction(InteractiveNexusV7.run_async)
 
     def test_process_turn_async_helper_exists(self):
         """Verify _process_turn_async helper exists."""
         from core.interface_pkg.interface.repl import InteractiveNexusV7
-        assert hasattr(InteractiveNexusV7, '_process_turn_async')
+
+        assert hasattr(InteractiveNexusV7, "_process_turn_async")
         assert asyncio.iscoroutinefunction(InteractiveNexusV7._process_turn_async)
 
     def test_patch_stdout_import(self):
         """Verify patch_stdout is imported for streaming."""
         from core.interface_pkg.interface import repl
-        assert 'patch_stdout' in dir(repl) or hasattr(repl, 'patch_stdout')
+
+        assert "patch_stdout" in dir(repl) or hasattr(repl, "patch_stdout")
 
 
 class TestCyborgOrchestrator:
@@ -57,25 +63,29 @@ class TestCyborgOrchestrator:
     def test_process_turn_async_exists(self):
         """Verify process_turn_async method exists."""
         from core.orchestration_v7 import OrchestratorV7
-        assert hasattr(OrchestratorV7, 'process_turn_async')
+
+        assert hasattr(OrchestratorV7, "process_turn_async")
         assert asyncio.iscoroutinefunction(OrchestratorV7.process_turn_async)
 
     def test_handle_async_state_exists(self):
         """Verify _handle_async_state helper exists."""
         from core.orchestration_v7 import OrchestratorV7
-        assert hasattr(OrchestratorV7, '_handle_async_state')
+
+        assert hasattr(OrchestratorV7, "_handle_async_state")
         assert asyncio.iscoroutinefunction(OrchestratorV7._handle_async_state)
 
     def test_handle_brainstorming_async_exists(self):
         """Verify _handle_brainstorming_async helper exists."""
         from core.orchestration_v7 import OrchestratorV7
-        assert hasattr(OrchestratorV7, '_handle_brainstorming_async')
+
+        assert hasattr(OrchestratorV7, "_handle_brainstorming_async")
         assert asyncio.iscoroutinefunction(OrchestratorV7._handle_brainstorming_async)
 
     def test_handle_cfl_async_exists(self):
         """Verify _handle_cfl_async helper exists."""
         from core.orchestration_v7 import OrchestratorV7
-        assert hasattr(OrchestratorV7, '_handle_cfl_async')
+
+        assert hasattr(OrchestratorV7, "_handle_cfl_async")
         assert asyncio.iscoroutinefunction(OrchestratorV7._handle_cfl_async)
 
 
@@ -85,16 +95,19 @@ class TestAsyncDriverFactory:
     def test_factory_module_exists(self):
         """Verify async_factory module exists."""
         from core.drivers import async_factory
+
         assert async_factory is not None
 
     def test_get_driver_factory_function(self):
         """Verify get_driver_factory function exists."""
         from core.drivers.async_factory import get_driver_factory
+
         assert callable(get_driver_factory)
 
     def test_factory_class_exists(self):
         """Verify AsyncDriverFactory class exists."""
         from core.drivers.async_factory import AsyncDriverFactory
+
         assert AsyncDriverFactory is not None
 
     @pytest.mark.asyncio
@@ -129,6 +142,7 @@ class TestCtrlCCancellation:
     @pytest.mark.asyncio
     async def test_cancelled_error_handled_gracefully(self):
         """CancelledError should be caught and handled."""
+
         async def cancellable_task():
             await asyncio.sleep(10)
 
@@ -160,6 +174,7 @@ class TestAsyncPrimitives:
         """Verify CancellationToken is available."""
         try:
             from core.foundation.async_primitives import CancellationToken
+
             assert CancellationToken is not None
         except ImportError:
             pytest.skip("async_primitives not available")
@@ -168,6 +183,7 @@ class TestAsyncPrimitives:
         """Verify AsyncProcessHandle is available."""
         try:
             from core.foundation.async_primitives import AsyncProcessHandle
+
             assert AsyncProcessHandle is not None
         except ImportError:
             pytest.skip("async_primitives not available")
@@ -179,13 +195,15 @@ class TestDualModeCompatibility:
     def test_sync_run_still_exists(self):
         """Sync run() method must still exist."""
         from core.interface_pkg.interface.repl import InteractiveNexusV7
-        assert hasattr(InteractiveNexusV7, 'run')
+
+        assert hasattr(InteractiveNexusV7, "run")
         # run() should NOT be async
         assert not asyncio.iscoroutinefunction(InteractiveNexusV7.run)
 
     def test_sync_process_turn_still_exists(self):
         """Sync process_turn() method must still exist."""
         from core.orchestration_v7 import OrchestratorV7
-        assert hasattr(OrchestratorV7, 'process_turn')
+
+        assert hasattr(OrchestratorV7, "process_turn")
         # process_turn() should NOT be async
         assert not asyncio.iscoroutinefunction(OrchestratorV7.process_turn)

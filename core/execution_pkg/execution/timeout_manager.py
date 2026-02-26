@@ -28,8 +28,8 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -48,14 +48,16 @@ MAX_DEADLINES = 10000
 # Types
 # =============================================================================
 
+
 @dataclass
 class TimeoutConfig:
     """Timeout configuration for a tool."""
+
     name: str
     timeout_seconds: float = DEFAULT_TIMEOUT
     description: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "timeout_seconds": self.timeout_seconds,
@@ -66,6 +68,7 @@ class TimeoutConfig:
 @dataclass
 class Deadline:
     """A tracked deadline."""
+
     task_id: str
     deadline_at: float  # monotonic time
     created_at: float = 0.0
@@ -84,7 +87,7 @@ class Deadline:
     def is_expired(self) -> bool:
         return time.monotonic() >= self.deadline_at
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "task_id": self.task_id,
             "remaining_seconds": round(self.remaining, 2),
@@ -96,6 +99,7 @@ class Deadline:
 @dataclass
 class TimeoutEvent:
     """Record of a timeout occurrence."""
+
     tool_name: str
     timeout_seconds: float
     timestamp: float = 0.0
@@ -104,7 +108,7 @@ class TimeoutEvent:
         if self.timestamp == 0.0:
             self.timestamp = time.monotonic()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "tool_name": self.tool_name,
             "timeout_seconds": self.timeout_seconds,
@@ -114,12 +118,13 @@ class TimeoutEvent:
 @dataclass
 class TimeoutStats:
     """Timeout manager statistics."""
+
     configured_tools: int
     active_deadlines: int
     expired_deadlines: int
     total_timeouts_recorded: int
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "configured_tools": self.configured_tools,
             "active_deadlines": self.active_deadlines,
@@ -131,6 +136,7 @@ class TimeoutStats:
 # =============================================================================
 # Timeout Manager
 # =============================================================================
+
 
 class TimeoutManager:
     """
@@ -146,9 +152,9 @@ class TimeoutManager:
     """
 
     def __init__(self):
-        self._configs: Dict[str, TimeoutConfig] = {}
-        self._deadlines: Dict[str, Deadline] = {}
-        self._timeout_events: List[TimeoutEvent] = []
+        self._configs: dict[str, TimeoutConfig] = {}
+        self._deadlines: dict[str, Deadline] = {}
+        self._timeout_events: list[TimeoutEvent] = []
         self._lock = threading.Lock()
 
     # =========================================================================
@@ -185,11 +191,11 @@ class TimeoutManager:
         config = self._configs.get(tool_name)
         return config.timeout_seconds if config else DEFAULT_TIMEOUT
 
-    def get_config(self, tool_name: str) -> Optional[TimeoutConfig]:
+    def get_config(self, tool_name: str) -> TimeoutConfig | None:
         """Get timeout configuration for a tool."""
         return self._configs.get(tool_name)
 
-    def list_configs(self) -> List[TimeoutConfig]:
+    def list_configs(self) -> list[TimeoutConfig]:
         """List all configured tool timeouts."""
         return list(self._configs.values())
 
@@ -218,7 +224,7 @@ class TimeoutManager:
             self._deadlines[task_id] = deadline
         return deadline
 
-    def get_deadline(self, task_id: str) -> Optional[Deadline]:
+    def get_deadline(self, task_id: str) -> Deadline | None:
         """Get a deadline by task ID."""
         return self._deadlines.get(task_id)
 
@@ -241,11 +247,11 @@ class TimeoutManager:
         with self._lock:
             return self._deadlines.pop(task_id, None) is not None
 
-    def get_active_deadlines(self) -> List[Deadline]:
+    def get_active_deadlines(self) -> list[Deadline]:
         """Get all non-expired deadlines."""
         return [d for d in self._deadlines.values() if not d.is_expired]
 
-    def get_expired_deadlines(self) -> List[Deadline]:
+    def get_expired_deadlines(self) -> list[Deadline]:
         """Get all expired deadlines."""
         return [d for d in self._deadlines.values() if d.is_expired]
 
@@ -268,7 +274,7 @@ class TimeoutManager:
             self._timeout_events.append(event)
         return event
 
-    def get_timeout_events(self, *, tool_name: Optional[str] = None) -> List[TimeoutEvent]:
+    def get_timeout_events(self, *, tool_name: str | None = None) -> list[TimeoutEvent]:
         """Get timeout events, optionally filtered by tool."""
         if tool_name is None:
             return list(self._timeout_events)
@@ -308,7 +314,7 @@ class TimeoutManager:
             self._deadlines.clear()
             self._timeout_events.clear()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "config_count": self.config_count,
             "deadline_count": self.deadline_count,
@@ -320,7 +326,7 @@ class TimeoutManager:
 # Global Instance
 # =============================================================================
 
-_manager: Optional[TimeoutManager] = None
+_manager: TimeoutManager | None = None
 _manager_lock = threading.Lock()
 
 

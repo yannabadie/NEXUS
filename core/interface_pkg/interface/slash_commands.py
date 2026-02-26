@@ -68,7 +68,7 @@ COMMAND_CATEGORIES = {
 
 # Flat dictionary for backwards compatibility
 SLASH_COMMANDS = {}
-for category, commands in COMMAND_CATEGORIES.items():
+for _category, commands in COMMAND_CATEGORIES.items():
     SLASH_COMMANDS.update(commands)
 
 
@@ -80,7 +80,8 @@ def get_help_message() -> str:
         Formatted help string with categories
     """
     # Get version from core module
-    from core import __version__, __codename__
+    from core import __codename__, __version__
+
     lines = [
         "╔══════════════════════════════════════════════════════════════╗",
         f"║       NEXUS V{__version__} {__codename__} - Command Reference      ║",
@@ -114,7 +115,7 @@ def get_category_for_command(cmd: str) -> str:
     """
     cmd_base = cmd.split()[0].lower()
     for category, commands in COMMAND_CATEGORIES.items():
-        for command in commands.keys():
+        for command in commands:
             if command.split()[0].lower() == cmd_base:
                 return category
     return "Unknown"
@@ -130,7 +131,7 @@ def is_slash_command(user_input: str) -> bool:
     Returns:
         True if starts with '/'
     """
-    return user_input.strip().startswith('/')
+    return user_input.strip().startswith("/")
 
 
 def is_exit_command(user_input: str) -> bool:
@@ -143,7 +144,7 @@ def is_exit_command(user_input: str) -> bool:
     Returns:
         True if 'exit', 'quit', or 'q'
     """
-    return user_input.strip().lower() in ['exit', 'quit', 'q']
+    return user_input.strip().lower() in ["exit", "quit", "q"]
 
 
 def parse_command(user_input: str) -> tuple:
@@ -169,6 +170,6 @@ def parse_command(user_input: str) -> tuple:
     """
     parts = user_input.strip().split(maxsplit=1)
     command = parts[0].lower()
-    args = parts[1] if len(parts) > 1 else ''
+    args = parts[1] if len(parts) > 1 else ""
 
     return command, args

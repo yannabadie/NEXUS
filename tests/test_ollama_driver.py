@@ -15,30 +15,28 @@ Validates:
 
 import asyncio
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from core.drivers.protocol import (
-    DriverResponse,
-    DriverResponseStatus,
-    ToolCall,
-    StreamChunk,
-)
 from core.drivers.ollama_driver import (
-    OllamaDriver,
     DEFAULT_BASE_URL,
     DEFAULT_MODEL,
     DEFAULT_TIMEOUT,
+    OllamaDriver,
 )
-
+from core.drivers.protocol import (
+    DriverResponseStatus,
+)
 
 # =============================================================================
 # Fixtures
 # =============================================================================
 
+
 class MockResponse:
     """Mock httpx response."""
+
     def __init__(self, status_code=200, data=None, text=""):
         self.status_code = status_code
         self._data = data or {}
@@ -86,6 +84,7 @@ def mock_httpx():
 # Initialization Tests
 # =============================================================================
 
+
 class TestInitialization:
     """Test driver initialization."""
 
@@ -123,6 +122,7 @@ class TestInitialization:
 # =============================================================================
 # Invoke Tests
 # =============================================================================
+
 
 class TestInvoke:
     """Test invoke method."""
@@ -180,9 +180,7 @@ class TestInvoke:
 
     @pytest.mark.asyncio
     async def test_invoke_http_error(self, mock_httpx):
-        mock_httpx.post = AsyncMock(
-            return_value=MockResponse(500, text="Internal Server Error")
-        )
+        mock_httpx.post = AsyncMock(return_value=MockResponse(500, text="Internal Server Error"))
 
         driver = OllamaDriver()
         response = await driver.invoke("Hello")
@@ -193,7 +191,7 @@ class TestInvoke:
 
     @pytest.mark.asyncio
     async def test_invoke_timeout(self, mock_httpx):
-        mock_httpx.post = AsyncMock(side_effect=asyncio.TimeoutError())
+        mock_httpx.post = AsyncMock(side_effect=TimeoutError())
 
         driver = OllamaDriver()
         response = await driver.invoke("Hello")
@@ -224,29 +222,34 @@ class TestInvoke:
 # Tool Formatting Tests
 # =============================================================================
 
+
 class TestToolFormatting:
     """Test tool definition formatting."""
 
     def test_openai_format_passthrough(self):
         driver = OllamaDriver()
-        tools = [{
-            "type": "function",
-            "function": {
-                "name": "search",
-                "description": "Search the web",
-                "parameters": {"type": "object"},
-            },
-        }]
+        tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "search",
+                    "description": "Search the web",
+                    "parameters": {"type": "object"},
+                },
+            }
+        ]
         formatted = driver._format_tools(tools)
         assert formatted == tools
 
     def test_simple_format_conversion(self):
         driver = OllamaDriver()
-        tools = [{
-            "name": "read_file",
-            "description": "Read a file",
-            "parameters": {"type": "object", "properties": {"path": {"type": "string"}}},
-        }]
+        tools = [
+            {
+                "name": "read_file",
+                "description": "Read a file",
+                "parameters": {"type": "object", "properties": {"path": {"type": "string"}}},
+            }
+        ]
         formatted = driver._format_tools(tools)
         assert formatted[0]["type"] == "function"
         assert formatted[0]["function"]["name"] == "read_file"
@@ -254,10 +257,12 @@ class TestToolFormatting:
 
     def test_input_schema_key(self):
         driver = OllamaDriver()
-        tools = [{
-            "name": "bash",
-            "input_schema": {"type": "object"},
-        }]
+        tools = [
+            {
+                "name": "bash",
+                "input_schema": {"type": "object"},
+            }
+        ]
         formatted = driver._format_tools(tools)
         assert formatted[0]["function"]["parameters"] == {"type": "object"}
 
@@ -265,6 +270,7 @@ class TestToolFormatting:
 # =============================================================================
 # Response Parsing Tests
 # =============================================================================
+
 
 class TestResponseParsing:
     """Test response parsing."""
@@ -285,12 +291,14 @@ class TestResponseParsing:
         driver = OllamaDriver()
         data = _make_chat_response(
             content="",
-            tool_calls=[{
-                "function": {
-                    "name": "calculator",
-                    "arguments": {"expr": "2+2"},
-                },
-            }],
+            tool_calls=[
+                {
+                    "function": {
+                        "name": "calculator",
+                        "arguments": {"expr": "2+2"},
+                    },
+                }
+            ],
         )
         response = driver._parse_response(data, elapsed_ms=100.0)
 
@@ -320,14 +328,13 @@ class TestResponseParsing:
 # Health Check Tests
 # =============================================================================
 
+
 class TestHealthCheck:
     """Test health check functionality."""
 
     @pytest.mark.asyncio
     async def test_healthy(self, mock_httpx):
-        mock_httpx.get = AsyncMock(
-            return_value=MockResponse(200, _make_tags_response())
-        )
+        mock_httpx.get = AsyncMock(return_value=MockResponse(200, _make_tags_response()))
 
         driver = OllamaDriver()
         assert await driver.health_check() is True
@@ -351,6 +358,7 @@ class TestHealthCheck:
 # Model Listing Tests
 # =============================================================================
 
+
 class TestListModels:
     """Test model listing."""
 
@@ -360,9 +368,7 @@ class TestListModels:
             {"name": "llama3.1:latest", "size": 4000000000},
             {"name": "codellama:7b", "size": 3000000000},
         ]
-        mock_httpx.get = AsyncMock(
-            return_value=MockResponse(200, _make_tags_response(models))
-        )
+        mock_httpx.get = AsyncMock(return_value=MockResponse(200, _make_tags_response(models)))
 
         driver = OllamaDriver()
         result = await driver.list_models()
@@ -372,9 +378,7 @@ class TestListModels:
 
     @pytest.mark.asyncio
     async def test_list_models_empty(self, mock_httpx):
-        mock_httpx.get = AsyncMock(
-            return_value=MockResponse(200, {"models": []})
-        )
+        mock_httpx.get = AsyncMock(return_value=MockResponse(200, {"models": []}))
 
         driver = OllamaDriver()
         result = await driver.list_models()
@@ -392,6 +396,7 @@ class TestListModels:
 # =============================================================================
 # Cancel Tests
 # =============================================================================
+
 
 class TestCancel:
     """Test cancellation."""
@@ -415,6 +420,7 @@ class TestCancel:
 # Close Tests
 # =============================================================================
 
+
 class TestClose:
     """Test resource cleanup."""
 
@@ -435,15 +441,18 @@ class TestClose:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test that Ollama driver is importable."""
 
     def test_from_drivers_package(self):
         from core.drivers import OllamaDriver
+
         assert OllamaDriver is not None
 
     def test_from_module(self):
         from core.drivers.ollama_driver import OllamaDriver
+
         assert OllamaDriver is not None
 
     def test_constants_exported(self):
@@ -452,6 +461,7 @@ class TestModuleExports:
             DEFAULT_MODEL,
             DEFAULT_TIMEOUT,
         )
+
         assert DEFAULT_BASE_URL == "http://localhost:11434"
         assert DEFAULT_MODEL == "llama3.1"
         assert DEFAULT_TIMEOUT == 120.0

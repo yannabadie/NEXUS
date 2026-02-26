@@ -16,11 +16,10 @@ Author: Claude (NEXUS V9.7.1)
 Date: 2025-12-13
 """
 
-import pytest
 import sys
-import tempfile
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -45,7 +44,7 @@ class TestHomeIsolator:
 
     def test_init_creates_homes_dir(self, workspace):
         """__init__ should create .session_homes directory."""
-        isolator = HomeIsolator(workspace)
+        HomeIsolator(workspace)
         assert (workspace / ".session_homes").exists()
         assert (workspace / ".session_homes").is_dir()
 
@@ -61,7 +60,7 @@ class TestHomeIsolator:
         """get_isolated_env should set HOME on Linux/macOS."""
         env = isolator.get_isolated_env("task_001_lead")
 
-        if sys.platform != 'win32':
+        if sys.platform != "win32":
             assert "HOME" in env
             safe_id = isolator._sanitize_session_id("task_001_lead")
             assert str(workspace / ".session_homes" / safe_id) in env["HOME"]
@@ -70,7 +69,7 @@ class TestHomeIsolator:
         """get_isolated_env should set USERPROFILE on Windows."""
         env = isolator.get_isolated_env("task_001_lead")
 
-        if sys.platform == 'win32':
+        if sys.platform == "win32":
             assert "USERPROFILE" in env
             safe_id = isolator._sanitize_session_id("task_001_lead")
             assert str(workspace / ".session_homes" / safe_id) in env["USERPROFILE"]
@@ -89,7 +88,7 @@ class TestHomeIsolator:
         env1 = isolator.get_isolated_env("task_001_lead")
         env2 = isolator.get_isolated_env("task_002_support")
 
-        home_key = "HOME" if sys.platform != 'win32' else "USERPROFILE"
+        home_key = "HOME" if sys.platform != "win32" else "USERPROFILE"
         assert env1[home_key] != env2[home_key]
 
     def test_same_session_returns_same_home(self, isolator):
@@ -97,7 +96,7 @@ class TestHomeIsolator:
         env1 = isolator.get_isolated_env("task_001_lead")
         env2 = isolator.get_isolated_env("task_001_lead")
 
-        home_key = "HOME" if sys.platform != 'win32' else "USERPROFILE"
+        home_key = "HOME" if sys.platform != "win32" else "USERPROFILE"
         assert env1[home_key] == env2[home_key]
 
     def test_cleanup_home_removes_directory(self, isolator, workspace):
@@ -158,6 +157,7 @@ class TestHomeIsolator:
 
         # Manually backdate creation time
         from datetime import datetime, timedelta
+
         safe_id = isolator._sanitize_session_id("task_old")
         isolator._creation_times[safe_id] = datetime.now() - timedelta(hours=48)
 
@@ -191,7 +191,7 @@ class TestHomeIsolator:
         # All envs should be created
         assert len(results) == 10
         # All should have HOME set
-        home_key = "HOME" if sys.platform != 'win32' else "USERPROFILE"
+        home_key = "HOME" if sys.platform != "win32" else "USERPROFILE"
         for env in results:
             assert home_key in env
 
@@ -222,7 +222,7 @@ class TestSessionWorkspaceManagerV971:
         """get_isolated_env should set HOME to isolated directory."""
         env = manager.get_isolated_env("task_001_lead", "swarm")
 
-        home_key = "HOME" if sys.platform != 'win32' else "USERPROFILE"
+        home_key = "HOME" if sys.platform != "win32" else "USERPROFILE"
         assert home_key in env
         assert "swarm_task_001_lead" in env[home_key]
 
@@ -231,7 +231,7 @@ class TestSessionWorkspaceManagerV971:
         env1 = manager.get_isolated_env("task_001", "swarm")
         env2 = manager.get_isolated_env("task_002", "swarm")
 
-        home_key = "HOME" if sys.platform != 'win32' else "USERPROFILE"
+        home_key = "HOME" if sys.platform != "win32" else "USERPROFILE"
         assert env1[home_key] != env2[home_key]
 
     def test_different_types_get_different_envs(self, manager):
@@ -239,7 +239,7 @@ class TestSessionWorkspaceManagerV971:
         env_swarm = manager.get_isolated_env("task_001", "swarm")
         env_hive = manager.get_isolated_env("task_001", "hive")
 
-        home_key = "HOME" if sys.platform != 'win32' else "USERPROFILE"
+        home_key = "HOME" if sys.platform != "win32" else "USERPROFILE"
         assert env_swarm[home_key] != env_hive[home_key]
 
     def test_cleanup_isolated_env(self, manager, workspace):
@@ -302,15 +302,13 @@ class TestSwarmSessionManagerIntegration:
         """get_isolated_env should return environment dict."""
         # V9.7.1: Must create task and session first
         swarm_session_manager.create_task("task_001", "LEAD_SUPPORT")
-        swarm_session_manager.get_or_create_session(
-            "task_001", "lead", "gemini_primary"
-        )
+        swarm_session_manager.get_or_create_session("task_001", "lead", "gemini_primary")
 
         env = swarm_session_manager.get_isolated_env("task_001", "lead")
 
         assert env is not None
         assert isinstance(env, dict)
-        home_key = "HOME" if sys.platform != 'win32' else "USERPROFILE"
+        home_key = "HOME" if sys.platform != "win32" else "USERPROFILE"
         assert home_key in env
 
     def test_get_isolated_env_without_session_returns_none(self, swarm_session_manager):
@@ -324,15 +322,13 @@ class TestSwarmSessionManagerIntegration:
 
     def test_complete_task_cleans_home(self, swarm_session_manager, tmp_path):
         """complete_task should cleanup isolated HOME."""
-        workspace = tmp_path / "workspace"
+        tmp_path / "workspace"
         swarm_session_manager.create_task("task_cleanup", "SEQUENTIAL")
-        swarm_session_manager.get_or_create_session(
-            "task_cleanup", "lead", "gemini_primary"
-        )
+        swarm_session_manager.get_or_create_session("task_cleanup", "lead", "gemini_primary")
 
         # Get the HOME path before cleanup
         env = swarm_session_manager.get_isolated_env("task_cleanup", "lead")
-        home_key = "HOME" if sys.platform != 'win32' else "USERPROFILE"
+        home_key = "HOME" if sys.platform != "win32" else "USERPROFILE"
         home_path = Path(env[home_key])
         assert home_path.exists()
 
@@ -358,17 +354,14 @@ class TestExecutionContextIsolatedEnv:
         session_manager.get_or_create_session("task_001", "lead", "gemini")
 
         context = ExecutionContext(
-            task_input="test",
-            agent_assignments=[],
-            task_id="task_001",
-            session_manager=session_manager
+            task_input="test", agent_assignments=[], task_id="task_001", session_manager=session_manager
         )
 
         isolated_env = context.get_isolated_env("lead", "gemini")
 
         assert isolated_env is not None
         assert isinstance(isolated_env, dict)
-        home_key = "HOME" if sys.platform != 'win32' else "USERPROFILE"
+        home_key = "HOME" if sys.platform != "win32" else "USERPROFILE"
         assert home_key in isolated_env
 
     def test_get_isolated_env_without_session_manager(self):

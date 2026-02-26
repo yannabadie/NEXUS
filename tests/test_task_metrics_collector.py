@@ -15,8 +15,6 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.foundation.async_primitives.task_metrics_collector import (
     MAX_TASK_RECORDS,
     SLOW_TASK_THRESHOLD_MS,
@@ -28,10 +26,10 @@ from core.foundation.async_primitives.task_metrics_collector import (
     reset_task_metrics_collector,
 )
 
-
 # =============================================================================
 # TaskRecord Tests
 # =============================================================================
+
 
 class TestTaskRecord:
     """Test TaskRecord dataclass."""
@@ -59,6 +57,7 @@ class TestTaskRecord:
 # =============================================================================
 # TaskTypeMetrics Tests
 # =============================================================================
+
 
 class TestTaskTypeMetrics:
     """Test TaskTypeMetrics dataclass."""
@@ -90,6 +89,7 @@ class TestTaskTypeMetrics:
 # CollectorStats Tests
 # =============================================================================
 
+
 class TestCollectorStats:
     """Test CollectorStats dataclass."""
 
@@ -102,6 +102,7 @@ class TestCollectorStats:
 # =============================================================================
 # Task Lifecycle Tests
 # =============================================================================
+
 
 class TestTaskLifecycle:
     """Test task start/complete/fail/cancel lifecycle."""
@@ -175,6 +176,7 @@ class TestTaskLifecycle:
 # Metrics Update Tests
 # =============================================================================
 
+
 class TestMetricsUpdate:
     """Test that metrics are updated on lifecycle events."""
 
@@ -213,6 +215,7 @@ class TestMetricsUpdate:
 # =============================================================================
 # Query Tests
 # =============================================================================
+
 
 class TestQueries:
     """Test query methods."""
@@ -285,6 +288,7 @@ class TestQueries:
 # Bounded History Tests
 # =============================================================================
 
+
 class TestBoundedHistory:
     """Test bounded record history."""
 
@@ -299,6 +303,7 @@ class TestBoundedHistory:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test collector statistics."""
@@ -329,6 +334,7 @@ class TestStatistics:
 # =============================================================================
 # State Tests
 # =============================================================================
+
 
 class TestState:
     """Test state management."""
@@ -370,6 +376,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global task metrics collector."""
 
@@ -396,24 +403,35 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_async_primitives_package(self):
         from core.foundation.async_primitives import (
-            TaskMetricsCollector, TaskRecord, TaskTypeMetrics,
             CollectorStats,
-            get_task_metrics_collector, reset_task_metrics_collector,
+            TaskMetricsCollector,
+            TaskRecord,
+            TaskTypeMetrics,
+            get_task_metrics_collector,
+            reset_task_metrics_collector,
         )
-        assert all([
-            TaskMetricsCollector, TaskRecord, TaskTypeMetrics,
-            CollectorStats,
-            get_task_metrics_collector, reset_task_metrics_collector,
-        ])
+
+        assert all(
+            [
+                TaskMetricsCollector,
+                TaskRecord,
+                TaskTypeMetrics,
+                CollectorStats,
+                get_task_metrics_collector,
+                reset_task_metrics_collector,
+            ]
+        )
 
     def test_constants(self):
         from core.foundation.async_primitives.task_metrics_collector import (
-            MAX_TASK_RECORDS, SLOW_TASK_THRESHOLD_MS,
+            SLOW_TASK_THRESHOLD_MS,
         )
+
         assert MAX_TASK_RECORDS == 50000
         assert SLOW_TASK_THRESHOLD_MS == 5000.0

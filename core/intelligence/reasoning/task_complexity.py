@@ -24,7 +24,6 @@ Ref: MASTER_ACTION_PLAN.md P5.5, nexus-audit-nxcg-1.md P2.1
 """
 
 from enum import IntEnum
-from typing import Set
 
 
 class TaskComplexity(IntEnum):
@@ -33,27 +32,63 @@ class TaskComplexity(IntEnum):
 
     Higher values indicate more complex tasks requiring deeper monitoring.
     """
-    TRIVIAL = 0   # Commands, <30 chars, no analysis required
-    SIMPLE = 1    # Single-step factual queries, straightforward requests
+
+    TRIVIAL = 0  # Commands, <30 chars, no analysis required
+    SIMPLE = 1  # Single-step factual queries, straightforward requests
     MODERATE = 2  # Multi-step workflows, requires context analysis
-    COMPLEX = 3   # Multi-agent debate, architectural decisions, evolution
+    COMPLEX = 3  # Multi-agent debate, architectural decisions, evolution
 
 
 # Keywords indicating task complexity
-COMPLEX_VERBS: Set[str] = {
-    "analyze", "analyse", "compare", "evaluate", "design", "architect",
-    "refactor", "optimize", "debug", "investigate", "research",
-    "implement", "create", "build", "develop", "evolve", "mutate",
+COMPLEX_VERBS: set[str] = {
+    "analyze",
+    "analyse",
+    "compare",
+    "evaluate",
+    "design",
+    "architect",
+    "refactor",
+    "optimize",
+    "debug",
+    "investigate",
+    "research",
+    "implement",
+    "create",
+    "build",
+    "develop",
+    "evolve",
+    "mutate",
 }
 
-MODERATE_INDICATORS: Set[str] = {
-    "then", "after", "also", "and", "while", "if", "when",
-    "review", "check", "validate", "verify", "test", "update",
+MODERATE_INDICATORS: set[str] = {
+    "then",
+    "after",
+    "also",
+    "and",
+    "while",
+    "if",
+    "when",
+    "review",
+    "check",
+    "validate",
+    "verify",
+    "test",
+    "update",
 }
 
-TRIVIAL_COMMANDS: Set[str] = {
-    "/help", "/status", "/stats", "/reset", "/clear", "/exit",
-    "/list", "/show", "/get", "/ping", "/version", "/info",
+TRIVIAL_COMMANDS: set[str] = {
+    "/help",
+    "/status",
+    "/stats",
+    "/reset",
+    "/clear",
+    "/exit",
+    "/list",
+    "/show",
+    "/get",
+    "/ping",
+    "/version",
+    "/info",
 }
 
 

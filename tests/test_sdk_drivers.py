@@ -11,23 +11,22 @@ They verify:
 """
 
 import asyncio
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
-from dataclasses import dataclass
-from typing import Any, Dict, List
 
 from core.drivers.protocol import (
-    DriverProtocol,
     DriverResponse,
     DriverResponseStatus,
     StreamChunk,
     ToolCall,
 )
 
-
 # =============================================================================
 # Mock Anthropic Response Objects
 # =============================================================================
+
 
 class MockAnthropicTextBlock:
     def __init__(self, text: str):
@@ -67,6 +66,7 @@ class MockAnthropicResponse:
 # =============================================================================
 # Mock Google GenAI Response Objects
 # =============================================================================
+
 
 class MockGenAIPart:
     def __init__(self, text: str = None, function_call: Any = None):
@@ -112,6 +112,7 @@ class MockGenAIResponse:
 # Anthropic SDK Driver Tests
 # =============================================================================
 
+
 class TestAnthropicSDKDriver:
     """Test the Anthropic SDK driver with mocked API."""
 
@@ -130,20 +131,21 @@ class TestAnthropicSDKDriver:
         """Create an AnthropicSDKDriver with mocked SDK."""
         mock_module, mock_async_client = mock_anthropic_module
 
-        with patch.dict("sys.modules", {"anthropic": mock_module}):
-            with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"}):
-                from core.drivers.anthropic_sdk_driver import AnthropicSDKDriver
-                d = AnthropicSDKDriver(model="claude-sonnet-4-5-20250929")
-                d._client = mock_async_client
-                return d
+        with (
+            patch.dict("sys.modules", {"anthropic": mock_module}),
+            patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"}),
+        ):
+            from core.drivers.anthropic_sdk_driver import AnthropicSDKDriver
+
+            d = AnthropicSDKDriver(model="claude-sonnet-4-5-20250929")
+            d._client = mock_async_client
+            return d
 
     @pytest.mark.asyncio
     async def test_basic_invoke(self, driver, mock_anthropic_module):
         """Test basic invocation returns proper DriverResponse."""
         _, mock_client = mock_anthropic_module
-        mock_client.messages.create = AsyncMock(
-            return_value=MockAnthropicResponse()
-        )
+        mock_client.messages.create = AsyncMock(return_value=MockAnthropicResponse())
         driver._client = mock_client
 
         response = await driver.invoke("Hello!")
@@ -160,9 +162,7 @@ class TestAnthropicSDKDriver:
     async def test_invoke_with_system_prompt(self, driver, mock_anthropic_module):
         """Test system prompt is included in request."""
         _, mock_client = mock_anthropic_module
-        mock_client.messages.create = AsyncMock(
-            return_value=MockAnthropicResponse()
-        )
+        mock_client.messages.create = AsyncMock(return_value=MockAnthropicResponse())
         driver._client = mock_client
 
         await driver.invoke("Hello!", system_prompt="You are a helpful assistant.")
@@ -211,9 +211,7 @@ class TestAnthropicSDKDriver:
     async def test_invoke_timeout(self, driver, mock_anthropic_module):
         """Test timeout handling."""
         _, mock_client = mock_anthropic_module
-        mock_client.messages.create = AsyncMock(
-            side_effect=asyncio.TimeoutError()
-        )
+        mock_client.messages.create = AsyncMock(side_effect=TimeoutError())
         driver._client = mock_client
 
         response = await driver.invoke("Hello!", timeout=0.001)
@@ -229,9 +227,7 @@ class TestAnthropicSDKDriver:
         class RateLimitError(Exception):
             pass
 
-        mock_client.messages.create = AsyncMock(
-            side_effect=RateLimitError("Rate limited")
-        )
+        mock_client.messages.create = AsyncMock(side_effect=RateLimitError("Rate limited"))
         driver._client = mock_client
 
         response = await driver.invoke("Hello!")
@@ -242,9 +238,7 @@ class TestAnthropicSDKDriver:
     async def test_cancelled_error_propagates(self, driver, mock_anthropic_module):
         """Test that CancelledError is re-raised per protocol."""
         _, mock_client = mock_anthropic_module
-        mock_client.messages.create = AsyncMock(
-            side_effect=asyncio.CancelledError()
-        )
+        mock_client.messages.create = AsyncMock(side_effect=asyncio.CancelledError())
         driver._client = mock_client
 
         with pytest.raises(asyncio.CancelledError):
@@ -278,11 +272,14 @@ class TestAnthropicSDKDriver:
         """Test request without caching."""
         mock_module, mock_async_client = mock_anthropic_module
 
-        with patch.dict("sys.modules", {"anthropic": mock_module}):
-            with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
-                from core.drivers.anthropic_sdk_driver import AnthropicSDKDriver
-                d = AnthropicSDKDriver(enable_caching=False)
-                d._client = mock_async_client
+        with (
+            patch.dict("sys.modules", {"anthropic": mock_module}),
+            patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}),
+        ):
+            from core.drivers.anthropic_sdk_driver import AnthropicSDKDriver
+
+            d = AnthropicSDKDriver(enable_caching=False)
+            d._client = mock_async_client
 
         params = d._build_request(
             prompt="Test",
@@ -307,6 +304,7 @@ class TestAnthropicSDKDriver:
 # =============================================================================
 # Google GenAI SDK Driver Tests
 # =============================================================================
+
 
 class TestGoogleGenAISDKDriver:
     """Test the Google GenAI SDK driver with mocked API."""
@@ -335,13 +333,16 @@ class TestGoogleGenAISDKDriver:
         mock_google = MagicMock()
         mock_google.genai = mock_genai
 
-        with patch.dict("sys.modules", {"google": mock_google, "google.genai": mock_genai}):
-            with patch.dict("os.environ", {"GEMINI_API_KEY": "test-key-456"}):
-                from core.drivers.google_genai_sdk_driver import GoogleGenAISDKDriver
-                d = GoogleGenAISDKDriver(model="gemini-3-pro-preview")
-                d._client = mock_client
-                d._genai = mock_genai
-                return d
+        with (
+            patch.dict("sys.modules", {"google": mock_google, "google.genai": mock_genai}),
+            patch.dict("os.environ", {"GEMINI_API_KEY": "test-key-456"}),
+        ):
+            from core.drivers.google_genai_sdk_driver import GoogleGenAISDKDriver
+
+            d = GoogleGenAISDKDriver(model="gemini-3-pro-preview")
+            d._client = mock_client
+            d._genai = mock_genai
+            return d
 
     @pytest.mark.asyncio
     async def test_basic_invoke(self, driver, mock_genai_module):
@@ -474,6 +475,7 @@ class TestGoogleGenAISDKDriver:
 # Protocol Compliance Tests
 # =============================================================================
 
+
 class TestProtocolCompliance:
     """Test that both SDK drivers comply with DriverProtocol."""
 
@@ -541,14 +543,13 @@ class TestProtocolCompliance:
 # Cross-Driver Consistency Tests
 # =============================================================================
 
+
 class TestCrossDriverConsistency:
     """Test that both drivers produce consistent response formats."""
 
     @pytest.mark.asyncio
     async def test_error_responses_have_same_structure(self):
         """Both drivers should produce identically-structured error responses."""
-        from core.drivers.anthropic_sdk_driver import AnthropicSDKDriver
-        from core.drivers.google_genai_sdk_driver import GoogleGenAISDKDriver
 
         # Create error responses via the protocol helper
         from core.drivers.protocol import BaseAsyncDriver
@@ -556,8 +557,10 @@ class TestCrossDriverConsistency:
         class DummyDriver(BaseAsyncDriver):
             async def invoke(self, *a, **kw):
                 return self._create_error_response("test error", "TEST")
+
             async def invoke_stream(self, *a, **kw):
                 yield StreamChunk(content="")
+
             async def cancel(self, *a, **kw):
                 return True
 

@@ -8,22 +8,23 @@ import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Any
 
 
 @dataclass
 class ScenarioMetrics:
     """Metrics for a single test scenario."""
+
     name: str
     success: bool
     duration_ms: float
     recovery_attempted: bool = False
     recovery_succeeded: bool = False
     panic_occurred: bool = False
-    error_message: Optional[str] = None
+    error_message: str | None = None
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
             "name": self.name,
@@ -33,7 +34,7 @@ class ScenarioMetrics:
             "recovery_succeeded": self.recovery_succeeded,
             "panic_occurred": self.panic_occurred,
             "error_message": self.error_message,
-            "timestamp": self.timestamp
+            "timestamp": self.timestamp,
         }
 
 
@@ -49,7 +50,7 @@ class MetricsCollector:
     - Hot-Swap effectiveness: >80%
     """
 
-    scenarios: List[ScenarioMetrics] = field(default_factory=list)
+    scenarios: list[ScenarioMetrics] = field(default_factory=list)
     start_time: datetime = field(default_factory=datetime.now)
 
     def record_test(
@@ -60,7 +61,7 @@ class MetricsCollector:
         recovery_attempted: bool = False,
         recovery_succeeded: bool = False,
         panic_occurred: bool = False,
-        error: Optional[str] = None
+        error: str | None = None,
     ):
         """
         Record a test result.
@@ -74,17 +75,19 @@ class MetricsCollector:
             panic_occurred: Whether panic (SystemExit/KeyboardInterrupt) occurred
             error: Error message if any
         """
-        self.scenarios.append(ScenarioMetrics(
-            name=name,
-            success=success,
-            duration_ms=duration_ms,
-            recovery_attempted=recovery_attempted,
-            recovery_succeeded=recovery_succeeded,
-            panic_occurred=panic_occurred,
-            error_message=error
-        ))
+        self.scenarios.append(
+            ScenarioMetrics(
+                name=name,
+                success=success,
+                duration_ms=duration_ms,
+                recovery_attempted=recovery_attempted,
+                recovery_succeeded=recovery_succeeded,
+                panic_occurred=panic_occurred,
+                error_message=error,
+            )
+        )
 
-    def calculate_rates(self) -> Dict[str, Any]:
+    def calculate_rates(self) -> dict[str, Any]:
         """
         Calculate success, recovery, and panic rates.
 
@@ -105,7 +108,7 @@ class MetricsCollector:
                 "recovery_rate": 100.0,  # No failures = 100% recovery
                 "panic_rate": 0.0,
                 "hot_swap_effectiveness": 100.0,
-                "avg_duration_ms": 0.0
+                "avg_duration_ms": 0.0,
             }
 
         # Success rate
@@ -139,14 +142,13 @@ class MetricsCollector:
             "avg_duration_ms": round(avg_duration, 2),
             "passed": success_count,
             "failed": total - success_count,
-            "panics": panic_count
+            "panics": panic_count,
         }
 
     def _calculate_hot_swap_rate(self) -> float:
         """Calculate hot-swap effectiveness from relevant tests."""
         hot_swap_scenarios = [
-            s for s in self.scenarios
-            if "hot_swap" in s.name.lower() or "lead_swap" in s.name.lower()
+            s for s in self.scenarios if "hot_swap" in s.name.lower() or "lead_swap" in s.name.lower()
         ]
         if not hot_swap_scenarios:
             return 100.0  # No hot-swap tests = assume 100%
@@ -154,15 +156,15 @@ class MetricsCollector:
         success = sum(1 for s in hot_swap_scenarios if s.success)
         return (success / len(hot_swap_scenarios)) * 100
 
-    def get_failures(self) -> List[ScenarioMetrics]:
+    def get_failures(self) -> list[ScenarioMetrics]:
         """Get list of failed scenarios."""
         return [s for s in self.scenarios if not s.success]
 
-    def get_panics(self) -> List[ScenarioMetrics]:
+    def get_panics(self) -> list[ScenarioMetrics]:
         """Get list of panic scenarios."""
         return [s for s in self.scenarios if s.panic_occurred]
 
-    def get_slowest(self, n: int = 5) -> List[ScenarioMetrics]:
+    def get_slowest(self, n: int = 5) -> list[ScenarioMetrics]:
         """Get N slowest scenarios."""
         sorted_scenarios = sorted(self.scenarios, key=lambda s: s.duration_ms, reverse=True)
         return sorted_scenarios[:n]
@@ -186,14 +188,14 @@ class MetricsCollector:
             summary["end_time"] = datetime.now().isoformat()
             f.write(json.dumps(summary) + "\n")
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert full metrics to dictionary."""
         return {
             "rates": self.calculate_rates(),
             "scenarios": [s.to_dict() for s in self.scenarios],
             "failures": [s.to_dict() for s in self.get_failures()],
             "panics": [s.to_dict() for s in self.get_panics()],
-            "slowest": [s.to_dict() for s in self.get_slowest()]
+            "slowest": [s.to_dict() for s in self.get_slowest()],
         }
 
     def summary(self) -> str:
@@ -222,7 +224,7 @@ class MetricsCollector:
         success_target: float = 95.0,
         recovery_target: float = 90.0,
         panic_target: float = 1.0,
-        hot_swap_target: float = 80.0
+        hot_swap_target: float = 80.0,
     ):
         """
         Assert metrics meet targets.
@@ -235,24 +237,16 @@ class MetricsCollector:
         errors = []
 
         if rates["success_rate"] < success_target:
-            errors.append(
-                f"Success rate {rates['success_rate']:.1f}% < target {success_target}%"
-            )
+            errors.append(f"Success rate {rates['success_rate']:.1f}% < target {success_target}%")
 
         if rates["recovery_rate"] < recovery_target:
-            errors.append(
-                f"Recovery rate {rates['recovery_rate']:.1f}% < target {recovery_target}%"
-            )
+            errors.append(f"Recovery rate {rates['recovery_rate']:.1f}% < target {recovery_target}%")
 
         if rates["panic_rate"] > panic_target:
-            errors.append(
-                f"Panic rate {rates['panic_rate']:.1f}% > target {panic_target}%"
-            )
+            errors.append(f"Panic rate {rates['panic_rate']:.1f}% > target {panic_target}%")
 
         if rates["hot_swap_effectiveness"] < hot_swap_target:
-            errors.append(
-                f"Hot-swap effectiveness {rates['hot_swap_effectiveness']:.1f}% < target {hot_swap_target}%"
-            )
+            errors.append(f"Hot-swap effectiveness {rates['hot_swap_effectiveness']:.1f}% < target {hot_swap_target}%")
 
         if errors:
             # Print failures for debugging
@@ -260,6 +254,4 @@ class MetricsCollector:
             for failure in self.get_failures()[:10]:  # Show first 10
                 print(f"  {failure.name}: {failure.error_message}")
 
-            raise AssertionError(
-                "Torture Protocol targets not met:\n" + "\n".join(f"  - {e}" for e in errors)
-            )
+            raise AssertionError("Torture Protocol targets not met:\n" + "\n".join(f"  - {e}" for e in errors))

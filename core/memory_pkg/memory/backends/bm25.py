@@ -9,7 +9,7 @@ Falls back gracefully if not installed.
 """
 
 import logging
-from typing import List, Dict, Any, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from .base import MemoryBackend
 
@@ -25,14 +25,16 @@ STEMMER_AVAILABLE = False
 
 try:
     # Suppress bm25s benchmark.py warning about 'resource' module on Windows
-    import sys
     import io
+    import sys
+
     _stderr_backup = sys.stderr
     sys.stderr = io.StringIO()
     _stdout_backup = sys.stdout
     sys.stdout = io.StringIO()
     try:
         import bm25s
+
         BM25S_AVAILABLE = True
     finally:
         sys.stdout = _stdout_backup
@@ -42,6 +44,7 @@ except ImportError:
 
 try:
     import Stemmer  # PyStemmer
+
     STEMMER_AVAILABLE = True
 except ImportError:
     Stemmer = None  # type: ignore
@@ -65,9 +68,9 @@ class Bm25Backend(MemoryBackend):
     def __init__(self):
         """Initialize the BM25S backend."""
         self._logger = logging.getLogger("nexus.memory.bm25")
-        self._index: Optional[Any] = None  # bm25s.BM25 instance
-        self._stemmer: Optional[Any] = None  # Stemmer.Stemmer instance
-        self._corpus_tokens: Optional[List[List[str]]] = None
+        self._index: Any | None = None  # bm25s.BM25 instance
+        self._stemmer: Any | None = None  # Stemmer.Stemmer instance
+        self._corpus_tokens: list[list[str]] | None = None
         self._index_built = False
 
         # Initialize stemmer if available
@@ -96,7 +99,7 @@ class Bm25Backend(MemoryBackend):
                 self._logger.warning(f"Failed to init stemmer: {e}")
                 self._stemmer = None
 
-    def _stem_tokens(self, tokens: List[str]) -> List[str]:
+    def _stem_tokens(self, tokens: list[str]) -> list[str]:
         """Apply stemming to tokens (if stemmer available)."""
         if self._stemmer is None:
             return tokens
@@ -105,7 +108,7 @@ class Bm25Backend(MemoryBackend):
         except Exception:
             return tokens
 
-    def build_index(self, chunks: List['Chunk']) -> None:
+    def build_index(self, chunks: list["Chunk"]) -> None:
         """
         Build the BM25S index from chunks.
 
@@ -148,12 +151,12 @@ class Bm25Backend(MemoryBackend):
 
     def retrieve(
         self,
-        query_terms: List[str],
-        chunks: List['Chunk'],
+        query_terms: list[str],
+        chunks: list["Chunk"],
         limit: int,
         min_score: float,
-        raw_query: Optional[str] = None  # V7.9 Phase 10g: Ignored by sparse backends
-    ) -> List['Chunk']:
+        raw_query: str | None = None,  # V7.9 Phase 10g: Ignored by sparse backends
+    ) -> list["Chunk"]:
         """
         Retrieve chunks using BM25S.
 
@@ -179,15 +182,11 @@ class Bm25Backend(MemoryBackend):
             query_tokens = self._stem_tokens(list(query_terms))
 
             # Search with BM25S
-            results, scores = self._index.retrieve(
-                [query_tokens],
-                corpus=chunks,
-                k=limit
-            )
+            results, scores = self._index.retrieve([query_tokens], corpus=chunks, k=limit)
 
             # Filter by min_score and return
             filtered_chunks = []
-            for chunk, score in zip(results[0], scores[0]):
+            for chunk, score in zip(results[0], scores[0], strict=False):
                 if score >= min_score:
                     filtered_chunks.append(chunk)
 
@@ -203,7 +202,7 @@ class Bm25Backend(MemoryBackend):
         self._corpus_tokens = None
         self._index_built = False
 
-    def get_info(self) -> Dict[str, Any]:
+    def get_info(self) -> dict[str, Any]:
         """Get BM25S backend information."""
         return {
             "backend": self.name,
@@ -212,5 +211,5 @@ class Bm25Backend(MemoryBackend):
             "stemmer_active": self._stemmer is not None,
             "index_built": self._index_built,
             "corpus_size": len(self._corpus_tokens) if self._corpus_tokens else 0,
-            "dependencies": "bm25s>=0.2.0, PyStemmer>=2.2.0 (optional)"
+            "dependencies": "bm25s>=0.2.0, PyStemmer>=2.2.0 (optional)",
         }

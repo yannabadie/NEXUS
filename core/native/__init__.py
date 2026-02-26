@@ -26,11 +26,12 @@ _backend = "python"
 if os.getenv("NEXUS_FF_RUST_ACCELERATION", "").lower() in ("true", "1"):
     try:
         from nexus_core import (
+            batch_tfidf_score,
             compute_rrf,
             sha256_hex,
             verify_kernel_hash,
-            batch_tfidf_score,
         )
+
         _RUST_AVAILABLE = True
         _backend = "rust"
     except ImportError:
@@ -39,10 +40,10 @@ if os.getenv("NEXUS_FF_RUST_ACCELERATION", "").lower() in ("true", "1"):
 # Fallback to pure Python implementations
 if not _RUST_AVAILABLE:
     from ._fallback import (
+        batch_tfidf_score,
         compute_rrf,
         sha256_hex,
         verify_kernel_hash,
-        batch_tfidf_score,
     )
 
 

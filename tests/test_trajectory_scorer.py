@@ -12,6 +12,8 @@ from dataclasses import fields as dc_fields
 import pytest
 
 from core.intelligence.reasoning.trajectory_scorer import (
+    _STRONG_RE,
+    _WEAK_RE,
     STRONG_EVIDENCE_PATTERNS,
     WEAK_EVIDENCE_PATTERNS,
     AgentTrajectory,
@@ -21,14 +23,12 @@ from core.intelligence.reasoning.trajectory_scorer import (
     TrajectoryScorer,
     get_trajectory_scorer,
     reset_trajectory_scorer,
-    _STRONG_RE,
-    _WEAK_RE,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(autouse=True)
 def _reset_singleton():
@@ -71,23 +71,35 @@ def _turn(
 # 1. AgentTrajectory dataclass
 # ===========================================================================
 
-class TestAgentTrajectory:
 
+class TestAgentTrajectory:
     def test_fields_exist(self):
         names = {f.name for f in dc_fields(AgentTrajectory)}
         expected = {
-            "agent_id", "total_turns", "evidence_score",
-            "coherence_score", "independence_score", "depth_score",
-            "trajectory_score", "position_changes", "concessions_made",
+            "agent_id",
+            "total_turns",
+            "evidence_score",
+            "coherence_score",
+            "independence_score",
+            "depth_score",
+            "trajectory_score",
+            "position_changes",
+            "concessions_made",
             "evidence_items",
         }
         assert names == expected
 
     def test_construction(self):
         t = AgentTrajectory(
-            agent_id="claude", total_turns=3, evidence_score=0.8,
-            coherence_score=0.9, independence_score=1.0, depth_score=0.5,
-            trajectory_score=0.78, position_changes=0, concessions_made=1,
+            agent_id="claude",
+            total_turns=3,
+            evidence_score=0.8,
+            coherence_score=0.9,
+            independence_score=1.0,
+            depth_score=0.5,
+            trajectory_score=0.78,
+            position_changes=0,
+            concessions_made=1,
             evidence_items=5,
         )
         assert t.agent_id == "claude"
@@ -97,9 +109,15 @@ class TestAgentTrajectory:
 
     def test_zero_values(self):
         t = AgentTrajectory(
-            agent_id="x", total_turns=0, evidence_score=0.0,
-            coherence_score=0.0, independence_score=0.0, depth_score=0.0,
-            trajectory_score=0.0, position_changes=0, concessions_made=0,
+            agent_id="x",
+            total_turns=0,
+            evidence_score=0.0,
+            coherence_score=0.0,
+            independence_score=0.0,
+            depth_score=0.0,
+            trajectory_score=0.0,
+            position_changes=0,
+            concessions_made=0,
             evidence_items=0,
         )
         assert t.trajectory_score == 0.0
@@ -109,20 +127,26 @@ class TestAgentTrajectory:
 # 2. ConformityAnalysis dataclass
 # ===========================================================================
 
-class TestConformityAnalysis:
 
+class TestConformityAnalysis:
     def test_fields_exist(self):
         names = {f.name for f in dc_fields(ConformityAnalysis)}
         expected = {
-            "conformity_detected", "conformity_agent",
-            "conformity_turn", "evidence_at_flip", "penalty_applied",
+            "conformity_detected",
+            "conformity_agent",
+            "conformity_turn",
+            "evidence_at_flip",
+            "penalty_applied",
         }
         assert names == expected
 
     def test_construction_detected(self):
         ca = ConformityAnalysis(
-            conformity_detected=True, conformity_agent="gemini",
-            conformity_turn=3, evidence_at_flip=0, penalty_applied=0.15,
+            conformity_detected=True,
+            conformity_agent="gemini",
+            conformity_turn=3,
+            evidence_at_flip=0,
+            penalty_applied=0.15,
         )
         assert ca.conformity_detected is True
         assert ca.conformity_agent == "gemini"
@@ -130,8 +154,11 @@ class TestConformityAnalysis:
 
     def test_construction_not_detected(self):
         ca = ConformityAnalysis(
-            conformity_detected=False, conformity_agent="",
-            conformity_turn=0, evidence_at_flip=0, penalty_applied=0.0,
+            conformity_detected=False,
+            conformity_agent="",
+            conformity_turn=0,
+            evidence_at_flip=0,
+            penalty_applied=0.0,
         )
         assert ca.conformity_detected is False
 
@@ -140,8 +167,8 @@ class TestConformityAnalysis:
 # 3. TrajectoryResult dataclass + winning_margin
 # ===========================================================================
 
-class TestTrajectoryResult:
 
+class TestTrajectoryResult:
     def _make(self, scores: dict, **kw) -> TrajectoryResult:
         return TrajectoryResult(
             best_agent=kw.get("best_agent", "a"),
@@ -183,19 +210,23 @@ class TestTrajectoryResult:
 # 4. ScorerStats dataclass
 # ===========================================================================
 
-class TestScorerStats:
 
+class TestScorerStats:
     def test_fields_exist(self):
         names = {f.name for f in dc_fields(ScorerStats)}
         assert names == {
-            "total_debates_scored", "avg_debate_quality",
-            "conformity_detections", "agent_win_rates",
+            "total_debates_scored",
+            "avg_debate_quality",
+            "conformity_detections",
+            "agent_win_rates",
         }
 
     def test_construction(self):
         s = ScorerStats(
-            total_debates_scored=5, avg_debate_quality=0.72,
-            conformity_detections=1, agent_win_rates={"claude": 0.6},
+            total_debates_scored=5,
+            avg_debate_quality=0.72,
+            conformity_detections=1,
+            agent_win_rates={"claude": 0.6},
         )
         assert s.total_debates_scored == 5
         assert s.agent_win_rates["claude"] == 0.6
@@ -205,8 +236,8 @@ class TestScorerStats:
 # 5. score_debate — empty history
 # ===========================================================================
 
-class TestScoreDebateEmpty:
 
+class TestScoreDebateEmpty:
     def test_empty_history_returns_escalate(self, scorer):
         result = scorer.score_debate([], agents=["claude", "gemini"])
         assert result.best_agent == ""
@@ -227,22 +258,26 @@ class TestScoreDebateEmpty:
 # 6. score_debate — strong vs weak evidence agents
 # ===========================================================================
 
-class TestStrongVsWeakEvidence:
 
+class TestStrongVsWeakEvidence:
     def _make_debate(self) -> list:
         return [
-            _turn("strong", "SUPPORT", turn_number=1,
-                   argument="According to the docs, line 42 shows the error message clearly.",
-                   evidence=["the code shows X", "as shown in module.py"]),
-            _turn("weak", "OPPOSE", turn_number=1,
-                   argument="I think probably this might be wrong.",
-                   evidence=[]),
-            _turn("strong", "SUPPORT", turn_number=2,
-                   argument="Based on the stack trace, specifically the handler.",
-                   evidence=["file auth.py", "documentation states"]),
-            _turn("weak", "OPPOSE", turn_number=2,
-                   argument="I believe it seems like something else.",
-                   evidence=[]),
+            _turn(
+                "strong",
+                "SUPPORT",
+                turn_number=1,
+                argument="According to the docs, line 42 shows the error message clearly.",
+                evidence=["the code shows X", "as shown in module.py"],
+            ),
+            _turn("weak", "OPPOSE", turn_number=1, argument="I think probably this might be wrong.", evidence=[]),
+            _turn(
+                "strong",
+                "SUPPORT",
+                turn_number=2,
+                argument="Based on the stack trace, specifically the handler.",
+                evidence=["file auth.py", "documentation states"],
+            ),
+            _turn("weak", "OPPOSE", turn_number=2, argument="I believe it seems like something else.", evidence=[]),
         ]
 
     def test_strong_agent_wins(self, scorer):
@@ -251,8 +286,7 @@ class TestStrongVsWeakEvidence:
 
     def test_strong_evidence_score_higher(self, scorer):
         result = scorer.score_debate(self._make_debate(), agents=["strong", "weak"])
-        assert result.agent_trajectories["strong"].evidence_score > \
-               result.agent_trajectories["weak"].evidence_score
+        assert result.agent_trajectories["strong"].evidence_score > result.agent_trajectories["weak"].evidence_score
 
     def test_strong_has_evidence_items(self, scorer):
         result = scorer.score_debate(self._make_debate(), agents=["strong", "weak"])
@@ -268,8 +302,8 @@ class TestStrongVsWeakEvidence:
 # 7. score_debate — coherent trajectory (consistent position)
 # ===========================================================================
 
-class TestCoherentTrajectory:
 
+class TestCoherentTrajectory:
     def _make_debate(self) -> list:
         return [
             _turn("steady", "SUPPORT", turn_number=1, argument="Position A is correct."),
@@ -290,8 +324,8 @@ class TestCoherentTrajectory:
 # 8. score_debate — incoherent trajectory (many position changes)
 # ===========================================================================
 
-class TestIncoherentTrajectory:
 
+class TestIncoherentTrajectory:
     def _make_debate(self) -> list:
         return [
             _turn("flipper", "SUPPORT", turn_number=1, argument="Yes."),
@@ -318,16 +352,13 @@ class TestIncoherentTrajectory:
 # 9. score_debate — independent agent (resists conformity)
 # ===========================================================================
 
-class TestIndependentAgent:
 
+class TestIndependentAgent:
     def _make_debate(self) -> list:
         return [
-            _turn("independent", "OPPOSE", turn_number=1,
-                   argument="I disagree.", evidence=[]),
-            _turn("independent", "OPPOSE", turn_number=2,
-                   argument="Still disagree.", evidence=[]),
-            _turn("independent", "OPPOSE", turn_number=3,
-                   argument="My position holds.", evidence=[]),
+            _turn("independent", "OPPOSE", turn_number=1, argument="I disagree.", evidence=[]),
+            _turn("independent", "OPPOSE", turn_number=2, argument="Still disagree.", evidence=[]),
+            _turn("independent", "OPPOSE", turn_number=3, argument="My position holds.", evidence=[]),
         ]
 
     def test_independence_score_perfect(self, scorer):
@@ -343,14 +374,12 @@ class TestIndependentAgent:
 # 10. Conformity detection: OPPOSE -> SUPPORT with < 2 evidence
 # ===========================================================================
 
-class TestConformityDetection:
 
+class TestConformityDetection:
     def _make_debate(self) -> list:
         return [
-            _turn("conformist", "OPPOSE", turn_number=1,
-                   argument="I oppose.", evidence=[]),
-            _turn("conformist", "SUPPORT", turn_number=2,
-                   argument="Actually I agree now.", evidence=[]),
+            _turn("conformist", "OPPOSE", turn_number=1, argument="I oppose.", evidence=[]),
+            _turn("conformist", "SUPPORT", turn_number=2, argument="Actually I agree now.", evidence=[]),
         ]
 
     def test_conformity_detected(self, scorer):
@@ -407,8 +436,7 @@ class TestConformityDetection:
         """One evidence item is still below MIN_EVIDENCE_FOR_FLIP=2."""
         debate = [
             _turn("c", "OPPOSE", turn_number=1, argument="No.", evidence=[]),
-            _turn("c", "SUPPORT", turn_number=2, argument="Ok.",
-                   evidence=["one item"]),
+            _turn("c", "SUPPORT", turn_number=2, argument="Ok.", evidence=["one item"]),
         ]
         result = scorer.score_debate(debate, agents=["c"])
         detected = [ca for ca in result.conformity_analysis if ca.conformity_detected]
@@ -419,16 +447,13 @@ class TestConformityDetection:
 # 11. Conformity penalty applied to trajectory score
 # ===========================================================================
 
-class TestConformityPenalty:
 
+class TestConformityPenalty:
     def _debate_with_conformity(self) -> list:
         return [
-            _turn("agent_a", "OPPOSE", turn_number=1,
-                   argument="I disagree.", evidence=[]),
-            _turn("agent_a", "SUPPORT", turn_number=2,
-                   argument="Actually ok.", evidence=[]),
-            _turn("agent_a", "SUPPORT", turn_number=3,
-                   argument="Still yes.", evidence=[]),
+            _turn("agent_a", "OPPOSE", turn_number=1, argument="I disagree.", evidence=[]),
+            _turn("agent_a", "SUPPORT", turn_number=2, argument="Actually ok.", evidence=[]),
+            _turn("agent_a", "SUPPORT", turn_number=3, argument="Still yes.", evidence=[]),
         ]
 
     def test_penalty_reduces_trajectory_score(self, scorer):
@@ -444,8 +469,7 @@ class TestConformityPenalty:
         scorer2 = TrajectoryScorer()
         result_conf = scorer2.score_debate(self._debate_with_conformity(), agents=["agent_a"])
 
-        assert result_conf.trajectory_scores["agent_a"] < \
-               result_clean.trajectory_scores["agent_a"]
+        assert result_conf.trajectory_scores["agent_a"] < result_clean.trajectory_scores["agent_a"]
 
     def test_penalty_value_is_015(self, scorer):
         result = scorer.score_debate(self._debate_with_conformity(), agents=["agent_a"])
@@ -476,13 +500,18 @@ class TestConformityPenalty:
 # 12. Anti-conformity: flip with >= 2 evidence (no penalty)
 # ===========================================================================
 
-class TestAntiConformityNoFalsePositive:
 
+class TestAntiConformityNoFalsePositive:
     def test_flip_with_sufficient_evidence_no_conformity(self, scorer):
         debate = [
             _turn("e", "OPPOSE", turn_number=1, argument="No.", evidence=[]),
-            _turn("e", "SUPPORT", turn_number=2, argument="New data changed my mind.",
-                   evidence=["evidence item 1", "evidence item 2"]),
+            _turn(
+                "e",
+                "SUPPORT",
+                turn_number=2,
+                argument="New data changed my mind.",
+                evidence=["evidence item 1", "evidence item 2"],
+            ),
         ]
         result = scorer.score_debate(debate, agents=["e"])
         detected = [ca for ca in result.conformity_analysis if ca.conformity_detected]
@@ -491,8 +520,7 @@ class TestAntiConformityNoFalsePositive:
     def test_flip_with_three_evidence_items(self, scorer):
         debate = [
             _turn("e", "OPPOSE", turn_number=1, argument="No.", evidence=[]),
-            _turn("e", "SUPPORT", turn_number=2, argument="Convinced.",
-                   evidence=["a", "b", "c"]),
+            _turn("e", "SUPPORT", turn_number=2, argument="Convinced.", evidence=["a", "b", "c"]),
         ]
         result = scorer.score_debate(debate, agents=["e"])
         detected = [ca for ca in result.conformity_analysis if ca.conformity_detected]
@@ -502,8 +530,7 @@ class TestAntiConformityNoFalsePositive:
         """MIN_EVIDENCE_FOR_FLIP=2 means exactly 2 is sufficient."""
         debate = [
             _turn("e", "OPPOSE", turn_number=1, argument="No.", evidence=[]),
-            _turn("e", "SUPPORT", turn_number=2, argument="Ok.",
-                   evidence=["x", "y"]),
+            _turn("e", "SUPPORT", turn_number=2, argument="Ok.", evidence=["x", "y"]),
         ]
         result = scorer.score_debate(debate, agents=["e"])
         detected = [ca for ca in result.conformity_analysis if ca.conformity_detected]
@@ -512,8 +539,7 @@ class TestAntiConformityNoFalsePositive:
     def test_independence_stays_high_with_evidence(self, scorer):
         debate = [
             _turn("e", "OPPOSE", turn_number=1, argument="No.", evidence=[]),
-            _turn("e", "SUPPORT", turn_number=2, argument="Data shows yes.",
-                   evidence=["item1", "item2"]),
+            _turn("e", "SUPPORT", turn_number=2, argument="Data shows yes.", evidence=["item1", "item2"]),
         ]
         result = scorer.score_debate(debate, agents=["e"])
         # Independence: 1 flip, 0 without evidence => 1.0
@@ -524,34 +550,29 @@ class TestAntiConformityNoFalsePositive:
 # 13. Deep analysis vs shallow (argument length, proposed_modifications)
 # ===========================================================================
 
-class TestDepthScoring:
 
+class TestDepthScoring:
     def test_long_argument_higher_depth(self, scorer):
         deep = [
-            _turn("deep", "SUPPORT", turn_number=1,
-                   argument="A" * 600, evidence=[]),
+            _turn("deep", "SUPPORT", turn_number=1, argument="A" * 600, evidence=[]),
         ]
         shallow = [
-            _turn("shallow", "SUPPORT", turn_number=1,
-                   argument="Short.", evidence=[]),
+            _turn("shallow", "SUPPORT", turn_number=1, argument="Short.", evidence=[]),
         ]
         res_deep = scorer.score_debate(deep, agents=["deep"])
         res_shallow = TrajectoryScorer().score_debate(shallow, agents=["shallow"])
-        assert res_deep.agent_trajectories["deep"].depth_score > \
-               res_shallow.agent_trajectories["shallow"].depth_score
+        assert res_deep.agent_trajectories["deep"].depth_score > res_shallow.agent_trajectories["shallow"].depth_score
 
     def test_proposed_modification_boosts_depth(self, scorer):
         with_mod = [
-            _turn("a", "SUPPORT", turn_number=1, argument="Some text.",
-                   proposed_modification="refactor auth module"),
+            _turn("a", "SUPPORT", turn_number=1, argument="Some text.", proposed_modification="refactor auth module"),
         ]
         without_mod = [
             _turn("a", "SUPPORT", turn_number=1, argument="Some text."),
         ]
         res_mod = scorer.score_debate(with_mod, agents=["a"])
         res_no = TrajectoryScorer().score_debate(without_mod, agents=["a"])
-        assert res_mod.agent_trajectories["a"].depth_score > \
-               res_no.agent_trajectories["a"].depth_score
+        assert res_mod.agent_trajectories["a"].depth_score > res_no.agent_trajectories["a"].depth_score
 
     def test_500_chars_is_full_length_score(self, scorer):
         debate = [
@@ -570,10 +591,8 @@ class TestDepthScoring:
 
     def test_all_modifications_full_mod_score(self, scorer):
         debate = [
-            _turn("a", "SUPPORT", turn_number=1, argument="X" * 500,
-                   proposed_modification="fix 1"),
-            _turn("a", "SUPPORT", turn_number=2, argument="Y" * 500,
-                   proposed_modification="fix 2"),
+            _turn("a", "SUPPORT", turn_number=1, argument="X" * 500, proposed_modification="fix 1"),
+            _turn("a", "SUPPORT", turn_number=2, argument="Y" * 500, proposed_modification="fix 2"),
         ]
         result = scorer.score_debate(debate, agents=["a"])
         # length_score = 1.0, mod_score = min(1.0, 2/2*2)=min(1.0,2.0)=1.0
@@ -585,22 +604,28 @@ class TestDepthScoring:
 # 14. Recommendations
 # ===========================================================================
 
-class TestRecommendation:
 
+class TestRecommendation:
     def test_accept_best_normal_debate(self, scorer):
         debate = [
-            _turn("a", "SUPPORT", turn_number=1,
-                   argument="According to the code, line 42 shows the error message. " * 5,
-                   evidence=["e1", "e2", "e3"]),
-            _turn("b", "OPPOSE", turn_number=1,
-                   argument="Based on the stack trace, specifically the handler. " * 5,
-                   evidence=["e1", "e2"]),
-            _turn("a", "SUPPORT", turn_number=2,
-                   argument="The documentation states the fix. " * 5,
-                   evidence=["e3", "e4"]),
-            _turn("b", "OPPOSE", turn_number=2,
-                   argument="For example, as shown in auth.py. " * 5,
-                   evidence=["e5"]),
+            _turn(
+                "a",
+                "SUPPORT",
+                turn_number=1,
+                argument="According to the code, line 42 shows the error message. " * 5,
+                evidence=["e1", "e2", "e3"],
+            ),
+            _turn(
+                "b",
+                "OPPOSE",
+                turn_number=1,
+                argument="Based on the stack trace, specifically the handler. " * 5,
+                evidence=["e1", "e2"],
+            ),
+            _turn(
+                "a", "SUPPORT", turn_number=2, argument="The documentation states the fix. " * 5, evidence=["e3", "e4"]
+            ),
+            _turn("b", "OPPOSE", turn_number=2, argument="For example, as shown in auth.py. " * 5, evidence=["e5"]),
         ]
         result = scorer.score_debate(debate, agents=["a", "b"])
         assert result.recommendation == "accept_best"
@@ -644,18 +669,22 @@ class TestRecommendation:
     def test_conformity_still_accept_best(self, scorer):
         """Even with conformity detected, recommendation is accept_best if quality ok."""
         debate = [
-            _turn("a", "OPPOSE", turn_number=1,
-                   argument="According to the stack trace, the error message is clear. " * 3,
-                   evidence=["e1", "e2"]),
-            _turn("a", "SUPPORT", turn_number=2,
-                   argument="I changed my mind.",
-                   evidence=[]),
-            _turn("b", "SUPPORT", turn_number=1,
-                   argument="Based on the documentation states, as shown in file.py. " * 3,
-                   evidence=["e1", "e2", "e3"]),
-            _turn("b", "SUPPORT", turn_number=2,
-                   argument="For example specifically line 10. " * 3,
-                   evidence=["e4"]),
+            _turn(
+                "a",
+                "OPPOSE",
+                turn_number=1,
+                argument="According to the stack trace, the error message is clear. " * 3,
+                evidence=["e1", "e2"],
+            ),
+            _turn("a", "SUPPORT", turn_number=2, argument="I changed my mind.", evidence=[]),
+            _turn(
+                "b",
+                "SUPPORT",
+                turn_number=1,
+                argument="Based on the documentation states, as shown in file.py. " * 3,
+                evidence=["e1", "e2", "e3"],
+            ),
+            _turn("b", "SUPPORT", turn_number=2, argument="For example specifically line 10. " * 3, evidence=["e4"]),
         ]
         result = scorer.score_debate(debate, agents=["a", "b"])
         if result.debate_quality >= scorer.MIN_DEBATE_QUALITY:
@@ -666,8 +695,8 @@ class TestRecommendation:
 # 15. get_stats tracking
 # ===========================================================================
 
-class TestGetStats:
 
+class TestGetStats:
     def test_initial_stats(self, scorer):
         stats = scorer.get_stats()
         assert stats.total_debates_scored == 0
@@ -687,15 +716,23 @@ class TestGetStats:
 
     def test_stats_win_rate_tracking(self, scorer):
         debate1 = [
-            _turn("a", "SUPPORT", turn_number=1,
-                   argument="Strong evidence. According to line 42. " * 10,
-                   evidence=["e1", "e2", "e3"]),
+            _turn(
+                "a",
+                "SUPPORT",
+                turn_number=1,
+                argument="Strong evidence. According to line 42. " * 10,
+                evidence=["e1", "e2", "e3"],
+            ),
             _turn("b", "OPPOSE", turn_number=1, argument="Weak.", evidence=[]),
         ]
         debate2 = [
-            _turn("a", "SUPPORT", turn_number=1,
-                   argument="According to the code shows line 10. " * 10,
-                   evidence=["e1", "e2"]),
+            _turn(
+                "a",
+                "SUPPORT",
+                turn_number=1,
+                argument="According to the code shows line 10. " * 10,
+                evidence=["e1", "e2"],
+            ),
             _turn("b", "OPPOSE", turn_number=1, argument="I think no.", evidence=[]),
         ]
         scorer.score_debate(debate1, agents=["a", "b"])
@@ -718,8 +755,8 @@ class TestGetStats:
 # 16. Singleton pattern
 # ===========================================================================
 
-class TestSingleton:
 
+class TestSingleton:
     def test_get_returns_same_instance(self):
         s1 = get_trajectory_scorer()
         s2 = get_trajectory_scorer()
@@ -766,8 +803,8 @@ class TestSingleton:
 # 17. Multiple debates scored
 # ===========================================================================
 
-class TestMultipleDebates:
 
+class TestMultipleDebates:
     def test_stats_accumulate(self, scorer):
         for i in range(5):
             debate = [
@@ -792,17 +829,25 @@ class TestMultipleDebates:
     def test_multiple_agents_win_rates(self, scorer):
         # Agent a wins with strong evidence
         debate1 = [
-            _turn("a", "SUPPORT", turn_number=1,
-                   argument="According to line 42, the code shows the error. " * 5,
-                   evidence=["e1", "e2", "e3"]),
+            _turn(
+                "a",
+                "SUPPORT",
+                turn_number=1,
+                argument="According to line 42, the code shows the error. " * 5,
+                evidence=["e1", "e2", "e3"],
+            ),
             _turn("b", "OPPOSE", turn_number=1, argument="Hmm.", evidence=[]),
         ]
         # Agent b wins with strong evidence
         debate2 = [
             _turn("a", "SUPPORT", turn_number=1, argument="Maybe.", evidence=[]),
-            _turn("b", "OPPOSE", turn_number=1,
-                   argument="Based on documentation states, specifically as shown in file.py. " * 5,
-                   evidence=["e1", "e2", "e3"]),
+            _turn(
+                "b",
+                "OPPOSE",
+                turn_number=1,
+                argument="Based on documentation states, specifically as shown in file.py. " * 5,
+                evidence=["e1", "e2", "e3"],
+            ),
         ]
         scorer.score_debate(debate1, agents=["a", "b"])
         scorer.score_debate(debate2, agents=["a", "b"])
@@ -815,21 +860,24 @@ class TestMultipleDebates:
 # 18. Strong evidence patterns detection
 # ===========================================================================
 
-class TestStrongEvidencePatterns:
 
-    @pytest.mark.parametrize("phrase", [
-        "according to the spec",
-        "based on the analysis",
-        "as shown in the diagram",
-        "the code shows a bug",
-        "error at line 42",
-        "in file utils.py",
-        "specifically the auth module",
-        "for example this case",
-        "the error message says",
-        "the stack trace indicates",
-        "documentation states that",
-    ])
+class TestStrongEvidencePatterns:
+    @pytest.mark.parametrize(
+        "phrase",
+        [
+            "according to the spec",
+            "based on the analysis",
+            "as shown in the diagram",
+            "the code shows a bug",
+            "error at line 42",
+            "in file utils.py",
+            "specifically the auth module",
+            "for example this case",
+            "the error message says",
+            "the stack trace indicates",
+            "documentation states that",
+        ],
+    )
     def test_strong_pattern_matched(self, phrase):
         matched = any(p.search(phrase) for p in _STRONG_RE)
         assert matched, f"Expected strong pattern match for: {phrase}"
@@ -843,38 +891,42 @@ class TestStrongEvidencePatterns:
 
     def test_strong_evidence_boosts_score(self, scorer):
         strong_debate = [
-            _turn("a", "SUPPORT", turn_number=1,
-                   argument="According to the documentation states, the code shows error.",
-                   evidence=["as shown in file auth.py"]),
+            _turn(
+                "a",
+                "SUPPORT",
+                turn_number=1,
+                argument="According to the documentation states, the code shows error.",
+                evidence=["as shown in file auth.py"],
+            ),
         ]
         weak_debate = [
-            _turn("a", "SUPPORT", turn_number=1,
-                   argument="Hello world.",
-                   evidence=["just something"]),
+            _turn("a", "SUPPORT", turn_number=1, argument="Hello world.", evidence=["just something"]),
         ]
         res_strong = scorer.score_debate(strong_debate, agents=["a"])
         res_weak = TrajectoryScorer().score_debate(weak_debate, agents=["a"])
-        assert res_strong.agent_trajectories["a"].evidence_score >= \
-               res_weak.agent_trajectories["a"].evidence_score
+        assert res_strong.agent_trajectories["a"].evidence_score >= res_weak.agent_trajectories["a"].evidence_score
 
 
 # ===========================================================================
 # 19. Weak evidence patterns detection
 # ===========================================================================
 
-class TestWeakEvidencePatterns:
 
-    @pytest.mark.parametrize("phrase", [
-        "i think this is wrong",
-        "i believe the issue is",
-        "it probably causes",
-        "it might be the problem",
-        "it seems like a bug",
-        "i feel that is correct",
-        "in my opinion it works",
-        "it usually happens",
-        "it generally works",
-    ])
+class TestWeakEvidencePatterns:
+    @pytest.mark.parametrize(
+        "phrase",
+        [
+            "i think this is wrong",
+            "i believe the issue is",
+            "it probably causes",
+            "it might be the problem",
+            "it seems like a bug",
+            "i feel that is correct",
+            "in my opinion it works",
+            "it usually happens",
+            "it generally works",
+        ],
+    )
     def test_weak_pattern_matched(self, phrase):
         matched = any(p.search(phrase) for p in _WEAK_RE)
         assert matched, f"Expected weak pattern match for: {phrase}"
@@ -891,14 +943,14 @@ class TestWeakEvidencePatterns:
 # Additional: Scoring weights
 # ===========================================================================
 
-class TestScoringWeights:
 
+class TestScoringWeights:
     def test_weights_sum_to_one(self):
         total = (
-            TrajectoryScorer.EVIDENCE_WEIGHT +
-            TrajectoryScorer.COHERENCE_WEIGHT +
-            TrajectoryScorer.INDEPENDENCE_WEIGHT +
-            TrajectoryScorer.DEPTH_WEIGHT
+            TrajectoryScorer.EVIDENCE_WEIGHT
+            + TrajectoryScorer.COHERENCE_WEIGHT
+            + TrajectoryScorer.INDEPENDENCE_WEIGHT
+            + TrajectoryScorer.DEPTH_WEIGHT
         )
         assert total == pytest.approx(1.0)
 
@@ -922,8 +974,8 @@ class TestScoringWeights:
 # Additional: Agent inference from history
 # ===========================================================================
 
-class TestAgentInference:
 
+class TestAgentInference:
     def test_agents_inferred_from_history(self, scorer):
         debate = [
             _turn("claude", "SUPPORT", turn_number=1, argument="A."),
@@ -954,8 +1006,8 @@ class TestAgentInference:
 # Additional: Edge cases
 # ===========================================================================
 
-class TestEdgeCases:
 
+class TestEdgeCases:
     def test_single_turn_coherence_is_one(self, scorer):
         debate = [_turn("a", "SUPPORT", turn_number=1, argument="Yes.")]
         result = scorer.score_debate(debate, agents=["a"])
@@ -967,14 +1019,12 @@ class TestEdgeCases:
         assert result.agent_trajectories["a"].independence_score == 1.0
 
     def test_missing_argument_key_defaults_empty(self, scorer):
-        debate = [{"agent_id": "a", "position": "SUPPORT", "evidence": [],
-                    "turn_number": 1}]
+        debate = [{"agent_id": "a", "position": "SUPPORT", "evidence": [], "turn_number": 1}]
         result = scorer.score_debate(debate, agents=["a"])
         assert result.agent_trajectories["a"].depth_score == 0.0
 
     def test_missing_evidence_key_defaults_empty(self, scorer):
-        debate = [{"agent_id": "a", "position": "SUPPORT",
-                    "argument": "Some argument.", "turn_number": 1}]
+        debate = [{"agent_id": "a", "position": "SUPPORT", "argument": "Some argument.", "turn_number": 1}]
         result = scorer.score_debate(debate, agents=["a"])
         assert result.agent_trajectories["a"].evidence_items == 0
 
@@ -990,8 +1040,7 @@ class TestEdgeCases:
     def test_concessions_counted(self, scorer):
         debate = [
             _turn("a", "OPPOSE", turn_number=1, argument="No.", concession="partial"),
-            _turn("a", "OPPOSE", turn_number=2, argument="Still no.",
-                   concession="they have a point"),
+            _turn("a", "OPPOSE", turn_number=2, argument="Still no.", concession="they have a point"),
         ]
         result = scorer.score_debate(debate, agents=["a"])
         assert result.agent_trajectories["a"].concessions_made == 2
@@ -1007,22 +1056,22 @@ class TestEdgeCases:
     def test_debate_quality_capped_at_one(self, scorer):
         """debate_quality is min(1.0, avg*1.2) so it cannot exceed 1.0."""
         debate = [
-            _turn("a", "SUPPORT", turn_number=1,
-                   argument="According to based on as shown in the code shows line 42 " * 10,
-                   evidence=["e1", "e2", "e3", "e4", "e5"],
-                   proposed_modification="refactor everything"),
+            _turn(
+                "a",
+                "SUPPORT",
+                turn_number=1,
+                argument="According to based on as shown in the code shows line 42 " * 10,
+                evidence=["e1", "e2", "e3", "e4", "e5"],
+                proposed_modification="refactor everything",
+            ),
         ]
         result = scorer.score_debate(debate, agents=["a"])
         assert result.debate_quality <= 1.0
 
     def test_best_agent_is_highest_scorer(self, scorer):
         debate = [
-            _turn("a", "SUPPORT", turn_number=1,
-                   argument="According to line 42. " * 20,
-                   evidence=["e1", "e2", "e3"]),
-            _turn("b", "OPPOSE", turn_number=1,
-                   argument="I think maybe.",
-                   evidence=[]),
+            _turn("a", "SUPPORT", turn_number=1, argument="According to line 42. " * 20, evidence=["e1", "e2", "e3"]),
+            _turn("b", "OPPOSE", turn_number=1, argument="I think maybe.", evidence=[]),
         ]
         result = scorer.score_debate(debate, agents=["a", "b"])
         best = max(result.trajectory_scores, key=result.trajectory_scores.get)
@@ -1033,43 +1082,44 @@ class TestEdgeCases:
 # Additional: Composite trajectory score formula
 # ===========================================================================
 
-class TestTrajectoryScoreFormula:
 
+class TestTrajectoryScoreFormula:
     def test_composite_score_formula(self, scorer):
         """Verify the weighted composite matches manual calculation."""
         debate = [
-            _turn("a", "SUPPORT", turn_number=1,
-                   argument="X" * 250,
-                   evidence=["e1"]),
-            _turn("a", "SUPPORT", turn_number=2,
-                   argument="Y" * 250,
-                   evidence=["e2"]),
+            _turn("a", "SUPPORT", turn_number=1, argument="X" * 250, evidence=["e1"]),
+            _turn("a", "SUPPORT", turn_number=2, argument="Y" * 250, evidence=["e2"]),
         ]
         result = scorer.score_debate(debate, agents=["a"])
         t = result.agent_trajectories["a"]
         expected = (
-            0.30 * t.evidence_score +
-            0.25 * t.coherence_score +
-            0.25 * t.independence_score +
-            0.20 * t.depth_score
+            0.30 * t.evidence_score + 0.25 * t.coherence_score + 0.25 * t.independence_score + 0.20 * t.depth_score
         )
         assert t.trajectory_score == pytest.approx(expected, abs=0.001)
 
     def test_all_perfect_scores_give_one(self, scorer):
         """With maximum evidence, coherence, independence, depth -> score near 1.0."""
         debate = [
-            _turn("a", "SUPPORT", turn_number=1,
-                   argument="According to the code shows the error message, line 42, "
-                            "based on documentation states, as shown in file test.py. "
-                            "Specifically for example the stack trace. " * 5,
-                   evidence=["e1", "e2", "e3", "e4"],
-                   proposed_modification="fix the auth module"),
-            _turn("a", "SUPPORT", turn_number=2,
-                   argument="According to the code shows the error message, line 10, "
-                            "based on documentation states, as shown in file handler.py. "
-                            "Specifically for example the stack trace. " * 5,
-                   evidence=["e5", "e6", "e7", "e8"],
-                   proposed_modification="update the tests"),
+            _turn(
+                "a",
+                "SUPPORT",
+                turn_number=1,
+                argument="According to the code shows the error message, line 42, "
+                "based on documentation states, as shown in file test.py. "
+                "Specifically for example the stack trace. " * 5,
+                evidence=["e1", "e2", "e3", "e4"],
+                proposed_modification="fix the auth module",
+            ),
+            _turn(
+                "a",
+                "SUPPORT",
+                turn_number=2,
+                argument="According to the code shows the error message, line 10, "
+                "based on documentation states, as shown in file handler.py. "
+                "Specifically for example the stack trace. " * 5,
+                evidence=["e5", "e6", "e7", "e8"],
+                proposed_modification="update the tests",
+            ),
         ]
         result = scorer.score_debate(debate, agents=["a"])
         # Should be close to 1.0 but not necessarily exactly 1.0
@@ -1080,14 +1130,12 @@ class TestTrajectoryScoreFormula:
 # Additional: Evidence density and signal ratio
 # ===========================================================================
 
-class TestEvidenceDensity:
 
+class TestEvidenceDensity:
     def test_high_density_high_score(self, scorer):
         """Many evidence items per turn -> high evidence_density."""
         debate = [
-            _turn("a", "SUPPORT", turn_number=1,
-                   argument="According to the docs.",
-                   evidence=["e1", "e2", "e3", "e4"]),
+            _turn("a", "SUPPORT", turn_number=1, argument="According to the docs.", evidence=["e1", "e2", "e3", "e4"]),
         ]
         result = scorer.score_debate(debate, agents=["a"])
         # density = min(1.0, 4 / (1*2)) = min(1.0, 2.0) = 1.0
@@ -1095,8 +1143,7 @@ class TestEvidenceDensity:
 
     def test_no_evidence_low_score(self, scorer):
         debate = [
-            _turn("a", "SUPPORT", turn_number=1,
-                   argument="No evidence here.", evidence=[]),
+            _turn("a", "SUPPORT", turn_number=1, argument="No evidence here.", evidence=[]),
         ]
         result = scorer.score_debate(debate, agents=["a"])
         assert result.agent_trajectories["a"].evidence_score < 0.5
@@ -1104,9 +1151,13 @@ class TestEvidenceDensity:
     def test_mixed_strong_weak_signals(self, scorer):
         """Argument with both strong and weak signals has moderate score."""
         debate = [
-            _turn("a", "SUPPORT", turn_number=1,
-                   argument="According to the docs, I think probably correct.",
-                   evidence=["e1"]),
+            _turn(
+                "a",
+                "SUPPORT",
+                turn_number=1,
+                argument="According to the docs, I think probably correct.",
+                evidence=["e1"],
+            ),
         ]
         result = scorer.score_debate(debate, agents=["a"])
         ev = result.agent_trajectories["a"].evidence_score
@@ -1117,8 +1168,8 @@ class TestEvidenceDensity:
 # Additional: Coherence with contradiction penalty
 # ===========================================================================
 
-class TestCoherenceContradiction:
 
+class TestCoherenceContradiction:
     def test_oppose_to_support_without_evidence_lowers_coherence(self, scorer):
         debate = [
             _turn("a", "OPPOSE", turn_number=1, argument="No.", evidence=[]),
@@ -1132,8 +1183,7 @@ class TestCoherenceContradiction:
     def test_oppose_to_support_with_evidence_no_penalty(self, scorer):
         debate = [
             _turn("a", "OPPOSE", turn_number=1, argument="No.", evidence=[]),
-            _turn("a", "SUPPORT", turn_number=2, argument="Yes.",
-                   evidence=["e1", "e2"]),
+            _turn("a", "SUPPORT", turn_number=2, argument="Yes.", evidence=["e1", "e2"]),
         ]
         result = scorer.score_debate(debate, agents=["a"])
         # stability = 1 - 1/1 = 0.0, no contradiction_penalty
@@ -1155,13 +1205,12 @@ class TestCoherenceContradiction:
 # Additional: Score debate with unknown agent_id
 # ===========================================================================
 
-class TestUnknownAgentId:
 
+class TestUnknownAgentId:
     def test_missing_agent_id_key(self, scorer):
         """Turns without agent_id should default to 'unknown'."""
         debate = [
-            {"position": "SUPPORT", "argument": "Yes.", "evidence": [],
-             "turn_number": 1},
+            {"position": "SUPPORT", "argument": "Yes.", "evidence": [], "turn_number": 1},
         ]
         result = scorer.score_debate(debate)
         assert "unknown" in result.trajectory_scores
@@ -1180,8 +1229,8 @@ class TestUnknownAgentId:
 # Additional: Thread safety of score_debate
 # ===========================================================================
 
-class TestThreadSafety:
 
+class TestThreadSafety:
     def test_concurrent_scoring(self, scorer):
         """Scoring from multiple threads should not corrupt stats."""
         debate = [

@@ -16,10 +16,7 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.intelligence.hive_mind.consensus_tracker import (
-    ConsensusReport,
     ConsensusTracker,
     Disagreement,
     Position,
@@ -28,10 +25,10 @@ from core.intelligence.hive_mind.consensus_tracker import (
     reset_consensus_tracker,
 )
 
-
 # =============================================================================
 # Position Tests
 # =============================================================================
+
 
 class TestPosition:
     """Test Position dataclass."""
@@ -62,6 +59,7 @@ class TestPosition:
 # TopicConsensus Tests
 # =============================================================================
 
+
 class TestTopicConsensus:
     """Test TopicConsensus scoring."""
 
@@ -71,55 +69,83 @@ class TestTopicConsensus:
         assert tc.is_unanimous is True
 
     def test_single_position(self):
-        tc = TopicConsensus(topic="t", phase="p", positions=[
-            Position(agent_id="a", stance="X"),
-        ])
+        tc = TopicConsensus(
+            topic="t",
+            phase="p",
+            positions=[
+                Position(agent_id="a", stance="X"),
+            ],
+        )
         assert tc.consensus_score == 1.0
 
     def test_unanimous(self):
-        tc = TopicConsensus(topic="t", phase="p", positions=[
-            Position(agent_id="claude", stance="A"),
-            Position(agent_id="gemini", stance="A"),
-        ])
+        tc = TopicConsensus(
+            topic="t",
+            phase="p",
+            positions=[
+                Position(agent_id="claude", stance="A"),
+                Position(agent_id="gemini", stance="A"),
+            ],
+        )
         assert tc.consensus_score == 1.0
         assert tc.is_unanimous is True
 
     def test_split(self):
-        tc = TopicConsensus(topic="t", phase="p", positions=[
-            Position(agent_id="claude", stance="A"),
-            Position(agent_id="gemini", stance="B"),
-        ])
+        tc = TopicConsensus(
+            topic="t",
+            phase="p",
+            positions=[
+                Position(agent_id="claude", stance="A"),
+                Position(agent_id="gemini", stance="B"),
+            ],
+        )
         assert tc.consensus_score == 0.5
         assert tc.is_unanimous is False
 
     def test_majority(self):
-        tc = TopicConsensus(topic="t", phase="p", positions=[
-            Position(agent_id="a", stance="X"),
-            Position(agent_id="b", stance="X"),
-            Position(agent_id="c", stance="Y"),
-        ])
-        assert abs(tc.consensus_score - 2/3) < 0.01
+        tc = TopicConsensus(
+            topic="t",
+            phase="p",
+            positions=[
+                Position(agent_id="a", stance="X"),
+                Position(agent_id="b", stance="X"),
+                Position(agent_id="c", stance="Y"),
+            ],
+        )
+        assert abs(tc.consensus_score - 2 / 3) < 0.01
 
     def test_weighted_consensus(self):
-        tc = TopicConsensus(topic="t", phase="p", positions=[
-            Position(agent_id="claude", stance="A", confidence=0.9),
-            Position(agent_id="gemini", stance="B", confidence=0.1),
-        ])
+        tc = TopicConsensus(
+            topic="t",
+            phase="p",
+            positions=[
+                Position(agent_id="claude", stance="A", confidence=0.9),
+                Position(agent_id="gemini", stance="B", confidence=0.1),
+            ],
+        )
         # Weighted: 0.9/(0.9+0.1) = 0.9
         assert tc.weighted_consensus == 0.9
 
     def test_unique_stances(self):
-        tc = TopicConsensus(topic="t", phase="p", positions=[
-            Position(agent_id="a", stance="X"),
-            Position(agent_id="b", stance="Y"),
-            Position(agent_id="c", stance="X"),
-        ])
+        tc = TopicConsensus(
+            topic="t",
+            phase="p",
+            positions=[
+                Position(agent_id="a", stance="X"),
+                Position(agent_id="b", stance="Y"),
+                Position(agent_id="c", stance="X"),
+            ],
+        )
         assert len(tc.unique_stances) == 2
 
     def test_to_dict(self):
-        tc = TopicConsensus(topic="approach", phase="analysis", positions=[
-            Position(agent_id="a", stance="X"),
-        ])
+        tc = TopicConsensus(
+            topic="approach",
+            phase="analysis",
+            positions=[
+                Position(agent_id="a", stance="X"),
+            ],
+        )
         d = tc.to_dict()
         assert d["topic"] == "approach"
         assert d["phase"] == "analysis"
@@ -130,13 +156,16 @@ class TestTopicConsensus:
 # Disagreement Tests
 # =============================================================================
 
+
 class TestDisagreement:
     """Test Disagreement dataclass."""
 
     def test_to_dict(self):
         d = Disagreement(
-            topic="approach", phase="analysis",
-            stances={"claude": "A", "gemini": "B"}, severity=0.5,
+            topic="approach",
+            phase="analysis",
+            stances={"claude": "A", "gemini": "B"},
+            severity=0.5,
         )
         dd = d.to_dict()
         assert dd["topic"] == "approach"
@@ -146,6 +175,7 @@ class TestDisagreement:
 # =============================================================================
 # Record Tests
 # =============================================================================
+
 
 class TestRecord:
     """Test position recording."""
@@ -184,6 +214,7 @@ class TestRecord:
 # =============================================================================
 # Consensus Query Tests
 # =============================================================================
+
 
 class TestConsensusQueries:
     """Test consensus queries."""
@@ -234,6 +265,7 @@ class TestConsensusQueries:
 # =============================================================================
 # Disagreement Query Tests
 # =============================================================================
+
 
 class TestDisagreementQueries:
     """Test disagreement detection."""
@@ -288,6 +320,7 @@ class TestDisagreementQueries:
 # Phase Control Tests
 # =============================================================================
 
+
 class TestPhaseControl:
     """Test phase conclusion checks."""
 
@@ -326,6 +359,7 @@ class TestPhaseControl:
 # Report Tests
 # =============================================================================
 
+
 class TestReport:
     """Test consensus reports."""
 
@@ -361,6 +395,7 @@ class TestReport:
 # =============================================================================
 # State Tests
 # =============================================================================
+
 
 class TestState:
     """Test state management."""
@@ -406,6 +441,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global consensus tracker."""
 
@@ -432,22 +468,32 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_hive_mind_package(self):
         from core.intelligence.hive_mind import (
-            ConsensusTracker, TopicConsensus, ConsensusReport,
-            get_consensus_tracker, reset_consensus_tracker,
+            ConsensusReport,
+            ConsensusTracker,
+            TopicConsensus,
+            get_consensus_tracker,
+            reset_consensus_tracker,
         )
-        assert all([
-            ConsensusTracker, TopicConsensus, ConsensusReport,
-            get_consensus_tracker, reset_consensus_tracker,
-        ])
+
+        assert all(
+            [
+                ConsensusTracker,
+                TopicConsensus,
+                ConsensusReport,
+                get_consensus_tracker,
+                reset_consensus_tracker,
+            ]
+        )
 
     def test_from_module(self):
         from core.intelligence.hive_mind.consensus_tracker import (
-            ConsensusTracker, Position, TopicConsensus,
-            Disagreement, DEFAULT_MIN_CONSENSUS,
+            DEFAULT_MIN_CONSENSUS,
         )
+
         assert DEFAULT_MIN_CONSENSUS == 0.8

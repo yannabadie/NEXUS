@@ -46,14 +46,12 @@ from __future__ import annotations
 
 import abc
 import asyncio
-import fnmatch
 import logging
-import os
 import re
-import subprocess
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Type
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -62,16 +60,18 @@ logger = logging.getLogger(__name__)
 # Tool Result Types
 # =============================================================================
 
+
 @dataclass
 class ToolResult:
     """Result from a tool execution."""
+
     success: bool
     output: Any
-    error: Optional[str] = None
+    error: str | None = None
     execution_time_ms: float = 0.0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "success": self.success,
             "output": self.output,
@@ -84,12 +84,13 @@ class ToolResult:
 @dataclass
 class ToolSchema:
     """JSON schema for a tool."""
+
     name: str
     description: str
-    parameters: Dict[str, Any]  # JSON Schema for parameters
-    required: List[str] = field(default_factory=list)
+    parameters: dict[str, Any]  # JSON Schema for parameters
+    required: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "description": self.description,
@@ -105,6 +106,7 @@ class ToolSchema:
 # Abstract Tool Executor
 # =============================================================================
 
+
 class ToolExecutor(abc.ABC):
     """Abstract base class for tool executors."""
 
@@ -112,20 +114,20 @@ class ToolExecutor(abc.ABC):
     async def execute(
         self,
         tool_name: str,
-        arguments: Dict[str, Any],
-        workspace_path: Optional[Path] = None,
+        arguments: dict[str, Any],
+        workspace_path: Path | None = None,
         timeout: float = 30.0,
     ) -> ToolResult:
         """Execute a tool and return result."""
         ...
 
     @abc.abstractmethod
-    def list_tools(self) -> List[str]:
+    def list_tools(self) -> list[str]:
         """List available tool names."""
         ...
 
     @abc.abstractmethod
-    def get_schema(self, tool_name: str) -> Optional[ToolSchema]:
+    def get_schema(self, tool_name: str) -> ToolSchema | None:
         """Get schema for a tool."""
         ...
 
@@ -137,6 +139,7 @@ class ToolExecutor(abc.ABC):
 # =============================================================================
 # Local Tool Executor (Pure Python)
 # =============================================================================
+
 
 class LocalToolExecutor(ToolExecutor):
     """
@@ -150,7 +153,7 @@ class LocalToolExecutor(ToolExecutor):
         self,
         workspace_path: Path,
         max_file_size: int = 1_000_000,  # 1MB
-        allowed_extensions: Optional[List[str]] = None,
+        allowed_extensions: list[str] | None = None,
     ):
         """
         Initialize local tool executor.
@@ -165,7 +168,7 @@ class LocalToolExecutor(ToolExecutor):
         self._allowed_extensions = allowed_extensions
 
         # Register tool handlers
-        self._handlers: Dict[str, Callable] = {
+        self._handlers: dict[str, Callable] = {
             "read_file": self._read_file,
             "write_file": self._write_file,
             "edit_file": self._edit_file,
@@ -176,7 +179,7 @@ class LocalToolExecutor(ToolExecutor):
         }
 
         # Tool schemas
-        self._schemas: Dict[str, ToolSchema] = {
+        self._schemas: dict[str, ToolSchema] = {
             "read_file": ToolSchema(
                 name="read_file",
                 description="Read the contents of a file",
@@ -266,19 +269,20 @@ class LocalToolExecutor(ToolExecutor):
         try:
             resolved.relative_to(self._workspace_path.resolve())
         except ValueError:
-            raise ValueError(f"Path traversal detected: {path}")
+            raise ValueError(f"Path traversal detected: {path}") from None
 
         return resolved
 
     async def execute(
         self,
         tool_name: str,
-        arguments: Dict[str, Any],
-        workspace_path: Optional[Path] = None,
+        arguments: dict[str, Any],
+        workspace_path: Path | None = None,
         timeout: float = 30.0,
     ) -> ToolResult:
         """Execute a tool locally."""
         import time
+
         start = time.time()
 
         if tool_name not in self._handlers:
@@ -298,9 +302,7 @@ class LocalToolExecutor(ToolExecutor):
             handler = self._handlers[tool_name]
             # V12.4 FIX F19: Use get_running_loop() instead of deprecated get_event_loop()
             result = await asyncio.wait_for(
-                asyncio.get_running_loop().run_in_executor(
-                    None, lambda: handler(arguments)
-                ),
+                asyncio.get_running_loop().run_in_executor(None, lambda: handler(arguments)),
                 timeout=timeout,
             )
             elapsed = (time.time() - start) * 1000
@@ -311,7 +313,7 @@ class LocalToolExecutor(ToolExecutor):
                 execution_time_ms=elapsed,
             )
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return ToolResult(
                 success=False,
                 output=None,
@@ -327,11 +329,11 @@ class LocalToolExecutor(ToolExecutor):
         finally:
             self._workspace_path = original_workspace
 
-    def list_tools(self) -> List[str]:
+    def list_tools(self) -> list[str]:
         """List available tools."""
         return list(self._handlers.keys())
 
-    def get_schema(self, tool_name: str) -> Optional[ToolSchema]:
+    def get_schema(self, tool_name: str) -> ToolSchema | None:
         """Get schema for a tool."""
         return self._schemas.get(tool_name)
 
@@ -339,7 +341,7 @@ class LocalToolExecutor(ToolExecutor):
     # Tool Implementations
     # =========================================================================
 
-    def _read_file(self, args: Dict[str, Any]) -> str:
+    def _read_file(self, args: dict[str, Any]) -> str:
         """Read file contents."""
         path = self._resolve_path(args["file_path"])
 
@@ -352,7 +354,7 @@ class LocalToolExecutor(ToolExecutor):
         offset = args.get("offset", 0)
         limit = args.get("limit")
 
-        with open(path, "r", encoding="utf-8", errors="replace") as f:
+        with open(path, encoding="utf-8", errors="replace") as f:
             lines = f.readlines()
 
         # Apply offset and limit
@@ -363,7 +365,7 @@ class LocalToolExecutor(ToolExecutor):
 
         return "".join(lines)
 
-    def _write_file(self, args: Dict[str, Any]) -> str:
+    def _write_file(self, args: dict[str, Any]) -> str:
         """Write content to file."""
         path = self._resolve_path(args["file_path"])
         content = args["content"]
@@ -376,7 +378,7 @@ class LocalToolExecutor(ToolExecutor):
 
         return f"Successfully wrote {len(content)} bytes to {path}"
 
-    def _edit_file(self, args: Dict[str, Any]) -> str:
+    def _edit_file(self, args: dict[str, Any]) -> str:
         """Edit file using search/replace."""
         path = self._resolve_path(args["file_path"])
         old_string = args["old_string"]
@@ -385,7 +387,7 @@ class LocalToolExecutor(ToolExecutor):
         if not path.exists():
             raise FileNotFoundError(f"File not found: {path}")
 
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             content = f.read()
 
         if old_string not in content:
@@ -403,7 +405,7 @@ class LocalToolExecutor(ToolExecutor):
 
         return f"Successfully edited {path}"
 
-    def _list_directory(self, args: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _list_directory(self, args: dict[str, Any]) -> list[dict[str, Any]]:
         """List directory contents."""
         path = self._resolve_path(args.get("path", "."))
 
@@ -414,21 +416,25 @@ class LocalToolExecutor(ToolExecutor):
         for entry in sorted(path.iterdir()):
             try:
                 stat = entry.stat()
-                entries.append({
-                    "name": entry.name,
-                    "type": "directory" if entry.is_dir() else "file",
-                    "size": stat.st_size if entry.is_file() else None,
-                })
+                entries.append(
+                    {
+                        "name": entry.name,
+                        "type": "directory" if entry.is_dir() else "file",
+                        "size": stat.st_size if entry.is_file() else None,
+                    }
+                )
             except (PermissionError, OSError):
-                entries.append({
-                    "name": entry.name,
-                    "type": "unknown",
-                    "error": "permission denied",
-                })
+                entries.append(
+                    {
+                        "name": entry.name,
+                        "type": "unknown",
+                        "error": "permission denied",
+                    }
+                )
 
         return entries
 
-    def _grep(self, args: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _grep(self, args: dict[str, Any]) -> list[dict[str, Any]]:
         """Search file contents using regex."""
         pattern = args["pattern"]
         base_path = self._resolve_path(args.get("path", "."))
@@ -437,17 +443,19 @@ class LocalToolExecutor(ToolExecutor):
         regex = re.compile(pattern, re.IGNORECASE)
         results = []
 
-        def search_file(file_path: Path) -> List[Dict[str, Any]]:
+        def search_file(file_path: Path) -> list[dict[str, Any]]:
             matches = []
             try:
-                with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+                with open(file_path, encoding="utf-8", errors="replace") as f:
                     for line_num, line in enumerate(f, 1):
                         if regex.search(line):
-                            matches.append({
-                                "file": str(file_path.relative_to(self._workspace_path)),
-                                "line": line_num,
-                                "content": line.rstrip()[:200],
-                            })
+                            matches.append(
+                                {
+                                    "file": str(file_path.relative_to(self._workspace_path)),
+                                    "line": line_num,
+                                    "content": line.rstrip()[:200],
+                                }
+                            )
             except (PermissionError, OSError, UnicodeDecodeError):
                 pass
             return matches
@@ -463,7 +471,7 @@ class LocalToolExecutor(ToolExecutor):
 
         return results
 
-    def _glob(self, args: Dict[str, Any]) -> List[str]:
+    def _glob(self, args: dict[str, Any]) -> list[str]:
         """Find files matching glob pattern."""
         pattern = args["pattern"]
         base_path = self._resolve_path(args.get("path", "."))
@@ -481,7 +489,7 @@ class LocalToolExecutor(ToolExecutor):
 
         return sorted(results)
 
-    def _read_many_files(self, args: Dict[str, Any]) -> Dict[str, str]:
+    def _read_many_files(self, args: dict[str, Any]) -> dict[str, str]:
         """Read multiple files at once."""
         file_paths = args["file_paths"]
         results = {}
@@ -490,10 +498,10 @@ class LocalToolExecutor(ToolExecutor):
             try:
                 path = self._resolve_path(file_path)
                 if path.exists() and path.stat().st_size <= self._max_file_size:
-                    with open(path, "r", encoding="utf-8", errors="replace") as f:
+                    with open(path, encoding="utf-8", errors="replace") as f:
                         results[file_path] = f.read()
                 else:
-                    results[file_path] = f"<file too large or not found>"
+                    results[file_path] = "<file too large or not found>"
             except Exception as e:
                 results[file_path] = f"<error: {e}>"
 
@@ -504,6 +512,7 @@ class LocalToolExecutor(ToolExecutor):
 # Tool Registry
 # =============================================================================
 
+
 class ToolRegistry:
     """
     Registry for tool executors.
@@ -512,8 +521,8 @@ class ToolRegistry:
     """
 
     def __init__(self):
-        self._executors: List[ToolExecutor] = []
-        self._tool_map: Dict[str, ToolExecutor] = {}
+        self._executors: list[ToolExecutor] = []
+        self._tool_map: dict[str, ToolExecutor] = {}
 
     def register(self, executor: ToolExecutor) -> None:
         """Register a tool executor."""
@@ -524,8 +533,8 @@ class ToolRegistry:
     async def execute(
         self,
         tool_name: str,
-        arguments: Dict[str, Any],
-        workspace_path: Optional[Path] = None,
+        arguments: dict[str, Any],
+        workspace_path: Path | None = None,
         timeout: float = 30.0,
     ) -> ToolResult:
         """Execute a tool using the appropriate executor."""
@@ -539,11 +548,11 @@ class ToolRegistry:
 
         return await executor.execute(tool_name, arguments, workspace_path, timeout)
 
-    def list_all_tools(self) -> List[str]:
+    def list_all_tools(self) -> list[str]:
         """List all available tools."""
         return list(self._tool_map.keys())
 
-    def get_all_schemas(self) -> List[ToolSchema]:
+    def get_all_schemas(self) -> list[ToolSchema]:
         """Get schemas for all tools."""
         schemas = []
         for executor in self._executors:
@@ -557,6 +566,7 @@ class ToolRegistry:
 # =============================================================================
 # Factory Functions
 # =============================================================================
+
 
 def create_local_executor(workspace_path: Path) -> LocalToolExecutor:
     """Create a local tool executor for a workspace."""

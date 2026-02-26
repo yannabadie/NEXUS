@@ -58,8 +58,10 @@ import asyncio
 import logging
 import os
 import time
-from datetime import datetime, timezone
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
+
+from core.observability.telemetry.otel_provider import trace_llm_call
 
 from .protocol import (
     BaseAsyncDriver,
@@ -68,7 +70,6 @@ from .protocol import (
     StreamChunk,
     ToolCall,
 )
-from core.observability.telemetry.otel_provider import trace_llm_call
 
 logger = logging.getLogger(__name__)
 
@@ -128,9 +129,7 @@ class KimiSDKDriver(BaseAsyncDriver):
         try:
             from openai import AsyncOpenAI
         except ImportError:
-            raise ImportError(
-                "openai package required. Install with: pip install openai"
-            )
+            raise ImportError("openai package required. Install with: pip install openai") from None
 
         # Get API key from param or environment
         resolved_key = api_key or os.getenv("KIMI_API_KEY")
@@ -147,8 +146,7 @@ class KimiSDKDriver(BaseAsyncDriver):
         )
 
         logger.info(
-            f"Kimi driver initialized: model={resolved_model}, "
-            f"caching={enable_caching}, max_tokens={max_tokens}"
+            f"Kimi driver initialized: model={resolved_model}, caching={enable_caching}, max_tokens={max_tokens}"
         )
 
     async def invoke(
@@ -183,7 +181,8 @@ class KimiSDKDriver(BaseAsyncDriver):
         if self._response_cache and not tools:
             temperature = kwargs.get("temperature", 1.0)
             cached = self._response_cache.get(
-                self._model, prompt,
+                self._model,
+                prompt,
                 temperature=temperature,
                 system_prompt=system_prompt or "",
             )
@@ -209,13 +208,15 @@ class KimiSDKDriver(BaseAsyncDriver):
             vision_input = kwargs.pop("vision_input", None)
             if vision_input:
                 # Multimodal message with vision
-                messages.append({
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt},
-                        {"type": "image_url", "image_url": {"url": vision_input}}
-                    ]
-                })
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            {"type": "image_url", "image_url": {"url": vision_input}},
+                        ],
+                    }
+                )
             else:
                 messages.append({"role": "user", "content": prompt})
 
@@ -282,11 +283,13 @@ class KimiSDKDriver(BaseAsyncDriver):
             tool_calls = []
             if choice.message.tool_calls:
                 for tc in choice.message.tool_calls:
-                    tool_calls.append(ToolCall(
-                        id=tc.id,
-                        name=tc.function.name,
-                        arguments=tc.function.arguments,
-                    ))
+                    tool_calls.append(
+                        ToolCall(
+                            id=tc.id,
+                            name=tc.function.name,
+                            arguments=tc.function.arguments,
+                        )
+                    )
 
             # Build response
             driver_response = DriverResponse(
@@ -317,7 +320,9 @@ class KimiSDKDriver(BaseAsyncDriver):
             # Cache successful response (if caching enabled and no tools)
             if self._response_cache and not tools and content:
                 self._response_cache.put(
-                    self._model, prompt, content,
+                    self._model,
+                    prompt,
+                    content,
                     temperature=kwargs.get("temperature", 1.0),
                     system_prompt=system_prompt or "",
                 )
@@ -330,14 +335,11 @@ class KimiSDKDriver(BaseAsyncDriver):
                     tokens=total_tokens,
                 )
 
-            logger.info(
-                f"Kimi success: {output_tokens} tokens, "
-                f"${cost_total:.6f} (est), {latency_ms:.0f}ms"
-            )
+            logger.info(f"Kimi success: {output_tokens} tokens, ${cost_total:.6f} (est), {latency_ms:.0f}ms")
 
             return driver_response
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             latency_ms = (time.monotonic() - start_time) * 1000
             logger.error(f"Kimi timeout after {latency_ms:.0f}ms")
 
@@ -419,13 +421,15 @@ class KimiSDKDriver(BaseAsyncDriver):
             # Check for vision input
             vision_input = kwargs.pop("vision_input", None)
             if vision_input:
-                messages.append({
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt},
-                        {"type": "image_url", "image_url": {"url": vision_input}}
-                    ]
-                })
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            {"type": "image_url", "image_url": {"url": vision_input}},
+                        ],
+                    }
+                )
             else:
                 messages.append({"role": "user", "content": prompt})
 

@@ -23,32 +23,30 @@ Tests cover:
 - Word overlap utility function
 """
 
-import sys
 import os
-import time
-import hashlib
+import sys
 import threading
+import time
 
 import pytest
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from core.intelligence.hive_mind.multi_agent_reflexion import (
-    ReflexionMode,
-    AgentReflection,
-    ReflexionSynthesis,
-    ReflexionStats,
-    MultiAgentReflexion,
-    get_multi_agent_reflexion,
-    reset_multi_agent_reflexion,
+    ADVERSARIAL_TRIGGER,
     AGREEMENT_THRESHOLD,
+    CAUSE_SIMILARITY_THRESHOLD,
+    DIVERSITY_WEIGHT,
     MAX_FAILURE_HISTORY,
     MIN_REFLECTIONS,
-    CAUSE_SIMILARITY_THRESHOLD,
-    ADVERSARIAL_TRIGGER,
-    DIVERSITY_WEIGHT,
+    AgentReflection,
+    MultiAgentReflexion,
+    ReflexionMode,
+    ReflexionStats,
+    ReflexionSynthesis,
+    get_multi_agent_reflexion,
+    reset_multi_agent_reflexion,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -157,8 +155,12 @@ class TestAgentReflection:
         )
         d = r.to_dict()
         assert set(d.keys()) == {
-            "agent_id", "root_cause", "evidence_count",
-            "proposed_fix", "confidence", "novel_insight",
+            "agent_id",
+            "root_cause",
+            "evidence_count",
+            "proposed_fix",
+            "confidence",
+            "novel_insight",
         }
 
     def test_to_dict_values(self):
@@ -229,8 +231,12 @@ class TestReflexionSynthesis:
         )
         d = s.to_dict()
         assert set(d.keys()) == {
-            "consensus_cause", "evidence_count", "diverse_insights_count",
-            "agreement_level", "degeneration_detected", "mode_used",
+            "consensus_cause",
+            "evidence_count",
+            "diverse_insights_count",
+            "agreement_level",
+            "degeneration_detected",
+            "mode_used",
         }
 
     def test_to_dict_values(self):
@@ -519,12 +525,8 @@ class TestIndependentSynthesis:
         assert 0.0 <= s.agreement_level <= 1.0
 
     def test_consensus_uses_highest_confidence(self, mar):
-        r_high = AgentReflection(
-            agent_id="claude", root_cause="High confidence cause", confidence=0.95
-        )
-        r_low = AgentReflection(
-            agent_id="gemini", root_cause="Low confidence cause", confidence=0.3
-        )
+        r_high = AgentReflection(agent_id="claude", root_cause="High confidence cause", confidence=0.95)
+        r_low = AgentReflection(agent_id="gemini", root_cause="Low confidence cause", confidence=0.3)
         s = mar.synthesize(reflections=[r_high, r_low])
         assert s.consensus_cause == "High confidence cause"
 
@@ -559,12 +561,8 @@ class TestIndependentSynthesis:
         assert len(s.diverse_insights) >= 1
 
     def test_strategy_uses_first_fix(self, mar):
-        r1 = AgentReflection(
-            agent_id="claude", root_cause="X", proposed_fix="Fix A"
-        )
-        r2 = AgentReflection(
-            agent_id="gemini", root_cause="Y", proposed_fix="Fix B"
-        )
+        r1 = AgentReflection(agent_id="claude", root_cause="X", proposed_fix="Fix A")
+        r2 = AgentReflection(agent_id="gemini", root_cause="Y", proposed_fix="Fix B")
         s = mar.synthesize(reflections=[r1, r2])
         assert "Fix A" in s.proposed_strategy
         assert "Fix B" in s.proposed_strategy
@@ -680,15 +678,9 @@ class TestConstructiveSynthesis:
         assert s.mode_used == ReflexionMode.CONSTRUCTIVE
 
     def test_constructive_combines_fixes_arrow_notation(self, mar):
-        r1 = AgentReflection(
-            agent_id="claude", root_cause="X", proposed_fix="Step one"
-        )
-        r2 = AgentReflection(
-            agent_id="gemini", root_cause="Y", proposed_fix="Step two"
-        )
-        s = mar.synthesize(
-            reflections=[r1, r2], force_mode=ReflexionMode.CONSTRUCTIVE
-        )
+        r1 = AgentReflection(agent_id="claude", root_cause="X", proposed_fix="Step one")
+        r2 = AgentReflection(agent_id="gemini", root_cause="Y", proposed_fix="Step two")
+        s = mar.synthesize(reflections=[r1, r2], force_mode=ReflexionMode.CONSTRUCTIVE)
         assert "Multi-step approach:" in s.proposed_strategy
         # Arrow notation
         assert chr(8594) in s.proposed_strategy  # unicode right arrow
@@ -705,18 +697,14 @@ class TestConstructiveSynthesis:
     def test_constructive_single_fix_no_arrow(self, mar):
         r1 = AgentReflection(agent_id="claude", root_cause="X", proposed_fix="Only fix")
         r2 = AgentReflection(agent_id="gemini", root_cause="Y", proposed_fix="")
-        s = mar.synthesize(
-            reflections=[r1, r2], force_mode=ReflexionMode.CONSTRUCTIVE
-        )
+        s = mar.synthesize(reflections=[r1, r2], force_mode=ReflexionMode.CONSTRUCTIVE)
         # Only one fix, so no "Multi-step approach"
         assert "Multi-step" not in s.proposed_strategy
 
     def test_constructive_agreement_capped_at_one(self, mar):
         r1 = AgentReflection(agent_id="claude", root_cause="same words")
         r2 = AgentReflection(agent_id="gemini", root_cause="same words")
-        s = mar.synthesize(
-            reflections=[r1, r2], force_mode=ReflexionMode.CONSTRUCTIVE
-        )
+        s = mar.synthesize(reflections=[r1, r2], force_mode=ReflexionMode.CONSTRUCTIVE)
         assert s.agreement_level <= 1.0
 
 
@@ -816,9 +804,7 @@ class TestAntiDegenerationStrategy:
         strategies_set = set()
         for attempt in range(1, 6):
             # Use internal method directly to test rotation
-            strategy = mar._generate_anti_degeneration_strategy(
-                reflections, "ctx", attempt
-            )
+            strategy = mar._generate_anti_degeneration_strategy(reflections, "ctx", attempt)
             strategies_set.add(strategy)
         # Should produce different strategies for different attempts
         assert len(strategies_set) == 5
@@ -829,9 +815,7 @@ class TestAntiDegenerationStrategy:
             root_cause="A novel cause discovered",
             novel_insight=True,
         )
-        strategy = mar._generate_anti_degeneration_strategy(
-            [novel_r], "ctx", 1
-        )
+        strategy = mar._generate_anti_degeneration_strategy([novel_r], "ctx", 1)
         assert "novel cause discovered" in strategy.lower()
 
     def test_strategy_cycle_repeats_after_five(self, mar):
@@ -990,9 +974,7 @@ class TestSingleReflectionSynthesis:
         assert "apply" in s.proposed_strategy.lower()
 
     def test_single_reflection_uses_proposed_fix(self, mar):
-        r = AgentReflection(
-            agent_id="claude", root_cause="X", proposed_fix="My specific fix"
-        )
+        r = AgentReflection(agent_id="claude", root_cause="X", proposed_fix="My specific fix")
         s = mar.synthesize(reflections=[r])
         assert s.proposed_strategy == "My specific fix"
 
@@ -1154,10 +1136,7 @@ class TestStatistics:
 
 class TestEdgeCases:
     def test_all_same_root_cause(self, mar):
-        reflections = [
-            AgentReflection(agent_id=f"agent{i}", root_cause="exact same thing")
-            for i in range(5)
-        ]
+        reflections = [AgentReflection(agent_id=f"agent{i}", root_cause="exact same thing") for i in range(5)]
         s = mar.synthesize(reflections=reflections)
         assert s.agreement_level == 1.0
         assert s.consensus_cause == "exact same thing"
@@ -1172,24 +1151,17 @@ class TestEdgeCases:
         assert s.agreement_level < 0.5
 
     def test_very_high_confidence_reflection(self, mar):
-        r = AgentReflection(
-            agent_id="claude", root_cause="Critical bug", confidence=0.99
-        )
+        r = AgentReflection(agent_id="claude", root_cause="Critical bug", confidence=0.99)
         s = mar.synthesize(reflections=[r])
         assert s.consensus_cause == "Critical bug"
 
     def test_very_low_confidence_reflection(self, mar):
-        r = AgentReflection(
-            agent_id="claude", root_cause="Maybe bug", confidence=0.01
-        )
+        r = AgentReflection(agent_id="claude", root_cause="Maybe bug", confidence=0.01)
         s = mar.synthesize(reflections=[r])
         assert s.consensus_cause == "Maybe bug"
 
     def test_many_reflections(self, mar):
-        reflections = [
-            AgentReflection(agent_id=f"agent{i}", root_cause=f"cause {i} analysis")
-            for i in range(20)
-        ]
+        reflections = [AgentReflection(agent_id=f"agent{i}", root_cause=f"cause {i} analysis") for i in range(20)]
         s = mar.synthesize(reflections=reflections)
         assert s.reflection_count == 20
         assert len(s.consensus_evidence) <= 10  # Capped at 10
@@ -1432,15 +1404,11 @@ class TestIntegrationWorkflow:
         """End-to-end: create reflections from text, then synthesize."""
         r1 = mar.create_reflection(
             "claude",
-            "The auth module is clearly broken\n"
-            "- Error: InvalidToken\n"
-            "We should fix the token parser",
+            "The auth module is clearly broken\n- Error: InvalidToken\nWe should fix the token parser",
         )
         r2 = mar.create_reflection(
             "gemini",
-            "Token parsing might have a bug\n"
-            "- Error: ParseError at line 10\n"
-            "Try using a different parser library",
+            "Token parsing might have a bug\n- Error: ParseError at line 10\nTry using a different parser library",
         )
 
         assert r1.confidence > r2.confidence  # "clearly" vs "might"

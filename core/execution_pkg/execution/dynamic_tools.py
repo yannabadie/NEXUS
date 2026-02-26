@@ -29,16 +29,15 @@ Usage:
 
 import json
 import logging
+import re
 import subprocess
 import sys
-import re
-from pathlib import Path
-from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
+from typing import Any
 
-from core.security_pkg.security.execution_policy import CodeValidator, CodeValidationResult
-
+from core.security_pkg.security.execution_policy import CodeValidator
 
 # =============================================================================
 # Constants
@@ -53,19 +52,22 @@ TOOL_PREFIX = "dyn_"  # Prefix for dynamic tool names
 # Data Classes
 # =============================================================================
 
+
 @dataclass
 class ToolCreationResult:
     """Result of tool creation."""
+
     success: bool
     tool_name: str
-    tool_path: Optional[Path] = None
-    error: Optional[str] = None
-    validation_violations: List[str] = field(default_factory=list)
+    tool_path: Path | None = None
+    error: str | None = None
+    validation_violations: list[str] = field(default_factory=list)
 
 
 @dataclass
 class ToolExecutionResult:
     """Result of tool execution."""
+
     success: bool
     output: str = ""
     error: str = ""
@@ -76,6 +78,7 @@ class ToolExecutionResult:
 @dataclass
 class ToolMetadata:
     """Metadata for a dynamic tool."""
+
     name: str
     description: str
     created_at: str
@@ -140,6 +143,7 @@ if __name__ == "__main__":
 # DynamicToolManager
 # =============================================================================
 
+
 class DynamicToolManager:
     """
     Manager for creating and executing dynamic Python tools.
@@ -172,7 +176,7 @@ class DynamicToolManager:
         self.tools_dir.mkdir(parents=True, exist_ok=True)
 
         self._validator = CodeValidator()
-        self._registered_tools: Dict[str, ToolMetadata] = {}
+        self._registered_tools: dict[str, ToolMetadata] = {}
         self._logger = logging.getLogger("nexus.dynamic_tools")
 
         # Load existing tools
@@ -189,12 +193,7 @@ class DynamicToolManager:
             except Exception as e:
                 self._logger.warning(f"Failed to load tool metadata {meta_file}: {e}")
 
-    def create_tool(
-        self,
-        name: str,
-        code: str,
-        description: str = ""
-    ) -> ToolCreationResult:
+    def create_tool(self, name: str, code: str, description: str = "") -> ToolCreationResult:
         """
         Create a new dynamic tool.
 
@@ -211,7 +210,7 @@ class DynamicToolManager:
             return ToolCreationResult(
                 success=False,
                 tool_name=name,
-                error="Invalid tool name. Use only alphanumeric characters and underscores."
+                error="Invalid tool name. Use only alphanumeric characters and underscores.",
             )
 
         # Check if tool already exists
@@ -220,7 +219,7 @@ class DynamicToolManager:
             return ToolCreationResult(
                 success=False,
                 tool_name=name,
-                error=f"Tool '{name}' already exists. Delete it first or use a different name."
+                error=f"Tool '{name}' already exists. Delete it first or use a different name.",
             )
 
         # Validate the code
@@ -231,66 +230,40 @@ class DynamicToolManager:
                 success=False,
                 tool_name=name,
                 error="Code validation failed. Unsafe patterns detected.",
-                validation_violations=validation.violations
+                validation_violations=validation.violations,
             )
 
         # Check that code defines a run() function
         if not self._has_run_function(code):
-            return ToolCreationResult(
-                success=False,
-                tool_name=name,
-                error="Tool code must define a 'run()' function."
-            )
+            return ToolCreationResult(success=False, tool_name=name, error="Tool code must define a 'run()' function.")
 
         # Generate tool file
         try:
             created_at = datetime.now().isoformat()
             tool_content = TOOL_TEMPLATE.format(
-                name=name,
-                description=description or f"Dynamic tool: {name}",
-                created_at=created_at,
-                user_code=code
+                name=name, description=description or f"Dynamic tool: {name}", created_at=created_at, user_code=code
             )
 
             # Write tool file
             tool_path.write_text(tool_content, encoding="utf-8")
 
             # Write metadata
-            metadata = ToolMetadata(
-                name=name,
-                description=description,
-                created_at=created_at
-            )
+            metadata = ToolMetadata(name=name, description=description, created_at=created_at)
             meta_path = self.tools_dir / f"{name}.meta.json"
-            meta_path.write_text(
-                json.dumps(metadata.__dict__, indent=2),
-                encoding="utf-8"
-            )
+            meta_path.write_text(json.dumps(metadata.__dict__, indent=2), encoding="utf-8")
 
             # Register tool
             self._registered_tools[name] = metadata
 
             self._logger.info(f"Created dynamic tool: {name}")
 
-            return ToolCreationResult(
-                success=True,
-                tool_name=name,
-                tool_path=tool_path
-            )
+            return ToolCreationResult(success=True, tool_name=name, tool_path=tool_path)
 
         except Exception as e:
             self._logger.error(f"Failed to create tool '{name}': {e}")
-            return ToolCreationResult(
-                success=False,
-                tool_name=name,
-                error=f"Failed to create tool: {str(e)}"
-            )
+            return ToolCreationResult(success=False, tool_name=name, error=f"Failed to create tool: {str(e)}")
 
-    def execute_tool(
-        self,
-        name: str,
-        args: Optional[Dict[str, Any]] = None
-    ) -> ToolExecutionResult:
+    def execute_tool(self, name: str, args: dict[str, Any] | None = None) -> ToolExecutionResult:
         """
         Execute a dynamic tool.
 
@@ -304,10 +277,7 @@ class DynamicToolManager:
         tool_path = self.tools_dir / f"{name}.py"
 
         if not tool_path.exists():
-            return ToolExecutionResult(
-                success=False,
-                error=f"Tool '{name}' not found."
-            )
+            return ToolExecutionResult(success=False, error=f"Tool '{name}' not found.")
 
         args = args or {}
 
@@ -320,7 +290,7 @@ class DynamicToolManager:
                 timeout=TOOL_TIMEOUT_SECONDS,
                 cwd=str(self.workspace_path),
                 encoding="utf-8",
-                errors="replace"
+                errors="replace",
             )
 
             # Truncate output if too large
@@ -337,41 +307,30 @@ class DynamicToolManager:
                 output_data = json.loads(stdout)
                 if "error" in output_data:
                     return ToolExecutionResult(
-                        success=False,
-                        output=stdout,
-                        error=output_data["error"],
-                        return_code=result.returncode
+                        success=False, output=stdout, error=output_data["error"], return_code=result.returncode
                     )
                 return ToolExecutionResult(
                     success=True,
                     output=json.dumps(output_data.get("result", stdout), indent=2),
                     error=stderr,
-                    return_code=result.returncode
+                    return_code=result.returncode,
                 )
             except json.JSONDecodeError:
                 # Non-JSON output
                 return ToolExecutionResult(
-                    success=result.returncode == 0,
-                    output=stdout,
-                    error=stderr,
-                    return_code=result.returncode
+                    success=result.returncode == 0, output=stdout, error=stderr, return_code=result.returncode
                 )
 
         except subprocess.TimeoutExpired:
             self._logger.warning(f"Tool '{name}' timed out after {TOOL_TIMEOUT_SECONDS}s")
             return ToolExecutionResult(
-                success=False,
-                error=f"Tool execution timed out after {TOOL_TIMEOUT_SECONDS} seconds.",
-                timed_out=True
+                success=False, error=f"Tool execution timed out after {TOOL_TIMEOUT_SECONDS} seconds.", timed_out=True
             )
         except Exception as e:
             self._logger.error(f"Tool '{name}' execution failed: {e}")
-            return ToolExecutionResult(
-                success=False,
-                error=f"Execution error: {str(e)}"
-            )
+            return ToolExecutionResult(success=False, error=f"Execution error: {str(e)}")
 
-    def delete_tool(self, name: str) -> Tuple[bool, str]:
+    def delete_tool(self, name: str) -> tuple[bool, str]:
         """
         Delete a dynamic tool.
 
@@ -404,7 +363,7 @@ class DynamicToolManager:
             self._logger.error(f"Failed to delete tool '{name}': {e}")
             return False, f"Failed to delete tool: {str(e)}"
 
-    def list_tools(self) -> List[ToolMetadata]:
+    def list_tools(self) -> list[ToolMetadata]:
         """
         List all registered dynamic tools.
 
@@ -413,7 +372,7 @@ class DynamicToolManager:
         """
         return list(self._registered_tools.values())
 
-    def get_tool_info(self, name: str) -> Optional[ToolMetadata]:
+    def get_tool_info(self, name: str) -> ToolMetadata | None:
         """
         Get metadata for a specific tool.
 
@@ -448,22 +407,22 @@ class DynamicToolManager:
         if not name:
             return False
         # Alphanumeric and underscore only, must start with letter
-        return bool(re.match(r'^[a-zA-Z][a-zA-Z0-9_]*$', name))
+        return bool(re.match(r"^[a-zA-Z][a-zA-Z0-9_]*$", name))
 
     def _has_run_function(self, code: str) -> bool:
         """Check if code defines a run() function."""
         # Simple check - look for 'def run' pattern
-        return bool(re.search(r'^\s*def\s+run\s*\(', code, re.MULTILINE))
+        return bool(re.search(r"^\s*def\s+run\s*\(", code, re.MULTILINE))
 
 
 # =============================================================================
 # V10 PRISM: Multi-Tenant Dynamic Tool Manager Access
 # =============================================================================
 
-_manager: Optional[DynamicToolManager] = None
+_manager: DynamicToolManager | None = None
 
 
-def get_dynamic_tool_manager(workspace_path: Optional[Path] = None) -> DynamicToolManager:
+def get_dynamic_tool_manager(workspace_path: Path | None = None) -> DynamicToolManager:
     """
     Get the dynamic tool manager for the current tenant context.
 
@@ -479,8 +438,10 @@ def get_dynamic_tool_manager(workspace_path: Optional[Path] = None) -> DynamicTo
     # V10: Try ServiceFactory first (tenant-scoped)
     try:
         from ..context import has_active_session
+
         if has_active_session():
             from ..factory import ServiceFactory
+
             return ServiceFactory.get_dynamic_tool_manager()
     except ImportError:
         pass  # context module not available, use legacy
@@ -507,6 +468,7 @@ def reset_dynamic_tool_manager() -> None:
     try:
         from ..context import get_current_session_or_none
         from ..factory import ServiceFactory
+
         ctx = get_current_session_or_none()
         if ctx:
             ServiceFactory.clear_tenant_cache(ctx.tenant_id)

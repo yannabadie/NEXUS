@@ -17,8 +17,6 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.memory_pkg.memory.context_compressor import (
     CompressionResult,
     CompressTurn,
@@ -28,10 +26,10 @@ from core.memory_pkg.memory.context_compressor import (
     reset_compressor,
 )
 
-
 # =============================================================================
 # CompressTurn Tests
 # =============================================================================
+
 
 class TestCompressTurn:
     """Test CompressTurn dataclass."""
@@ -62,6 +60,7 @@ class TestCompressTurn:
 # Importance Scoring Tests
 # =============================================================================
 
+
 class TestImportanceScoring:
     """Test automatic importance scoring."""
 
@@ -82,7 +81,10 @@ class TestImportanceScoring:
 
     def test_high_importance_decision(self):
         c = ContextCompressor()
-        turn = c.add_turn("assistant", "I decided to use the approach with microservices because of the trade-off between scalability and simplicity.")
+        turn = c.add_turn(
+            "assistant",
+            "I decided to use the approach with microservices because of the trade-off between scalability and simplicity.",
+        )
         assert turn.importance > 0.5
 
     def test_high_importance_error(self):
@@ -122,6 +124,7 @@ class TestImportanceScoring:
 # =============================================================================
 # Add Turn Tests
 # =============================================================================
+
 
 class TestAddTurn:
     """Test adding turns."""
@@ -163,6 +166,7 @@ class TestAddTurn:
 # Compression Tests
 # =============================================================================
 
+
 class TestCompression:
     """Test compression operations."""
 
@@ -175,8 +179,14 @@ class TestCompression:
 
     def test_compress_removes_low_importance(self):
         c = ContextCompressor(max_tokens=100)
-        c.add_turn("user", "Analyze the auth module for security vulnerabilities and provide a comprehensive report with detailed findings")
-        c.add_turn("assistant", "I found several critical issues in the authentication system that need immediate attention and fixing right away")
+        c.add_turn(
+            "user",
+            "Analyze the auth module for security vulnerabilities and provide a comprehensive report with detailed findings",
+        )
+        c.add_turn(
+            "assistant",
+            "I found several critical issues in the authentication system that need immediate attention and fixing right away",
+        )
         c.add_turn("user", "ok")
         c.add_turn("user", "thanks")
         c.add_turn("user", "yes")
@@ -218,9 +228,12 @@ class TestCompression:
 
     def test_compression_result_to_dict(self):
         result = CompressionResult(
-            turns_before=10, turns_after=6,
-            tokens_before=1000, tokens_after=600,
-            turns_pruned=4, turns_archived=4,
+            turns_before=10,
+            turns_after=6,
+            tokens_before=1000,
+            tokens_after=600,
+            turns_pruned=4,
+            turns_archived=4,
         )
         d = result.to_dict()
         assert d["turns_pruned"] == 4
@@ -228,9 +241,12 @@ class TestCompression:
 
     def test_compression_ratio_empty(self):
         result = CompressionResult(
-            turns_before=0, turns_after=0,
-            tokens_before=0, tokens_after=0,
-            turns_pruned=0, turns_archived=0,
+            turns_before=0,
+            turns_after=0,
+            tokens_before=0,
+            tokens_after=0,
+            turns_pruned=0,
+            turns_archived=0,
         )
         assert result.compression_ratio == 0.0
 
@@ -248,6 +264,7 @@ class TestCompression:
 # =============================================================================
 # Query Tests
 # =============================================================================
+
 
 class TestQuery:
     """Test querying turns."""
@@ -305,6 +322,7 @@ class TestQuery:
 # Pin/Unpin Tests
 # =============================================================================
 
+
 class TestPinUnpin:
     """Test pin/unpin operations."""
 
@@ -332,6 +350,7 @@ class TestPinUnpin:
 # =============================================================================
 # Context Shift Tests
 # =============================================================================
+
 
 class TestContextShift:
     """Test context shift detection."""
@@ -377,6 +396,7 @@ class TestContextShift:
 # =============================================================================
 # State Tests
 # =============================================================================
+
 
 class TestState:
     """Test state management."""
@@ -431,6 +451,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global compressor."""
 
@@ -457,22 +478,36 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_memory_package(self):
         from core.memory_pkg.memory import (
-            ContextCompressor, CompressTurn, CompressionResult, ContextShift,
-            get_compressor, reset_compressor,
+            CompressionResult,
+            CompressTurn,
+            ContextCompressor,
+            ContextShift,
+            get_compressor,
+            reset_compressor,
         )
-        assert all([
-            ContextCompressor, CompressTurn, CompressionResult, ContextShift,
-            get_compressor, reset_compressor,
-        ])
+
+        assert all(
+            [
+                ContextCompressor,
+                CompressTurn,
+                CompressionResult,
+                ContextShift,
+                get_compressor,
+                reset_compressor,
+            ]
+        )
 
     def test_from_module(self):
         from core.memory_pkg.memory.context_compressor import (
-            ContextCompressor, CompressTurn, CompressionResult, ContextShift,
-            get_compressor, reset_compressor,
+            CompressionResult,
+            CompressTurn,
+            ContextCompressor,
         )
+
         assert all([ContextCompressor, CompressTurn, CompressionResult])

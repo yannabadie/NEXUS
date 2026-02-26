@@ -19,23 +19,21 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.synapse.message_router import (
     DeadLetter,
     MessageRouter,
     QueueInfo,
-    RouteResult,
     RoutedMessage,
+    RouteResult,
     RouterStats,
     get_message_router,
     reset_message_router,
 )
 
-
 # =============================================================================
 # RoutedMessage Tests
 # =============================================================================
+
 
 class TestRoutedMessage:
     """Test RoutedMessage dataclass."""
@@ -60,6 +58,7 @@ class TestRoutedMessage:
 # DeadLetter Tests
 # =============================================================================
 
+
 class TestDeadLetter:
     """Test DeadLetter dataclass."""
 
@@ -79,6 +78,7 @@ class TestDeadLetter:
 # RouteResult Tests
 # =============================================================================
 
+
 class TestRouteResult:
     """Test RouteResult dataclass."""
 
@@ -96,6 +96,7 @@ class TestRouteResult:
 # QueueInfo Tests
 # =============================================================================
 
+
 class TestQueueInfo:
     """Test QueueInfo dataclass."""
 
@@ -109,11 +110,14 @@ class TestQueueInfo:
 # RouterStats Tests
 # =============================================================================
 
+
 class TestRouterStats:
     """Test RouterStats dataclass."""
 
     def test_to_dict(self):
-        s = RouterStats(registered_agents=2, total_routed=100, total_delivered=90, total_dead_letters=10, total_broadcasts=5)
+        s = RouterStats(
+            registered_agents=2, total_routed=100, total_delivered=90, total_dead_letters=10, total_broadcasts=5
+        )
         d = s.to_dict()
         assert d["total_routed"] == 100
 
@@ -121,6 +125,7 @@ class TestRouterStats:
 # =============================================================================
 # Registration Tests
 # =============================================================================
+
 
 class TestRegistration:
     """Test agent registration."""
@@ -161,6 +166,7 @@ class TestRegistration:
 # =============================================================================
 # Routing Tests
 # =============================================================================
+
 
 class TestRouting:
     """Test message routing."""
@@ -207,6 +213,7 @@ class TestRouting:
 # Broadcast Tests
 # =============================================================================
 
+
 class TestBroadcast:
     """Test message broadcasting."""
 
@@ -237,6 +244,7 @@ class TestBroadcast:
 # =============================================================================
 # Receiving Tests
 # =============================================================================
+
 
 class TestReceiving:
     """Test message receiving."""
@@ -319,6 +327,7 @@ class TestReceiving:
 # Dead Letter Tests
 # =============================================================================
 
+
 class TestDeadLetters:
     """Test dead letter handling."""
 
@@ -349,6 +358,7 @@ class TestDeadLetters:
 # Queue Info Tests
 # =============================================================================
 
+
 class TestQueueInfoQuery:
     """Test queue info queries."""
 
@@ -373,6 +383,7 @@ class TestQueueInfoQuery:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test router statistics."""
@@ -406,6 +417,7 @@ class TestStatistics:
 # State Tests
 # =============================================================================
 
+
 class TestState:
     """Test state management."""
 
@@ -435,6 +447,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global message router."""
 
@@ -461,23 +474,38 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_synapse_package(self):
         from core.synapse import (
-            MessageRouter, RoutedMessage, DeadLetter,
-            RouteResult, QueueInfo, RouterStats,
-            get_message_router, reset_message_router,
+            DeadLetter,
+            MessageRouter,
+            QueueInfo,
+            RoutedMessage,
+            RouteResult,
+            RouterStats,
+            get_message_router,
+            reset_message_router,
         )
-        assert all([
-            MessageRouter, RoutedMessage, DeadLetter,
-            RouteResult, QueueInfo, RouterStats,
-            get_message_router, reset_message_router,
-        ])
+
+        assert all(
+            [
+                MessageRouter,
+                RoutedMessage,
+                DeadLetter,
+                RouteResult,
+                QueueInfo,
+                RouterStats,
+                get_message_router,
+                reset_message_router,
+            ]
+        )
 
     def test_from_module(self):
         from core.synapse.message_router import (
-            MessageRouter, MAX_AGENTS, MAX_QUEUE_SIZE,
+            MAX_AGENTS,
         )
+
         assert MAX_AGENTS == 1000

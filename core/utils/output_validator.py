@@ -32,8 +32,9 @@ from __future__ import annotations
 import json
 import logging
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Set, Union
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -43,8 +44,14 @@ _logger = logging.getLogger(__name__)
 # =============================================================================
 
 # Supported type names
-VALID_TYPES: Set[str] = {
-    "str", "int", "float", "bool", "dict", "list", "any",
+VALID_TYPES: set[str] = {
+    "str",
+    "int",
+    "float",
+    "bool",
+    "dict",
+    "list",
+    "any",
 }
 
 # Max nesting depth to prevent infinite recursion
@@ -55,23 +62,25 @@ MAX_NESTING_DEPTH = 20
 # Types
 # =============================================================================
 
+
 @dataclass
 class Field:
     """Schema field definition."""
+
     name: str
     field_type: str = "any"  # str, int, float, bool, dict, list, any
     required: bool = True
     default: Any = None
-    min_value: Optional[float] = None
-    max_value: Optional[float] = None
-    min_length: Optional[int] = None
-    max_length: Optional[int] = None
-    pattern: Optional[str] = None  # regex pattern for str fields
-    enum_values: Optional[List[Any]] = None  # allowed values
+    min_value: float | None = None
+    max_value: float | None = None
+    min_length: int | None = None
+    max_length: int | None = None
+    pattern: str | None = None  # regex pattern for str fields
+    enum_values: list[Any] | None = None  # allowed values
     description: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
-        d: Dict[str, Any] = {
+    def to_dict(self) -> dict[str, Any]:
+        d: dict[str, Any] = {
             "name": self.name,
             "type": self.field_type,
             "required": self.required,
@@ -88,26 +97,27 @@ class Field:
 @dataclass
 class Schema:
     """Validation schema for structured output."""
+
     name: str
-    fields: List[Field] = field(default_factory=list)
+    fields: list[Field] = field(default_factory=list)
     allow_extra_fields: bool = True
     description: str = ""
 
-    def get_field(self, name: str) -> Optional[Field]:
+    def get_field(self, name: str) -> Field | None:
         for f in self.fields:
             if f.name == name:
                 return f
         return None
 
     @property
-    def required_fields(self) -> List[str]:
+    def required_fields(self) -> list[str]:
         return [f.name for f in self.fields if f.required]
 
     @property
-    def field_names(self) -> List[str]:
+    def field_names(self) -> list[str]:
         return [f.name for f in self.fields]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "fields": [f.to_dict() for f in self.fields],
@@ -118,11 +128,12 @@ class Schema:
 @dataclass
 class ValidationError:
     """A single validation error."""
+
     field: str
     message: str
     value: Any = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "field": self.field,
             "message": self.message,
@@ -132,9 +143,10 @@ class ValidationError:
 @dataclass
 class ValidationResult:
     """Result of validating structured output."""
+
     valid: bool
-    errors: List[ValidationError] = field(default_factory=list)
-    data: Optional[Dict[str, Any]] = None  # parsed data if valid
+    errors: list[ValidationError] = field(default_factory=list)
+    data: dict[str, Any] | None = None  # parsed data if valid
     schema_name: str = ""
 
     @property
@@ -142,10 +154,10 @@ class ValidationResult:
         return len(self.errors)
 
     @property
-    def error_messages(self) -> List[str]:
+    def error_messages(self) -> list[str]:
         return [e.message for e in self.errors]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "valid": self.valid,
             "error_count": self.error_count,
@@ -188,6 +200,7 @@ def _check_type(value: Any, expected_type: str) -> bool:
 # Output Validator
 # =============================================================================
 
+
 class OutputValidator:
     """
     Validates LLM output against schemas.
@@ -205,8 +218,8 @@ class OutputValidator:
     """
 
     def __init__(self):
-        self._schemas: Dict[str, Schema] = {}
-        self._custom_rules: Dict[str, List[Callable]] = {}
+        self._schemas: dict[str, Schema] = {}
+        self._custom_rules: dict[str, list[Callable]] = {}
 
     # =========================================================================
     # Schema Registration
@@ -216,14 +229,14 @@ class OutputValidator:
         """Register a schema for reuse."""
         self._schemas[schema.name] = schema
 
-    def get_schema(self, name: str) -> Optional[Schema]:
+    def get_schema(self, name: str) -> Schema | None:
         """Get a registered schema by name."""
         return self._schemas.get(name)
 
     def add_rule(
         self,
         schema_name: str,
-        rule: Callable[[Dict[str, Any]], Optional[str]],
+        rule: Callable[[dict[str, Any]], str | None],
     ) -> None:
         """
         Add a custom validation rule for a schema.
@@ -242,9 +255,9 @@ class OutputValidator:
     def validate_json(
         self,
         text: str,
-        schema: Optional[Schema] = None,
+        schema: Schema | None = None,
         *,
-        schema_name: Optional[str] = None,
+        schema_name: str | None = None,
     ) -> ValidationResult:
         """
         Validate JSON text against a schema.
@@ -293,7 +306,7 @@ class OutputValidator:
 
     def validate_dict(
         self,
-        data: Dict[str, Any],
+        data: dict[str, Any],
         schema: Schema,
     ) -> ValidationResult:
         """Validate a dictionary against a schema."""
@@ -301,18 +314,20 @@ class OutputValidator:
 
     def _validate_dict(
         self,
-        data: Dict[str, Any],
+        data: dict[str, Any],
         schema: Schema,
     ) -> ValidationResult:
-        errors: List[ValidationError] = []
+        errors: list[ValidationError] = []
 
         # Check required fields
         for field_name in schema.required_fields:
             if field_name not in data:
-                errors.append(ValidationError(
-                    field=field_name,
-                    message=f"Required field '{field_name}' is missing",
-                ))
+                errors.append(
+                    ValidationError(
+                        field=field_name,
+                        message=f"Required field '{field_name}' is missing",
+                    )
+                )
 
         # Validate each field that's present
         for f in schema.fields:
@@ -327,21 +342,25 @@ class OutputValidator:
             known = set(schema.field_names)
             for key in data:
                 if key not in known:
-                    errors.append(ValidationError(
-                        field=key,
-                        message=f"Unexpected field '{key}'",
-                        value=key,
-                    ))
+                    errors.append(
+                        ValidationError(
+                            field=key,
+                            message=f"Unexpected field '{key}'",
+                            value=key,
+                        )
+                    )
 
         # Run custom rules
         rules = self._custom_rules.get(schema.name, [])
         for rule in rules:
             error_msg = rule(data)
             if error_msg:
-                errors.append(ValidationError(
-                    field="",
-                    message=error_msg,
-                ))
+                errors.append(
+                    ValidationError(
+                        field="",
+                        message=error_msg,
+                    )
+                )
 
         return ValidationResult(
             valid=len(errors) == 0,
@@ -354,67 +373,85 @@ class OutputValidator:
         self,
         value: Any,
         f: Field,
-    ) -> List[ValidationError]:
+    ) -> list[ValidationError]:
         errors = []
 
         # Type check
         if not _check_type(value, f.field_type):
-            errors.append(ValidationError(
-                field=f.name,
-                message=f"Field '{f.name}' expected type '{f.field_type}', got '{type(value).__name__}'",
-                value=value,
-            ))
+            errors.append(
+                ValidationError(
+                    field=f.name,
+                    message=f"Field '{f.name}' expected type '{f.field_type}', got '{type(value).__name__}'",
+                    value=value,
+                )
+            )
             return errors  # Skip further checks if type is wrong
 
         # Numeric range
-        if f.min_value is not None and isinstance(value, (int, float)) and not isinstance(value, bool):
-            if value < f.min_value:
-                errors.append(ValidationError(
+        if (
+            f.min_value is not None
+            and isinstance(value, (int, float))
+            and not isinstance(value, bool)
+            and value < f.min_value
+        ):
+            errors.append(
+                ValidationError(
                     field=f.name,
                     message=f"Field '{f.name}' value {value} below minimum {f.min_value}",
                     value=value,
-                ))
-        if f.max_value is not None and isinstance(value, (int, float)) and not isinstance(value, bool):
-            if value > f.max_value:
-                errors.append(ValidationError(
+                )
+            )
+        if (
+            f.max_value is not None
+            and isinstance(value, (int, float))
+            and not isinstance(value, bool)
+            and value > f.max_value
+        ):
+            errors.append(
+                ValidationError(
                     field=f.name,
                     message=f"Field '{f.name}' value {value} above maximum {f.max_value}",
                     value=value,
-                ))
+                )
+            )
 
         # String/list length
-        if f.min_length is not None and hasattr(value, "__len__"):
-            if len(value) < f.min_length:
-                errors.append(ValidationError(
+        if f.min_length is not None and hasattr(value, "__len__") and len(value) < f.min_length:
+            errors.append(
+                ValidationError(
                     field=f.name,
                     message=f"Field '{f.name}' length {len(value)} below minimum {f.min_length}",
                     value=value,
-                ))
-        if f.max_length is not None and hasattr(value, "__len__"):
-            if len(value) > f.max_length:
-                errors.append(ValidationError(
+                )
+            )
+        if f.max_length is not None and hasattr(value, "__len__") and len(value) > f.max_length:
+            errors.append(
+                ValidationError(
                     field=f.name,
                     message=f"Field '{f.name}' length {len(value)} above maximum {f.max_length}",
                     value=value,
-                ))
+                )
+            )
 
         # Regex pattern
-        if f.pattern and isinstance(value, str):
-            if not re.search(f.pattern, value):
-                errors.append(ValidationError(
+        if f.pattern and isinstance(value, str) and not re.search(f.pattern, value):
+            errors.append(
+                ValidationError(
                     field=f.name,
                     message=f"Field '{f.name}' does not match pattern '{f.pattern}'",
                     value=value,
-                ))
+                )
+            )
 
         # Enum values
-        if f.enum_values is not None:
-            if value not in f.enum_values:
-                errors.append(ValidationError(
+        if f.enum_values is not None and value not in f.enum_values:
+            errors.append(
+                ValidationError(
                     field=f.name,
                     message=f"Field '{f.name}' value '{value}' not in allowed values {f.enum_values}",
                     value=value,
-                ))
+                )
+            )
 
         return errors
 
@@ -449,7 +486,7 @@ class OutputValidator:
         start = text.find("{")
         end = text.rfind("}")
         if start >= 0 and end > start:
-            candidate = text[start:end + 1]
+            candidate = text[start : end + 1]
             result = self.validate_json(candidate, schema)
             if result.valid:
                 return result
@@ -461,14 +498,11 @@ class OutputValidator:
     def schema_count(self) -> int:
         return len(self._schemas)
 
-    def list_schemas(self) -> List[str]:
+    def list_schemas(self) -> list[str]:
         return sorted(self._schemas.keys())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "schema_count": self.schema_count,
-            "schemas": {
-                name: schema.to_dict()
-                for name, schema in sorted(self._schemas.items())
-            },
+            "schemas": {name: schema.to_dict() for name, schema in sorted(self._schemas.items())},
         }

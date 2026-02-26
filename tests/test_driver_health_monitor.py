@@ -18,25 +18,20 @@ Validates:
 - Module exports
 """
 
-import time
-
-import pytest
-
 from core.drivers.driver_health_monitor import (
     DriverHealth,
     DriverHealthMonitor,
     HealthAlert,
     HealthEvent,
     HealthStatus,
-    MonitorStats,
     get_health_monitor,
     reset_health_monitor,
 )
 
-
 # =============================================================================
 # HealthStatus Tests
 # =============================================================================
+
 
 class TestHealthStatus:
     """Test HealthStatus enum."""
@@ -61,6 +56,7 @@ class TestHealthStatus:
 # HealthEvent Tests
 # =============================================================================
 
+
 class TestHealthEvent:
     """Test HealthEvent dataclass."""
 
@@ -83,13 +79,17 @@ class TestHealthEvent:
 # DriverHealth Tests
 # =============================================================================
 
+
 class TestDriverHealth:
     """Test DriverHealth dataclass."""
 
     def test_to_dict(self):
         h = DriverHealth(
-            driver_id="claude", status=HealthStatus.HEALTHY,
-            total_requests=100, error_rate=0.05, avg_latency_ms=200.5,
+            driver_id="claude",
+            status=HealthStatus.HEALTHY,
+            total_requests=100,
+            error_rate=0.05,
+            avg_latency_ms=200.5,
         )
         d = h.to_dict()
         assert d["driver_id"] == "claude"
@@ -106,21 +106,26 @@ class TestDriverHealth:
 # HealthAlert Tests
 # =============================================================================
 
+
 class TestHealthAlert:
     """Test HealthAlert dataclass."""
 
     def test_creation(self):
         a = HealthAlert(
-            driver_id="claude", alert_type="degraded",
-            message="test", previous_status=HealthStatus.HEALTHY,
+            driver_id="claude",
+            alert_type="degraded",
+            message="test",
+            previous_status=HealthStatus.HEALTHY,
             current_status=HealthStatus.DEGRADED,
         )
         assert a.alert_type == "degraded"
 
     def test_to_dict(self):
         a = HealthAlert(
-            driver_id="claude", alert_type="unhealthy",
-            message="msg", previous_status=HealthStatus.DEGRADED,
+            driver_id="claude",
+            alert_type="unhealthy",
+            message="msg",
+            previous_status=HealthStatus.DEGRADED,
             current_status=HealthStatus.UNHEALTHY,
         )
         d = a.to_dict()
@@ -131,6 +136,7 @@ class TestHealthAlert:
 # =============================================================================
 # Record Tests
 # =============================================================================
+
 
 class TestRecord:
     """Test event recording."""
@@ -163,6 +169,7 @@ class TestRecord:
 # =============================================================================
 # Health Classification Tests
 # =============================================================================
+
 
 class TestClassification:
     """Test health classification."""
@@ -247,6 +254,7 @@ class TestClassification:
 # Alert Tests
 # =============================================================================
 
+
 class TestAlerts:
     """Test health alerts."""
 
@@ -298,6 +306,7 @@ class TestAlerts:
 # Listing Tests
 # =============================================================================
 
+
 class TestListing:
     """Test driver listing."""
 
@@ -334,6 +343,7 @@ class TestListing:
 # Statistics Tests
 # =============================================================================
 
+
 class TestStatistics:
     """Test monitoring statistics."""
 
@@ -363,6 +373,7 @@ class TestStatistics:
 # =============================================================================
 # State Tests
 # =============================================================================
+
 
 class TestState:
     """Test state management."""
@@ -403,6 +414,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global health monitor."""
 
@@ -429,25 +441,38 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_drivers_package(self):
         from core.drivers import (
-            DriverHealthMonitor, DriverHealth, HealthStatus,
-            HealthAlert, MonitorStats,
-            get_health_monitor, reset_health_monitor,
+            DriverHealth,
+            DriverHealthMonitor,
+            HealthAlert,
+            HealthStatus,
+            MonitorStats,
+            get_health_monitor,
+            reset_health_monitor,
         )
-        assert all([
-            DriverHealthMonitor, DriverHealth, HealthStatus,
-            HealthAlert, MonitorStats,
-            get_health_monitor, reset_health_monitor,
-        ])
+
+        assert all(
+            [
+                DriverHealthMonitor,
+                DriverHealth,
+                HealthStatus,
+                HealthAlert,
+                MonitorStats,
+                get_health_monitor,
+                reset_health_monitor,
+            ]
+        )
 
     def test_from_module(self):
         from core.drivers.driver_health_monitor import (
-            DriverHealthMonitor, HealthEvent, HealthStatus,
-            MAX_HISTORY, DEGRADED_ERROR_RATE,
+            DEGRADED_ERROR_RATE,
+            MAX_HISTORY,
         )
+
         assert MAX_HISTORY == 200
         assert DEGRADED_ERROR_RATE == 0.2

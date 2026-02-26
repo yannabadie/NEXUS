@@ -6,12 +6,15 @@ Features:
 - Validateurs auto-réparent les typos courants
 - Plus de crashes sur champs manquants
 """
-from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, field_validator, Field, ValidationInfo
+
+from typing import Any
+
+from pydantic import BaseModel, ValidationInfo, field_validator
 
 
 class ThoughtChain(BaseModel):
     """Un pas de raisonnement"""
+
     step: int
     reasoning: str
 
@@ -23,21 +26,22 @@ class LightMessageV7(BaseModel):
     All fields optional with intelligent defaults.
     Validators auto-repair common errors.
     """
+
     sender: str
     action_type: str
 
     # Optional avec defaults
-    content: Optional[str] = ""
-    thought_process: Optional[List[ThoughtChain]] = []
-    reflection: Optional[str] = None
-    next_agent: Optional[str] = None
-    status: Optional[str] = "CONTINUE"
-    action_summary: Optional[str] = None
-    instructions_for_next: Optional[str] = None
-    strategic_plan_update: Optional[List[Dict]] = None
+    content: str | None = ""
+    thought_process: list[ThoughtChain] | None = []
+    reflection: str | None = None
+    next_agent: str | None = None
+    status: str | None = "CONTINUE"
+    action_summary: str | None = None
+    instructions_for_next: str | None = None
+    strategic_plan_update: list[dict] | None = None
 
     # Validateurs auto-réparateurs (Pydantic V2 syntax)
-    @field_validator('action_type')
+    @field_validator("action_type")
     @classmethod
     def repair_action_type(cls, v: str) -> str:
         """Auto-correct typos et variations"""
@@ -54,13 +58,13 @@ class LightMessageV7(BaseModel):
             "FINISHING": "FINISH",
             "ERROR": "ERROR",
             "CONTINUE": "CONTINUE",
-            "CONTINUING": "CONTINUE"
+            "CONTINUING": "CONTINUE",
         }
 
         v_upper = v.upper()
         return repairs.get(v_upper, v_upper)
 
-    @field_validator('sender')
+    @field_validator("sender")
     @classmethod
     def repair_sender(cls, v: str) -> str:
         """Capitalize sender name"""
@@ -68,21 +72,21 @@ class LightMessageV7(BaseModel):
             return "Unknown"
         return v.capitalize()
 
-    @field_validator('next_agent', mode='before')
+    @field_validator("next_agent", mode="before")
     @classmethod
-    def default_next_agent(cls, v: Optional[str], info: ValidationInfo) -> Optional[str]:
+    def default_next_agent(cls, v: str | None, info: ValidationInfo) -> str | None:
         """V7 FIX: Si next_agent oublié, ALTERNER vers l'autre agent"""
-        if v is None and info.data.get('sender'):
-            sender = info.data['sender'].capitalize()
+        if v is None and info.data.get("sender"):
+            sender = info.data["sender"].capitalize()
             # Alterner au lieu de garder le même
             return "Claude" if sender == "Gemini" else "Gemini"
         if v:
             return v.capitalize()
         return None
 
-    @field_validator('status')
+    @field_validator("status")
     @classmethod
-    def repair_status(cls, v: Optional[str]) -> str:
+    def repair_status(cls, v: str | None) -> str:
         """Auto-correct status"""
         if not v:
             return "CONTINUE"
@@ -96,7 +100,7 @@ class LightMessageV7(BaseModel):
             "FAILED": "ERROR_REVIEW_NEEDED",
             "CONTINUE": "CONTINUE",
             "ONGOING": "CONTINUE",
-            "IN_PROGRESS": "CONTINUE"
+            "IN_PROGRESS": "CONTINUE",
         }
 
         v_upper = v.upper()
@@ -105,21 +109,24 @@ class LightMessageV7(BaseModel):
 
 class ToolUse(BaseModel):
     """Tool request"""
+
     tool_name: str
-    arguments: Dict[str, Any]
-    expected_outcome: Optional[str] = "Tool execution successful"
+    arguments: dict[str, Any]
+    expected_outcome: str | None = "Tool execution successful"
 
 
 class PostActionReview(BaseModel):
     """CFL validation review"""
+
     validation_status: str  # SUCCESS, FAILURE, PARTIAL_SUCCESS
     analysis: str
-    discrepancies: Optional[List[str]] = []
-    correction_plan: Optional[str] = None
+    discrepancies: list[str] | None = []
+    correction_plan: str | None = None
 
 
 class HeavyMessageV7(LightMessageV7):
     """Message avec tool use (CFL)"""
+
     action_type: str = "TOOL_USE"
-    tool_use: Optional[ToolUse] = None
-    post_action_review: Optional[PostActionReview] = None
+    tool_use: ToolUse | None = None
+    post_action_review: PostActionReview | None = None

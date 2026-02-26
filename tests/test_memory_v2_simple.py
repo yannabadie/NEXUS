@@ -9,19 +9,15 @@ Date: 2026-02-17
 Epic: 1.4 (Persistance Stratégique - LanceDB-backed memory)
 """
 
-import pytest
-from pathlib import Path
-from typing import Any, Dict, List, Optional
-
 # Validates that the imports work
 from core.memory_pkg.memory import (
-    SuccessMemoryV2,
-    get_success_memory_v2,
-    reset_success_memory_v2,
-    StrategyBlacklistV2,
     BlacklistedStrategy,
+    StrategyBlacklistV2,
+    SuccessMemoryV2,
     get_strategy_blacklist_v2,
+    get_success_memory_v2,
     reset_strategy_blacklist_v2,
+    reset_success_memory_v2,
 )
 from core.memory_pkg.memory.types import Chunk
 
@@ -36,32 +32,32 @@ class TestSuccessMemoryV2API:
     def test_has_record_success_method(self):
         """Should have record_success method."""
         assert hasattr(SuccessMemoryV2, "record_success")
-        assert callable(getattr(SuccessMemoryV2, "record_success"))
+        assert callable(SuccessMemoryV2.record_success)
 
     def test_has_find_similar_tasks_method(self):
         """Should have find_similar_tasks method (semantic search)."""
         assert hasattr(SuccessMemoryV2, "find_similar_tasks")
-        assert callable(getattr(SuccessMemoryV2, "find_similar_tasks"))
+        assert callable(SuccessMemoryV2.find_similar_tasks)
 
     def test_has_get_best_mode_method(self):
         """Should have get_best_mode_for_similar method."""
         assert hasattr(SuccessMemoryV2, "get_best_mode_for_similar")
-        assert callable(getattr(SuccessMemoryV2, "get_best_mode_for_similar"))
+        assert callable(SuccessMemoryV2.get_best_mode_for_similar)
 
     def test_has_get_all_method(self):
         """Should have get_all method."""
         assert hasattr(SuccessMemoryV2, "get_all")
-        assert callable(getattr(SuccessMemoryV2, "get_all"))
+        assert callable(SuccessMemoryV2.get_all)
 
     def test_has_get_stats_method(self):
         """Should have get_stats method."""
         assert hasattr(SuccessMemoryV2, "get_stats")
-        assert callable(getattr(SuccessMemoryV2, "get_stats"))
+        assert callable(SuccessMemoryV2.get_stats)
 
     def test_has_clear_method(self):
         """Should have clear method."""
         assert hasattr(SuccessMemoryV2, "clear")
-        assert callable(getattr(SuccessMemoryV2, "clear"))
+        assert callable(SuccessMemoryV2.clear)
 
     def test_record_success_signature(self):
         """record_success should have correct signature."""
@@ -114,32 +110,32 @@ class TestStrategyBlacklistV2API:
     def test_has_add_failed_strategy_method(self):
         """Should have add_failed_strategy method."""
         assert hasattr(StrategyBlacklistV2, "add_failed_strategy")
-        assert callable(getattr(StrategyBlacklistV2, "add_failed_strategy"))
+        assert callable(StrategyBlacklistV2.add_failed_strategy)
 
     def test_has_is_blacklisted_method(self):
         """Should have is_blacklisted method (semantic check)."""
         assert hasattr(StrategyBlacklistV2, "is_blacklisted")
-        assert callable(getattr(StrategyBlacklistV2, "is_blacklisted"))
+        assert callable(StrategyBlacklistV2.is_blacklisted)
 
     def test_has_suggest_alternatives_method(self):
         """Should have suggest_alternatives method."""
         assert hasattr(StrategyBlacklistV2, "suggest_alternatives")
-        assert callable(getattr(StrategyBlacklistV2, "suggest_alternatives"))
+        assert callable(StrategyBlacklistV2.suggest_alternatives)
 
     def test_has_get_all_method(self):
         """Should have get_all method."""
         assert hasattr(StrategyBlacklistV2, "get_all")
-        assert callable(getattr(StrategyBlacklistV2, "get_all"))
+        assert callable(StrategyBlacklistV2.get_all)
 
     def test_has_get_stats_method(self):
         """Should have get_stats method."""
         assert hasattr(StrategyBlacklistV2, "get_stats")
-        assert callable(getattr(StrategyBlacklistV2, "get_stats"))
+        assert callable(StrategyBlacklistV2.get_stats)
 
     def test_has_clear_method(self):
         """Should have clear method."""
         assert hasattr(StrategyBlacklistV2, "clear")
-        assert callable(getattr(StrategyBlacklistV2, "clear"))
+        assert callable(StrategyBlacklistV2.clear)
 
     def test_add_failed_strategy_signature(self):
         """add_failed_strategy should have correct signature."""
@@ -202,12 +198,7 @@ class TestChunkMetadataSupport:
     def test_chunk_metadata_optional(self):
         """Chunk metadata should be optional (default None)."""
         # Create chunk without metadata
-        chunk = Chunk(
-            file_path="test.py",
-            start_line=1,
-            end_line=10,
-            content="test content"
-        )
+        chunk = Chunk(file_path="test.py", start_line=1, end_line=10, content="test content")
 
         assert chunk.metadata is None
 
@@ -215,13 +206,7 @@ class TestChunkMetadataSupport:
         """Chunk metadata should accept dict."""
         metadata = {"task_id": "123", "quality_score": 0.95}
 
-        chunk = Chunk(
-            file_path="test.py",
-            start_line=1,
-            end_line=10,
-            content="test content",
-            metadata=metadata
-        )
+        chunk = Chunk(file_path="test.py", start_line=1, end_line=10, content="test content", metadata=metadata)
 
         assert chunk.metadata == metadata
         assert chunk.metadata["task_id"] == "123"
@@ -231,13 +216,7 @@ class TestChunkMetadataSupport:
         """Chunk.to_dict() should include metadata if present."""
         metadata = {"task_id": "123"}
 
-        chunk = Chunk(
-            file_path="test.py",
-            start_line=1,
-            end_line=10,
-            content="test content",
-            metadata=metadata
-        )
+        chunk = Chunk(file_path="test.py", start_line=1, end_line=10, content="test content", metadata=metadata)
 
         chunk_dict = chunk.to_dict()
         assert "metadata" in chunk_dict
@@ -250,7 +229,7 @@ class TestChunkMetadataSupport:
             "start_line": 1,
             "end_line": 10,
             "content": "test content",
-            "metadata": {"task_id": "123"}
+            "metadata": {"task_id": "123"},
         }
 
         chunk = Chunk.from_dict(data)

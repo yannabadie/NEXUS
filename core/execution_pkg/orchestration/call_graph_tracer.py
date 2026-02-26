@@ -35,9 +35,9 @@ from __future__ import annotations
 
 import logging
 import threading
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -51,6 +51,7 @@ MAX_CALLS: int = 50_000
 # =============================================================================
 # Dataclasses
 # =============================================================================
+
 
 @dataclass
 class CallRecord:
@@ -66,9 +67,9 @@ class CallRecord:
 
     def __post_init__(self) -> None:
         if not self.timestamp:
-            self.timestamp = datetime.now(timezone.utc).isoformat()
+            self.timestamp = datetime.now(UTC).isoformat()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "caller": self.caller,
             "callee": self.callee,
@@ -102,7 +103,7 @@ class EdgeMetrics:
             return 0.0
         return self.failures / self.call_count
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "caller": self.caller,
             "callee": self.callee,
@@ -125,7 +126,7 @@ class TracerStats:
     overall_failure_rate: float = 0.0
     busiest_edge: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_calls": self.total_calls,
             "unique_callers": self.unique_callers,
@@ -140,6 +141,7 @@ class TracerStats:
 # CallGraphTracer
 # =============================================================================
 
+
 class CallGraphTracer:
     """
     Traces agent-tool call chains and computes per-edge analytics.
@@ -150,10 +152,10 @@ class CallGraphTracer:
     """
 
     def __init__(self, max_calls: int = MAX_CALLS) -> None:
-        self._calls: List[CallRecord] = []
-        self._edges: Dict[str, EdgeMetrics] = {}
-        self._caller_counts: Dict[str, int] = {}
-        self._callee_counts: Dict[str, int] = {}
+        self._calls: list[CallRecord] = []
+        self._edges: dict[str, EdgeMetrics] = {}
+        self._caller_counts: dict[str, int] = {}
+        self._callee_counts: dict[str, int] = {}
         self._max_calls: int = max_calls
         self._lock = threading.Lock()
 
@@ -224,22 +226,22 @@ class CallGraphTracer:
     # Edge Queries
     # =========================================================================
 
-    def get_edge_metrics(self, caller: str, callee: str) -> Optional[EdgeMetrics]:
+    def get_edge_metrics(self, caller: str, callee: str) -> EdgeMetrics | None:
         """Return EdgeMetrics for a specific caller->callee pair, or None."""
         with self._lock:
             return self._edges.get(f"{caller}->{callee}")
 
-    def get_all_edges(self) -> List[EdgeMetrics]:
+    def get_all_edges(self) -> list[EdgeMetrics]:
         """Return all edges sorted by call_count descending."""
         with self._lock:
             edges = list(self._edges.values())
         return sorted(edges, key=lambda e: e.call_count, reverse=True)
 
-    def get_hottest_edges(self, limit: int = 10) -> List[EdgeMetrics]:
+    def get_hottest_edges(self, limit: int = 10) -> list[EdgeMetrics]:
         """Return the *limit* most-called edges."""
         return self.get_all_edges()[:limit]
 
-    def get_failing_edges(self, min_calls: int = 3) -> List[EdgeMetrics]:
+    def get_failing_edges(self, min_calls: int = 3) -> list[EdgeMetrics]:
         """
         Return edges with failure_rate > 0, sorted by failure_rate descending.
 
@@ -257,13 +259,13 @@ class CallGraphTracer:
     # Fan-out / Fan-in
     # =========================================================================
 
-    def get_caller_fan_out(self, caller: str) -> List[EdgeMetrics]:
+    def get_caller_fan_out(self, caller: str) -> list[EdgeMetrics]:
         """Return all edges originating from *caller*."""
         with self._lock:
             edges = [e for e in self._edges.values() if e.caller == caller]
         return sorted(edges, key=lambda e: e.call_count, reverse=True)
 
-    def get_callee_fan_in(self, callee: str) -> List[EdgeMetrics]:
+    def get_callee_fan_in(self, callee: str) -> list[EdgeMetrics]:
         """Return all edges terminating at *callee*."""
         with self._lock:
             edges = [e for e in self._edges.values() if e.callee == callee]
@@ -273,7 +275,7 @@ class CallGraphTracer:
     # Call History
     # =========================================================================
 
-    def get_recent_calls(self, limit: int = 20) -> List[CallRecord]:
+    def get_recent_calls(self, limit: int = 20) -> list[CallRecord]:
         """Return the most recent *limit* call records (newest first)."""
         with self._lock:
             tail = self._calls[-limit:] if limit < len(self._calls) else list(self._calls)
@@ -294,9 +296,7 @@ class CallGraphTracer:
             # overall failure rate
             total_failures = sum(e.failures for e in self._edges.values())
             total_edge_calls = sum(e.call_count for e in self._edges.values())
-            overall_failure_rate = (
-                total_failures / total_edge_calls if total_edge_calls > 0 else 0.0
-            )
+            overall_failure_rate = total_failures / total_edge_calls if total_edge_calls > 0 else 0.0
 
             # busiest edge
             busiest_edge = ""
@@ -327,12 +327,12 @@ class CallGraphTracer:
     # Listing
     # =========================================================================
 
-    def list_callers(self) -> List[str]:
+    def list_callers(self) -> list[str]:
         """Return sorted list of unique callers."""
         with self._lock:
             return sorted(self._caller_counts.keys())
 
-    def list_callees(self) -> List[str]:
+    def list_callees(self) -> list[str]:
         """Return sorted list of unique callees."""
         with self._lock:
             return sorted(self._callee_counts.keys())
@@ -349,7 +349,7 @@ class CallGraphTracer:
             self._caller_counts.clear()
             self._callee_counts.clear()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         Serialise the tracer state to a dictionary.
 
@@ -361,11 +361,14 @@ class CallGraphTracer:
         with self._lock:
             return {
                 "stats": stats.to_dict(),
-                "edges": [e.to_dict() for e in sorted(
-                    self._edges.values(),
-                    key=lambda e: e.call_count,
-                    reverse=True,
-                )],
+                "edges": [
+                    e.to_dict()
+                    for e in sorted(
+                        self._edges.values(),
+                        key=lambda e: e.call_count,
+                        reverse=True,
+                    )
+                ],
                 "recent_calls": [c.to_dict() for c in self._calls[-20:]],
             }
 
@@ -374,7 +377,7 @@ class CallGraphTracer:
 # Global Singleton
 # =============================================================================
 
-_tracer: Optional[CallGraphTracer] = None
+_tracer: CallGraphTracer | None = None
 _tracer_lock = threading.Lock()
 
 

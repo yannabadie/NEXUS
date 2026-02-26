@@ -9,60 +9,45 @@ Tests the complete Hybrid Swarm pipeline:
 - Mode executors
 - Hybrid swarm engine integration
 """
+
 import sys
 from pathlib import Path
 
 # Add parent to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from core.intelligence.swarm.agent_metrics import AgentPool, AgentProfile
 from core.intelligence.swarm.collaboration_modes import (
     CollaborationMode,
     ModeCharacteristics,
-    MODE_CHARACTERISTICS,
-    get_mode_characteristics,
-    get_all_modes,
     get_adversarial_modes,
+    get_mode_characteristics,
     get_parallel_modes,
-    suggest_mode_for_complexity
+    suggest_mode_for_complexity,
 )
-from core.intelligence.swarm.task_analyzer import (
-    TaskComplexity,
-    TaskDomain,
-    TaskAnalysis,
-    TaskAnalyzer
-)
-from core.intelligence.swarm.mode_selector import (
-    AgentAssignment,
-    ModeProposal,
-    ModeSelector
-)
-from core.intelligence.swarm.negotiation_protocol import (
-    NegotiationStatus,
-    NegotiationProposal,
-    HybridNegotiationMessage,
-    NegotiationResult,
-    NegotiationProtocol,
-    extract_negotiate_json
-)
+from core.intelligence.swarm.hybrid_swarm_engine import HybridSwarmEngine, SwarmPhase, SwarmResult
 from core.intelligence.swarm.mode_executors import (
-    ExecutionStatus,
     AgentResponse,
     ExecutionContext,
     ExecutionResult,
-    ParallelExecutor,
-    SequentialExecutor,
+    ExecutionStatus,
     LeadSupportExecutor,
+    ParallelExecutor,
     PingPongExecutor,
-    SpecialistExecutor,
     RedBlueExecutor,
-    get_executor
+    SequentialExecutor,
+    SpecialistExecutor,
+    get_executor,
 )
-from core.intelligence.swarm.hybrid_swarm_engine import (
-    SwarmPhase,
-    SwarmResult,
-    HybridSwarmEngine
+from core.intelligence.swarm.mode_selector import AgentAssignment, ModeProposal, ModeSelector
+from core.intelligence.swarm.negotiation_protocol import (
+    HybridNegotiationMessage,
+    NegotiationProposal,
+    NegotiationProtocol,
+    NegotiationStatus,
+    extract_negotiate_json,
 )
-from core.intelligence.swarm.agent_metrics import AgentPool, AgentProfile
+from core.intelligence.swarm.task_analyzer import TaskAnalysis, TaskAnalyzer, TaskComplexity, TaskDomain
 
 
 class TestCollaborationModes:
@@ -237,13 +222,13 @@ class TestNegotiationProtocol:
 
     def test_parse_negotiate_json(self):
         """extract_negotiate_json should parse <negotiate> tags"""
-        text = '''I think we should use LEAD_SUPPORT mode.
+        text = """I think we should use LEAD_SUPPORT mode.
 
 <negotiate>
 {"proposed_mode": "lead_support", "confidence": 0.85}
 </negotiate>
 
-What do you think?'''
+What do you think?"""
 
         result = extract_negotiate_json(text)
         assert result is not None
@@ -252,7 +237,7 @@ What do you think?'''
 
     def test_parse_invalid_json(self):
         """Invalid JSON should return None"""
-        text = '<negotiate>not valid json</negotiate>'
+        text = "<negotiate>not valid json</negotiate>"
         result = extract_negotiate_json(text)
         assert result is None
 
@@ -269,7 +254,7 @@ What do you think?'''
             "proposed_lead": "gemini",
             "confidence": 0.9,
             "agrees_with_partner": True,
-            "consensus_reached": True
+            "consensus_reached": True,
         }
 
         proposal = NegotiationProposal.from_dict(data)
@@ -282,14 +267,9 @@ What do you think?'''
 
     def test_hybrid_message_creation(self):
         """HybridNegotiationMessage should combine natural and structured"""
-        proposal = NegotiationProposal(
-            proposed_mode="sequential",
-            consensus_reached=True
-        )
+        proposal = NegotiationProposal(proposed_mode="sequential", consensus_reached=True)
         message = HybridNegotiationMessage(
-            sender="gemini",
-            natural_content="I agree with the approach",
-            structured_proposal=proposal
+            sender="gemini", natural_content="I agree with the approach", structured_proposal=proposal
         )
 
         assert message.sender == "gemini"
@@ -302,11 +282,7 @@ What do you think?'''
         analyzer = TaskAnalyzer()
         analysis = analyzer.analyze("Some task")
 
-        result = protocol.force_mode(
-            CollaborationMode.PARALLEL,
-            analysis,
-            "User forced"
-        )
+        result = protocol.force_mode(CollaborationMode.PARALLEL, analysis, "User forced")
 
         assert result.status == NegotiationStatus.FORCED
         assert result.selected_mode == CollaborationMode.PARALLEL
@@ -322,9 +298,9 @@ class TestModeExecutors:
             task_input=task,
             agent_assignments=[
                 AgentAssignment(agent_id="gemini_primary", role="equal"),
-                AgentAssignment(agent_id="claude_opus", role="equal")
+                AgentAssignment(agent_id="claude_opus", role="equal"),
             ],
-            max_rounds=3
+            max_rounds=3,
         )
 
     def test_parallel_executor(self):
@@ -376,9 +352,7 @@ class TestModeExecutors:
         """SpecialistExecutor should use single agent"""
         executor = SpecialistExecutor()
         context = self._create_test_context()
-        context.agent_assignments = [
-            AgentAssignment(agent_id="claude_opus", role="specialist")
-        ]
+        context.agent_assignments = [AgentAssignment(agent_id="claude_opus", role="specialist")]
 
         result = executor.execute(context)
 
@@ -391,7 +365,7 @@ class TestModeExecutors:
         context = self._create_test_context()
         context.agent_assignments = [
             AgentAssignment(agent_id="claude_opus", role="blue"),
-            AgentAssignment(agent_id="gemini_primary", role="red")
+            AgentAssignment(agent_id="gemini_primary", role="red"),
         ]
 
         result = executor.execute(context)
@@ -424,11 +398,7 @@ class TestHybridSwarmEngine:
     def test_engine_with_pool(self):
         """Engine should accept custom pool"""
         pool = AgentPool()
-        pool.register(AgentProfile(
-            agent_id="test_agent",
-            provider="test",
-            model="test-model"
-        ))
+        pool.register(AgentProfile(agent_id="test_agent", provider="test", model="test-model"))
 
         engine = HybridSwarmEngine(agent_pool=pool)
         assert "test_agent" in engine.agent_pool.agents
@@ -445,20 +415,14 @@ class TestHybridSwarmEngine:
     def test_process_task_with_forced_mode(self):
         """Forced mode should skip selection"""
         engine = HybridSwarmEngine()
-        result = engine.process_task(
-            "Any task",
-            force_mode=CollaborationMode.SPECIALIST
-        )
+        result = engine.process_task("Any task", force_mode=CollaborationMode.SPECIALIST)
 
         assert result.selected_mode == CollaborationMode.SPECIALIST
 
     def test_process_task_skip_negotiation(self):
         """skip_negotiation should bypass negotiation"""
         engine = HybridSwarmEngine()
-        result = engine.process_task(
-            "Research task",
-            skip_negotiation=True
-        )
+        result = engine.process_task("Research task", skip_negotiation=True)
 
         assert result.negotiation_result is None
 
@@ -500,9 +464,9 @@ class TestFSMStatesIntegration:
         """Swarm states should be defined"""
         from core.fsm.states import OrchestratorState
 
-        assert hasattr(OrchestratorState, 'SWARM_ANALYZING')
-        assert hasattr(OrchestratorState, 'SWARM_NEGOTIATING')
-        assert hasattr(OrchestratorState, 'SWARM_EXECUTING')
+        assert hasattr(OrchestratorState, "SWARM_ANALYZING")
+        assert hasattr(OrchestratorState, "SWARM_NEGOTIATING")
+        assert hasattr(OrchestratorState, "SWARM_EXECUTING")
 
     def test_transition_matrix_has_swarm(self):
         """Transition matrix should include swarm states"""
@@ -522,12 +486,12 @@ class TestConfigSwarmOptions:
 
         config = Config()
 
-        assert hasattr(config, 'swarm_enabled')
-        assert hasattr(config, 'swarm_negotiation_enabled')
-        assert hasattr(config, 'swarm_negotiation_max_turns')
-        assert hasattr(config, 'swarm_default_mode')
-        assert hasattr(config, 'swarm_skip_trivial')
-        assert hasattr(config, 'swarm_max_rounds')
+        assert hasattr(config, "swarm_enabled")
+        assert hasattr(config, "swarm_negotiation_enabled")
+        assert hasattr(config, "swarm_negotiation_max_turns")
+        assert hasattr(config, "swarm_default_mode")
+        assert hasattr(config, "swarm_skip_trivial")
+        assert hasattr(config, "swarm_max_rounds")
 
     def test_swarm_defaults(self):
         """Swarm config should have sensible defaults"""
@@ -543,6 +507,7 @@ class TestConfigSwarmOptions:
 # ============================================================================
 # V8.3.4 Audit Fix Tests
 # ============================================================================
+
 
 class TestAuditFixFL002:
     """Tests for FL-002: Completion detection false positives fix"""
@@ -574,18 +539,16 @@ class TestAuditFixFL002:
         for content in true_positive_cases:
             # Note: These might still be blocked by ongoing_indicators check
             # if they contain "will ", "going to", etc. - that's intentional
-            response = AgentResponse(agent_id="test", content=content)
+            AgentResponse(agent_id="test", content=content)
             # Just check that completion signal is detected (pattern match)
             from core.intelligence.swarm.mode_executors import COMPLETION_PATTERN
+
             assert COMPLETION_PATTERN.search(content), f"Pattern not detected: '{content}'"
 
     def test_completion_blocked_by_ongoing_work(self):
         """Should block completion if ongoing work indicators present"""
         # FINISHED but has ongoing work - should NOT be finished
-        response = AgentResponse(
-            agent_id="test",
-            content="FINISHED with step 1. Will continue with step 2 next."
-        )
+        response = AgentResponse(agent_id="test", content="FINISHED with step 1. Will continue with step 2 next.")
         assert not response.is_finished
 
     def test_completion_pattern_case_insensitive(self):
@@ -602,13 +565,16 @@ class TestAuditFixFL001:
 
     def test_blackboard_lock_imported(self):
         """Should have _blackboard_lock defined"""
-        from core.intelligence.swarm.mode_executors import _blackboard_lock
         from threading import Lock
+
+        from core.intelligence.swarm.mode_executors import _blackboard_lock
+
         assert isinstance(_blackboard_lock, type(Lock()))
 
     def test_parallel_executor_thread_safe(self):
         """ParallelExecutor should use thread-safe blackboard access"""
         import inspect
+
         from core.intelligence.swarm.mode_executors import ModeExecutor
 
         # Read the source to verify _blackboard_lock is used
@@ -619,4 +585,5 @@ class TestAuditFixFL001:
 # Pytest entry point
 if __name__ == "__main__":
     import pytest
+
     pytest.main([__file__, "-v"])

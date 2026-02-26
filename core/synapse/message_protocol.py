@@ -36,7 +36,7 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # =============================================================================
 # Constants
@@ -50,18 +50,21 @@ MAX_PAYLOAD_SIZE = 1_000_000  # 1MB serialized
 # Types
 # =============================================================================
 
+
 class MessageType(Enum):
     """Message category."""
-    REQUEST = "request"        # Ask another agent to do something
-    RESPONSE = "response"      # Reply to a request
-    BROADCAST = "broadcast"    # Send to all agents
-    NOTIFY = "notify"          # One-way notification
-    ERROR = "error"            # Error report
-    ACK = "ack"                # Acknowledgement
+
+    REQUEST = "request"  # Ask another agent to do something
+    RESPONSE = "response"  # Reply to a request
+    BROADCAST = "broadcast"  # Send to all agents
+    NOTIFY = "notify"  # One-way notification
+    ERROR = "error"  # Error report
+    ACK = "ack"  # Acknowledgement
 
 
 class Priority(Enum):
     """Message priority."""
+
     LOW = "low"
     NORMAL = "normal"
     HIGH = "high"
@@ -79,6 +82,7 @@ PRIORITY_ORDER = {
 @dataclass
 class MessageHeader:
     """Routing and metadata header."""
+
     message_id: str = ""
     msg_type: MessageType = MessageType.NOTIFY
     sender: str = ""
@@ -86,7 +90,7 @@ class MessageHeader:
     topic: str = ""
     priority: Priority = Priority.NORMAL
     thread_id: str = ""  # conversation thread
-    reply_to: str = ""   # message_id being replied to
+    reply_to: str = ""  # message_id being replied to
     timestamp: float = 0.0
     protocol_version: str = PROTOCOL_VERSION
 
@@ -98,7 +102,7 @@ class MessageHeader:
         if not self.thread_id:
             self.thread_id = self.message_id  # new thread
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "message_id": self.message_id,
             "type": self.msg_type.value,
@@ -112,7 +116,7 @@ class MessageHeader:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> MessageHeader:
+    def from_dict(cls, data: dict[str, Any]) -> MessageHeader:
         return cls(
             message_id=data.get("message_id", ""),
             msg_type=MessageType(data.get("type", "notify")),
@@ -129,10 +133,11 @@ class MessageHeader:
 @dataclass
 class Message:
     """A complete inter-agent message."""
+
     header: MessageHeader
     payload: Any = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    errors: List[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
+    errors: list[str] = field(default_factory=list)
 
     # Convenience properties
     @property
@@ -181,7 +186,7 @@ class Message:
         payload: Any = None,
         *,
         msg_type: MessageType = MessageType.RESPONSE,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> Message:
         """
         Create a reply to this message.
@@ -223,7 +228,7 @@ class Message:
             payload={"error": error},
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "header": self.header.to_dict(),
             "payload": self.payload,
@@ -232,7 +237,7 @@ class Message:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> Message:
+    def from_dict(cls, data: dict[str, Any]) -> Message:
         return cls(
             header=MessageHeader.from_dict(data.get("header", {})),
             payload=data.get("payload"),
@@ -244,8 +249,9 @@ class Message:
 @dataclass
 class MessageThread:
     """A conversation thread (sequence of related messages)."""
+
     thread_id: str
-    messages: List[Message] = field(default_factory=list)
+    messages: list[Message] = field(default_factory=list)
     topic: str = ""
 
     def add(self, message: Message) -> None:
@@ -258,14 +264,14 @@ class MessageThread:
         return len(self.messages)
 
     @property
-    def participants(self) -> List[str]:
+    def participants(self) -> list[str]:
         return sorted(set(m.sender for m in self.messages if m.sender))
 
     @property
-    def last_message(self) -> Optional[Message]:
+    def last_message(self) -> Message | None:
         return self.messages[-1] if self.messages else None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "thread_id": self.thread_id,
             "topic": self.topic,
@@ -278,6 +284,7 @@ class MessageThread:
 # Factory Functions
 # =============================================================================
 
+
 def create_message(
     msg_type: MessageType,
     sender: str,
@@ -287,7 +294,7 @@ def create_message(
     payload: Any = None,
     priority: Priority = Priority.NORMAL,
     thread_id: str = "",
-    metadata: Optional[Dict[str, Any]] = None,
+    metadata: dict[str, Any] | None = None,
 ) -> Message:
     """
     Create a new message.
@@ -360,7 +367,8 @@ def create_broadcast(
 # Validation
 # =============================================================================
 
-def validate_message(message: Message) -> List[str]:
+
+def validate_message(message: Message) -> list[str]:
     """
     Validate a message for correctness.
 

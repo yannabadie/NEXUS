@@ -24,15 +24,15 @@ Usage:
 
 import logging
 import threading
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import List, Optional, Dict
 
 logger = logging.getLogger(__name__)
 
 
 class PersonaType(str, Enum):
     """Expert personas for multi-angle diagnosis."""
+
     ARCHITECT = "architect"
     DEBUGGER = "debugger"
     SECURITY = "security"
@@ -42,6 +42,7 @@ class PersonaType(str, Enum):
 @dataclass
 class PersonaLens:
     """A persona's analysis lens with prompt guidance."""
+
     persona: PersonaType
     name: str
     focus: str
@@ -50,7 +51,7 @@ class PersonaLens:
 
 
 # Pre-defined persona lenses
-PERSONA_LENSES: Dict[PersonaType, PersonaLens] = {
+PERSONA_LENSES: dict[PersonaType, PersonaLens] = {
     PersonaType.ARCHITECT: PersonaLens(
         persona=PersonaType.ARCHITECT,
         name="System Architect",
@@ -101,32 +102,30 @@ PERSONA_LENSES: Dict[PersonaType, PersonaLens] = {
 @dataclass
 class PersonaInsight:
     """Analysis from a single persona."""
+
     persona: PersonaType
     root_cause_hypothesis: str
-    contributing_factors: List[str]
-    recommended_changes: List[str]
+    contributing_factors: list[str]
+    recommended_changes: list[str]
     confidence: float
-    missed_by_others: Optional[str] = None  # Unique insight this persona caught
+    missed_by_others: str | None = None  # Unique insight this persona caught
 
 
 @dataclass
 class MultiPersonaResult:
     """Combined result from multi-persona analysis."""
-    persona_insights: List[PersonaInsight]
+
+    persona_insights: list[PersonaInsight]
     synthesis: str
     primary_root_cause: str
-    all_contributing_factors: List[str]
-    all_recommended_changes: List[str]
+    all_contributing_factors: list[str]
+    all_recommended_changes: list[str]
     confidence: float
     consensus_level: float  # How much personas agree (0-1)
 
-    def get_unique_insights(self) -> List[str]:
+    def get_unique_insights(self) -> list[str]:
         """Get insights that were unique to specific personas."""
-        return [
-            f"[{i.persona.value}] {i.missed_by_others}"
-            for i in self.persona_insights
-            if i.missed_by_others
-        ]
+        return [f"[{i.persona.value}] {i.missed_by_others}" for i in self.persona_insights if i.missed_by_others]
 
 
 class MultiPersonaDiagnoser:
@@ -140,10 +139,10 @@ class MultiPersonaDiagnoser:
 
     def __init__(
         self,
-        personas: Optional[List[PersonaType]] = None,
+        personas: list[PersonaType] | None = None,
     ):
         self._personas = personas or list(PersonaType)
-        self._results: List[MultiPersonaResult] = []
+        self._results: list[MultiPersonaResult] = []
 
     def analyze(
         self,
@@ -201,23 +200,17 @@ class MultiPersonaDiagnoser:
         confidence = 0.5
 
         if lens.persona == PersonaType.ARCHITECT:
-            hypothesis, factors, changes, unique_insight, confidence = (
-                self._architect_analysis(combined, failure_type)
-            )
+            hypothesis, factors, changes, unique_insight, confidence = self._architect_analysis(combined, failure_type)
 
         elif lens.persona == PersonaType.DEBUGGER:
-            hypothesis, factors, changes, unique_insight, confidence = (
-                self._debugger_analysis(combined, failure_type)
-            )
+            hypothesis, factors, changes, unique_insight, confidence = self._debugger_analysis(combined, failure_type)
 
         elif lens.persona == PersonaType.SECURITY:
-            hypothesis, factors, changes, unique_insight, confidence = (
-                self._security_analysis(combined, failure_type)
-            )
+            hypothesis, factors, changes, unique_insight, confidence = self._security_analysis(combined, failure_type)
 
         elif lens.persona == PersonaType.PERFORMANCE:
-            hypothesis, factors, changes, unique_insight, confidence = (
-                self._performance_analysis(combined, failure_type)
+            hypothesis, factors, changes, unique_insight, confidence = self._performance_analysis(
+                combined, failure_type
             )
 
         return PersonaInsight(
@@ -365,7 +358,7 @@ class MultiPersonaDiagnoser:
 
     def _synthesize(
         self,
-        insights: List[PersonaInsight],
+        insights: list[PersonaInsight],
         failure_context: str,
     ) -> MultiPersonaResult:
         """Synthesize persona insights into unified diagnosis."""
@@ -400,8 +393,7 @@ class MultiPersonaDiagnoser:
         # Confidence = weighted average
         total_weight = sum(PERSONA_LENSES[i.persona].weight for i in insights)
         avg_confidence = (
-            sum(PERSONA_LENSES[i.persona].weight * i.confidence for i in insights)
-            / total_weight
+            sum(PERSONA_LENSES[i.persona].weight * i.confidence for i in insights) / total_weight
             if total_weight > 0
             else 0.5
         )
@@ -429,24 +421,18 @@ class MultiPersonaDiagnoser:
             consensus_level=consensus,
         )
 
-    def get_last_result(self) -> Optional[MultiPersonaResult]:
+    def get_last_result(self) -> MultiPersonaResult | None:
         """Get the most recent analysis result."""
         return self._results[-1] if self._results else None
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> dict:
         """Get diagnoser statistics."""
         return {
             "analyses_run": len(self._results),
             "personas_active": len(self._personas),
-            "avg_confidence": (
-                sum(r.confidence for r in self._results) / len(self._results)
-                if self._results
-                else 0.0
-            ),
+            "avg_confidence": (sum(r.confidence for r in self._results) / len(self._results) if self._results else 0.0),
             "avg_consensus": (
-                sum(r.consensus_level for r in self._results) / len(self._results)
-                if self._results
-                else 0.0
+                sum(r.consensus_level for r in self._results) / len(self._results) if self._results else 0.0
             ),
         }
 
@@ -456,7 +442,7 @@ class MultiPersonaDiagnoser:
 
 
 # Module-level singleton
-_diagnoser: Optional[MultiPersonaDiagnoser] = None
+_diagnoser: MultiPersonaDiagnoser | None = None
 _diagnoser_lock = threading.Lock()
 
 

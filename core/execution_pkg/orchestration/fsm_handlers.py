@@ -17,25 +17,29 @@ Usage:
     result = handlers.handle_idle(user_input)
 """
 
+import logging
 import re
 import sys
 import time
-import logging
-from typing import TYPE_CHECKING, Dict, Optional, Tuple
+from typing import TYPE_CHECKING
 
+from core.execution_pkg.routing.model_router import TaskType
 from core.foundation.agents.unified_registry import get_registry
 from core.fsm.states import OrchestratorState
-from core.execution_pkg.routing.model_router import TaskType
-from core.synapse.protocol_v7 import ToolUse
 from core.intelligence.swarm import TaskComplexity
-from core.security_pkg.governance.sandbox_policy import SandboxPolicy
 
 # V13.0 CEREBRO LIVE: Agent exchange telemetry
 from core.observability.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
+from core.security_pkg.governance.sandbox_policy import SandboxPolicy
+from core.synapse.protocol_v7 import ToolUse
+
+logger = logging.getLogger(__name__)
 
 # V8.0 TRUE HIVE MIND
 try:
-    from core.intelligence.hive_mind import TrueHiveMind, TaskComplexity as HiveComplexity
+    from core.intelligence.hive_mind import TaskComplexity as HiveComplexity
+    from core.intelligence.hive_mind import TrueHiveMind
+
     HIVE_MIND_AVAILABLE = True
 except ImportError:
     HIVE_MIND_AVAILABLE = False
@@ -55,7 +59,7 @@ class FSMHandlers:
     Phase 14c: Extracted from OrchestratorV7 for better maintainability.
     """
 
-    def __init__(self, orchestrator: 'OrchestratorV7'):
+    def __init__(self, orchestrator: "OrchestratorV7"):
         """
         Initialize FSM handlers with orchestrator reference.
 
@@ -73,7 +77,7 @@ class FSMHandlers:
     # Core State Handlers
     # =========================================================================
 
-    def handle_idle(self, user_input: Optional[str]) -> Dict:
+    def handle_idle(self, user_input: str | None) -> dict:
         """
         Handle IDLE state - process new user input.
 
@@ -101,24 +105,32 @@ class FSMHandlers:
         # V7.5 HIVE MIND: Track task for Auto-Memory
         self._orch._current_task_start = time.time()
         self._orch._current_task_description = user_input[:200]
-        self._orch._current_task_type = task_analysis.primary_domain.value if task_analysis.primary_domain else "general"
+        self._orch._current_task_type = (
+            task_analysis.primary_domain.value if task_analysis.primary_domain else "general"
+        )
 
         # Check Auto-Memory for recommendations
         memory_rec = self._orch.auto_memory.get_recommendation(self._orch._current_task_type)
         if memory_rec["confidence"] > 0.5 and memory_rec["suggested_mode"]:
-            self._logger.debug("Auto-Memory recommendation", {
-                "suggested_mode": memory_rec["suggested_mode"],
-                "suggested_lead": memory_rec["suggested_lead"],
-                "confidence": memory_rec["confidence"]
-            })
+            self._logger.debug(
+                "Auto-Memory recommendation",
+                {
+                    "suggested_mode": memory_rec["suggested_mode"],
+                    "suggested_lead": memory_rec["suggested_lead"],
+                    "confidence": memory_rec["confidence"],
+                },
+            )
 
-        self._logger.debug("Task complexity analysis", {
-            "input": user_input[:100],
-            "complexity": complexity.name,
-            "domains": [d.value for d in task_analysis.domains[:3]],
-            "recommended_lead": task_analysis.recommended_lead,
-            "memory_confidence": memory_rec["confidence"]
-        })
+        self._logger.debug(
+            "Task complexity analysis",
+            {
+                "input": user_input[:100],
+                "complexity": complexity.name,
+                "domains": [d.value for d in task_analysis.domains[:3]],
+                "recommended_lead": task_analysis.recommended_lead,
+                "memory_confidence": memory_rec["confidence"],
+            },
+        )
 
         # Step 2: Route based on complexity
 
@@ -128,16 +140,15 @@ class FSMHandlers:
 
         # SIMPLE → Single agent mode
         if complexity == TaskComplexity.SIMPLE:
-            self._logger.debug("SIMPLE task - single agent mode", {
-                "input": user_input,
-                "lead": task_analysis.recommended_lead
-            })
+            self._logger.debug(
+                "SIMPLE task - single agent mode", {"input": user_input, "lead": task_analysis.recommended_lead}
+            )
             return self._execute_simple_task(user_input, task_analysis)
 
         # MODERATE/COMPLEX/EXPERT → Swarm or Brainstorming
         return self._handle_moderate_plus(user_input, task_analysis)
 
-    def handle_waiting_user(self, user_input: Optional[str]) -> Dict:
+    def handle_waiting_user(self, user_input: str | None) -> dict:
         """
         Handle WAITING_USER state - task completed, awaiting new input.
 
@@ -162,7 +173,7 @@ class FSMHandlers:
         # Process the new input by recursing through IDLE state
         return self._orch.process_turn(user_input)
 
-    def handle_brainstorming(self) -> Dict:
+    def handle_brainstorming(self) -> dict:
         """
         Handle BRAINSTORMING state - agent debate and tool consensus.
 
@@ -175,10 +186,7 @@ class FSMHandlers:
 
         if health["status"] == "ZOMBIE":
             # Plan zombie → Trigger panic
-            self._orch.panic_system.trigger_panic_explicit(
-                reason="ZOMBIE_PLAN",
-                details=health["message"]
-            )
+            self._orch.panic_system.trigger_panic_explicit(reason="ZOMBIE_PLAN", details=health["message"])
             return self._orch._trigger_panic(f"Plan zombie: {health['message']}")
 
         elif health["status"] in ["STAGNANT", "WARNING"]:
@@ -204,16 +212,12 @@ class FSMHandlers:
             # Calculate quality score
             is_stagnant = self._orch.stagnation_detector.is_stagnant()
             quality = self._calculate_quality_score(message, True, is_stagnant)
-            self._record_invocation(
-                self._orch.active_agent, "brainstorm", True, invoke_duration, quality
-            )
+            self._record_invocation(self._orch.active_agent, "brainstorm", True, invoke_duration, quality)
 
         except Exception as e:
             invoke_duration = time.time() - invoke_start
             self._orch.json_parse_failures += 1
-            self._record_invocation(
-                self._orch.active_agent, "brainstorm", False, invoke_duration, 0.0
-            )
+            self._record_invocation(self._orch.active_agent, "brainstorm", False, invoke_duration, 0.0)
 
             if self._orch.panic_system.record_error("AGENT_INVOCATION", str(e)):
                 return self._orch._trigger_panic(f"Too many consecutive errors: {e}")
@@ -253,7 +257,10 @@ class FSMHandlers:
             self._orch.active_agent = self._registry.get_alternate(self._orch.active_agent) or self._orch.active_agent
             self._orch.stagnation_detector.reset()
             if self._orch.config.ui_verbose:
-                print(f"[BRAINSTORM] {self._registry.get_display_name(previous_agent)} → {self._registry.get_display_name(self._orch.active_agent)}", file=sys.stderr)
+                print(
+                    f"[BRAINSTORM] {self._registry.get_display_name(previous_agent)} → {self._registry.get_display_name(self._orch.active_agent)}",
+                    file=sys.stderr,
+                )
 
             return self._make_result("BRAINSTORMING", content, sender, False)
 
@@ -265,7 +272,7 @@ class FSMHandlers:
         # Fallback
         return self._make_result("BRAINSTORMING", content, self._orch.active_agent, False)
 
-    def handle_executing_tool(self) -> Dict:
+    def handle_executing_tool(self) -> dict:
         """
         Handle EXECUTING_TOOL state - execute requested tool.
 
@@ -284,19 +291,17 @@ class FSMHandlers:
         requesting_agent = self._orch.active_agent
         self._orch.active_agent = self._registry.get_alternate(self._orch.active_agent) or self._orch.active_agent
         if self._orch.config.ui_verbose:
-            print(f"[CFL] {self._registry.get_display_name(requesting_agent)} tool → {self._registry.get_display_name(self._orch.active_agent)} validates", file=sys.stderr)
+            print(
+                f"[CFL] {self._registry.get_display_name(requesting_agent)} tool → {self._registry.get_display_name(self._orch.active_agent)} validates",
+                file=sys.stderr,
+            )
 
         # Transition to CFL validation
         self._orch._transition_to(OrchestratorState.VALIDATING_CFL)
 
-        return self._make_result(
-            "VALIDATING_CFL",
-            self._orch._format_tool_result(result),
-            requesting_agent,
-            False
-        )
+        return self._make_result("VALIDATING_CFL", self._orch._format_tool_result(result), requesting_agent, False)
 
-    def handle_validating_cfl(self) -> Dict:
+    def handle_validating_cfl(self) -> dict:
         """
         Handle VALIDATING_CFL state - validate tool execution result.
 
@@ -307,7 +312,7 @@ class FSMHandlers:
         context = self._build_context_with_tool_result()
 
         try:
-            cfl_timeout = getattr(self._orch.config, 'cfl_timeout', 60)
+            cfl_timeout = getattr(self._orch.config, "cfl_timeout", 60)
 
             if self._orch.active_agent == "claude":  # V9.3: lowercase normalized
                 driver = self._get_claude_driver(TaskType.VALIDATION, timeout_override=cfl_timeout)
@@ -327,10 +332,10 @@ class FSMHandlers:
 
         # Check if task finished
         task_finished = (
-            status == "FINISHED" or
-            action_type == "FINISHED" or
-            "task complete" in content.lower() or
-            "tâche terminée" in content.lower()
+            status == "FINISHED"
+            or action_type == "FINISHED"
+            or "task complete" in content.lower()
+            or "tâche terminée" in content.lower()
         )
 
         # Determine validation success
@@ -362,7 +367,10 @@ class FSMHandlers:
             previous_agent = self._orch.active_agent
             self._orch.active_agent = self._registry.get_alternate(self._orch.active_agent) or self._orch.active_agent
             if self._orch.config.ui_verbose:
-                print(f"[CFL SUCCESS] {self._registry.get_display_name(previous_agent)} → {self._registry.get_display_name(self._orch.active_agent)}", file=sys.stderr)
+                print(
+                    f"[CFL SUCCESS] {self._registry.get_display_name(previous_agent)} → {self._registry.get_display_name(self._orch.active_agent)}",
+                    file=sys.stderr,
+                )
 
             self._orch._transition_to(OrchestratorState.BRAINSTORMING)
             return self._make_result("BRAINSTORMING", f"✓ {content}", previous_agent, False)
@@ -383,11 +391,11 @@ class FSMHandlers:
             self._orch._transition_to(OrchestratorState.BRAINSTORMING)
             return self._make_result("BRAINSTORMING", f"✗ {content}", previous_agent, False)
 
-    def handle_error(self) -> Dict:
+    def handle_error(self) -> dict:
         """Handle ERROR state."""
         return self._make_result("ERROR", "System in error state. Use /reset", None, False, error="ERROR")
 
-    def handle_panic(self) -> Dict:
+    def handle_panic(self) -> dict:
         """
         Handle PANIC state.
 
@@ -400,14 +408,14 @@ class FSMHandlers:
             None,
             False,  # V9.3: finished=False allows /reset to work
             error="PANIC",
-            recoverable=True  # V9.3: Signal to UI that recovery is possible
+            recoverable=True,  # V9.3: Signal to UI that recovery is possible
         )
 
     # =========================================================================
     # Evolution State Handler
     # =========================================================================
 
-    def handle_evolution_brainstorm(self, user_input: Optional[str] = None) -> Dict:
+    def handle_evolution_brainstorm(self, user_input: str | None = None) -> dict:
         """
         Handle EVOLUTION_BRAINSTORM state - special debate mode for mutations.
 
@@ -425,7 +433,9 @@ class FSMHandlers:
 
         # Check stagnation
         if self._orch.stagnation_detector.is_stagnant():
-            return self._make_result("EVOLUTION_BRAINSTORM", "Evolution debate may be stagnant", self._orch.active_agent, False)
+            return self._make_result(
+                "EVOLUTION_BRAINSTORM", "Evolution debate may be stagnant", self._orch.active_agent, False
+            )
 
         # Invoke agent
         context = self._build_context()
@@ -440,17 +450,15 @@ class FSMHandlers:
 
             is_stagnant = self._orch.stagnation_detector.is_stagnant()
             quality = self._calculate_quality_score(message, True, is_stagnant)
-            self._record_invocation(
-                self._orch.active_agent, "evolution", True, invoke_duration, quality
-            )
+            self._record_invocation(self._orch.active_agent, "evolution", True, invoke_duration, quality)
 
         except Exception as e:
             invoke_duration = time.time() - invoke_start
             self._orch.json_parse_failures += 1
-            self._record_invocation(
-                self._orch.active_agent, "evolution", False, invoke_duration, 0.0
+            self._record_invocation(self._orch.active_agent, "evolution", False, invoke_duration, 0.0)
+            return self._make_result(
+                "EVOLUTION_BRAINSTORM", f"Evolution debate error: {e}", self._orch.active_agent, False, error=str(e)
             )
-            return self._make_result("EVOLUTION_BRAINSTORM", f"Evolution debate error: {e}", self._orch.active_agent, False, error=str(e))
 
         # Save to history
         self._orch.memory.add_to_history(message)
@@ -474,13 +482,12 @@ class FSMHandlers:
                 return self._make_result("FINISHED", content, sender, True)
 
         # FORCE alternation (V8.4.0: via registry)
-        previous_agent = self._orch.active_agent
         self._orch.active_agent = self._registry.get_alternate(self._orch.active_agent) or self._orch.active_agent
         self._orch.stagnation_detector.reset()
 
         # Handle TOOL_USE
         if action_type == "TOOL_USE":
-            emit_agent_exchange(sender, "tool_executor", f"Evolution tool call", exchange_type="tool")
+            emit_agent_exchange(sender, "tool_executor", "Evolution tool call", exchange_type="tool")
             return self._handle_evolution_tool(message, sender, content)
 
         # Check for mutation JSON
@@ -489,22 +496,25 @@ class FSMHandlers:
             self._logger.info("[EVOLUTION_BRAINSTORM] Valid mutation JSON detected - signaling finished")
         return self._make_result("EVOLUTION_BRAINSTORM", content, sender, finished)
 
-    def _handle_evolution_tool(self, message: Dict, sender: str, content: str) -> Dict:
+    def _handle_evolution_tool(self, message: dict, sender: str, content: str) -> dict:
         """Handle tool use during evolution brainstorming."""
-        tool_use = message.get('tool_use', {})
-        tool_name = tool_use.get('tool_name', 'unknown')
+        tool_use = message.get("tool_use", {})
+        tool_name = tool_use.get("tool_name", "unknown")
 
         # Check if tool is blocked
         if SandboxPolicy.is_tool_blocked(tool_name):
             reason = SandboxPolicy.get_blocked_reason(tool_name)
-            return self._make_result("EVOLUTION_BRAINSTORM",
-                f"{content}\n\n[Blocked: {tool_name}] {reason}. "
-                f"Propose mutations in JSON format instead.", sender, False)
+            return self._make_result(
+                "EVOLUTION_BRAINSTORM",
+                f"{content}\n\n[Blocked: {tool_name}] {reason}. Propose mutations in JSON format instead.",
+                sender,
+                False,
+            )
 
         try:
             # Normalize and execute tool
             normalized_name = self._orch.tool_manager.TOOL_ALIASES.get(tool_name, tool_name)
-            normalized_tool_use = {**tool_use, 'tool_name': normalized_name}
+            normalized_tool_use = {**tool_use, "tool_name": normalized_name}
 
             tool_request = ToolUse(**normalized_tool_use)
             result = self._orch.tool_manager.execute(tool_request)
@@ -518,26 +528,26 @@ class FSMHandlers:
                 result_text += f"✗ Error: {result.error or 'Unknown error'}"
 
             # Add to history
-            self._orch.memory.add_to_history({
-                "sender": "System",
-                "action_type": "TOOL_RESULT",
-                "content": result_text
-            })
+            self._orch.memory.add_to_history({"sender": "System", "action_type": "TOOL_RESULT", "content": result_text})
 
             return self._make_result("EVOLUTION_BRAINSTORM", result_text, sender, False)
 
         except Exception as e:
-            return self._make_result("EVOLUTION_BRAINSTORM", f"{content}\n\n[Tool error: {tool_name}] {e}", sender, False)
+            return self._make_result(
+                "EVOLUTION_BRAINSTORM", f"{content}\n\n[Tool error: {tool_name}] {e}", sender, False
+            )
 
     # =========================================================================
     # Swarm State Handlers
     # =========================================================================
 
-    def handle_swarm_analyzing(self) -> Dict:
+    def handle_swarm_analyzing(self) -> dict:
         """Handle SWARM_ANALYZING state."""
         if not self._orch.swarm_engine:
             self._orch._transition_to(OrchestratorState.BRAINSTORMING)
-            return self._make_result("BRAINSTORMING", "Swarm disabled, using classic mode", self._orch.active_agent, False)
+            return self._make_result(
+                "BRAINSTORMING", "Swarm disabled, using classic mode", self._orch.active_agent, False
+            )
 
         analysis = self._orch.swarm_engine.start_analysis(self._orch.blackboard.get("objective", ""))
 
@@ -549,7 +559,7 @@ class FSMHandlers:
                 f"Complexity: {analysis.complexity.name}\n"
                 f"Mode: {getattr(self._orch.config, 'swarm_default_mode', 'ping_pong')}",
                 None,
-                False
+                False,
             )
 
         self._orch._transition_to(OrchestratorState.SWARM_NEGOTIATING)
@@ -562,10 +572,10 @@ class FSMHandlers:
             f"Claude fit: {analysis.claude_fit_score:.0%}\n"
             f"Recommended lead: {analysis.recommended_lead}",
             None,
-            False
+            False,
         )
 
-    def handle_swarm_negotiating(self) -> Dict:
+    def handle_swarm_negotiating(self) -> dict:
         """Handle SWARM_NEGOTIATING state."""
         if not self._orch.swarm_engine:
             self._orch._transition_to(OrchestratorState.BRAINSTORMING)
@@ -585,17 +595,14 @@ class FSMHandlers:
                 f"Consensus: {negotiation_result.consensus_confidence:.0%}\n"
                 f"Turns: {negotiation_result.total_turns}",
                 None,
-                False
+                False,
             )
         else:
             return self._make_result(
-                "SWARM_EXECUTING",
-                f"[Swarm] Using initial proposal: {proposal.mode.value}",
-                None,
-                False
+                "SWARM_EXECUTING", f"[Swarm] Using initial proposal: {proposal.mode.value}", None, False
             )
 
-    def handle_swarm_executing(self) -> Dict:
+    def handle_swarm_executing(self) -> dict:
         """Handle SWARM_EXECUTING state."""
         if not self._orch.swarm_engine:
             self._orch._transition_to(OrchestratorState.BRAINSTORMING)
@@ -605,7 +612,9 @@ class FSMHandlers:
         execution_result = self._orch.swarm_engine.execute_turn(objective, self._orch.blackboard)
 
         if execution_result.finished:
-            formatted_output = f"[Swarm] Mode: {execution_result.mode.value} | Rounds: {execution_result.total_rounds}\n"
+            formatted_output = (
+                f"[Swarm] Mode: {execution_result.mode.value} | Rounds: {execution_result.total_rounds}\n"
+            )
             for agent_output in execution_result.agent_outputs:
                 # V8.4.0: Use registry for display name
                 agent_name = self._registry.get_display_name(agent_output.agent_id)
@@ -626,9 +635,9 @@ class FSMHandlers:
     # Private Helpers (delegate to orchestrator or extracted modules)
     # =========================================================================
 
-    def _handle_trivial(self, user_input: str) -> Dict:
+    def _handle_trivial(self, user_input: str) -> dict:
         """Handle TRIVIAL complexity tasks."""
-        if getattr(self._orch.config, 'fast_path_enabled', True):
+        if getattr(self._orch.config, "fast_path_enabled", True):
             self._logger.debug("TRIVIAL task - Fast Path enabled", {"input": user_input})
             result = self._handle_fast_path(user_input)
             # V10 FIX F2: Fast Path can return None to escalate
@@ -654,7 +663,7 @@ class FSMHandlers:
         response = greeting_responses.get(input_lower, f"Acknowledged: '{user_input}'. What would you like to do?")
         return self._make_result("WAITING_USER", response, None, True)
 
-    def _handle_moderate_plus(self, user_input: str, task_analysis) -> Dict:
+    def _handle_moderate_plus(self, user_input: str, task_analysis) -> dict:
         """Handle MODERATE/COMPLEX/EXPERT tasks."""
         complexity = task_analysis.complexity
 
@@ -663,7 +672,7 @@ class FSMHandlers:
             return self._route_to_hive_mind(user_input, task_analysis)
 
         # Try Swarm first if enabled
-        if self._orch.swarm_engine and getattr(self._orch.config, 'swarm_auto_route', True):
+        if self._orch.swarm_engine and getattr(self._orch.config, "swarm_auto_route", True):
             self._logger.debug("MODERATE+ task - Swarm mode", {"input": user_input[:100]})
             swarm_start = time.time()
             try:
@@ -672,14 +681,14 @@ class FSMHandlers:
 
                 # Record telemetry
                 if self._orch.telemetry and swarm_result:
-                    analysis = swarm_result.get("analysis", {})
+                    swarm_result.get("analysis", {})
                     execution = swarm_result.get("execution", {})
                     self._orch.telemetry.record_swarm_task(
                         mode=swarm_result.get("mode", "unknown"),
                         rounds=execution.get("rounds", 0) if isinstance(execution, dict) else 0,
                         duration_seconds=swarm_duration,
                         success=swarm_result.get("finished", False),
-                        agents_used=execution.get("agents", []) if isinstance(execution, dict) else []
+                        agents_used=execution.get("agents", []) if isinstance(execution, dict) else [],
                     )
 
                 # Check if completed
@@ -687,9 +696,9 @@ class FSMHandlers:
                     return self._format_swarm_result(swarm_result)
 
                 elif swarm_result.get("error"):
-                    self._logger.warn("Swarm failed, falling back to BRAINSTORMING", {
-                        "error": swarm_result.get("error")
-                    })
+                    self._logger.warn(
+                        "Swarm failed, falling back to BRAINSTORMING", {"error": swarm_result.get("error")}
+                    )
                     if self._orch.telemetry:
                         self._orch.telemetry.record_error("SWARM_ERROR", swarm_result.get("error"))
 
@@ -728,7 +737,7 @@ class FSMHandlers:
             return False
 
         # Check if Hive Mind is enabled
-        if not getattr(self._orch.config, 'hive_mind_enabled', True):
+        if not getattr(self._orch.config, "hive_mind_enabled", True):
             return False
 
         # COMPLEX/EXPERT: Always use Hive Mind
@@ -738,14 +747,14 @@ class FSMHandlers:
 
         # MODERATE: Check config flag
         if complexity == TaskComplexity.MODERATE:
-            use_for_moderate = getattr(self._orch.config, 'hive_mind_moderate', True)
+            use_for_moderate = getattr(self._orch.config, "hive_mind_moderate", True)
             if use_for_moderate:
                 self._logger.info("Routing MODERATE task to Hive Mind (hive_mind_moderate=True)")
                 return True
 
         return False
 
-    def _route_to_hive_mind(self, user_input: str, task_analysis) -> Dict:
+    def _route_to_hive_mind(self, user_input: str, task_analysis) -> dict:
         """
         Route task to V8 TRUE HIVE MIND pipeline.
 
@@ -764,7 +773,7 @@ class FSMHandlers:
 
         try:
             # Initialize Hive Mind if not exists
-            if not hasattr(self._orch, '_hive_mind') or self._orch._hive_mind is None:
+            if not hasattr(self._orch, "_hive_mind") or self._orch._hive_mind is None:
                 # V8.4.5: Pass swarm_engine for SwarmBridge delegation (Dictator Mode)
                 self._orch._hive_mind = TrueHiveMind(
                     workspace_path=self._orch.workspace_path,
@@ -772,10 +781,12 @@ class FSMHandlers:
                     gemini_driver=self._orch.gemini_driver,
                     claude_driver=self._orch._get_claude_driver(TaskType.BRAINSTORM),
                     agent_pool=self._orch.agent_pool,
-                    budget_tracker=getattr(self._orch.telemetry, 'budget_tracker', None) if self._orch.telemetry else None,
+                    budget_tracker=getattr(self._orch.telemetry, "budget_tracker", None)
+                    if self._orch.telemetry
+                    else None,
                     project_memory=self._orch.project_memory,
-                    auto_breakpoints=getattr(self._orch.config, 'hive_mind_breakpoints_enabled', True),
-                    swarm_engine=getattr(self._orch, 'swarm_engine', None)
+                    auto_breakpoints=getattr(self._orch.config, "hive_mind_breakpoints_enabled", True),
+                    swarm_engine=getattr(self._orch, "swarm_engine", None),
                 )
 
             # Map TaskComplexity to HiveComplexity
@@ -799,15 +810,12 @@ class FSMHandlers:
                 loop = asyncio.get_running_loop()
                 # Loop is running - schedule coroutine on the SAME loop to preserve context
                 future = asyncio.run_coroutine_threadsafe(
-                    self._orch._hive_mind.process_task(user_input, hive_complexity),
-                    loop
+                    self._orch._hive_mind.process_task(user_input, hive_complexity), loop
                 )
                 result = future.result(timeout=300)  # 5 min timeout
             except RuntimeError:
                 # No running loop - safe to use asyncio.run() directly
-                result = asyncio.run(
-                    self._orch._hive_mind.process_task(user_input, hive_complexity)
-                )
+                result = asyncio.run(self._orch._hive_mind.process_task(user_input, hive_complexity))
 
             hive_duration = time.time() - hive_start
 
@@ -818,7 +826,7 @@ class FSMHandlers:
                     rounds=len(result.phases_completed),
                     duration_seconds=hive_duration,
                     success=result.success,
-                    agents_used=result.agents_used + result.agents_spawned
+                    agents_used=result.agents_used + result.agents_spawned,
                 )
 
             # Format result
@@ -844,10 +852,10 @@ class FSMHandlers:
             self._logger.warn("Falling back to Swarm/Brainstorming after Hive Mind error")
             return self._fallback_to_swarm_or_brainstorm(user_input, task_analysis)
 
-    def _fallback_to_swarm_or_brainstorm(self, user_input: str, task_analysis) -> Dict:
+    def _fallback_to_swarm_or_brainstorm(self, user_input: str, task_analysis) -> dict:
         """Fallback when Hive Mind fails."""
         # Try Swarm
-        if self._orch.swarm_engine and getattr(self._orch.config, 'swarm_auto_route', True):
+        if self._orch.swarm_engine and getattr(self._orch.config, "swarm_auto_route", True):
             try:
                 swarm_result = self._orch.process_with_swarm(user_input)
                 if swarm_result.get("finished") or swarm_result.get("state") == "COMPLETED":
@@ -862,7 +870,7 @@ class FSMHandlers:
         self._orch._transition_to(OrchestratorState.BRAINSTORMING)
         return self._make_result("BRAINSTORMING", f"[Task Started - Fallback] {user_input}", "Gemini", False)
 
-    def _format_swarm_result(self, swarm_result: Dict) -> Dict:
+    def _format_swarm_result(self, swarm_result: dict) -> dict:
         """Format successful swarm result."""
         execution = swarm_result.get("execution", {})
         agent_outputs = execution.get("agent_outputs", [])
@@ -883,11 +891,11 @@ class FSMHandlers:
 
                 if status == "error" or content.startswith("Error:") or not content.strip():
                     error_msg = agent_data.get("error") or content or "[No response]"
-                    formatted_output += f"\n{agent_name} ❌ ERREUR:\n{error_msg}\n{'─'*40}\n"
+                    formatted_output += f"\n{agent_name} ❌ ERREUR:\n{error_msg}\n{'─' * 40}\n"
                 else:
-                    formatted_output += f"\n{agent_name}:\n{content}\n{'─'*40}\n"
+                    formatted_output += f"\n{agent_name}:\n{content}\n{'─' * 40}\n"
         else:
-            raw_output = swarm_result.get('output', '')
+            raw_output = swarm_result.get("output", "")
             if raw_output.startswith("[Swarm]"):
                 raw_output = raw_output[7:].lstrip()
             formatted_output = f"[Swarm] Mode: {mode}\n\n{raw_output}"
@@ -898,60 +906,60 @@ class FSMHandlers:
             "agent": "Swarm",
             "finished": True,
             "swarm_mode": mode,
-            "swarm_analysis": swarm_result.get("analysis")
+            "swarm_analysis": swarm_result.get("analysis"),
         }
 
     # =========================================================================
     # Delegated Methods (to extracted modules or orchestrator)
     # =========================================================================
 
-    def _make_result(self, state: str, output, agent, finished: bool, **kwargs) -> Dict:
+    def _make_result(self, state: str, output, agent, finished: bool, **kwargs) -> dict:
         """Delegate to orchestrator."""
         return self._orch._make_result(state, output, agent, finished, **kwargs)
 
     def _build_context(self) -> str:
         """Build context - delegate to context_builder or orchestrator."""
-        if hasattr(self._orch, 'context_builder'):
+        if hasattr(self._orch, "context_builder"):
             return self._orch.context_builder.build_context()
         return self._orch._build_context()
 
     def _build_context_with_tool_result(self) -> str:
         """Build CFL context - delegate to context_builder or orchestrator."""
-        if hasattr(self._orch, 'context_builder'):
+        if hasattr(self._orch, "context_builder"):
             return self._orch.context_builder.build_context_with_tool_result()
         return self._orch._build_context_with_tool_result()
 
-    def _invoke_agent(self, task_type: TaskType, context: str) -> Dict:
+    def _invoke_agent(self, task_type: TaskType, context: str) -> dict:
         """Invoke agent - delegate to agent_invoker or orchestrator."""
-        if hasattr(self._orch, 'agent_invoker'):
+        if hasattr(self._orch, "agent_invoker"):
             return self._orch.agent_invoker.invoke_agent(task_type, context)
         return self._orch._invoke_agent(task_type, context)
 
     def _get_claude_driver(self, task_type: TaskType, timeout_override: int = None):
         """Get Claude driver - delegate to agent_invoker or orchestrator."""
-        if hasattr(self._orch, 'agent_invoker'):
+        if hasattr(self._orch, "agent_invoker"):
             return self._orch.agent_invoker.get_claude_driver(task_type, timeout_override)
         return self._orch._get_claude_driver(task_type, timeout_override)
 
-    def _validate_message(self, response: Dict, expect_heavy: bool = False) -> Dict:
+    def _validate_message(self, response: dict, expect_heavy: bool = False) -> dict:
         """Validate message - delegate to orchestrator."""
         return self._orch._validate_message(response, expect_heavy)
 
     def _calculate_quality_score(self, message: dict, validation_ok: bool, is_stagnant: bool) -> float:
         """Calculate quality - delegate to agent_invoker or orchestrator."""
-        if hasattr(self._orch, 'agent_invoker'):
+        if hasattr(self._orch, "agent_invoker"):
             return self._orch.agent_invoker.calculate_quality_score(message, validation_ok, is_stagnant)
         return self._orch._calculate_quality_score(message, validation_ok, is_stagnant)
 
     def _record_invocation(self, agent_name: str, task_type: str, success: bool, duration: float, quality: float):
         """Record invocation - delegate to agent_invoker or orchestrator."""
-        if hasattr(self._orch, 'agent_invoker'):
+        if hasattr(self._orch, "agent_invoker"):
             return self._orch.agent_invoker.record_invocation(agent_name, task_type, success, duration, quality)
         return self._orch._record_invocation(agent_name, task_type, success, duration, quality)
 
     def _detect_mutation_complete(self, content: str) -> bool:
         """Detect mutation - delegate to detectors or orchestrator."""
-        if hasattr(self._orch, 'mutation_detector'):
+        if hasattr(self._orch, "mutation_detector"):
             return self._orch.mutation_detector.detect_mutation_complete(content)
         return self._orch._detect_mutation_complete(content)
 
@@ -959,7 +967,7 @@ class FSMHandlers:
     # V7.8 Phase 14c: Extracted from OrchestratorV7
     # =========================================================================
 
-    def _execute_simple_task(self, user_input: str, task_analysis) -> Dict:
+    def _execute_simple_task(self, user_input: str, task_analysis) -> dict:
         """
         Execute SIMPLE tasks with a single agent (no CFL, no alternation).
 
@@ -989,11 +997,14 @@ class FSMHandlers:
             # Equal fit - use Gemini by default (faster)
             agent = "Gemini"
 
-        self._logger.info(f"[SIMPLE MODE] Single agent: {agent}", {
-            "task": user_input[:80],
-            "gemini_fit": f"{task_analysis.gemini_fit_score:.2f}",
-            "claude_fit": f"{task_analysis.claude_fit_score:.2f}"
-        })
+        self._logger.info(
+            f"[SIMPLE MODE] Single agent: {agent}",
+            {
+                "task": user_input[:80],
+                "gemini_fit": f"{task_analysis.gemini_fit_score:.2f}",
+                "claude_fit": f"{task_analysis.claude_fit_score:.2f}",
+            },
+        )
 
         # Set objective for context
         self._orch.blackboard["objective"] = user_input
@@ -1004,24 +1015,21 @@ class FSMHandlers:
         context = self._orch.context_builder.build_simple_context(user_input, task_analysis)
 
         # V11.2 MEMORIA: Inject RAG context for SIMPLE tasks too
-        if hasattr(self._orch, 'project_memory') and self._orch.project_memory:
+        if hasattr(self._orch, "project_memory") and self._orch.project_memory:
             try:
                 chunks = self._orch.project_memory.retrieve(user_input, limit=2, min_score=0.1)
                 if chunks:
                     # V12.4: Record access for decay scoring
                     try:
                         from core.memory_pkg.memory.decay_scorer import get_decay_scorer
+
                         for chunk in chunks:
                             get_decay_scorer().record_access(chunk.chunk_id)
                     except Exception:
                         pass  # Non-critical telemetry
-                    rag_context = self._orch.project_memory.format_chunks_for_context(
-                        chunks, max_chars=1000
-                    )
+                    rag_context = self._orch.project_memory.format_chunks_for_context(chunks, max_chars=1000)
                     context = f"{rag_context}\n\n{context}"
-                    self._logger.debug(
-                        f"[SIMPLE MODE] Injected {len(rag_context)} chars of RAG context"
-                    )
+                    self._logger.debug(f"[SIMPLE MODE] Injected {len(rag_context)} chars of RAG context")
             except Exception as e:
                 self._logger.debug(f"[SIMPLE MODE] RAG injection failed: {e}")
 
@@ -1029,7 +1037,7 @@ class FSMHandlers:
         invoke_start = time.time()
         max_tool_iterations = 5  # Safety limit for tool loops
 
-        for iteration in range(max_tool_iterations):
+        for _iteration in range(max_tool_iterations):
             try:
                 # V13.0: Use agent_invoker to ensure telemetry events are emitted
                 response = self._invoke_agent(TaskType.SIMPLE, context)
@@ -1039,19 +1047,12 @@ class FSMHandlers:
 
                 # Record invocation
                 self._record_invocation(
-                    agent, "simple", True, invoke_duration,
-                    self._calculate_quality_score(message, True, False)
+                    agent, "simple", True, invoke_duration, self._calculate_quality_score(message, True, False)
                 )
 
             except Exception as e:
                 self._logger.error(f"[SIMPLE MODE] Agent error: {e}")
-                return self._make_result(
-                    "ERROR",
-                    f"Agent {agent} failed: {e}",
-                    agent,
-                    True,
-                    error=str(e)
-                )
+                return self._make_result("ERROR", f"Agent {agent} failed: {e}", agent, True, error=str(e))
 
             # Check action type
             action_type = message.get("action_type")
@@ -1075,7 +1076,7 @@ class FSMHandlers:
                         f"Tool execution blocked by safety check: {light_cfl_reason}",
                         agent,
                         True,
-                        error=light_cfl_reason
+                        error=light_cfl_reason,
                     )
 
                 self._logger.debug(f"[SIMPLE MODE] Executing tool: {tool_name} (light CFL: OK)")
@@ -1104,8 +1105,12 @@ class FSMHandlers:
             elif message.get("status") == "FINISHED" or action_type == "FINISHED":
                 # V11 SENTINEL F3: Self-reflection before accepting FINISHED
                 # Only run reflection for non-trivial responses (code, file operations)
-                should_reflect = len(content) > 100 or "```" in content or any(
-                    kw in content.lower() for kw in ["def ", "class ", "function", "created", "wrote", "modified"]
+                should_reflect = (
+                    len(content) > 100
+                    or "```" in content
+                    or any(
+                        kw in content.lower() for kw in ["def ", "class ", "function", "created", "wrote", "modified"]
+                    )
                 )
 
                 if should_reflect:
@@ -1121,7 +1126,7 @@ class FSMHandlers:
                             f"{content}\n\n⚠️ Self-reflection score: {score}/10 - Escalating to Swarm",
                             agent,
                             False,
-                            escalate_reason=f"Reflection score {score}/10 below threshold"
+                            escalate_reason=f"Reflection score {score}/10 below threshold",
                         )
 
                     # Use corrected content (may be same as original if score >= 8)
@@ -1137,7 +1142,7 @@ class FSMHandlers:
                         f"{content}\n\n⚠️ Validation failed: {validation_msg}",
                         agent,
                         False,  # Not finished
-                        escalate_reason=validation_msg
+                        escalate_reason=validation_msg,
                     )
                 # Task complete with valid artifacts
                 return self._make_result("FINISHED", content, agent, True)
@@ -1147,8 +1152,13 @@ class FSMHandlers:
                 finish_keywords = ["done", "complete", "finished", "terminé", "fini"]
                 if any(kw in content.lower() for kw in finish_keywords):
                     # V11 SENTINEL F3: Self-reflection for completion claims
-                    should_reflect = len(content) > 100 or "```" in content or any(
-                        kw in content.lower() for kw in ["def ", "class ", "function", "created", "wrote", "modified"]
+                    should_reflect = (
+                        len(content) > 100
+                        or "```" in content
+                        or any(
+                            kw in content.lower()
+                            for kw in ["def ", "class ", "function", "created", "wrote", "modified"]
+                        )
                     )
 
                     if should_reflect:
@@ -1163,7 +1173,7 @@ class FSMHandlers:
                                 f"{content}\n\n⚠️ Self-reflection score: {score}/10 - Escalating to Swarm",
                                 agent,
                                 False,
-                                escalate_reason=f"Reflection score {score}/10 below threshold"
+                                escalate_reason=f"Reflection score {score}/10 below threshold",
                             )
 
                         content = corrected_content
@@ -1177,7 +1187,7 @@ class FSMHandlers:
                             f"{content}\n\n⚠️ Validation failed: {validation_msg}",
                             agent,
                             False,
-                            escalate_reason=validation_msg
+                            escalate_reason=validation_msg,
                         )
                     return self._make_result("FINISHED", content, agent, True)
 
@@ -1186,14 +1196,9 @@ class FSMHandlers:
 
         # Max iterations reached
         self._logger.warning("[SIMPLE MODE] Max tool iterations reached")
-        return self._make_result(
-            "FINISHED",
-            f"{content}\n\n[Max iterations reached]",
-            agent,
-            True
-        )
+        return self._make_result("FINISHED", f"{content}\n\n[Max iterations reached]", agent, True)
 
-    def _light_cfl_validate(self, tool_use: Dict, user_input: str) -> Tuple[bool, str]:
+    def _light_cfl_validate(self, tool_use: dict, user_input: str) -> tuple[bool, str]:
         """
         V10 FIX F3: Light CFL validation for SIMPLE tasks.
 
@@ -1217,16 +1222,17 @@ class FSMHandlers:
         if tool_name == "bash":
             command = args.get("command", "")
             dangerous_patterns = [
-                r'\brm\s+(-rf?|--force)',  # Destructive rm
-                r'\bsudo\b',                # Privilege escalation
-                r'\bchmod\s+777\b',         # Insecure permissions
-                r'\bcurl\s+.*\|\s*sh',      # Pipe to shell
-                r'\bwget\s+.*\|\s*sh',      # Pipe to shell
-                r'\beval\s+',               # Eval injection
-                r'>\s*/etc/',               # Write to system dirs
-                r'\bdd\s+.*of=/dev/',       # Low-level disk write
+                r"\brm\s+(-rf?|--force)",  # Destructive rm
+                r"\bsudo\b",  # Privilege escalation
+                r"\bchmod\s+777\b",  # Insecure permissions
+                r"\bcurl\s+.*\|\s*sh",  # Pipe to shell
+                r"\bwget\s+.*\|\s*sh",  # Pipe to shell
+                r"\beval\s+",  # Eval injection
+                r">\s*/etc/",  # Write to system dirs
+                r"\bdd\s+.*of=/dev/",  # Low-level disk write
             ]
             import re
+
             for pattern in dangerous_patterns:
                 if re.search(pattern, command, re.IGNORECASE):
                     return False, f"Dangerous command pattern: {pattern}"
@@ -1246,12 +1252,16 @@ class FSMHandlers:
         if tool_name == "write" and read_intent and not write_intent:
             return False, "Tool mismatch: user asked to read but agent wants to write"
 
-        if tool_name == "bash" and "rm " in args.get("command", "") and not any(w in input_lower for w in ["delete", "remove", "clean"]):
+        if (
+            tool_name == "bash"
+            and "rm " in args.get("command", "")
+            and not any(w in input_lower for w in ["delete", "remove", "clean"])
+        ):
             return False, "Tool mismatch: delete command without delete intent"
 
         return True, ""
 
-    def _validate_artifacts_f2(self, content: str, user_input: str) -> Tuple[bool, str]:
+    def _validate_artifacts_f2(self, content: str, user_input: str) -> tuple[bool, str]:
         """
         V11 SENTINEL F2: Physical validation of artifacts before accepting FINISHED.
 
@@ -1265,8 +1275,6 @@ class FSMHandlers:
         Returns:
             Tuple of (is_valid, reason_if_invalid)
         """
-        import asyncio
-        import os
         from pathlib import Path
 
         # Extract file creation/modification claims
@@ -1276,7 +1284,7 @@ class FSMHandlers:
             # Modified/updated/edited patterns
             r'(?:modified|updated|edited|changed)\s+(?:file\s+)?[`"\']?([^\s`"\']+\.(?:py|js|ts|md|json|yaml|yml|txt|html|css))',
             # File path in backticks with action context
-            r'`([^`]+\.(?:py|js|ts|md|json|yaml|yml))`\s+(?:has been|was)\s+(?:created|modified|updated)',
+            r"`([^`]+\.(?:py|js|ts|md|json|yaml|yml))`\s+(?:has been|was)\s+(?:created|modified|updated)",
         ]
 
         claimed_files = []
@@ -1289,12 +1297,12 @@ class FSMHandlers:
             return True, ""
 
         # Physical verification
-        workspace = self._orch.workspace_path if hasattr(self._orch, 'workspace_path') else Path.cwd()
+        workspace = self._orch.workspace_path if hasattr(self._orch, "workspace_path") else Path.cwd()
         missing_files = []
 
         for file_ref in set(claimed_files):
             # Skip obvious placeholders
-            if any(p in file_ref.lower() for p in ['example', 'placeholder', 'your_', 'xxx']):
+            if any(p in file_ref.lower() for p in ["example", "placeholder", "your_", "xxx"]):
                 continue
 
             # Resolve path
@@ -1312,13 +1320,7 @@ class FSMHandlers:
 
         return True, ""
 
-    def _reflection_loop_f3(
-        self,
-        content: str,
-        user_input: str,
-        agent: str,
-        context: str
-    ) -> Tuple[str, int, bool]:
+    def _reflection_loop_f3(self, content: str, user_input: str, agent: str, context: str) -> tuple[str, int, bool]:
         """
         V11 SENTINEL F3: Self-Reflection Loop for single agent mode.
 
@@ -1394,7 +1396,8 @@ Be brutally honest. It's better to catch issues now than have them fail in produ
 
             # Extract score
             import re
-            score_match = re.search(r'SCORE:\s*(\d+)', reflection_content)
+
+            score_match = re.search(r"SCORE:\s*(\d+)", reflection_content)
             score = int(score_match.group(1)) if score_match else 8  # Default to pass if parsing fails
 
             self._logger.debug(f"[REFLECTION F3] Agent self-scored: {score}/10")
@@ -1409,18 +1412,14 @@ Be brutally honest. It's better to catch issues now than have them fail in produ
                 self._logger.info(f"[REFLECTION F3] Auto-correcting (score={score})")
 
                 # Extract corrected response
-                corrected_match = re.search(
-                    r'CORRECTED_RESPONSE:\s*(.*?)(?:$|\n\n)',
-                    reflection_content,
-                    re.DOTALL
-                )
+                corrected_match = re.search(r"CORRECTED_RESPONSE:\s*(.*?)(?:$|\n\n)", reflection_content, re.DOTALL)
 
                 if corrected_match and corrected_match.group(1).strip() not in ["N/A", "None", ""]:
                     corrected_content = corrected_match.group(1).strip()
                     # Remove markdown code block if present
                     if corrected_content.startswith("```"):
-                        corrected_content = re.sub(r'^```\w*\n?', '', corrected_content)
-                        corrected_content = re.sub(r'\n?```$', '', corrected_content)
+                        corrected_content = re.sub(r"^```\w*\n?", "", corrected_content)
+                        corrected_content = re.sub(r"\n?```$", "", corrected_content)
                     return corrected_content, score, False
                 else:
                     # No corrected content provided, return original with warning
@@ -1436,7 +1435,7 @@ Be brutally honest. It's better to catch issues now than have them fail in produ
             # On error, accept original response (fail-open for UX)
             return content, 8, False
 
-    def _handle_fast_path(self, user_input: str) -> Dict:
+    def _handle_fast_path(self, user_input: str) -> dict:
         """
         V7.5 Phase 9: Fast Path for trivial conversational inputs.
 
@@ -1487,7 +1486,7 @@ Be brutally honest. It's better to catch issues now than have them fail in produ
                     "state": "IDLE",
                     "finished": True,
                     "fast_path": True,  # Mark as Fast Path response
-                    "validated": True   # V10: Validation passed
+                    "validated": True,  # V10: Validation passed
                 }
             else:
                 self._logger.debug("Fast Path validation failed, escalating")
@@ -1501,7 +1500,7 @@ Be brutally honest. It's better to catch issues now than have them fail in produ
                 "output": "Hello! How can I help you today?",
                 "state": "IDLE",
                 "finished": True,
-                "fast_path": True
+                "fast_path": True,
             }
 
     def _is_actual_task(self, user_input: str) -> bool:
@@ -1514,10 +1513,33 @@ Be brutally honest. It's better to catch issues now than have them fail in produ
 
         # Task indicators - should NOT use Fast Path
         task_indicators = [
-            "fix", "create", "write", "implement", "add", "remove", "delete",
-            "update", "modify", "change", "debug", "test", "deploy", "build",
-            "analyze", "review", "check", "find", "search", "explain", "help me",
-            "can you", "could you", "would you", "please", "i need", "i want"
+            "fix",
+            "create",
+            "write",
+            "implement",
+            "add",
+            "remove",
+            "delete",
+            "update",
+            "modify",
+            "change",
+            "debug",
+            "test",
+            "deploy",
+            "build",
+            "analyze",
+            "review",
+            "check",
+            "find",
+            "search",
+            "explain",
+            "help me",
+            "can you",
+            "could you",
+            "would you",
+            "please",
+            "i need",
+            "i want",
         ]
 
         # Check for task indicators
@@ -1526,18 +1548,15 @@ Be brutally honest. It's better to catch issues now than have them fail in produ
                 return True
 
         # Check for file references
-        if re.search(r'\.\w{1,5}\b', user_input):  # File extension
+        if re.search(r"\.\w{1,5}\b", user_input):  # File extension
             return True
 
         # Check for code patterns
-        if re.search(r'[{}\[\]()<>]|def |class |function|import ', user_input):
+        if re.search(r"[{}\[\]()<>]|def |class |function|import ", user_input):
             return True
 
         # Check minimum length (greetings are usually short)
-        if len(user_input) > 100:
-            return True
-
-        return False
+        return len(user_input) > 100
 
     def _fast_path_validation(self, user_input: str, response: str) -> bool:
         """
@@ -1551,11 +1570,7 @@ Be brutally honest. It's better to catch issues now than have them fail in produ
 
         # Response should not contain task-related content
         task_patterns = ["```", "file:", "error:", "warning:", "traceback"]
-        for pattern in task_patterns:
-            if pattern.lower() in response.lower():
-                return False
-
-        return True
+        return all(pattern.lower() not in response.lower() for pattern in task_patterns)
 
     # =========================================================================
     # V8.4.4: Async Native Handlers (P3 - Blind Spot Remediation)
@@ -1572,7 +1587,7 @@ Be brutally honest. It's better to catch issues now than have them fail in produ
     # The orchestrator chooses which version to use based on context.
     # =========================================================================
 
-    async def handle_brainstorming_async(self) -> Dict:
+    async def handle_brainstorming_async(self) -> dict:
         """
         Async version of handle_brainstorming.
 
@@ -1589,10 +1604,7 @@ Be brutally honest. It's better to catch issues now than have them fail in produ
         health = self._orch.plan_health.check_health(current_plan, self._orch.iteration)
 
         if health["status"] == "ZOMBIE":
-            self._orch.panic_system.trigger_panic_explicit(
-                reason="ZOMBIE_PLAN",
-                details=health["message"]
-            )
+            self._orch.panic_system.trigger_panic_explicit(reason="ZOMBIE_PLAN", details=health["message"])
             return self._orch._trigger_panic(f"Plan zombie: {health['message']}")
 
         elif health["status"] in ["STAGNANT", "WARNING"]:
@@ -1618,9 +1630,7 @@ Be brutally honest. It's better to catch issues now than have them fail in produ
             # Calculate quality score
             is_stagnant = self._orch.stagnation_detector.is_stagnant()
             quality = self._calculate_quality_score(message, True, is_stagnant)
-            self._record_invocation(
-                self._orch.active_agent, "brainstorm", True, invoke_duration, quality
-            )
+            self._record_invocation(self._orch.active_agent, "brainstorm", True, invoke_duration, quality)
 
         except asyncio.CancelledError:
             # Re-raise cancellation (critical for proper cleanup)
@@ -1629,9 +1639,7 @@ Be brutally honest. It's better to catch issues now than have them fail in produ
         except Exception as e:
             invoke_duration = time.time() - invoke_start
             self._orch.json_parse_failures += 1
-            self._record_invocation(
-                self._orch.active_agent, "brainstorm", False, invoke_duration, 0.0
-            )
+            self._record_invocation(self._orch.active_agent, "brainstorm", False, invoke_duration, 0.0)
 
             if self._orch.panic_system.record_error("AGENT_INVOCATION", str(e)):
                 return self._orch._trigger_panic(f"Too many consecutive errors: {e}")
@@ -1661,7 +1669,10 @@ Be brutally honest. It's better to catch issues now than have them fail in produ
             self._orch.active_agent = self._registry.get_alternate(self._orch.active_agent) or self._orch.active_agent
             self._orch.stagnation_detector.reset()
             if self._orch.config.ui_verbose:
-                print(f"[BRAINSTORM] {self._registry.get_display_name(previous_agent)} → {self._registry.get_display_name(self._orch.active_agent)}", file=sys.stderr)
+                print(
+                    f"[BRAINSTORM] {self._registry.get_display_name(previous_agent)} → {self._registry.get_display_name(self._orch.active_agent)}",
+                    file=sys.stderr,
+                )
 
             return self._make_result("BRAINSTORMING", content, sender, False)
 
@@ -1671,7 +1682,7 @@ Be brutally honest. It's better to catch issues now than have them fail in produ
 
         return self._make_result("BRAINSTORMING", content, self._orch.active_agent, False)
 
-    async def handle_validating_cfl_async(self) -> Dict:
+    async def handle_validating_cfl_async(self) -> dict:
         """
         Async version of handle_validating_cfl.
 
@@ -1698,9 +1709,7 @@ Be brutally honest. It's better to catch issues now than have them fail in produ
 
             is_stagnant = self._orch.stagnation_detector.is_stagnant()
             quality = self._calculate_quality_score(message, True, is_stagnant)
-            self._record_invocation(
-                self._orch.active_agent, "validation", True, invoke_duration, quality
-            )
+            self._record_invocation(self._orch.active_agent, "validation", True, invoke_duration, quality)
 
         except asyncio.CancelledError:
             raise
@@ -1708,9 +1717,7 @@ Be brutally honest. It's better to catch issues now than have them fail in produ
         except Exception as e:
             invoke_duration = time.time() - invoke_start
             self._orch.json_parse_failures += 1
-            self._record_invocation(
-                self._orch.active_agent, "validation", False, invoke_duration, 0.0
-            )
+            self._record_invocation(self._orch.active_agent, "validation", False, invoke_duration, 0.0)
 
             if self._orch.json_parse_failures >= self._orch.max_parse_failures:
                 return self._orch._trigger_panic(f"CFL validation failing: {e}")
@@ -1737,10 +1744,13 @@ Be brutally honest. It's better to catch issues now than have them fail in produ
             previous_agent = self._orch.active_agent
             self._orch.active_agent = self._registry.get_alternate(self._orch.active_agent) or self._orch.active_agent
             if self._orch.config.ui_verbose:
-                print(f"[CFL] {self._registry.get_display_name(previous_agent)} → {self._registry.get_display_name(self._orch.active_agent)}", file=sys.stderr)
+                print(
+                    f"[CFL] {self._registry.get_display_name(previous_agent)} → {self._registry.get_display_name(self._orch.active_agent)}",
+                    file=sys.stderr,
+                )
             return self._make_result("BRAINSTORMING", content, self._orch.active_agent, False)
 
-    async def handle_fast_path_async(self, user_input: str) -> Dict:
+    async def handle_fast_path_async(self, user_input: str) -> dict:
         """
         Async version of handle_fast_path.
 
@@ -1778,7 +1788,7 @@ Be brutally honest. It's better to catch issues now than have them fail in produ
                 "state": "IDLE",
                 "finished": True,
                 "fast_path": True,
-                "async": True
+                "async": True,
             }
 
         except Exception as e:
@@ -1788,15 +1798,10 @@ Be brutally honest. It's better to catch issues now than have them fail in produ
                 "output": "Hello! How can I help you today?",
                 "state": "IDLE",
                 "finished": True,
-                "fast_path": True
+                "fast_path": True,
             }
 
-    async def _invoke_agent_async(
-        self,
-        task_type: TaskType,
-        context: str,
-        agent: str = None
-    ) -> Dict:
+    async def _invoke_agent_async(self, task_type: TaskType, context: str, agent: str = None) -> dict:
         """
         Async agent invocation using async drivers.
 
@@ -1813,30 +1818,25 @@ Be brutally honest. It's better to catch issues now than have them fail in produ
         agent = agent or self._orch.active_agent
 
         # Check for async driver availability
-        if agent == "gemini" and hasattr(self._orch, 'async_gemini_driver'):
+        if agent == "gemini" and hasattr(self._orch, "async_gemini_driver"):
             driver = self._orch.async_gemini_driver
             return await driver.invoke(context)
 
-        elif agent == "claude" and hasattr(self._orch, 'async_claude_driver'):
+        elif agent == "claude" and hasattr(self._orch, "async_claude_driver"):
             driver = self._orch.async_claude_driver
             return await driver.invoke(context)
 
         else:
             # Fallback: run sync driver in executor to not block
             import asyncio
+
             # V12.4 FIX F19: Use get_running_loop() instead of deprecated get_event_loop()
             loop = asyncio.get_running_loop()
 
             if agent == "gemini":
-                return await loop.run_in_executor(
-                    None,
-                    lambda: self._orch.gemini_driver.invoke(context)
-                )
+                return await loop.run_in_executor(None, lambda: self._orch.gemini_driver.invoke(context))
             else:
-                return await loop.run_in_executor(
-                    None,
-                    lambda: self._orch.claude_driver.invoke(context)
-                )
+                return await loop.run_in_executor(None, lambda: self._orch.claude_driver.invoke(context))
 
     # Property to check if async handlers are available
     @property

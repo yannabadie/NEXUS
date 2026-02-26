@@ -33,11 +33,9 @@ Usage:
 import logging
 import re
 import threading
-import time
 from collections import Counter
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -46,24 +44,27 @@ logger = logging.getLogger(__name__)
 # Data Structures
 # =============================================================================
 
+
 class FailureCategory(Enum):
     """Five root cause categories from AgentDebug taxonomy."""
-    MEMORY = "memory"           # Lost context, forgot instructions
-    REFLECTION = "reflection"   # Failed self-correction
-    PLANNING = "planning"       # Bad decomposition, dependencies
-    ACTION = "action"           # Wrong tool, bad parameters
-    SYSTEM = "system"           # External failures, timeouts
+
+    MEMORY = "memory"  # Lost context, forgot instructions
+    REFLECTION = "reflection"  # Failed self-correction
+    PLANNING = "planning"  # Bad decomposition, dependencies
+    ACTION = "action"  # Wrong tool, bad parameters
+    SYSTEM = "system"  # External failures, timeouts
 
 
 @dataclass
 class Classification:
     """Result of failure classification."""
+
     category: FailureCategory
-    confidence: float            # 0-1 confidence in classification
-    evidence: List[str]          # Evidence supporting this classification
-    recovery_strategy: str       # Targeted recovery suggestion
-    secondary_category: Optional[FailureCategory] = None
-    signal_scores: Dict[str, float] = field(default_factory=dict)
+    confidence: float  # 0-1 confidence in classification
+    evidence: list[str]  # Evidence supporting this classification
+    recovery_strategy: str  # Targeted recovery suggestion
+    secondary_category: FailureCategory | None = None
+    signal_scores: dict[str, float] = field(default_factory=dict)
 
     @property
     def is_confident(self) -> bool:
@@ -74,8 +75,9 @@ class Classification:
 @dataclass
 class ClassifierStats:
     """Statistics for the failure classifier."""
+
     total_classifications: int
-    category_distribution: Dict[str, int]
+    category_distribution: dict[str, int]
     avg_confidence: float
     most_common_category: str
 
@@ -159,7 +161,7 @@ SYSTEM_PATTERNS = [
 ]
 
 # Compiled patterns
-_PATTERNS: Dict[FailureCategory, list] = {
+_PATTERNS: dict[FailureCategory, list] = {
     FailureCategory.MEMORY: [re.compile(p, re.IGNORECASE) for p in MEMORY_PATTERNS],
     FailureCategory.REFLECTION: [re.compile(p, re.IGNORECASE) for p in REFLECTION_PATTERNS],
     FailureCategory.PLANNING: [re.compile(p, re.IGNORECASE) for p in PLANNING_PATTERNS],
@@ -168,33 +170,25 @@ _PATTERNS: Dict[FailureCategory, list] = {
 }
 
 # Recovery strategies per category
-RECOVERY_STRATEGIES: Dict[FailureCategory, str] = {
+RECOVERY_STRATEGIES: dict[FailureCategory, str] = {
     FailureCategory.MEMORY: (
-        "Re-inject relevant context from earlier steps. "
-        "Summarize key findings and constraints before retrying."
+        "Re-inject relevant context from earlier steps. Summarize key findings and constraints before retrying."
     ),
     FailureCategory.REFLECTION: (
-        "Add explicit self-verification step. "
-        "Compare output against requirements before proceeding."
+        "Add explicit self-verification step. Compare output against requirements before proceeding."
     ),
     FailureCategory.PLANNING: (
-        "Re-decompose the task with dependency analysis. "
-        "Verify prerequisites are met before each step."
+        "Re-decompose the task with dependency analysis. Verify prerequisites are met before each step."
     ),
-    FailureCategory.ACTION: (
-        "Review tool documentation and parameter requirements. "
-        "Validate inputs before execution."
-    ),
-    FailureCategory.SYSTEM: (
-        "Retry with exponential backoff. "
-        "Check system health and resource availability."
-    ),
+    FailureCategory.ACTION: ("Review tool documentation and parameter requirements. Validate inputs before execution."),
+    FailureCategory.SYSTEM: ("Retry with exponential backoff. Check system health and resource availability."),
 }
 
 
 # =============================================================================
 # Failure Classifier
 # =============================================================================
+
 
 class FailureClassifier:
     """
@@ -220,8 +214,8 @@ class FailureClassifier:
     def classify(
         self,
         failure_description: str = "",
-        step_outputs: Optional[List[str]] = None,
-        issues: Optional[List[dict]] = None,
+        step_outputs: list[str] | None = None,
+        issues: list[dict] | None = None,
     ) -> Classification:
         """
         Classify a failure into one of five root cause categories.
@@ -239,10 +233,7 @@ class FailureClassifier:
         if step_outputs:
             all_text += " " + " ".join(str(s)[:500] for s in step_outputs)
         if issues:
-            all_text += " " + " ".join(
-                f"{i.get('issue_type', '')} {i.get('severity', '')}"
-                for i in issues
-            )
+            all_text += " " + " ".join(f"{i.get('issue_type', '')} {i.get('severity', '')}" for i in issues)
 
         if not all_text.strip():
             return Classification(
@@ -253,8 +244,8 @@ class FailureClassifier:
             )
 
         # Score each category
-        scores: Dict[FailureCategory, float] = {}
-        evidence: Dict[FailureCategory, List[str]] = {}
+        scores: dict[FailureCategory, float] = {}
+        evidence: dict[FailureCategory, list[str]] = {}
 
         for category, patterns in _PATTERNS.items():
             matches = []
@@ -337,7 +328,7 @@ class FailureClassifier:
 # Singleton
 # =============================================================================
 
-_instance: Optional[FailureClassifier] = None
+_instance: FailureClassifier | None = None
 _instance_lock = threading.Lock()
 
 

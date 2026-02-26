@@ -30,21 +30,24 @@ Usage:
 
 from __future__ import annotations
 
+import contextlib
 import uuid
 from collections import deque
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Set
-
+from typing import Any
 
 # =============================================================================
 # Enums
 # =============================================================================
 
+
 class ThoughtStatus(Enum):
     """Status of a thought node."""
+
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
@@ -54,6 +57,7 @@ class ThoughtStatus(Enum):
 
 class ThoughtType(Enum):
     """Type of reasoning step."""
+
     ANALYZE = "analyze"
     GENERATE = "generate"
     EVALUATE = "evaluate"
@@ -65,6 +69,7 @@ class ThoughtType(Enum):
 # =============================================================================
 # ThoughtNode
 # =============================================================================
+
 
 @dataclass
 class ThoughtNode:
@@ -86,26 +91,27 @@ class ThoughtNode:
         max_attempts: Maximum retry attempts
         completed_at: Timestamp of completion
     """
+
     id: str = ""
     name: str = ""
     question: str = ""
     thought_type: ThoughtType = ThoughtType.ANALYZE
     status: ThoughtStatus = ThoughtStatus.PENDING
-    dependencies: List[str] = field(default_factory=list)
-    children: List[str] = field(default_factory=list)
+    dependencies: list[str] = field(default_factory=list)
+    children: list[str] = field(default_factory=list)
     answer: str = ""
     confidence: float = 0.0
     reasoning: str = ""
     attempts: int = 0
     max_attempts: int = 3
-    completed_at: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    completed_at: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         if not self.id:
             self.id = uuid.uuid4().hex[:8]
 
-    def is_ready(self, completed_ids: Set[str]) -> bool:
+    def is_ready(self, completed_ids: set[str]) -> bool:
         """Check if all dependencies are satisfied."""
         if not self.dependencies:
             return True
@@ -122,14 +128,14 @@ class ThoughtNode:
         self.answer = answer
         self.confidence = confidence
         self.reasoning = reasoning
-        self.completed_at = datetime.now(timezone.utc).isoformat()
+        self.completed_at = datetime.now(UTC).isoformat()
 
     def mark_failed(self, reason: str = "") -> None:
         """Mark this node as failed."""
         self.status = ThoughtStatus.FAILED
         self.reasoning = reason
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize to dict."""
         return {
             "id": self.id,
@@ -151,6 +157,7 @@ class ThoughtNode:
 # ThoughtGraph
 # =============================================================================
 
+
 class ThoughtGraph:
     """
     Directed acyclic graph of thought nodes.
@@ -160,8 +167,8 @@ class ThoughtGraph:
 
     def __init__(self, name: str = "thought_graph"):
         self.name = name
-        self.nodes: Dict[str, ThoughtNode] = {}
-        self.created_at: str = datetime.now(timezone.utc).isoformat()
+        self.nodes: dict[str, ThoughtNode] = {}
+        self.created_at: str = datetime.now(UTC).isoformat()
 
     def add_node(self, node: ThoughtNode) -> str:
         """
@@ -188,7 +195,7 @@ class ThoughtGraph:
         question: str,
         name: str = "",
         thought_type: ThoughtType = ThoughtType.ANALYZE,
-        dependencies: Optional[List[str]] = None,
+        dependencies: list[str] | None = None,
     ) -> ThoughtNode:
         """
         Create and add a node to the graph.
@@ -206,47 +213,41 @@ class ThoughtGraph:
         return node
 
     @property
-    def root_nodes(self) -> List[str]:
+    def root_nodes(self) -> list[str]:
         """Get IDs of nodes with no dependencies."""
-        return [
-            nid for nid, node in self.nodes.items()
-            if not node.dependencies
-        ]
+        return [nid for nid, node in self.nodes.items() if not node.dependencies]
 
     @property
-    def leaf_nodes(self) -> List[str]:
+    def leaf_nodes(self) -> list[str]:
         """Get IDs of nodes with no children."""
-        return [
-            nid for nid, node in self.nodes.items()
-            if not node.children
-        ]
+        return [nid for nid, node in self.nodes.items() if not node.children]
 
-    def get_ready_nodes(self) -> List[ThoughtNode]:
+    def get_ready_nodes(self) -> list[ThoughtNode]:
         """Get nodes whose dependencies are all satisfied and are still pending."""
         completed_ids = {
-            nid for nid, node in self.nodes.items()
-            if node.status in (ThoughtStatus.COMPLETED, ThoughtStatus.FAILED)
+            nid for nid, node in self.nodes.items() if node.status in (ThoughtStatus.COMPLETED, ThoughtStatus.FAILED)
         }
         return [
-            node for node in self.nodes.values()
+            node
+            for node in self.nodes.values()
             if node.status == ThoughtStatus.PENDING and node.is_ready(completed_ids)
         ]
 
-    def get_execution_order(self) -> List[str]:
+    def get_execution_order(self) -> list[str]:
         """
         Get topological execution order (Kahn's algorithm).
 
         Returns:
             List of node IDs in dependency-respecting order
         """
-        in_degree: Dict[str, int] = {nid: 0 for nid in self.nodes}
+        in_degree: dict[str, int] = {nid: 0 for nid in self.nodes}
         for node in self.nodes.values():
             for child_id in node.children:
                 if child_id in in_degree:
                     in_degree[child_id] += 1
 
         queue = deque(nid for nid, deg in in_degree.items() if deg == 0)
-        order: List[str] = []
+        order: list[str] = []
 
         while queue:
             nid = queue.popleft()
@@ -269,16 +270,14 @@ class ThoughtGraph:
     def get_completed_count(self) -> int:
         """Count completed nodes."""
         return sum(
-            1 for node in self.nodes.values()
+            1
+            for node in self.nodes.values()
             if node.status in (ThoughtStatus.COMPLETED, ThoughtStatus.FAILED, ThoughtStatus.SKIPPED)
         )
 
     def get_failed_count(self) -> int:
         """Count failed nodes."""
-        return sum(
-            1 for node in self.nodes.values()
-            if node.status == ThoughtStatus.FAILED
-        )
+        return sum(1 for node in self.nodes.values() if node.status == ThoughtStatus.FAILED)
 
     def get_final_answer(self) -> str:
         """
@@ -340,7 +339,7 @@ class ThoughtGraph:
             depth += 1
         return depth
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize graph to dict."""
         return {
             "name": self.name,
@@ -354,6 +353,7 @@ class ThoughtGraph:
 # =============================================================================
 # GraphOfThought Orchestrator
 # =============================================================================
+
 
 class GraphOfThought:
     """
@@ -369,8 +369,8 @@ class GraphOfThought:
     def decompose_problem(
         self,
         main_problem: str,
-        sub_problems: List[str],
-        parallel_groups: Optional[List[List[int]]] = None,
+        sub_problems: list[str],
+        parallel_groups: list[list[int]] | None = None,
         name: str = "problem_graph",
     ) -> ThoughtGraph:
         """
@@ -397,19 +397,19 @@ class GraphOfThought:
         )
 
         # Build parallel group lookup: step_index -> group_id
-        parallel_lookup: Dict[int, int] = {}
+        parallel_lookup: dict[int, int] = {}
         if parallel_groups:
             for group_id, group in enumerate(parallel_groups):
                 for idx in group:
                     parallel_lookup[idx] = group_id
 
         # Step nodes
-        step_nodes: List[ThoughtNode] = []
+        step_nodes: list[ThoughtNode] = []
         prev_node_id = root.id
 
         # Track which steps share the same dependency (parallel)
         # For parallel groups: all members depend on the node before the group
-        group_deps: Dict[int, str] = {}  # group_id -> dependency node id
+        group_deps: dict[int, str] = {}  # group_id -> dependency node id
 
         for i, sub_problem in enumerate(sub_problems):
             step_name = f"step_{i + 1}"
@@ -438,8 +438,9 @@ class GraphOfThought:
             else:
                 # After a parallel group ends, next sequential depends on all group members
                 group_id = parallel_lookup[i]
-                group_members = [
-                    step_nodes[j] for j in range(len(step_nodes))
+                [
+                    step_nodes[j]
+                    for j in range(len(step_nodes))
                     if j in parallel_lookup and parallel_lookup[j] == group_id
                 ]
                 # Update prev to be the last member (next step will handle deps)
@@ -450,10 +451,7 @@ class GraphOfThought:
                     prev_node_id = step.id
 
         # Aggregation node depends on all leaf steps
-        leaf_step_ids = [
-            s.id for s in step_nodes
-            if s.id in graph.leaf_nodes
-        ]
+        leaf_step_ids = [s.id for s in step_nodes if s.id in graph.leaf_nodes]
         if not leaf_step_ids:
             leaf_step_ids = [step_nodes[-1].id] if step_nodes else [root.id]
 
@@ -469,7 +467,7 @@ class GraphOfThought:
     def create_decision_tree(
         self,
         question: str,
-        options: List[str],
+        options: list[str],
         evaluation_criteria: str = "",
     ) -> ThoughtGraph:
         """
@@ -496,7 +494,7 @@ class GraphOfThought:
 
         # Evaluation nodes (parallel)
         eval_ids = []
-        for i, option in enumerate(options):
+        for _i, option in enumerate(options):
             eval_q = f"Evaluate option '{option}'"
             if evaluation_criteria:
                 eval_q += f" against criteria: {evaluation_criteria}"
@@ -523,7 +521,7 @@ class GraphOfThought:
         self,
         graph: ThoughtGraph,
         executor: Callable[[ThoughtNode], str],
-        on_progress: Optional[Callable] = None,
+        on_progress: Callable | None = None,
     ) -> ThoughtGraph:
         """
         Execute graph sequentially in topological order.
@@ -545,8 +543,7 @@ class GraphOfThought:
 
             # Check dependencies
             completed_ids = {
-                n for n, nd in graph.nodes.items()
-                if nd.status in (ThoughtStatus.COMPLETED, ThoughtStatus.FAILED)
+                n for n, nd in graph.nodes.items() if nd.status in (ThoughtStatus.COMPLETED, ThoughtStatus.FAILED)
             }
             if not node.is_ready(completed_ids):
                 node.mark_failed("Dependencies not met")
@@ -580,7 +577,7 @@ class GraphOfThought:
         graph: ThoughtGraph,
         executor: Callable[[ThoughtNode], str],
         max_workers: int = 4,
-        on_progress: Optional[Callable] = None,
+        on_progress: Callable | None = None,
     ) -> ThoughtGraph:
         """
         Execute graph with parallel execution of independent nodes.
@@ -614,10 +611,8 @@ class GraphOfThought:
 
                 for future in as_completed(futures):
                     node = futures[future]
-                    try:
+                    with contextlib.suppress(Exception):
                         future.result()
-                    except Exception:
-                        pass  # Error already handled in _execute_node
                     if on_progress:
                         event = "completed" if node.status == ThoughtStatus.COMPLETED else "failed"
                         on_progress(graph, node, event)
@@ -640,7 +635,7 @@ class GraphOfThought:
                 if attempt == node.max_attempts - 1:
                     node.mark_failed(str(e))
 
-    def get_execution_progress(self, graph: ThoughtGraph) -> Dict[str, Any]:
+    def get_execution_progress(self, graph: ThoughtGraph) -> dict[str, Any]:
         """
         Get execution progress metrics.
 
@@ -648,19 +643,10 @@ class GraphOfThought:
             Dict with total, completed, failed, pending, percentage, is_complete
         """
         total = len(graph.nodes)
-        completed = sum(
-            1 for n in graph.nodes.values()
-            if n.status == ThoughtStatus.COMPLETED
-        )
+        completed = sum(1 for n in graph.nodes.values() if n.status == ThoughtStatus.COMPLETED)
         failed = graph.get_failed_count()
-        pending = sum(
-            1 for n in graph.nodes.values()
-            if n.status == ThoughtStatus.PENDING
-        )
-        in_progress = sum(
-            1 for n in graph.nodes.values()
-            if n.status == ThoughtStatus.IN_PROGRESS
-        )
+        pending = sum(1 for n in graph.nodes.values() if n.status == ThoughtStatus.PENDING)
+        in_progress = sum(1 for n in graph.nodes.values() if n.status == ThoughtStatus.IN_PROGRESS)
 
         return {
             "total": total,
@@ -715,7 +701,8 @@ class GraphOfThought:
 # Convenience Functions
 # =============================================================================
 
-def create_simple_chain(steps: List[str]) -> ThoughtGraph:
+
+def create_simple_chain(steps: list[str]) -> ThoughtGraph:
     """
     Create a sequential chain of thought steps.
 
@@ -738,7 +725,7 @@ def create_simple_chain(steps: List[str]) -> ThoughtGraph:
 
 def create_parallel_exploration(
     question: str,
-    approaches: List[str],
+    approaches: list[str],
 ) -> ThoughtGraph:
     """
     Create parallel exploration branches that merge into aggregation.

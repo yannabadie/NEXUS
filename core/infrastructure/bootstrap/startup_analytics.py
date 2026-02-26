@@ -24,9 +24,9 @@ from __future__ import annotations
 import dataclasses
 import logging
 import threading
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -42,9 +42,11 @@ MAX_BOOT_RECORDS: int = 50000
 # Types
 # =============================================================================
 
+
 @dataclass
 class BootStepRecord:
     """Record of a single bootstrap step."""
+
     step_id: str = ""
     component_name: str = ""
     duration_ms: float = 0.0
@@ -53,13 +55,14 @@ class BootStepRecord:
     order: int = 0
     timestamp: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return dataclasses.asdict(self)
 
 
 @dataclass
 class ComponentProfile:
     """Aggregated profile for a single component across boots."""
+
     component_name: str = ""
     total_boots: int = 0
     success_count: int = 0
@@ -77,7 +80,7 @@ class ComponentProfile:
             return self.total_duration_ms / self.total_boots
         return 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "component_name": self.component_name,
             "total_boots": self.total_boots,
@@ -91,18 +94,20 @@ class ComponentProfile:
 @dataclass
 class StartupStats:
     """Overall startup analytics statistics."""
+
     total_boots: int = 0
     unique_components: int = 0
     overall_success_rate: float = 0.0
     avg_boot_duration_ms: float = 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return dataclasses.asdict(self)
 
 
 # =============================================================================
 # Startup Analytics
 # =============================================================================
+
 
 class StartupAnalytics:
     """
@@ -118,8 +123,8 @@ class StartupAnalytics:
 
     def __init__(self, max_records: int = MAX_BOOT_RECORDS) -> None:
         self._max_records = max_records
-        self._steps: List[BootStepRecord] = []
-        self._profiles: Dict[str, ComponentProfile] = {}
+        self._steps: list[BootStepRecord] = []
+        self._profiles: dict[str, ComponentProfile] = {}
         self._counter = 1
         self._lock = threading.Lock()
 
@@ -147,7 +152,7 @@ class StartupAnalytics:
                 success=success,
                 error_message=error_message,
                 order=order,
-                timestamp=datetime.now(timezone.utc).isoformat(),
+                timestamp=datetime.now(UTC).isoformat(),
             )
 
             # FIFO eviction
@@ -172,12 +177,12 @@ class StartupAnalytics:
     # Profile Queries
     # =========================================================================
 
-    def get_component_profile(self, component_name: str) -> Optional[ComponentProfile]:
+    def get_component_profile(self, component_name: str) -> ComponentProfile | None:
         """Get the aggregated profile for a specific component."""
         with self._lock:
             return self._profiles.get(component_name)
 
-    def get_all_profiles(self) -> List[ComponentProfile]:
+    def get_all_profiles(self) -> list[ComponentProfile]:
         """Return all component profiles sorted by total_boots descending."""
         with self._lock:
             return sorted(
@@ -186,7 +191,7 @@ class StartupAnalytics:
                 reverse=True,
             )
 
-    def get_slowest_components(self, limit: int = 5) -> List[ComponentProfile]:
+    def get_slowest_components(self, limit: int = 5) -> list[ComponentProfile]:
         """Return top N components by avg_duration_ms descending."""
         with self._lock:
             return sorted(
@@ -195,20 +200,14 @@ class StartupAnalytics:
                 reverse=True,
             )[:limit]
 
-    def get_failing_components(
-        self, min_boots: int = 3, threshold: float = 0.8
-    ) -> List[ComponentProfile]:
+    def get_failing_components(self, min_boots: int = 3, threshold: float = 0.8) -> list[ComponentProfile]:
         """Return components with success_rate < threshold and at least min_boots.
 
         Sorted by success_rate ascending (worst first).
         """
         with self._lock:
             return sorted(
-                [
-                    p for p in self._profiles.values()
-                    if p.total_boots >= min_boots
-                    and p.success_rate < threshold
-                ],
+                [p for p in self._profiles.values() if p.total_boots >= min_boots and p.success_rate < threshold],
                 key=lambda p: p.success_rate,
             )
 
@@ -216,23 +215,19 @@ class StartupAnalytics:
     # Step Queries
     # =========================================================================
 
-    def get_recent_steps(
-        self, limit: int = 10, component_name: Optional[str] = None
-    ) -> List[BootStepRecord]:
+    def get_recent_steps(self, limit: int = 10, component_name: str | None = None) -> list[BootStepRecord]:
         """Return last N steps, optionally filtered by component name.
 
         Results are returned in reverse chronological order (newest first).
         """
         with self._lock:
             if component_name is not None:
-                filtered = [
-                    s for s in self._steps if s.component_name == component_name
-                ]
+                filtered = [s for s in self._steps if s.component_name == component_name]
             else:
                 filtered = list(self._steps)
             return list(reversed(filtered[-limit:]))
 
-    def list_components(self) -> List[str]:
+    def list_components(self) -> list[str]:
         """Return sorted list of all tracked component names."""
         with self._lock:
             return sorted(self._profiles.keys())
@@ -252,12 +247,8 @@ class StartupAnalytics:
             return StartupStats(
                 total_boots=total,
                 unique_components=unique,
-                overall_success_rate=(
-                    successes / total if total > 0 else 0.0
-                ),
-                avg_boot_duration_ms=(
-                    total_duration / total if total > 0 else 0.0
-                ),
+                overall_success_rate=(successes / total if total > 0 else 0.0),
+                avg_boot_duration_ms=(total_duration / total if total > 0 else 0.0),
             )
 
     # =========================================================================
@@ -277,7 +268,7 @@ class StartupAnalytics:
             self._profiles.clear()
             self._counter = 1
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize analytics state to dict.
 
         Note: get_stats(), get_all_profiles(), and get_recent_steps()
@@ -301,7 +292,7 @@ class StartupAnalytics:
 # Global Instance
 # =============================================================================
 
-_instance: Optional[StartupAnalytics] = None
+_instance: StartupAnalytics | None = None
 _lock = threading.Lock()
 
 

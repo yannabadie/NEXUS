@@ -25,8 +25,9 @@ import logging
 import threading
 import time
 from collections import OrderedDict
-from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, TypeVar
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Any, TypeVar
 
 _logger = logging.getLogger(__name__)
 
@@ -46,9 +47,11 @@ MAX_CACHE_SIZE = 100000
 # Types
 # =============================================================================
 
+
 @dataclass
 class CacheEntry:
     """A cached item with metadata."""
+
     key: str
     value: Any
     created_at: float
@@ -65,7 +68,7 @@ class CacheEntry:
         r = self.expires_at - time.monotonic()
         return max(0.0, r)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "key": self.key,
             "hit_count": self.hit_count,
@@ -78,6 +81,7 @@ class CacheEntry:
 @dataclass
 class CacheStats:
     """Cache statistics."""
+
     size: int
     max_size: int
     hits: int
@@ -86,7 +90,7 @@ class CacheStats:
     expirations: int
     hit_rate: float
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "size": self.size,
             "max_size": self.max_size,
@@ -101,6 +105,7 @@ class CacheStats:
 # =============================================================================
 # Cache Manager
 # =============================================================================
+
 
 class CacheManager:
     """
@@ -129,7 +134,7 @@ class CacheManager:
     # Core Operations
     # =========================================================================
 
-    def put(self, key: str, value: Any, *, ttl: Optional[float] = None, size_bytes: int = 0) -> None:
+    def put(self, key: str, value: Any, *, ttl: float | None = None, size_bytes: int = 0) -> None:
         """Store a value in the cache."""
         now = time.monotonic()
         actual_ttl = ttl if ttl is not None else self._default_ttl
@@ -173,7 +178,7 @@ class CacheManager:
         key: str,
         compute_fn: Callable[[], T],
         *,
-        ttl: Optional[float] = None,
+        ttl: float | None = None,
         size_bytes: int = 0,
     ) -> T:
         """Get from cache or compute and store."""
@@ -204,7 +209,7 @@ class CacheManager:
                 return True
             return False
 
-    def get_entry(self, key: str) -> Optional[CacheEntry]:
+    def get_entry(self, key: str) -> CacheEntry | None:
         """Get the cache entry (metadata) for a key."""
         entry = self._cache.get(key)
         if entry is None or entry.is_expired:
@@ -223,13 +228,10 @@ class CacheManager:
                 del self._cache[key]
             return len(keys_to_delete)
 
-    def list_keys(self, *, prefix: str = "") -> List[str]:
+    def list_keys(self, *, prefix: str = "") -> list[str]:
         """List all non-expired keys, optionally filtered by prefix."""
         now = time.monotonic()
-        return [
-            k for k, v in self._cache.items()
-            if v.expires_at > now and (not prefix or k.startswith(prefix))
-        ]
+        return [k for k, v in self._cache.items() if v.expires_at > now and (not prefix or k.startswith(prefix))]
 
     # =========================================================================
     # Maintenance
@@ -283,7 +285,7 @@ class CacheManager:
             self._evictions = 0
             self._expirations = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "size": self.size,
             "max_size": self._max_size,
@@ -295,7 +297,7 @@ class CacheManager:
 # Global Instance
 # =============================================================================
 
-_cache: Optional[CacheManager] = None
+_cache: CacheManager | None = None
 _cache_lock = threading.Lock()
 
 

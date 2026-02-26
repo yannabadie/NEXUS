@@ -9,19 +9,20 @@ Creates sandboxed child instances by:
 2. Applying mutations to target files
 3. Signing birth certificates
 """
-import shutil
+
 import json
+import shutil
 import time
-from pathlib import Path
-from typing import List, Dict, Any, Optional, Callable
+from collections.abc import Callable
 from datetime import datetime
+from pathlib import Path
+from typing import Any
 
 from core.intelligence.evolution.models import (
-    MutationProposal,
     ChildCreationResult,
+    MutationProposal,
 )
 from core.security_pkg.security import MutationValidator
-
 
 # Type alias for progress callback
 ProgressCallback = Callable[[str, float], None]
@@ -29,6 +30,7 @@ ProgressCallback = Callable[[str, float], None]
 
 class SecurityError(Exception):
     """V8.8: Security violation during evolution (e.g., heredity validation failure)."""
+
     pass
 
 
@@ -44,7 +46,7 @@ class CreatePhase:
         self,
         workspace_path: Path,
         nexus_root: Path,
-        progress_callback: Optional[ProgressCallback] = None,
+        progress_callback: ProgressCallback | None = None,
     ):
         """
         Initialize create phase.
@@ -76,7 +78,7 @@ class CreatePhase:
     def _apply_mutation(
         self,
         child_dir: Path,
-        mutation: Dict[str, Any],
+        mutation: dict[str, Any],
     ) -> tuple[bool, str]:
         """
         Apply a single mutation to child.
@@ -88,48 +90,48 @@ class CreatePhase:
         Returns:
             (success, message) tuple
         """
-        target_file = child_dir / mutation['file']
+        target_file = child_dir / mutation["file"]
         if not target_file.exists():
             return False, f"Target file not found: {mutation['file']}"
 
         try:
-            original_content = target_file.read_text(encoding='utf-8')
-            mutation_code = mutation['change']
-            operation = mutation.get('operation', 'APPEND').upper()
+            original_content = target_file.read_text(encoding="utf-8")
+            mutation_code = mutation["change"]
+            operation = mutation.get("operation", "APPEND").upper()
 
             # Security validation (warn mode)
-            warnings, _ = self.mutation_validator.validate(mutation_code, mutation['file'])
+            warnings, _ = self.mutation_validator.validate(mutation_code, mutation["file"])
 
-            if operation == 'REPLACE':
+            if operation == "REPLACE":
                 # Use search_block for exact matching
-                search_block = mutation.get('search_block', '')
+                search_block = mutation.get("search_block", "")
                 if search_block and search_block in original_content:
                     mutated_content = original_content.replace(search_block, mutation_code, 1)
                 else:
                     # Fallback to target line matching
-                    target_line = mutation.get('target', '')
+                    target_line = mutation.get("target", "")
                     if not target_line or target_line not in original_content:
-                        return False, f"Target not found for REPLACE operation"
+                        return False, "Target not found for REPLACE operation"
                     mutated_content = original_content.replace(target_line, mutation_code, 1)
 
-            elif operation == 'APPEND':
-                mutated_content = original_content + '\n' + mutation_code
+            elif operation == "APPEND":
+                mutated_content = original_content + "\n" + mutation_code
 
-            elif operation == 'PREPEND':
-                mutated_content = mutation_code + '\n' + original_content
+            elif operation == "PREPEND":
+                mutated_content = mutation_code + "\n" + original_content
 
-            elif operation == 'INSERT_AFTER':
-                marker = mutation.get('marker', '')
+            elif operation == "INSERT_AFTER":
+                marker = mutation.get("marker", "")
                 if marker and marker in original_content:
                     idx = original_content.find(marker) + len(marker)
-                    mutated_content = original_content[:idx] + '\n' + mutation_code + original_content[idx:]
+                    mutated_content = original_content[:idx] + "\n" + mutation_code + original_content[idx:]
                 else:
-                    return False, f"Marker not found for INSERT_AFTER"
+                    return False, "Marker not found for INSERT_AFTER"
 
             else:
                 return False, f"Unknown operation: {operation}"
 
-            target_file.write_text(mutated_content, encoding='utf-8')
+            target_file.write_text(mutated_content, encoding="utf-8")
             return True, f"Applied {operation} mutation"
 
         except Exception as e:
@@ -141,7 +143,7 @@ class CreatePhase:
         child_id: str,
         parent_id: str,
         generation: int,
-        mutation: Dict[str, Any],
+        mutation: dict[str, Any],
     ) -> Path:
         """
         Create and sign birth certificate for child.
@@ -151,6 +153,7 @@ class CreatePhase:
         # V8.8: Get heredity stamp from KERNEL for lineage validation
         try:
             from KERNEL import get_heredity_stamp, validate_lineage
+
             heredity = get_heredity_stamp()
         except ImportError:
             heredity = {
@@ -168,14 +171,16 @@ class CreatePhase:
             "human_authority": heredity["human_authority"],  # V8.8: From KERNEL
             "kernel_rules_hash": heredity.get("kernel_rules_hash"),  # V8.8: GROK-003
             "kernel_version": heredity.get("kernel_version"),  # V8.8: For audit
-            "mutations": [{
-                "file": mutation.get('file', ''),
-                "change": mutation.get('change', ''),
-                "reason": mutation.get('reason', ''),
-                "expected_asi_impact": mutation.get('expected_asi_impact', 0),
-            }],
+            "mutations": [
+                {
+                    "file": mutation.get("file", ""),
+                    "change": mutation.get("change", ""),
+                    "reason": mutation.get("reason", ""),
+                    "expected_asi_impact": mutation.get("expected_asi_impact", 0),
+                }
+            ],
             "source": "Gemini+Claude symbiotic debate (emergent)",
-            "signature": "NEXUS_KERNEL_ALIGNED"
+            "signature": "NEXUS_KERNEL_ALIGNED",
         }
 
         # V8.8 (GROK-003): Validate lineage before writing certificate
@@ -190,10 +195,7 @@ class CreatePhase:
             birth_cert["_heredity_validated"] = False
 
         birth_cert_path = child_dir / "BIRTH_CERTIFICATE.json"
-        birth_cert_path.write_text(
-            json.dumps(birth_cert, indent=2, ensure_ascii=False),
-            encoding='utf-8'
-        )
+        birth_cert_path.write_text(json.dumps(birth_cert, indent=2, ensure_ascii=False), encoding="utf-8")
         return birth_cert_path
 
     def create_child(
@@ -202,7 +204,7 @@ class CreatePhase:
         parent_id: str,
         generation: int,
         child_index: int,
-    ) -> tuple[Optional[str], Optional[Path], List[str]]:
+    ) -> tuple[str | None, Path | None, list[str]]:
         """
         Create a single child from mutation.
 
@@ -215,7 +217,6 @@ class CreatePhase:
         Returns:
             (child_id, child_path, errors) tuple
         """
-        errors = []
 
         # Generate child ID
         file_basename = Path(mutation.files_to_modify[0]).stem if mutation.files_to_modify else "unknown"
@@ -239,9 +240,9 @@ class CreatePhase:
                 self.nexus_root,
                 child_dir,
                 ignore=shutil.ignore_patterns(
-                    '__pycache__', '*.pyc', '.nexus', 'workspace', 'workspace_archive', '.git'
+                    "__pycache__", "*.pyc", ".nexus", "workspace", "workspace_archive", ".git"
                 ),
-                dirs_exist_ok=True
+                dirs_exist_ok=True,
             )
 
             # Copy KERNEL.py (alignment file)
@@ -260,14 +261,18 @@ class CreatePhase:
             (child_workspace / "logs").mkdir(exist_ok=True)
 
             # Apply mutation from metadata (original dict format)
-            mutation_dict = mutation.metadata if mutation.metadata else {
-                'file': mutation.files_to_modify[0] if mutation.files_to_modify else '',
-                'change': mutation.patches[0].get('replace', '') if mutation.patches else '',
-                'search_block': mutation.patches[0].get('search', '') if mutation.patches else '',
-                'reason': mutation.rationale,
-                'expected_asi_impact': mutation.confidence,
-                'operation': 'REPLACE' if mutation.patches and mutation.patches[0].get('search') else 'APPEND',
-            }
+            mutation_dict = (
+                mutation.metadata
+                if mutation.metadata
+                else {
+                    "file": mutation.files_to_modify[0] if mutation.files_to_modify else "",
+                    "change": mutation.patches[0].get("replace", "") if mutation.patches else "",
+                    "search_block": mutation.patches[0].get("search", "") if mutation.patches else "",
+                    "reason": mutation.rationale,
+                    "expected_asi_impact": mutation.confidence,
+                    "operation": "REPLACE" if mutation.patches and mutation.patches[0].get("search") else "APPEND",
+                }
+            )
 
             success, msg = self._apply_mutation(child_dir, mutation_dict)
             if not success:
@@ -275,9 +280,7 @@ class CreatePhase:
                 return None, None, [msg]
 
             # Create birth certificate
-            self._create_birth_certificate(
-                child_dir, child_id, parent_id, generation, mutation_dict
-            )
+            self._create_birth_certificate(child_dir, child_id, parent_id, generation, mutation_dict)
 
             return child_id, child_dir, []
 
@@ -288,7 +291,7 @@ class CreatePhase:
 
     def run(
         self,
-        mutations: List[MutationProposal],
+        mutations: list[MutationProposal],
         parent_id: str,
         generation: int,
     ) -> ChildCreationResult:
@@ -311,17 +314,15 @@ class CreatePhase:
         total = len(mutations)
         for i, mutation in enumerate(mutations):
             progress = i / total
-            self._report_progress(f"Creating child {i+1}/{total}", progress)
+            self._report_progress(f"Creating child {i + 1}/{total}", progress)
 
-            child_id, child_path, errors = self.create_child(
-                mutation, parent_id, generation, i + 1
-            )
+            child_id, child_path, errors = self.create_child(mutation, parent_id, generation, i + 1)
 
             if child_id and child_path:
                 children_created.append(child_id)
             else:
                 all_errors.extend(errors)
-                all_warnings.append(f"Skipped mutation {i+1}: {errors}")
+                all_warnings.append(f"Skipped mutation {i + 1}: {errors}")
 
         self._report_progress(f"Created {len(children_created)} children", 1.0)
 
@@ -337,10 +338,10 @@ class CreatePhase:
 def create_children(
     workspace_path: Path,
     nexus_root: Path,
-    mutations: List[MutationProposal],
+    mutations: list[MutationProposal],
     parent_id: str,
     generation: int,
-    progress_callback: Optional[ProgressCallback] = None,
+    progress_callback: ProgressCallback | None = None,
 ) -> ChildCreationResult:
     """
     Convenience function to create children from mutations.

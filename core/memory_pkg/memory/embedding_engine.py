@@ -32,7 +32,7 @@ import asyncio
 import logging
 from concurrent.futures import ThreadPoolExecutor
 from threading import RLock
-from typing import List, Optional, Any, Union
+from typing import Any
 
 # =============================================================================
 # Constants
@@ -46,6 +46,7 @@ DEFAULT_BATCH_SIZE = 32
 # =============================================================================
 # EmbeddingEngine Singleton
 # =============================================================================
+
 
 class EmbeddingEngine:
     """
@@ -65,11 +66,11 @@ class EmbeddingEngine:
     - Automatic fallback to PyTorch if ONNX fails
     """
 
-    _instance: Optional['EmbeddingEngine'] = None
+    _instance: EmbeddingEngine | None = None
     _lock = RLock()
     _initialized = False
 
-    def __new__(cls) -> 'EmbeddingEngine':
+    def __new__(cls) -> EmbeddingEngine:
         """Singleton pattern via __new__."""
         if cls._instance is None:
             with cls._lock:
@@ -89,10 +90,10 @@ class EmbeddingEngine:
                 return
 
             self._logger = logging.getLogger("nexus.memory.embedding_engine")
-            self._model: Optional[Any] = None
+            self._model: Any | None = None
             self._model_name = DEFAULT_MODEL
-            self._device: Optional[str] = None
-            self._backend: Optional[str] = None  # "onnx" or "torch"
+            self._device: str | None = None
+            self._backend: str | None = None  # "onnx" or "torch"
             self._executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="embed_")
 
             EmbeddingEngine._initialized = True
@@ -112,12 +113,12 @@ class EmbeddingEngine:
         return self._model_name
 
     @property
-    def device(self) -> Optional[str]:
+    def device(self) -> str | None:
         """Device used for inference (cpu/cuda)."""
         return self._device
 
     @property
-    def backend(self) -> Optional[str]:
+    def backend(self) -> str | None:
         """Backend used (onnx/torch)."""
         return self._backend
 
@@ -151,14 +152,14 @@ class EmbeddingEngine:
                 from sentence_transformers import SentenceTransformer
             except ImportError:
                 self._logger.error(
-                    "sentence-transformers not installed. "
-                    "Install with: pip install sentence-transformers[onnx]>=3.2.0"
+                    "sentence-transformers not installed. Install with: pip install sentence-transformers[onnx]>=3.2.0"
                 )
                 return False
 
             # Detect device
             try:
                 import torch
+
                 self._device = "cuda" if torch.cuda.is_available() else "cpu"
             except ImportError:
                 self._device = "cpu"
@@ -175,6 +176,7 @@ class EmbeddingEngine:
         try:
             # Check if onnxruntime is available
             import importlib.util
+
             if importlib.util.find_spec("onnxruntime") is None:
                 self._logger.debug("onnxruntime not installed, skipping ONNX backend")
                 return False
@@ -182,15 +184,10 @@ class EmbeddingEngine:
             self._logger.info(f"Loading {self._model_name} with ONNX backend...")
 
             # sentence-transformers>=3.2.0 supports backend parameter
-            self._model = SentenceTransformer(
-                self._model_name,
-                device=self._device,
-                backend="onnx"
-            )
+            self._model = SentenceTransformer(self._model_name, device=self._device, backend="onnx")
             self._backend = "onnx"
             self._logger.info(
-                f"EmbeddingEngine ready: model={self._model_name}, "
-                f"device={self._device}, backend={self._backend}"
+                f"EmbeddingEngine ready: model={self._model_name}, device={self._device}, backend={self._backend}"
             )
             return True
 
@@ -198,8 +195,7 @@ class EmbeddingEngine:
             # backend parameter not supported (older sentence-transformers)
             if "backend" in str(e):
                 self._logger.warning(
-                    "ONNX backend not supported. "
-                    "Upgrade to sentence-transformers>=3.2.0 for ONNX support."
+                    "ONNX backend not supported. Upgrade to sentence-transformers>=3.2.0 for ONNX support."
                 )
             return False
         except Exception as e:
@@ -211,14 +207,10 @@ class EmbeddingEngine:
         try:
             self._logger.info(f"Loading {self._model_name} with PyTorch backend...")
 
-            self._model = SentenceTransformer(
-                self._model_name,
-                device=self._device
-            )
+            self._model = SentenceTransformer(self._model_name, device=self._device)
             self._backend = "torch"
             self._logger.info(
-                f"EmbeddingEngine ready: model={self._model_name}, "
-                f"device={self._device}, backend={self._backend}"
+                f"EmbeddingEngine ready: model={self._model_name}, device={self._device}, backend={self._backend}"
             )
             return True
 
@@ -231,11 +223,8 @@ class EmbeddingEngine:
     # =========================================================================
 
     def encode(
-        self,
-        texts: Union[str, List[str]],
-        batch_size: int = DEFAULT_BATCH_SIZE,
-        show_progress: bool = False
-    ) -> List[List[float]]:
+        self, texts: str | list[str], batch_size: int = DEFAULT_BATCH_SIZE, show_progress: bool = False
+    ) -> list[list[float]]:
         """
         Encode texts to embeddings (synchronous).
 
@@ -252,10 +241,7 @@ class EmbeddingEngine:
             RuntimeError: If model fails to load
         """
         if not self._ensure_model():
-            raise RuntimeError(
-                "EmbeddingEngine: Model not available. "
-                "Check sentence-transformers installation."
-            )
+            raise RuntimeError("EmbeddingEngine: Model not available. Check sentence-transformers installation.")
 
         # Normalize input
         if isinstance(texts, str):
@@ -266,10 +252,7 @@ class EmbeddingEngine:
 
         try:
             embeddings = self._model.encode(
-                texts,
-                batch_size=batch_size,
-                show_progress_bar=show_progress,
-                convert_to_numpy=True
+                texts, batch_size=batch_size, show_progress_bar=show_progress, convert_to_numpy=True
             )
 
             # Convert numpy array to list of lists
@@ -277,9 +260,9 @@ class EmbeddingEngine:
 
         except Exception as e:
             self._logger.error(f"Encoding failed: {e}")
-            raise RuntimeError(f"EmbeddingEngine encoding failed: {e}")
+            raise RuntimeError(f"EmbeddingEngine encoding failed: {e}") from e
 
-    def encode_single(self, text: str) -> List[float]:
+    def encode_single(self, text: str) -> list[float]:
         """
         Encode a single text (convenience method).
 
@@ -292,11 +275,7 @@ class EmbeddingEngine:
         result = self.encode([text])
         return result[0] if result else []
 
-    async def encode_async(
-        self,
-        texts: Union[str, List[str]],
-        batch_size: int = DEFAULT_BATCH_SIZE
-    ) -> List[List[float]]:
+    async def encode_async(self, texts: str | list[str], batch_size: int = DEFAULT_BATCH_SIZE) -> list[list[float]]:
         """
         Encode texts to embeddings (asynchronous).
 
@@ -311,10 +290,7 @@ class EmbeddingEngine:
         """
         # V11.4 ASYNC: get_running_loop() for Python 3.12+ compatibility
         loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(
-            self._executor,
-            lambda: self.encode(texts, batch_size)
-        )
+        return await loop.run_in_executor(self._executor, lambda: self.encode(texts, batch_size))
 
     # =========================================================================
     # Diagnostics
@@ -341,6 +317,7 @@ class EmbeddingEngine:
         """Check if ONNX runtime is available."""
         try:
             import importlib.util
+
             return importlib.util.find_spec("onnxruntime") is not None
         except Exception:
             return False
@@ -370,6 +347,7 @@ class EmbeddingEngine:
 # Global Access Functions
 # =============================================================================
 
+
 def get_embedding_engine() -> EmbeddingEngine:
     """
     Get the global EmbeddingEngine singleton.
@@ -393,7 +371,7 @@ def reset_embedding_engine() -> None:
     with EmbeddingEngine._lock:
         if EmbeddingEngine._instance is not None:
             # Shutdown executor
-            if hasattr(EmbeddingEngine._instance, '_executor'):
+            if hasattr(EmbeddingEngine._instance, "_executor"):
                 EmbeddingEngine._instance._executor.shutdown(wait=False)
 
             EmbeddingEngine._instance._model = None

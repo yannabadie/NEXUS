@@ -16,13 +16,15 @@ Usage:
 
 import json
 import logging
-from pathlib import Path
-from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 # Import AgentProfile from agent_metrics
 from core.intelligence.swarm.agent_metrics import AgentProfile
 
+if TYPE_CHECKING:
+    from core.intelligence.swarm.agent_metrics import AgentPool
 
 logger = logging.getLogger(__name__)
 
@@ -30,27 +32,29 @@ logger = logging.getLogger(__name__)
 @dataclass
 class InferenceConfig:
     """V8.1.8-B: Model inference configuration for spawned agent."""
+
     provider: str  # "gemini" or "claude"
-    model: str     # e.g., "gemini-2.5-flash", "claude-sonnet-4-5-20250929"
-    reasoning: Optional[str] = None  # Why this model was chosen
+    model: str  # e.g., "gemini-2.5-flash", "claude-sonnet-4-5-20250929"
+    reasoning: str | None = None  # Why this model was chosen
 
 
 @dataclass
 class SpawnedAgentConfig:
     """Configuration loaded from BIRTH_CERTIFICATE.json"""
+
     agent_id: str
     role: str
     created_at: str
     parent: str
     mission: str
-    domains: List[str]
-    tools_priority: List[str]
+    domains: list[str]
+    tools_priority: list[str]
     workspace_path: Path
-    system_prompt_path: Optional[Path] = None
+    system_prompt_path: Path | None = None
     # V8.1.8: Unique identifier for agent tracking
-    uuid: Optional[str] = None
+    uuid: str | None = None
     # V8.1.8-B: Model inference configuration
-    inference: Optional[InferenceConfig] = None
+    inference: InferenceConfig | None = None
 
 
 class SpawnedAgentLoader:
@@ -75,7 +79,7 @@ class SpawnedAgentLoader:
         self.workspace_path = Path(workspace_path)
         self.agents_dir = self.workspace_path / "agents"
 
-    def discover_spawned_agents(self) -> List[AgentProfile]:
+    def discover_spawned_agents(self) -> list[AgentProfile]:
         """
         Scan workspace/agents/ and create AgentProfile for each spawned agent.
 
@@ -103,7 +107,7 @@ class SpawnedAgentLoader:
         logger.info(f"Discovered {len(agents)} spawned agents")
         return agents
 
-    def _load_agent_from_dir(self, agent_dir: Path) -> Optional[AgentProfile]:
+    def _load_agent_from_dir(self, agent_dir: Path) -> AgentProfile | None:
         """
         Load a single agent from its directory.
 
@@ -120,7 +124,7 @@ class SpawnedAgentLoader:
             return None
 
         try:
-            cert_data = json.loads(cert_file.read_text(encoding='utf-8'))
+            cert_data = json.loads(cert_file.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             logger.warning(f"Invalid JSON in {cert_file}: {e}")
             return None
@@ -137,16 +141,12 @@ class SpawnedAgentLoader:
             model=f"spawned_{config.agent_id}",
             capabilities=config.domains if config.domains else ["general"],
             is_active=True,
-            uuid=config.uuid  # V8.2.0: Propagate UUID from BIRTH_CERTIFICATE
+            uuid=config.uuid,  # V8.2.0: Propagate UUID from BIRTH_CERTIFICATE
         )
 
         return profile
 
-    def _parse_birth_certificate(
-        self,
-        cert_data: Dict[str, Any],
-        agent_dir: Path
-    ) -> Optional[SpawnedAgentConfig]:
+    def _parse_birth_certificate(self, cert_data: dict[str, Any], agent_dir: Path) -> SpawnedAgentConfig | None:
         """
         Parse BIRTH_CERTIFICATE.json into SpawnedAgentConfig.
 
@@ -176,7 +176,7 @@ class SpawnedAgentLoader:
             inference_config = InferenceConfig(
                 provider=inference_data.get("provider", "claude"),
                 model=inference_data.get("model", "claude-sonnet-4-5-20250929"),
-                reasoning=inference_data.get("reasoning")
+                reasoning=inference_data.get("reasoning"),
             )
 
         return SpawnedAgentConfig(
@@ -195,7 +195,7 @@ class SpawnedAgentLoader:
             inference=inference_config,
         )
 
-    def load_agent_config(self, agent_id: str) -> Optional[SpawnedAgentConfig]:
+    def load_agent_config(self, agent_id: str) -> SpawnedAgentConfig | None:
         """
         Load configuration for a specific agent by ID.
 
@@ -217,13 +217,13 @@ class SpawnedAgentLoader:
             return None
 
         try:
-            cert_data = json.loads(cert_file.read_text(encoding='utf-8'))
+            cert_data = json.loads(cert_file.read_text(encoding="utf-8"))
             return self._parse_birth_certificate(cert_data, agent_dir)
         except Exception as e:
             logger.warning(f"Failed to load config for {agent_id}: {e}")
             return None
 
-    def load_system_prompt(self, agent_id: str) -> Optional[str]:
+    def load_system_prompt(self, agent_id: str) -> str | None:
         """
         Load the specialized system prompt for an agent.
 
@@ -239,12 +239,12 @@ class SpawnedAgentLoader:
             return None
 
         try:
-            return prompt_file.read_text(encoding='utf-8')
+            return prompt_file.read_text(encoding="utf-8")
         except Exception as e:
             logger.warning(f"Failed to load system prompt for {agent_id}: {e}")
             return None
 
-    def get_agent_workspace(self, agent_id: str) -> Optional[Path]:
+    def get_agent_workspace(self, agent_id: str) -> Path | None:
         """
         Get the workspace directory for an agent.
 
@@ -262,10 +262,7 @@ class SpawnedAgentLoader:
         return None
 
 
-def discover_and_register_spawned_agents(
-    workspace_path: Path,
-    agent_pool: "AgentPool"
-) -> int:
+def discover_and_register_spawned_agents(workspace_path: Path, agent_pool: "AgentPool") -> int:
     """
     Convenience function to discover and register all spawned agents.
 

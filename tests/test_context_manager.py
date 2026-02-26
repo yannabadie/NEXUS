@@ -12,23 +12,20 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.drivers.context_manager import (
+    DEFAULT_CONTEXT_WINDOW,
+    MODEL_CONTEXT_WINDOWS,
     ContextManager,
     ContextMessage,
     ContextUtilization,
     estimate_tokens,
     get_context_window,
-    MODEL_CONTEXT_WINDOWS,
-    DEFAULT_CONTEXT_WINDOW,
-    CHARS_PER_TOKEN,
 )
-
 
 # =============================================================================
 # Token Estimation Tests
 # =============================================================================
+
 
 class TestEstimateTokens:
     """Test token estimation."""
@@ -51,6 +48,7 @@ class TestEstimateTokens:
 # =============================================================================
 # Context Window Lookup Tests
 # =============================================================================
+
 
 class TestGetContextWindow:
     """Test model context window lookup."""
@@ -77,6 +75,7 @@ class TestGetContextWindow:
 # =============================================================================
 # ContextMessage Tests
 # =============================================================================
+
 
 class TestContextMessage:
     """Test ContextMessage dataclass."""
@@ -116,6 +115,7 @@ class TestContextMessage:
 # ContextManager - Initialization Tests
 # =============================================================================
 
+
 class TestContextManagerInit:
     """Test context manager initialization."""
 
@@ -143,6 +143,7 @@ class TestContextManagerInit:
 # =============================================================================
 # ContextManager - Message Tracking Tests
 # =============================================================================
+
 
 class TestMessageTracking:
     """Test message tracking and token counting."""
@@ -198,6 +199,7 @@ class TestMessageTracking:
 # ContextManager - Budget Checking Tests
 # =============================================================================
 
+
 class TestBudgetChecking:
     """Test budget checking."""
 
@@ -222,6 +224,7 @@ class TestBudgetChecking:
 # =============================================================================
 # ContextManager - Truncation Tests
 # =============================================================================
+
 
 class TestTruncation:
     """Test smart truncation."""
@@ -285,6 +288,7 @@ class TestTruncation:
 # ContextManager - Utilization Report Tests
 # =============================================================================
 
+
 class TestUtilizationReport:
     """Test utilization report."""
 
@@ -320,6 +324,7 @@ class TestUtilizationReport:
 # ContextManager - Clear and State Tests
 # =============================================================================
 
+
 class TestClearAndState:
     """Test clear and state export."""
 
@@ -351,6 +356,7 @@ class TestClearAndState:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
@@ -361,17 +367,17 @@ class TestModuleExports:
             estimate_tokens,
             get_context_window,
         )
+
         assert all([ContextManager, ContextMessage, estimate_tokens, get_context_window])
 
     def test_from_module(self):
         from core.drivers.context_manager import (
+            MODEL_CONTEXT_WINDOWS,
             ContextManager,
             ContextMessage,
-            ContextUtilization,
             estimate_tokens,
             get_context_window,
-            MODEL_CONTEXT_WINDOWS,
         )
-        assert all([ContextManager, ContextMessage, ContextUtilization,
-                     estimate_tokens, get_context_window])
+
+        assert all([ContextManager, ContextMessage, ContextUtilization, estimate_tokens, get_context_window])
         assert len(MODEL_CONTEXT_WINDOWS) >= 8

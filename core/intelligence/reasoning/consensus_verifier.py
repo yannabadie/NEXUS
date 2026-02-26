@@ -28,13 +28,9 @@ Usage:
 """
 
 import logging
-import math
 import threading
-from collections import Counter
 from dataclasses import dataclass, field
-from difflib import SequenceMatcher
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -44,9 +40,9 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 DEFAULT_N_SAMPLES = 3
-MIN_CONSENSUS_THRESHOLD = 0.6      # Minimum cluster dominance to accept
-CPK_ACCEPT_THRESHOLD = 1.0         # Cpk >= 1.0 means "capable process"
-SIMILARITY_THRESHOLD = 0.65        # Minimum similarity to cluster together
+MIN_CONSENSUS_THRESHOLD = 0.6  # Minimum cluster dominance to accept
+CPK_ACCEPT_THRESHOLD = 1.0  # Cpk >= 1.0 means "capable process"
+SIMILARITY_THRESHOLD = 0.65  # Minimum similarity to cluster together
 MAX_HISTORY = 500
 
 
@@ -54,34 +50,39 @@ MAX_HISTORY = 500
 # Enums
 # =============================================================================
 
+
 class VerificationOutcome(str, Enum):
     """Outcome of consensus verification."""
-    ACCEPTED = "accepted"           # Strong consensus, high quality
-    WEAK_ACCEPT = "weak_accept"     # Majority agrees but with variance
-    REJECTED = "rejected"           # No consensus or poor quality
-    INSUFFICIENT = "insufficient"   # Not enough samples
+
+    ACCEPTED = "accepted"  # Strong consensus, high quality
+    WEAK_ACCEPT = "weak_accept"  # Majority agrees but with variance
+    REJECTED = "rejected"  # No consensus or poor quality
+    INSUFFICIENT = "insufficient"  # Not enough samples
 
 
 class QualityGate(str, Enum):
     """Six Sigma quality gate levels."""
-    GREEN = "green"     # Cpk >= 1.33 — excellent
-    YELLOW = "yellow"   # 1.0 <= Cpk < 1.33 — acceptable
-    RED = "red"         # Cpk < 1.0 — needs improvement
+
+    GREEN = "green"  # Cpk >= 1.33 — excellent
+    YELLOW = "yellow"  # 1.0 <= Cpk < 1.33 — acceptable
+    RED = "red"  # Cpk < 1.0 — needs improvement
 
 
 # =============================================================================
 # Data Types
 # =============================================================================
 
+
 @dataclass
 class Sample:
     """A single evaluation sample."""
+
     sample_id: int
-    score: float          # 0.0 to 1.0
-    evidence: List[str] = field(default_factory=list)
+    score: float  # 0.0 to 1.0
+    evidence: list[str] = field(default_factory=list)
     cluster_id: int = -1
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "sample_id": self.sample_id,
             "score": round(self.score, 3),
@@ -93,8 +94,9 @@ class Sample:
 @dataclass
 class Cluster:
     """A cluster of similar samples."""
+
     cluster_id: int
-    samples: List[Sample] = field(default_factory=list)
+    samples: list[Sample] = field(default_factory=list)
     centroid_score: float = 0.0
 
     @property
@@ -114,7 +116,7 @@ class Cluster:
         mean = self.mean_score
         return sum((s.score - mean) ** 2 for s in self.samples) / len(self.samples)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "cluster_id": self.cluster_id,
             "size": self.size,
@@ -126,19 +128,20 @@ class Cluster:
 @dataclass
 class VerificationResult:
     """Result of consensus verification."""
+
     outcome: VerificationOutcome
-    consensus_score: float        # 0.0 to 1.0 (dominant cluster %)
-    accepted_score: float         # Score of the winning cluster
-    cpk: float                    # Process capability index
+    consensus_score: float  # 0.0 to 1.0 (dominant cluster %)
+    accepted_score: float  # Score of the winning cluster
+    cpk: float  # Process capability index
     quality_gate: QualityGate
     n_samples: int
     n_clusters: int
-    dominant_cluster: Optional[Cluster]
-    all_clusters: List[Cluster] = field(default_factory=list)
+    dominant_cluster: Cluster | None
+    all_clusters: list[Cluster] = field(default_factory=list)
     sample_mean: float = 0.0
     sample_std: float = 0.0
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "outcome": self.outcome.value,
             "consensus_score": round(self.consensus_score, 3),
@@ -156,6 +159,7 @@ class VerificationResult:
 @dataclass
 class VerifierStats:
     """Statistics for the verifier."""
+
     verifications_run: int = 0
     accepted_count: int = 0
     weak_accept_count: int = 0
@@ -164,7 +168,7 @@ class VerifierStats:
     avg_consensus: float = 0.0
     avg_samples_per_verification: float = 0.0
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "verifications_run": self.verifications_run,
             "accepted_count": self.accepted_count,
@@ -180,7 +184,8 @@ class VerifierStats:
 # Evaluator Function
 # =============================================================================
 
-def _default_evaluator(output: str, context: str = "") -> Tuple[float, List[str]]:
+
+def _default_evaluator(output: str, context: str = "") -> tuple[float, list[str]]:
     """
     Default lightweight evaluator for sampling.
 
@@ -193,10 +198,11 @@ def _default_evaluator(output: str, context: str = "") -> Tuple[float, List[str]
     """
     try:
         from core.intelligence.reasoning.evaluation_panel import EvaluationPanel
+
         panel = EvaluationPanel()  # Fresh instance per sample (independent)
         result = panel.evaluate(output, context)
         evidence = []
-        for dim, ds in result.dimension_scores.items():
+        for _dim, ds in result.dimension_scores.items():
             evidence.extend(ds.evidence)
         return result.composite_score, evidence
     except Exception:
@@ -204,6 +210,7 @@ def _default_evaluator(output: str, context: str = "") -> Tuple[float, List[str]
 
     # Fallback: simple heuristic
     import re
+
     score = 0.5
     evidence = []
     words = len(output.split())
@@ -222,6 +229,7 @@ def _default_evaluator(output: str, context: str = "") -> Tuple[float, List[str]
 # =============================================================================
 # ConsensusVerifier
 # =============================================================================
+
 
 class ConsensusVerifier:
     """
@@ -244,7 +252,7 @@ class ConsensusVerifier:
         self._cpk_threshold = cpk_threshold
         self._similarity_threshold = similarity_threshold
         self._evaluator = evaluator or _default_evaluator
-        self._history: List[VerificationResult] = []
+        self._history: list[VerificationResult] = []
         self._lock = threading.Lock()
 
     # -------------------------------------------------------------------------
@@ -255,7 +263,7 @@ class ConsensusVerifier:
         self,
         output: str,
         context: str = "",
-        n_samples: Optional[int] = None,
+        n_samples: int | None = None,
     ) -> VerificationResult:
         """
         Verify an output via multi-sampling and consensus.
@@ -319,7 +327,7 @@ class ConsensusVerifier:
 
     def verify_scores(
         self,
-        scores: List[float],
+        scores: list[float],
     ) -> VerificationResult:
         """
         Verify from pre-computed scores (useful when samples are already collected).
@@ -330,10 +338,7 @@ class ConsensusVerifier:
         Returns:
             VerificationResult
         """
-        samples = [
-            Sample(sample_id=i, score=s)
-            for i, s in enumerate(scores)
-        ]
+        samples = [Sample(sample_id=i, score=s) for i, s in enumerate(scores)]
 
         if len(samples) < 2:
             return self._insufficient_result(samples)
@@ -378,19 +383,19 @@ class ConsensusVerifier:
     # Sampling
     # -------------------------------------------------------------------------
 
-    def _collect_samples(
-        self, output: str, context: str, n: int
-    ) -> List[Sample]:
+    def _collect_samples(self, output: str, context: str, n: int) -> list[Sample]:
         """Collect N independent evaluation samples."""
         samples = []
         for i in range(n):
             try:
                 score, evidence = self._evaluator(output, context)
-                samples.append(Sample(
-                    sample_id=i,
-                    score=max(0.0, min(1.0, score)),
-                    evidence=evidence,
-                ))
+                samples.append(
+                    Sample(
+                        sample_id=i,
+                        score=max(0.0, min(1.0, score)),
+                        evidence=evidence,
+                    )
+                )
             except Exception as e:
                 logger.debug(f"Sample {i} failed: {e}")
         return samples
@@ -399,7 +404,7 @@ class ConsensusVerifier:
     # Clustering
     # -------------------------------------------------------------------------
 
-    def _cluster_samples(self, samples: List[Sample]) -> List[Cluster]:
+    def _cluster_samples(self, samples: list[Sample]) -> list[Cluster]:
         """
         Cluster samples by score similarity using greedy single-linkage.
 
@@ -411,7 +416,7 @@ class ConsensusVerifier:
 
         # Sort by score for efficient clustering
         sorted_samples = sorted(samples, key=lambda s: s.score)
-        clusters: List[Cluster] = []
+        clusters: list[Cluster] = []
         current_cluster = Cluster(cluster_id=0, samples=[sorted_samples[0]])
         sorted_samples[0].cluster_id = 0
 
@@ -471,9 +476,7 @@ class ConsensusVerifier:
         else:
             return QualityGate.RED
 
-    def _determine_outcome(
-        self, consensus: float, cpk: float, score: float
-    ) -> VerificationOutcome:
+    def _determine_outcome(self, consensus: float, cpk: float, score: float) -> VerificationOutcome:
         """Determine verification outcome from statistics."""
         if consensus >= self._consensus_threshold and cpk >= self._cpk_threshold:
             return VerificationOutcome.ACCEPTED
@@ -482,7 +485,7 @@ class ConsensusVerifier:
         else:
             return VerificationOutcome.REJECTED
 
-    def _insufficient_result(self, samples: List[Sample]) -> VerificationResult:
+    def _insufficient_result(self, samples: list[Sample]) -> VerificationResult:
         """Return insufficient result when not enough samples."""
         return VerificationResult(
             outcome=VerificationOutcome.INSUFFICIENT,
@@ -534,7 +537,7 @@ class ConsensusVerifier:
 # Singleton
 # =============================================================================
 
-_verifier: Optional[ConsensusVerifier] = None
+_verifier: ConsensusVerifier | None = None
 _verifier_lock = threading.Lock()
 
 

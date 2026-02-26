@@ -13,8 +13,10 @@ References:
 - MASTER_ACTION_PLAN.md P0.1
 """
 
-import pytest
 from pathlib import Path
+
+import pytest
+
 from core.observability.telemetry.budget_tracker import BudgetTracker
 
 
@@ -26,11 +28,7 @@ class TestPricingCorrectness:
         tracker = BudgetTracker(workspace_path=tmp_path)
 
         # 1M input + 1M output
-        cost = tracker.calculate_cost(
-            model="claude-opus-4-6",
-            input_tokens=1_000_000,
-            output_tokens=1_000_000
-        )
+        cost = tracker.calculate_cost(model="claude-opus-4-6", input_tokens=1_000_000, output_tokens=1_000_000)
 
         # Expected: $5 (input) + $25 (output) = $30
         assert cost == 30.00, f"Expected $30, got ${cost}"
@@ -41,9 +39,7 @@ class TestPricingCorrectness:
 
         # 1M input + 1M output
         cost = tracker.calculate_cost(
-            model="claude-sonnet-4-5-20250929",
-            input_tokens=1_000_000,
-            output_tokens=1_000_000
+            model="claude-sonnet-4-5-20250929", input_tokens=1_000_000, output_tokens=1_000_000
         )
 
         # Expected: $1 (input) + $5 (output) = $6
@@ -55,9 +51,7 @@ class TestPricingCorrectness:
 
         # 1M input + 1M output
         cost = tracker.calculate_cost(
-            model="claude-haiku-4-5-20251001",
-            input_tokens=1_000_000,
-            output_tokens=1_000_000
+            model="claude-haiku-4-5-20251001", input_tokens=1_000_000, output_tokens=1_000_000
         )
 
         # Expected: $0.25 (input) + $1.25 (output) = $1.50
@@ -68,11 +62,7 @@ class TestPricingCorrectness:
         tracker = BudgetTracker(workspace_path=tmp_path)
 
         # 1M input + 1M output
-        cost = tracker.calculate_cost(
-            model="gemini-3-pro-preview",
-            input_tokens=1_000_000,
-            output_tokens=1_000_000
-        )
+        cost = tracker.calculate_cost(model="gemini-3-pro-preview", input_tokens=1_000_000, output_tokens=1_000_000)
 
         # Expected: $2 (input) + $12 (output) = $14
         assert cost == 14.00, f"Expected $14, got ${cost}"
@@ -82,11 +72,7 @@ class TestPricingCorrectness:
         tracker = BudgetTracker(workspace_path=tmp_path)
 
         # 1M input + 1M output
-        cost = tracker.calculate_cost(
-            model="gemini-3-flash",
-            input_tokens=1_000_000,
-            output_tokens=1_000_000
-        )
+        cost = tracker.calculate_cost(model="gemini-3-flash", input_tokens=1_000_000, output_tokens=1_000_000)
 
         # Expected: $0.50 (input) + $3 (output) = $3.50
         assert cost == 3.50, f"Expected $3.50, got ${cost}"
@@ -101,10 +87,7 @@ class TestPromptCachingEconomics:
 
         # 1M tokens written to cache
         cost = tracker.calculate_cost(
-            model="claude-opus-4-6",
-            input_tokens=0,
-            output_tokens=0,
-            cache_creation_tokens=1_000_000
+            model="claude-opus-4-6", input_tokens=0, output_tokens=0, cache_creation_tokens=1_000_000
         )
 
         # Expected: $6.25 (cache creation premium)
@@ -115,18 +98,11 @@ class TestPromptCachingEconomics:
         tracker = BudgetTracker(workspace_path=tmp_path)
 
         # Scenario 1: Regular input (no cache)
-        cost_no_cache = tracker.calculate_cost(
-            model="claude-opus-4-6",
-            input_tokens=1_000_000,
-            output_tokens=0
-        )
+        cost_no_cache = tracker.calculate_cost(model="claude-opus-4-6", input_tokens=1_000_000, output_tokens=0)
 
         # Scenario 2: Cache read (90% savings)
         cost_with_cache = tracker.calculate_cost(
-            model="claude-opus-4-6",
-            input_tokens=0,
-            output_tokens=0,
-            cache_read_tokens=1_000_000
+            model="claude-opus-4-6", input_tokens=0, output_tokens=0, cache_read_tokens=1_000_000
         )
 
         # Verify costs
@@ -143,17 +119,12 @@ class TestPromptCachingEconomics:
 
         # Regular input
         cost_no_cache = tracker.calculate_cost(
-            model="claude-sonnet-4-5-20250929",
-            input_tokens=1_000_000,
-            output_tokens=0
+            model="claude-sonnet-4-5-20250929", input_tokens=1_000_000, output_tokens=0
         )
 
         # Cache read
         cost_with_cache = tracker.calculate_cost(
-            model="claude-sonnet-4-5-20250929",
-            input_tokens=0,
-            output_tokens=0,
-            cache_read_tokens=1_000_000
+            model="claude-sonnet-4-5-20250929", input_tokens=0, output_tokens=0, cache_read_tokens=1_000_000
         )
 
         assert cost_no_cache == 1.00
@@ -170,10 +141,10 @@ class TestPromptCachingEconomics:
         # Scenario: 500k cached prompt + 100k new input + 200k output
         cost = tracker.calculate_cost(
             model="claude-opus-4-6",
-            input_tokens=100_000,           # New tokens
-            output_tokens=200_000,          # Response
-            cache_creation_tokens=0,        # Already cached
-            cache_read_tokens=500_000       # Read from cache
+            input_tokens=100_000,  # New tokens
+            output_tokens=200_000,  # Response
+            cache_creation_tokens=0,  # Already cached
+            cache_read_tokens=500_000,  # Read from cache
         )
 
         # Expected breakdown:
@@ -194,7 +165,7 @@ class TestPromptCachingEconomics:
             input_tokens=1_000_000,
             output_tokens=0,
             cache_creation_tokens=1_000_000,  # Ignored (no cache support)
-            cache_read_tokens=1_000_000       # Ignored (no cache support)
+            cache_read_tokens=1_000_000,  # Ignored (no cache support)
         )
 
         # Expected: Only regular input cost ($2/MTok)
@@ -209,11 +180,7 @@ class TestBackwardsCompatibility:
         tracker = BudgetTracker(workspace_path=tmp_path)
 
         # Call without cache params (old API)
-        cost = tracker.calculate_cost(
-            model="claude-opus-4-6",
-            input_tokens=1_000_000,
-            output_tokens=1_000_000
-        )
+        cost = tracker.calculate_cost(model="claude-opus-4-6", input_tokens=1_000_000, output_tokens=1_000_000)
 
         # Should work and calculate normal cost
         assert cost == 30.00  # $5 input + $25 output
@@ -223,11 +190,7 @@ class TestBackwardsCompatibility:
         tracker = BudgetTracker(workspace_path=tmp_path)
 
         # Call without cache params (old API)
-        cost = tracker.track_cost(
-            model="claude-sonnet-4-5-20250929",
-            input_tokens=1_000_000,
-            output_tokens=1_000_000
-        )
+        cost = tracker.track_cost(model="claude-sonnet-4-5-20250929", input_tokens=1_000_000, output_tokens=1_000_000)
 
         # Should work and calculate normal cost
         assert cost == 6.00  # $1 input + $5 output
@@ -245,11 +208,7 @@ class TestCostAccuracy:
         tracker = BudgetTracker(workspace_path=tmp_path)
 
         # Typical chat: 1500 input, 500 output
-        cost = tracker.calculate_cost(
-            model="claude-sonnet-4-5-20250929",
-            input_tokens=1_500,
-            output_tokens=500
-        )
+        cost = tracker.calculate_cost(model="claude-sonnet-4-5-20250929", input_tokens=1_500, output_tokens=500)
 
         # Expected:
         # Input:  (1500 / 1M) * $1.00 = $0.0015
@@ -267,10 +226,10 @@ class TestCostAccuracy:
         # Response: 10k tokens
         cost = tracker.calculate_cost(
             model="claude-opus-4-6",
-            input_tokens=5_000,             # New user message
-            output_tokens=10_000,           # Response
-            cache_creation_tokens=0,        # Already cached
-            cache_read_tokens=50_000        # System prompt cached
+            input_tokens=5_000,  # New user message
+            output_tokens=10_000,  # Response
+            cache_creation_tokens=0,  # Already cached
+            cache_read_tokens=50_000,  # System prompt cached
         )
 
         # Expected:
@@ -289,16 +248,16 @@ class TestCostAccuracy:
         # WITHOUT caching (first call)
         cost_no_cache = tracker.calculate_cost(
             model="claude-opus-4-6",
-            input_tokens=105_000,   # System + user
-            output_tokens=10_000
+            input_tokens=105_000,  # System + user
+            output_tokens=10_000,
         )
 
         # WITH caching (subsequent calls - system prompt cached)
         cost_with_cache = tracker.calculate_cost(
             model="claude-opus-4-6",
-            input_tokens=5_000,             # Only user message
+            input_tokens=5_000,  # Only user message
             output_tokens=10_000,
-            cache_read_tokens=100_000       # System prompt cached
+            cache_read_tokens=100_000,  # System prompt cached
         )
 
         # Expected costs:
@@ -317,33 +276,42 @@ class TestCostAccuracy:
 class TestModelAliases:
     """Test that all model aliases use correct pricing."""
 
-    @pytest.mark.parametrize("alias", [
-        "claude-opus-4-6",
-        "claude-opus-4-6-20250116",
-        "claude-opus-4-5-20251101",
-        "claude-opus",
-    ])
+    @pytest.mark.parametrize(
+        "alias",
+        [
+            "claude-opus-4-6",
+            "claude-opus-4-6-20250116",
+            "claude-opus-4-5-20251101",
+            "claude-opus",
+        ],
+    )
     def test_opus_aliases_correct(self, tmp_path: Path, alias: str):
         """All Opus aliases should use $5/$25 pricing."""
         tracker = BudgetTracker(workspace_path=tmp_path)
         cost = tracker.calculate_cost(alias, 1_000_000, 1_000_000)
         assert cost == 30.00, f"Alias '{alias}' pricing wrong: ${cost}"
 
-    @pytest.mark.parametrize("alias", [
-        "claude-sonnet-4-5-20250929",
-        "claude-sonnet",
-    ])
+    @pytest.mark.parametrize(
+        "alias",
+        [
+            "claude-sonnet-4-5-20250929",
+            "claude-sonnet",
+        ],
+    )
     def test_sonnet_aliases_correct(self, tmp_path: Path, alias: str):
         """All Sonnet aliases should use $1/$5 pricing."""
         tracker = BudgetTracker(workspace_path=tmp_path)
         cost = tracker.calculate_cost(alias, 1_000_000, 1_000_000)
         assert cost == 6.00, f"Alias '{alias}' pricing wrong: ${cost}"
 
-    @pytest.mark.parametrize("alias", [
-        "gemini-3-pro-preview",
-        "gemini-3-pro",
-        "gemini-pro",
-    ])
+    @pytest.mark.parametrize(
+        "alias",
+        [
+            "gemini-3-pro-preview",
+            "gemini-3-pro",
+            "gemini-pro",
+        ],
+    )
     def test_gemini_pro_aliases_correct(self, tmp_path: Path, alias: str):
         """All Gemini Pro aliases should use $2/$12 pricing."""
         tracker = BudgetTracker(workspace_path=tmp_path)
@@ -355,12 +323,14 @@ class TestModelAliases:
 # INTEGRATION TESTS
 # =============================================================================
 
+
 class TestIntegration:
     """Integration tests for BudgetTracker module."""
 
     def test_budget_tracker_imports_correctly(self):
         """Test that BudgetTracker can be imported."""
-        from core.observability.telemetry.budget_tracker import BudgetTracker, PRICING
+        from core.observability.telemetry.budget_tracker import PRICING, BudgetTracker
+
         assert BudgetTracker is not None
         assert "claude-opus-4-6" in PRICING
         assert "cache_creation" in PRICING["claude-opus-4-6"]

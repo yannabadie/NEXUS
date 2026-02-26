@@ -1,22 +1,23 @@
 """Tests for Adaptive Focus Memory - 3-tier fidelity context management."""
 
 import time
+
 import pytest
+
 from core.memory_pkg.memory.adaptive_focus import (
+    TIER_TOKEN_RATIOS,
+    AdaptiveFocusManager,
+    FidelityAssignment,
     FidelityLevel,
     FocusItem,
-    FidelityAssignment,
-    FocusResult,
-    AdaptiveFocusManager,
-    TIER_TOKEN_RATIOS,
     get_adaptive_focus,
     reset_adaptive_focus,
 )
 
-
 # =============================================================================
 # FidelityLevel Enum
 # =============================================================================
+
 
 class TestFidelityLevel:
     def test_three_tiers(self):
@@ -36,6 +37,7 @@ class TestFidelityLevel:
 # =============================================================================
 # FocusItem
 # =============================================================================
+
 
 class TestFocusItem:
     def test_auto_timestamp(self):
@@ -59,25 +61,38 @@ class TestFocusItem:
 # FidelityAssignment
 # =============================================================================
 
+
 class TestFidelityAssignment:
     def test_compression_ratio_full(self):
         a = FidelityAssignment(
-            item_id=0, tier=FidelityLevel.FULL, composite_score=0.9,
-            allocated_tokens=100, content="test", original_tokens=100,
+            item_id=0,
+            tier=FidelityLevel.FULL,
+            composite_score=0.9,
+            allocated_tokens=100,
+            content="test",
+            original_tokens=100,
         )
         assert a.compression_ratio == pytest.approx(0.0)
 
     def test_compression_ratio_compressed(self):
         a = FidelityAssignment(
-            item_id=0, tier=FidelityLevel.COMPRESSED, composite_score=0.5,
-            allocated_tokens=30, content="test", original_tokens=100,
+            item_id=0,
+            tier=FidelityLevel.COMPRESSED,
+            composite_score=0.5,
+            allocated_tokens=30,
+            content="test",
+            original_tokens=100,
         )
         assert a.compression_ratio == pytest.approx(0.7)
 
     def test_to_dict(self):
         a = FidelityAssignment(
-            item_id=1, tier=FidelityLevel.PLACEHOLDER, composite_score=0.2,
-            allocated_tokens=5, content="[ref]", original_tokens=100,
+            item_id=1,
+            tier=FidelityLevel.PLACEHOLDER,
+            composite_score=0.2,
+            allocated_tokens=5,
+            content="[ref]",
+            original_tokens=100,
         )
         d = a.to_dict()
         assert d["tier"] == "placeholder"
@@ -87,6 +102,7 @@ class TestFidelityAssignment:
 # =============================================================================
 # Scoring
 # =============================================================================
+
 
 class TestScoring:
     def setup_method(self):
@@ -137,6 +153,7 @@ class TestScoring:
 # =============================================================================
 # Fidelity Assignment
 # =============================================================================
+
 
 class TestFidelityAssignmentLogic:
     def test_high_importance_gets_full(self):
@@ -202,6 +219,7 @@ class TestFidelityAssignmentLogic:
 # Content Compression
 # =============================================================================
 
+
 class TestContentCompression:
     def setup_method(self):
         self.mgr = AdaptiveFocusManager()
@@ -238,6 +256,7 @@ class TestContentCompression:
 # Compressed Context Output
 # =============================================================================
 
+
 class TestCompressedContext:
     def test_get_compressed_context(self):
         mgr = AdaptiveFocusManager(token_budget=10000)
@@ -262,6 +281,7 @@ class TestCompressedContext:
 # =============================================================================
 # State Management
 # =============================================================================
+
 
 class TestStateManagement:
     def test_item_count(self):
@@ -312,6 +332,7 @@ class TestStateManagement:
 # =============================================================================
 # Singleton
 # =============================================================================
+
 
 class TestSingleton:
     def test_get_returns_same_instance(self):

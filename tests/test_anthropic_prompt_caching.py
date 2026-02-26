@@ -14,9 +14,9 @@ References:
 Note: Tests use mocking to avoid requiring the anthropic SDK.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-import sys
+
+import pytest
 
 
 @pytest.fixture
@@ -25,7 +25,7 @@ def mock_anthropic_module():
     mock_module = MagicMock()
     mock_module.AsyncAnthropic.return_value = AsyncMock()
     mock_module.Anthropic.return_value = MagicMock()
-    with patch.dict('sys.modules', {'anthropic': mock_module}):
+    with patch.dict("sys.modules", {"anthropic": mock_module}):
         yield mock_module
 
 
@@ -36,18 +36,10 @@ class TestPromptCachingAnnotations:
         """System prompts should be annotated with cache_control when caching enabled."""
         from core.drivers.anthropic_sdk_driver import AnthropicSDKDriver
 
-        driver = AnthropicSDKDriver(
-            model="claude-sonnet-4-5-20250929",
-            api_key="test-key",
-            enable_caching=True
-        )
+        driver = AnthropicSDKDriver(model="claude-sonnet-4-5-20250929", api_key="test-key", enable_caching=True)
 
         # Build request with system prompt
-        params = driver._build_request(
-            prompt="Hello",
-            system_prompt="You are a helpful assistant.",
-            tools=None
-        )
+        params = driver._build_request(prompt="Hello", system_prompt="You are a helpful assistant.", tools=None)
 
         # Verify system prompt has cache annotation
         assert "system" in params
@@ -63,17 +55,9 @@ class TestPromptCachingAnnotations:
         """System prompts should NOT have cache annotation when caching disabled."""
         from core.drivers.anthropic_sdk_driver import AnthropicSDKDriver
 
-        driver = AnthropicSDKDriver(
-            model="claude-sonnet-4-5-20250929",
-            api_key="test-key",
-            enable_caching=False
-        )
+        driver = AnthropicSDKDriver(model="claude-sonnet-4-5-20250929", api_key="test-key", enable_caching=False)
 
-        params = driver._build_request(
-            prompt="Hello",
-            system_prompt="You are a helpful assistant.",
-            tools=None
-        )
+        params = driver._build_request(prompt="Hello", system_prompt="You are a helpful assistant.", tools=None)
 
         # System should be plain string when caching disabled
         assert "system" in params
@@ -84,11 +68,7 @@ class TestPromptCachingAnnotations:
         """Last tool should have cache_control annotation when caching enabled."""
         from core.drivers.anthropic_sdk_driver import AnthropicSDKDriver
 
-        driver = AnthropicSDKDriver(
-            model="claude-sonnet-4-5-20250929",
-            api_key="test-key",
-            enable_caching=True
-        )
+        driver = AnthropicSDKDriver(model="claude-sonnet-4-5-20250929", api_key="test-key", enable_caching=True)
 
         tools = [
             {"name": "tool1", "description": "First tool", "input_schema": {}},
@@ -114,10 +94,7 @@ class TestCacheMetricsExtraction:
         """Cache read tokens should be extracted from response.usage."""
         from core.drivers.anthropic_sdk_driver import AnthropicSDKDriver
 
-        driver = AnthropicSDKDriver(
-            model="claude-sonnet-4-5-20250929",
-            api_key="test-key"
-        )
+        driver = AnthropicSDKDriver(model="claude-sonnet-4-5-20250929", api_key="test-key")
 
         # Mock API response with cache read
         mock_response = MagicMock()
@@ -129,7 +106,7 @@ class TestCacheMetricsExtraction:
             input_tokens=5_000,
             output_tokens=100,
             cache_creation_input_tokens=0,
-            cache_read_input_tokens=50_000  # Cache hit!
+            cache_read_input_tokens=50_000,  # Cache hit!
         )
 
         result = driver._parse_response(mock_response, latency_ms=100.0)
@@ -144,10 +121,7 @@ class TestCacheMetricsExtraction:
         """Cache creation tokens should be extracted from response.usage."""
         from core.drivers.anthropic_sdk_driver import AnthropicSDKDriver
 
-        driver = AnthropicSDKDriver(
-            model="claude-sonnet-4-5-20250929",
-            api_key="test-key"
-        )
+        driver = AnthropicSDKDriver(model="claude-sonnet-4-5-20250929", api_key="test-key")
 
         # Mock API response with cache creation
         mock_response = MagicMock()
@@ -159,7 +133,7 @@ class TestCacheMetricsExtraction:
             input_tokens=5_000,
             output_tokens=100,
             cache_creation_input_tokens=50_000,  # First call, creating cache
-            cache_read_input_tokens=0
+            cache_read_input_tokens=0,
         )
 
         result = driver._parse_response(mock_response, latency_ms=100.0)
@@ -174,8 +148,9 @@ class TestFeatureFlag:
 
     def test_feature_flag_defaults_to_true(self):
         """Prompt caching should be enabled by default."""
-        from core.config import FeatureFlags
         import os
+
+        from core.config import FeatureFlags
 
         # Clear env var if set
         os.environ.pop("NEXUS_FF_PROMPT_CACHING", None)
@@ -185,8 +160,9 @@ class TestFeatureFlag:
 
     def test_feature_flag_can_be_disabled(self):
         """Prompt caching can be disabled via env var."""
-        from core.config import FeatureFlags
         import os
+
+        from core.config import FeatureFlags
 
         os.environ["NEXUS_FF_PROMPT_CACHING"] = "false"
         flags = FeatureFlags.from_env()
@@ -197,8 +173,9 @@ class TestFeatureFlag:
 
     def test_feature_flag_can_be_enabled(self):
         """Prompt caching can be explicitly enabled via env var."""
-        from core.config import FeatureFlags
         import os
+
+        from core.config import FeatureFlags
 
         os.environ["NEXUS_FF_PROMPT_CACHING"] = "true"
         flags = FeatureFlags.from_env()
@@ -214,11 +191,13 @@ class TestIntegration:
     def test_anthropic_driver_imports_correctly(self, mock_anthropic_module):
         """Test that AnthropicSDKDriver can be imported."""
         from core.drivers.anthropic_sdk_driver import AnthropicSDKDriver
+
         assert AnthropicSDKDriver is not None
 
     def test_config_has_prompt_caching_flag(self):
         """Test that config has prompt_caching flag."""
         from core.config import FeatureFlags
+
         flags = FeatureFlags()
         assert hasattr(flags, "prompt_caching")
         assert isinstance(flags.prompt_caching, bool)
@@ -227,10 +206,7 @@ class TestIntegration:
         """Driver should have caching enabled by default."""
         from core.drivers.anthropic_sdk_driver import AnthropicSDKDriver
 
-        driver = AnthropicSDKDriver(
-            model="claude-sonnet-4-5-20250929",
-            api_key="test-key"
-        )
+        driver = AnthropicSDKDriver(model="claude-sonnet-4-5-20250929", api_key="test-key")
 
         assert driver._enable_caching is True
 
@@ -238,10 +214,6 @@ class TestIntegration:
         """Driver should respect enable_caching parameter."""
         from core.drivers.anthropic_sdk_driver import AnthropicSDKDriver
 
-        driver = AnthropicSDKDriver(
-            model="claude-sonnet-4-5-20250929",
-            api_key="test-key",
-            enable_caching=False
-        )
+        driver = AnthropicSDKDriver(model="claude-sonnet-4-5-20250929", api_key="test-key", enable_caching=False)
 
         assert driver._enable_caching is False

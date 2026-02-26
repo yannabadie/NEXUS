@@ -14,7 +14,6 @@ Special handling:
 import ast
 import re
 from pathlib import Path
-from typing import List, Tuple, Optional
 
 
 class MutationValidator:
@@ -22,34 +21,50 @@ class MutationValidator:
 
     # Imports potentiellement dangereux (WARNING seulement)
     SUSPICIOUS_IMPORTS = {
-        'os', 'subprocess', 'shutil', 'sys',
-        'socket', 'requests', 'urllib',
-        'pickle', 'marshal',
-        'ctypes', 'multiprocessing',
+        "os",
+        "subprocess",
+        "shutil",
+        "sys",
+        "socket",
+        "requests",
+        "urllib",
+        "pickle",
+        "marshal",
+        "ctypes",
+        "multiprocessing",
     }
 
     # Fonctions suspectes (WARNING seulement)
     SUSPICIOUS_CALLS = {
-        'exec', 'eval', 'compile', '__import__',
-        'system', 'popen', 'spawn',
-        'remove', 'rmdir', 'unlink', 'rmtree',
-        'chmod', 'chown',
+        "exec",
+        "eval",
+        "compile",
+        "__import__",
+        "system",
+        "popen",
+        "spawn",
+        "remove",
+        "rmdir",
+        "unlink",
+        "rmtree",
+        "chmod",
+        "chown",
     }
 
     # Patterns regex suspects dans le code
     SUSPICIOUS_PATTERNS = [
-        (r'os\.system\s*\(', "os.system() - command execution"),
-        (r'subprocess\.(run|call|Popen|check_output)', "subprocess execution"),
-        (r'shutil\.(rmtree|move|copy)', "shutil file operation"),
-        (r'__import__\s*\(', "dynamic import"),
-        (r'\bexec\s*\(', "exec() - arbitrary code execution"),
-        (r'\beval\s*\(', "eval() - arbitrary code execution"),
-        (r'os\.(remove|unlink|rmdir)', "os file deletion"),
-        (r'Path\([^)]*\)\.unlink', "pathlib file deletion"),
-        (r'\.write\s*\([^)]*\.\.[^)]*\)', "write with parent path"),
+        (r"os\.system\s*\(", "os.system() - command execution"),
+        (r"subprocess\.(run|call|Popen|check_output)", "subprocess execution"),
+        (r"shutil\.(rmtree|move|copy)", "shutil file operation"),
+        (r"__import__\s*\(", "dynamic import"),
+        (r"\bexec\s*\(", "exec() - arbitrary code execution"),
+        (r"\beval\s*\(", "eval() - arbitrary code execution"),
+        (r"os\.(remove|unlink|rmdir)", "os file deletion"),
+        (r"Path\([^)]*\)\.unlink", "pathlib file deletion"),
+        (r"\.write\s*\([^)]*\.\.[^)]*\)", "write with parent path"),
     ]
 
-    def __init__(self, workspace_path: Optional[Path] = None):
+    def __init__(self, workspace_path: Path | None = None):
         """
         Initialize MutationValidator.
 
@@ -58,11 +73,7 @@ class MutationValidator:
         """
         self.workspace_path = workspace_path
 
-    def validate(
-        self,
-        code: str,
-        target_file: str
-    ) -> Tuple[List[str], List[str]]:
+    def validate(self, code: str, target_file: str) -> tuple[list[str], list[str]]:
         """
         Validate mutation code for suspicious patterns.
 
@@ -78,8 +89,8 @@ class MutationValidator:
         NOTE: This method NEVER blocks. It returns warnings for human review,
         but the mutation is always applied (user's choice: "Avertir + continuer").
         """
-        warnings: List[str] = []
-        info: List[str] = []
+        warnings: list[str] = []
+        info: list[str] = []
 
         # 1. Analyse statique par regex (rapide, catch-all)
         for pattern, description in self.SUSPICIOUS_PATTERNS:
@@ -105,27 +116,27 @@ class MutationValidator:
 
         return warnings, info
 
-    def _analyze_ast(self, tree: ast.AST) -> Tuple[List[str], List[str]]:
+    def _analyze_ast(self, tree: ast.AST) -> tuple[list[str], list[str]]:
         """
         Analyze AST for suspicious patterns.
 
         Returns:
             (warnings, info)
         """
-        warnings: List[str] = []
-        info: List[str] = []
+        warnings: list[str] = []
+        info: list[str] = []
 
         for node in ast.walk(tree):
             # Vérifier imports suspects
             if isinstance(node, ast.Import):
                 for alias in node.names:
-                    module_root = alias.name.split('.')[0]
+                    module_root = alias.name.split(".")[0]
                     if module_root in self.SUSPICIOUS_IMPORTS:
                         warnings.append(f"Import suspect: {alias.name}")
 
             elif isinstance(node, ast.ImportFrom):
                 if node.module:
-                    module_root = node.module.split('.')[0]
+                    module_root = node.module.split(".")[0]
                     if module_root in self.SUSPICIOUS_IMPORTS:
                         warnings.append(f"Import from suspect: {node.module}")
 
@@ -137,17 +148,13 @@ class MutationValidator:
                     continue
 
                 # Cas spécial: open() - autoriser si workspace-relative
-                if func_name == 'open':
+                if func_name == "open":
                     path_arg = self._extract_first_string_arg(node)
                     if path_arg:
                         if self._is_parent_or_absolute_path(path_arg):
-                            warnings.append(
-                                f"open() avec chemin parent/absolu: {path_arg}"
-                            )
+                            warnings.append(f"open() avec chemin parent/absolu: {path_arg}")
                         else:
-                            info.append(
-                                f"open() autorisé (workspace-relative): {path_arg}"
-                            )
+                            info.append(f"open() autorisé (workspace-relative): {path_arg}")
                     else:
                         info.append("open() avec chemin dynamique (non analysable)")
 
@@ -187,25 +194,17 @@ class MutationValidator:
             return False
 
         # Absolute paths
-        if path.startswith('/') or (len(path) > 1 and path[1] == ':'):
+        if path.startswith("/") or (len(path) > 1 and path[1] == ":"):
             return True
 
         # Parent directory references
-        if path.startswith('..'):
+        if path.startswith(".."):
             return True
 
         # Hidden parent references
-        if '/../' in path or path.endswith('/..'):
-            return True
+        return bool("/../" in path or path.endswith("/.."))
 
-        return False
-
-    def format_report(
-        self,
-        warnings: List[str],
-        info: List[str],
-        target_file: str
-    ) -> str:
+    def format_report(self, warnings: list[str], info: list[str], target_file: str) -> str:
         """
         Format a human-readable report.
 

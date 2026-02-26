@@ -36,13 +36,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from dataclasses import dataclass, field
+from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from core.utils.atomic_store import AtomicJsonStore
-from core.utils.serialization import NexusJSONEncoder, serialize_for_checkpoint, nexus_dumps
+from core.utils.serialization import serialize_for_checkpoint
 
 if TYPE_CHECKING:
     from core.intelligence.hive_mind.types import HiveMindState
@@ -56,6 +57,7 @@ def get_redis_bus():
     """Lazy import of Redis bus to avoid circular dependencies."""
     try:
         from core.observability.events.redis_bus import RedisEventBus
+
         return RedisEventBus()
     except ImportError:
         return None
@@ -80,23 +82,19 @@ PHASE_ORDER = [
 PHASE_GUARDS = {
     "debate": lambda ctx: ctx.get("analysis_complete", False),
     "architecture": lambda ctx: (
-        ctx.get("debate_complete", False) or
-        ctx.get("debate_skipped", False) or
-        ctx.get("immediate_consensus", False)
+        ctx.get("debate_complete", False) or ctx.get("debate_skipped", False) or ctx.get("immediate_consensus", False)
     ),
     "execution": lambda ctx: ctx.get("architecture_approved", False),
     "diagnosis": lambda ctx: ctx.get("execution_failed", False),
     "retry": lambda ctx: ctx.get("diagnosis_complete", False),
-    "consolidation": lambda ctx: (
-        ctx.get("execution_complete", False) or
-        ctx.get("retry_exhausted", False)
-    ),
+    "consolidation": lambda ctx: (ctx.get("execution_complete", False) or ctx.get("retry_exhausted", False)),
 }
 
 
 # =============================================================================
 # DATA CLASSES
 # =============================================================================
+
 
 @dataclass
 class PhaseCheckpoint:
@@ -113,17 +111,18 @@ class PhaseCheckpoint:
         conversation_summary: V10 FIX F10 - Compressed conversation for LLM context restoration
         agent_states: V10 FIX F10 - Per-agent state snapshots
     """
+
     phase: str
-    result: Dict[str, Any]
+    result: dict[str, Any]
     state: str  # HiveMindState.value
     timestamp: datetime
     context_index: int = 0
-    compensation_name: Optional[str] = None
+    compensation_name: str | None = None
     # V10 FIX F10: LLM context restoration support
-    conversation_summary: Optional[str] = None
-    agent_states: Optional[Dict[str, str]] = None
+    conversation_summary: str | None = None
+    agent_states: dict[str, str] | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize checkpoint to dict for JSON storage."""
         data = {
             "phase": self.phase,
@@ -141,7 +140,7 @@ class PhaseCheckpoint:
         return data
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "PhaseCheckpoint":
+    def from_dict(cls, data: dict[str, Any]) -> PhaseCheckpoint:
         """Deserialize checkpoint from dict."""
         return cls(
             phase=data["phase"],
@@ -163,6 +162,7 @@ class SagaContext:
 
     This context tracks phase completion flags for guard evaluation.
     """
+
     analysis_complete: bool = False
     debate_complete: bool = False
     debate_skipped: bool = False
@@ -173,7 +173,7 @@ class SagaContext:
     diagnosis_complete: bool = False
     retry_exhausted: bool = False
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "analysis_complete": self.analysis_complete,
             "debate_complete": self.debate_complete,
@@ -187,13 +187,14 @@ class SagaContext:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "SagaContext":
+    def from_dict(cls, data: dict[str, Any]) -> SagaContext:
         return cls(**{k: v for k, v in data.items() if hasattr(cls, k)})
 
 
 # =============================================================================
 # SAGA MANAGER
 # =============================================================================
+
 
 class SagaManager:
     """
@@ -229,7 +230,7 @@ class SagaManager:
         auto_persist: bool = True,
         tenant_id: str = "default",
         workspace_id: str = "default",
-        enable_redis: bool = True
+        enable_redis: bool = True,
     ):
         """
         Initialize SagaManager.
@@ -250,17 +251,17 @@ class SagaManager:
         self._store = AtomicJsonStore(self._sagas_dir / f"{task_id}.json")
 
         # In-memory checkpoints
-        self._checkpoints: Dict[str, PhaseCheckpoint] = {}
+        self._checkpoints: dict[str, PhaseCheckpoint] = {}
 
         # Saga context for guards
         self._context = SagaContext()
 
         # Registered compensation functions
-        self._compensations: Dict[str, Callable] = {}
+        self._compensations: dict[str, Callable] = {}
 
         # Metadata
         self._created_at = datetime.now()
-        self._recovery_point: Optional[str] = None
+        self._recovery_point: str | None = None
 
         # V12.4.1 Epic 1.3: Redis event bus integration
         self._tenant_id = tenant_id
@@ -281,12 +282,12 @@ class SagaManager:
         return self._context
 
     @property
-    def recovery_point(self) -> Optional[str]:
+    def recovery_point(self) -> str | None:
         """Get the last successful phase."""
         return self._recovery_point
 
     @property
-    def checkpointed_phases(self) -> List[str]:
+    def checkpointed_phases(self) -> list[str]:
         """Get list of phases that have checkpoints."""
         return list(self._checkpoints.keys())
 
@@ -312,32 +313,34 @@ class SagaManager:
         Args:
             orchestrator: TrueHiveMind or similar orchestrator
         """
+
         # Analysis: Clear analysis results, reset comparison
         async def compensate_analysis():
-            if hasattr(orchestrator, '_analysis_comparison'):
+            if hasattr(orchestrator, "_analysis_comparison"):
                 orchestrator._analysis_comparison = None
-            if hasattr(orchestrator, '_gemini_analysis'):
+            if hasattr(orchestrator, "_gemini_analysis"):
                 orchestrator._gemini_analysis = None
-            if hasattr(orchestrator, '_claude_analysis'):
+            if hasattr(orchestrator, "_claude_analysis"):
                 orchestrator._claude_analysis = None
             logger.info("Compensated analysis phase")
 
         # Debate: Clear debate result, restore analysis state
         async def compensate_debate():
-            if hasattr(orchestrator, '_debate_result'):
+            if hasattr(orchestrator, "_debate_result"):
                 orchestrator._debate_result = None
             logger.info("Compensated debate phase")
 
         # Architecture: Despawn created agents, clear plan
         # V8.4.4b: Enhanced with file cleanup
         async def compensate_architecture():
-            if hasattr(orchestrator, '_execution_plan'):
+            if hasattr(orchestrator, "_execution_plan"):
                 orchestrator._execution_plan = None
-            if hasattr(orchestrator, '_spawned_agents'):
+            if hasattr(orchestrator, "_spawned_agents"):
                 spawned_list = list(orchestrator._spawned_agents)
                 # V8.4.4b: Delete spawned agent files
-                if hasattr(orchestrator, 'workspace_path') and spawned_list:
+                if hasattr(orchestrator, "workspace_path") and spawned_list:
                     from pathlib import Path
+
                     agents_dir = Path(orchestrator.workspace_path) / "agents"
                     for agent_id in spawned_list:
                         agent_file = agents_dir / f"{agent_id}.json"
@@ -352,21 +355,21 @@ class SagaManager:
 
         # Execution: Mark incomplete, cleanup artifacts
         async def compensate_execution():
-            if hasattr(orchestrator, '_execution_results'):
+            if hasattr(orchestrator, "_execution_results"):
                 orchestrator._execution_results = []
-            if hasattr(orchestrator, '_current_step'):
+            if hasattr(orchestrator, "_current_step"):
                 orchestrator._current_step = 0
             logger.info("Compensated execution phase")
 
         # Diagnosis: Clear diagnosis
         async def compensate_diagnosis():
-            if hasattr(orchestrator, '_failure_analysis'):
+            if hasattr(orchestrator, "_failure_analysis"):
                 orchestrator._failure_analysis = None
             logger.info("Compensated diagnosis phase")
 
         # Retry: Clear retry state
         async def compensate_retry():
-            if hasattr(orchestrator, '_retry_count'):
+            if hasattr(orchestrator, "_retry_count"):
                 orchestrator._retry_count = 0
             logger.info("Compensated retry phase")
 
@@ -423,11 +426,11 @@ class SagaManager:
         self,
         phase: str,
         result: Any,
-        state: "HiveMindState",
+        state: HiveMindState,
         context_index: int,
-        compensation: Optional[Callable] = None,
-        conversation_summary: Optional[str] = None,
-        agent_states: Optional[Dict[str, str]] = None,
+        compensation: Callable | None = None,
+        conversation_summary: str | None = None,
+        agent_states: dict[str, str] | None = None,
     ) -> PhaseCheckpoint:
         """
         Create a checkpoint after successful phase completion.
@@ -451,7 +454,7 @@ class SagaManager:
         checkpoint = PhaseCheckpoint(
             phase=phase,
             result=serialized_result,
-            state=state.value if hasattr(state, 'value') else str(state),
+            state=state.value if hasattr(state, "value") else str(state),
             timestamp=datetime.now(),
             context_index=context_index,
             compensation_name=phase if compensation else None,
@@ -500,7 +503,7 @@ class SagaManager:
         logger.info(f"Checkpoint created: phase={phase}, context_index={context_index}")
         return checkpoint
 
-    def get_checkpoint(self, phase: str) -> Optional[PhaseCheckpoint]:
+    def get_checkpoint(self, phase: str) -> PhaseCheckpoint | None:
         """
         Get checkpoint for a specific phase.
 
@@ -519,7 +522,7 @@ class SagaManager:
     async def rollback_to(
         self,
         target_phase: str,
-        context_manager: Optional[Any] = None,
+        context_manager: Any | None = None,
     ) -> bool:
         """
         Rollback to a specific phase, running compensations and truncating context.
@@ -546,7 +549,7 @@ class SagaManager:
             return False
 
         # Run compensations in reverse order for phases AFTER target
-        for phase in reversed(PHASE_ORDER[target_idx + 1:]):
+        for phase in reversed(PHASE_ORDER[target_idx + 1 :]):
             if phase in self._checkpoints:
                 # Run compensation
                 compensation = self._compensations.get(phase)
@@ -566,25 +569,26 @@ class SagaManager:
         # Truncate conversation history (CRITICAL for context bleeding prevention)
         # V8.4.4b: Support HiveMindContextManager (._items) and generic (.messages)
         if context_manager:
-            if hasattr(context_manager, '_items'):
+            if hasattr(context_manager, "_items"):
                 # HiveMindContextManager uses deque
                 from collections import deque
+
                 original_len = len(context_manager._items)
-                items_list = list(context_manager._items)[:target_checkpoint.context_index]
+                items_list = list(context_manager._items)[: target_checkpoint.context_index]
                 context_manager._items = deque(items_list)
                 # Recalculate token count
-                if hasattr(context_manager, '_current_tokens'):
+                if hasattr(context_manager, "_current_tokens"):
                     context_manager._current_tokens = sum(
-                        getattr(item, 'token_estimate', 0) for item in context_manager._items
+                        getattr(item, "token_estimate", 0) for item in context_manager._items
                     )
                 logger.info(
                     f"Context truncated: {original_len} → {len(context_manager._items)} items "
                     f"(rollback to index {target_checkpoint.context_index})"
                 )
-            elif hasattr(context_manager, 'messages'):
+            elif hasattr(context_manager, "messages"):
                 # Generic context manager with messages list
                 original_len = len(context_manager.messages)
-                context_manager.messages = context_manager.messages[:target_checkpoint.context_index]
+                context_manager.messages = context_manager.messages[: target_checkpoint.context_index]
                 logger.info(
                     f"Context truncated: {original_len} → {len(context_manager.messages)} messages "
                     f"(rollback to index {target_checkpoint.context_index})"
@@ -612,7 +616,7 @@ class SagaManager:
                     payload={
                         "task_id": self._task_id,
                         "target_phase": target_phase,
-                        "compensated_phases": [p for p in PHASE_ORDER[target_idx + 1:] if p in self._checkpoints],
+                        "compensated_phases": [p for p in PHASE_ORDER[target_idx + 1 :] if p in self._checkpoints],
                         "timestamp": datetime.now().isoformat(),
                     },
                     correlation_id=self._task_id,
@@ -638,7 +642,7 @@ class SagaManager:
             "retry": "retry_exhausted",
         }
 
-        for p in PHASE_ORDER[phase_idx + 1:]:
+        for p in PHASE_ORDER[phase_idx + 1 :]:
             flag = flag_mapping.get(p)
             if flag and hasattr(self._context, flag):
                 setattr(self._context, flag, False)
@@ -654,10 +658,7 @@ class SagaManager:
             "created_at": self._created_at.isoformat(),
             "recovery_point": self._recovery_point,
             "context": self._context.to_dict(),
-            "checkpoints": {
-                phase: cp.to_dict()
-                for phase, cp in self._checkpoints.items()
-            },
+            "checkpoints": {phase: cp.to_dict() for phase, cp in self._checkpoints.items()},
         }
 
         # Use AtomicJsonStore for crash-safe write
@@ -668,11 +669,7 @@ class SagaManager:
         logger.debug(f"Saga persisted to {self._store.filepath}")
 
     @classmethod
-    async def resume_from(
-        cls,
-        sagas_dir: Path,
-        task_id: str
-    ) -> Optional["SagaManager"]:
+    async def resume_from(cls, sagas_dir: Path, task_id: str) -> SagaManager | None:
         """
         Resume a saga from disk after crash/restart.
 
@@ -751,7 +748,7 @@ class SagaManager:
     # V10 FIX F10: LLM Context Management
     # -------------------------------------------------------------------------
 
-    def get_recovery_context(self) -> Optional[Dict[str, Any]]:
+    def get_recovery_context(self) -> dict[str, Any] | None:
         """
         V10 FIX F10: Get LLM context from last checkpoint for recovery.
 
@@ -773,10 +770,7 @@ class SagaManager:
         }
 
     @staticmethod
-    def create_conversation_summary(
-        context_manager: Any,
-        max_tokens: int = 1000
-    ) -> str:
+    def create_conversation_summary(context_manager: Any, max_tokens: int = 1000) -> str:
         """
         V10 FIX F10: Create a compressed summary of conversation for checkpointing.
 
@@ -792,11 +786,11 @@ class SagaManager:
 
         try:
             # Use context_manager's summarize method if available
-            if hasattr(context_manager, 'summarize_for_inheritance'):
+            if hasattr(context_manager, "summarize_for_inheritance"):
                 return context_manager.summarize_for_inheritance(max_tokens=max_tokens)
 
             # Fallback: extract key items
-            if hasattr(context_manager, '_items'):
+            if hasattr(context_manager, "_items"):
                 summary_parts = []
                 for item in list(context_manager._items)[-10:]:  # Last 10 items
                     summary_parts.append(f"[{item.category}:{item.source}] {item.content[:200]}")
@@ -808,7 +802,7 @@ class SagaManager:
             return ""
 
     @staticmethod
-    def create_agent_states(agents: Dict[str, Any]) -> Dict[str, str]:
+    def create_agent_states(agents: dict[str, Any]) -> dict[str, str]:
         """
         V10 FIX F10: Capture current state of each agent for checkpoint.
 
@@ -821,9 +815,9 @@ class SagaManager:
         states = {}
         for agent_id, agent in agents.items():
             try:
-                if hasattr(agent, 'get_state_summary'):
+                if hasattr(agent, "get_state_summary"):
                     states[agent_id] = agent.get_state_summary()
-                elif hasattr(agent, 'last_response'):
+                elif hasattr(agent, "last_response"):
                     states[agent_id] = f"Last response: {str(agent.last_response)[:500]}"
                 else:
                     states[agent_id] = "active"
@@ -849,13 +843,13 @@ class SagaManager:
 
 Original Task: {task}
 
-Last Successful Phase: {context['phase']}
-Checkpoint Time: {context['timestamp']}
+Last Successful Phase: {context["phase"]}
+Checkpoint Time: {context["timestamp"]}
 
 Previous Progress Summary:
-{context.get('conversation_summary', 'No summary available')}
+{context.get("conversation_summary", "No summary available")}
 
-Please continue from where we left off. The task was partially completed up to the {context['phase']} phase.
+Please continue from where we left off. The task was partially completed up to the {context["phase"]} phase.
 """
         return recovery_prompt
 
@@ -863,7 +857,7 @@ Please continue from where we left off. The task was partially completed up to t
     # Status & Debugging
     # -------------------------------------------------------------------------
 
-    def status(self) -> Dict[str, Any]:
+    def status(self) -> dict[str, Any]:
         """Get saga status for debugging/monitoring."""
         return {
             "task_id": self._task_id,

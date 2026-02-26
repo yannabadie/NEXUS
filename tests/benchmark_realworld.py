@@ -18,18 +18,15 @@ Run: python tests/benchmark_realworld.py
 WARNING: This benchmark makes real API calls and costs money!
 """
 
+import json
 import subprocess
 import sys
-import os
 import time
 import uuid
-import json
-import threading
-from pathlib import Path
-from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Tuple
-from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass, field
+from datetime import datetime
+from pathlib import Path
 
 # Add project root
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -37,8 +34,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # NEXUS imports
 from core.intelligence.swarm.session_manager import SwarmSessionManager
 from core.intelligence.swarm.task_analyzer import TaskAnalyzer, TaskComplexity
-from core.intelligence.swarm.collaboration_modes import CollaborationMode
-
 
 # =============================================================================
 # Configuration
@@ -58,14 +53,15 @@ TOTAL_TIMEOUT = 600  # 10 minutes max
 # Data Classes
 # =============================================================================
 
+
 @dataclass
 class TestResult:
     name: str
     category: str
     passed: bool
     duration: float
-    details: Dict = field(default_factory=dict)
-    error: Optional[str] = None
+    details: dict = field(default_factory=dict)
+    error: str | None = None
 
     def to_dict(self):
         return {
@@ -75,13 +71,14 @@ class TestResult:
             "duration": round(self.duration, 3),
             "details": self.details,
             "error": self.error,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
 
 # =============================================================================
 # Helpers
 # =============================================================================
+
 
 def log_result(result: TestResult):
     """Log result to JSONL file."""
@@ -94,11 +91,7 @@ def log_result(result: TestResult):
         print(f"         Error: {result.error[:100]}")
 
 
-def invoke_gemini(
-    prompt: str,
-    session_id: Optional[str] = None,
-    timeout: int = GEMINI_TIMEOUT
-) -> Tuple[str, int, float]:
+def invoke_gemini(prompt: str, session_id: str | None = None, timeout: int = GEMINI_TIMEOUT) -> tuple[str, int, float]:
     """
     Invoke Gemini CLI.
 
@@ -117,7 +110,7 @@ def invoke_gemini(
             timeout=timeout,
             encoding="utf-8",
             errors="replace",
-            shell=True  # Windows
+            shell=True,  # Windows
         )
         duration = time.time() - start
         return result.stdout.strip(), result.returncode, duration
@@ -131,10 +124,7 @@ def generate_session_id() -> str:
     return str(uuid.uuid4())
 
 
-def invoke_claude(
-    prompt: str,
-    timeout: int = GEMINI_TIMEOUT
-) -> Tuple[str, int, float]:
+def invoke_claude(prompt: str, timeout: int = GEMINI_TIMEOUT) -> tuple[str, int, float]:
     """
     Invoke Claude CLI.
 
@@ -155,7 +145,7 @@ def invoke_claude(
             timeout=timeout,
             encoding="utf-8",
             errors="replace",
-            shell=True  # Windows
+            shell=True,  # Windows
         )
         duration = time.time() - start
         return result.stdout.strip(), result.returncode, duration
@@ -168,30 +158,18 @@ def invoke_claude(
 def is_claude_available() -> bool:
     """Check if Claude CLI is available."""
     try:
-        result = subprocess.run(
-            ["claude", "--version"],
-            capture_output=True,
-            text=True,
-            timeout=10,
-            shell=True
-        )
+        result = subprocess.run(["claude", "--version"], capture_output=True, text=True, timeout=10, shell=True)
         return result.returncode == 0
-    except:
+    except Exception:
         return False
 
 
 def is_gemini_available() -> bool:
     """Check if Gemini CLI is available."""
     try:
-        result = subprocess.run(
-            ["gemini", "--version"],
-            capture_output=True,
-            text=True,
-            timeout=10,
-            shell=True
-        )
+        result = subprocess.run(["gemini", "--version"], capture_output=True, text=True, timeout=10, shell=True)
         return result.returncode == 0
-    except:
+    except Exception:
         return False
 
 
@@ -199,9 +177,10 @@ def is_gemini_available() -> bool:
 # Test Suite
 # =============================================================================
 
+
 class RealWorldBenchmark:
     def __init__(self):
-        self.results: List[TestResult] = []
+        self.results: list[TestResult] = []
         self.session_manager = SwarmSessionManager(WORKSPACE)
         self.task_analyzer = TaskAnalyzer()
 
@@ -216,7 +195,7 @@ class RealWorldBenchmark:
         print(f"Log: {LOG_FILE}")
         print(f"Gemini CLI: {'available' if self.gemini_available else 'NOT FOUND'}")
         print(f"Claude CLI: {'available' if self.claude_available else 'NOT FOUND'}")
-        print(f"WARNING: Real API calls - this costs money!")
+        print("WARNING: Real API calls - this costs money!")
         print("=" * 70)
 
         start = time.time()
@@ -295,7 +274,7 @@ class RealWorldBenchmark:
             passed=passed,
             duration=time.time() - start,
             details={"output_length": len(output), "return_code": code},
-            error=output[:200] if not passed else None
+            error=output[:200] if not passed else None,
         )
         self.results.append(result)
         log_result(result)
@@ -313,11 +292,12 @@ class RealWorldBenchmark:
         try:
             # Look for JSON in output
             import re
-            json_match = re.search(r'\{[^}]+\}', output)
+
+            json_match = re.search(r"\{[^}]+\}", output)
             if json_match:
                 json_found = json.loads(json_match.group())
                 passed = "status" in json_found or "value" in json_found
-        except:
+        except Exception:
             pass
 
         result = TestResult(
@@ -326,7 +306,7 @@ class RealWorldBenchmark:
             passed=passed,
             duration=time.time() - start,
             details={"json_found": json_found is not None, "output_preview": output[:100]},
-            error=None if passed else "Could not extract valid JSON"
+            error=None if passed else "Could not extract valid JSON",
         )
         self.results.append(result)
         log_result(result)
@@ -345,7 +325,7 @@ class RealWorldBenchmark:
             passed=passed,
             duration=time.time() - start,
             details={"output_length": len(output), "return_code": code, "output_preview": output[:100]},
-            error=output[:200] if not passed else None
+            error=output[:200] if not passed else None,
         )
         self.results.append(result)
         log_result(result)
@@ -374,14 +354,11 @@ class RealWorldBenchmark:
                 "secret": secret,
                 "output": output[:200],
                 "contains_own_secret": secret in output,
-                "code": code
+                "code": code,
             }
 
         with ThreadPoolExecutor(max_workers=2) as executor:
-            futures = [
-                executor.submit(ask_gemini, secret_a, "ALPHA"),
-                executor.submit(ask_gemini, secret_b, "BRAVO")
-            ]
+            futures = [executor.submit(ask_gemini, secret_a, "ALPHA"), executor.submit(ask_gemini, secret_b, "BRAVO")]
             for f in as_completed(futures):
                 res = f.result()
                 results_detail[res["name"]] = res
@@ -405,9 +382,9 @@ class RealWorldBenchmark:
                 "alpha": alpha,
                 "bravo": bravo,
                 "alpha_contaminated": alpha_contaminated,
-                "bravo_contaminated": bravo_contaminated
+                "bravo_contaminated": bravo_contaminated,
             },
-            error=None if passed else "Cross-contamination detected between Gemini sessions!"
+            error=None if passed else "Cross-contamination detected between Gemini sessions!",
         )
         self.results.append(result)
         log_result(result)
@@ -435,14 +412,11 @@ class RealWorldBenchmark:
                 "secret": secret,
                 "output": output[:200],
                 "contains_own_secret": secret in output,
-                "code": code
+                "code": code,
             }
 
         with ThreadPoolExecutor(max_workers=2) as executor:
-            futures = [
-                executor.submit(ask_claude, secret_a, "RED"),
-                executor.submit(ask_claude, secret_b, "BLUE")
-            ]
+            futures = [executor.submit(ask_claude, secret_a, "RED"), executor.submit(ask_claude, secret_b, "BLUE")]
             for f in as_completed(futures):
                 res = f.result()
                 results_detail[res["name"]] = res
@@ -466,9 +440,9 @@ class RealWorldBenchmark:
                 "red": red,
                 "blue": blue,
                 "red_contaminated": red_contaminated,
-                "blue_contaminated": blue_contaminated
+                "blue_contaminated": blue_contaminated,
             },
-            error=None if passed else "Cross-contamination detected between Claude sessions!"
+            error=None if passed else "Cross-contamination detected between Claude sessions!",
         )
         self.results.append(result)
         log_result(result)
@@ -503,13 +477,13 @@ class RealWorldBenchmark:
                 "contains_own": secret in output,
                 "contains_other": other_secret in output,
                 "code": code,
-                "duration": duration
+                "duration": duration,
             }
 
         with ThreadPoolExecutor(max_workers=2) as executor:
             futures = [
                 executor.submit(invoke_model, "GEMINI", gemini_secret, invoke_gemini),
-                executor.submit(invoke_model, "CLAUDE", claude_secret, invoke_claude)
+                executor.submit(invoke_model, "CLAUDE", claude_secret, invoke_claude),
             ]
             for f in as_completed(futures):
                 res = f.result()
@@ -533,9 +507,9 @@ class RealWorldBenchmark:
                 "gemini": gemini_res,
                 "claude": claude_res,
                 "gemini_leaked_claude_secret": gemini_leaked,
-                "claude_leaked_gemini_secret": claude_leaked
+                "claude_leaked_gemini_secret": claude_leaked,
             },
-            error=None if passed else "CRITICAL: Cross-model context bleeding detected!"
+            error=None if passed else "CRITICAL: Cross-model context bleeding detected!",
         )
         self.results.append(result)
         log_result(result)
@@ -551,15 +525,11 @@ class RealWorldBenchmark:
         secret = f"NEXUS_SECRET_{uuid.uuid4().hex[:8]}"
 
         # Store secret
-        output1, code1, _ = invoke_gemini(
-            f"Remember this code: {secret}. Reply 'STORED'.",
-            session_id=session_id
-        )
+        output1, code1, _ = invoke_gemini(f"Remember this code: {secret}. Reply 'STORED'.", session_id=session_id)
 
         # Recall secret
         output2, code2, _ = invoke_gemini(
-            "What was the code I asked you to remember? Reply with just the code.",
-            session_id=session_id
+            "What was the code I asked you to remember? Reply with just the code.", session_id=session_id
         )
 
         # Check if secret was recalled
@@ -574,9 +544,9 @@ class RealWorldBenchmark:
                 "secret": secret,
                 "store_response": output1[:50],
                 "recall_response": output2[:100],
-                "secret_found": passed
+                "secret_found": passed,
             },
-            error=None if passed else f"Secret not recalled. Got: {output2[:100]}"
+            error=None if passed else f"Secret not recalled. Got: {output2[:100]}",
         )
         self.results.append(result)
         log_result(result)
@@ -599,30 +569,25 @@ class RealWorldBenchmark:
         # Set secrets in parallel
         def set_secret(session_id, secret, name):
             output, code, duration = invoke_gemini(
-                f"You are {name}. Your secret is: {secret}. Reply 'OK {name}'.",
-                session_id=session_id
+                f"You are {name}. Your secret is: {secret}. Reply 'OK {name}'.", session_id=session_id
             )
             return name, output, code
 
         with ThreadPoolExecutor(max_workers=2) as executor:
             futures = [
                 executor.submit(set_secret, session_a, secret_a, "ALPHA"),
-                executor.submit(set_secret, session_b, secret_b, "BRAVO")
+                executor.submit(set_secret, session_b, secret_b, "BRAVO"),
             ]
-            set_results = [f.result() for f in as_completed(futures)]
+            [f.result() for f in as_completed(futures)]
 
         # Check cross-contamination
         def check_isolation(session_id, own_secret, other_secret, name):
             # Ask about own secret
-            output1, _, _ = invoke_gemini(
-                "What is your secret? Reply with just the secret.",
-                session_id=session_id
-            )
+            output1, _, _ = invoke_gemini("What is your secret? Reply with just the secret.", session_id=session_id)
 
             # Ask about other's secret
             output2, _, _ = invoke_gemini(
-                f"Do you know anything about {other_secret}? Reply YES or NO only.",
-                session_id=session_id
+                f"Do you know anything about {other_secret}? Reply YES or NO only.", session_id=session_id
             )
 
             knows_own = own_secret in output1 or name in output1
@@ -633,7 +598,7 @@ class RealWorldBenchmark:
                 "knows_own": knows_own,
                 "knows_other": knows_other,
                 "own_response": output1[:50],
-                "other_response": output2[:50]
+                "other_response": output2[:50],
             }
 
         check_a = check_isolation(session_a, secret_a, secret_b, "ALPHA")
@@ -647,12 +612,8 @@ class RealWorldBenchmark:
             category="session_isolation",
             passed=passed,
             duration=time.time() - start,
-            details={
-                "alpha": check_a,
-                "bravo": check_b,
-                "isolation_maintained": passed
-            },
-            error=None if passed else "Context bleeding detected!"
+            details={"alpha": check_a, "bravo": check_b, "isolation_maintained": passed},
+            error=None if passed else "Context bleeding detected!",
         )
         self.results.append(result)
         log_result(result)
@@ -679,8 +640,13 @@ class RealWorldBenchmark:
             actual = analysis.complexity
 
             # Allow 1 level tolerance (SIMPLE vs MODERATE is OK)
-            complexity_order = [TaskComplexity.TRIVIAL, TaskComplexity.SIMPLE,
-                              TaskComplexity.MODERATE, TaskComplexity.COMPLEX, TaskComplexity.EXPERT]
+            complexity_order = [
+                TaskComplexity.TRIVIAL,
+                TaskComplexity.SIMPLE,
+                TaskComplexity.MODERATE,
+                TaskComplexity.COMPLEX,
+                TaskComplexity.EXPERT,
+            ]
             expected_idx = complexity_order.index(expected)
             actual_idx = complexity_order.index(actual)
 
@@ -688,12 +654,9 @@ class RealWorldBenchmark:
             if is_close:
                 correct += 1
 
-            results_detail.append({
-                "input": task_input[:40],
-                "expected": expected.value,
-                "actual": actual.value,
-                "close_enough": is_close
-            })
+            results_detail.append(
+                {"input": task_input[:40], "expected": expected.value, "actual": actual.value, "close_enough": is_close}
+            )
 
         accuracy = correct / len(test_cases)
         passed = accuracy >= 0.75  # 75% tolerance
@@ -704,12 +667,12 @@ class RealWorldBenchmark:
             passed=passed,
             duration=time.time() - start,
             details={
-                "accuracy": f"{accuracy*100:.0f}%",
+                "accuracy": f"{accuracy * 100:.0f}%",
                 "correct": correct,
                 "total": len(test_cases),
-                "results": results_detail
+                "results": results_detail,
             },
-            error=None if passed else f"Accuracy too low: {accuracy*100:.0f}%"
+            error=None if passed else f"Accuracy too low: {accuracy * 100:.0f}%",
         )
         self.results.append(result)
         log_result(result)
@@ -742,9 +705,9 @@ class RealWorldBenchmark:
                 "samples": len(latencies),
                 "avg_seconds": round(avg, 2),
                 "min_seconds": round(min_lat, 2),
-                "max_seconds": round(max_lat, 2)
+                "max_seconds": round(max_lat, 2),
             },
-            error=None if passed else f"Latency too high: {avg:.2f}s avg"
+            error=None if passed else f"Latency too high: {avg:.2f}s avg",
         )
         self.results.append(result)
         log_result(result)
@@ -764,18 +727,12 @@ class RealWorldBenchmark:
         def run_session(session_id, secret, idx):
             try:
                 # Set
-                output1, code1, _ = invoke_gemini(
-                    f"Remember: {secret}. Reply OK.",
-                    session_id=session_id
-                )
+                output1, code1, _ = invoke_gemini(f"Remember: {secret}. Reply OK.", session_id=session_id)
                 if code1 != 0:
                     return {"idx": idx, "success": False, "error": "set failed"}
 
                 # Get
-                output2, code2, _ = invoke_gemini(
-                    "What did I ask you to remember?",
-                    session_id=session_id
-                )
+                output2, code2, _ = invoke_gemini("What did I ask you to remember?", session_id=session_id)
 
                 found = secret in output2 or f"SECRET_{idx}" in output2
                 return {"idx": idx, "success": found, "response": output2[:50]}
@@ -783,10 +740,7 @@ class RealWorldBenchmark:
                 return {"idx": idx, "success": False, "error": str(e)}
 
         with ThreadPoolExecutor(max_workers=num_sessions) as executor:
-            futures = [
-                executor.submit(run_session, sid, secret, i)
-                for i, (sid, secret) in enumerate(sessions)
-            ]
+            futures = [executor.submit(run_session, sid, secret, i) for i, (sid, secret) in enumerate(sessions)]
 
             for f in as_completed(futures):
                 res = f.result()
@@ -806,10 +760,10 @@ class RealWorldBenchmark:
             details={
                 "sessions": num_sessions,
                 "successful": success_count,
-                "success_rate": f"{success_rate*100:.0f}%",
-                "errors": len(errors)
+                "success_rate": f"{success_rate * 100:.0f}%",
+                "errors": len(errors),
             },
-            error=None if passed else f"Too many failures: {len(errors)}/{num_sessions}"
+            error=None if passed else f"Too many failures: {len(errors)}/{num_sessions}",
         )
         self.results.append(result)
         log_result(result)
@@ -821,7 +775,7 @@ class RealWorldBenchmark:
         print("=" * 70)
 
         passed = sum(1 for r in self.results if r.passed)
-        failed = len(self.results) - passed
+        len(self.results) - passed
 
         # Group by category
         categories = {}
@@ -833,7 +787,7 @@ class RealWorldBenchmark:
             else:
                 categories[r.category]["failed"] += 1
 
-        print(f"\nTotal: {passed}/{len(self.results)} passed ({passed/len(self.results)*100:.0f}%)")
+        print(f"\nTotal: {passed}/{len(self.results)} passed ({passed / len(self.results) * 100:.0f}%)")
         print(f"Duration: {total_duration:.1f}s")
         print("\nBy Category:")
         for cat, stats in categories.items():
@@ -844,8 +798,7 @@ class RealWorldBenchmark:
 
         # Critical failures
         critical_cats = ["session_isolation"]
-        critical_failures = [r for r in self.results
-                           if not r.passed and r.category in critical_cats]
+        critical_failures = [r for r in self.results if not r.passed and r.category in critical_cats]
 
         if critical_failures:
             print("\n*** CRITICAL FAILURES ***")

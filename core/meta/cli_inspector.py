@@ -9,16 +9,15 @@ Ce module détecte automatiquement:
 
 Utilisé par bootstrap() pour vérifier l'environnement au démarrage.
 """
-import subprocess
-import re
+
 import platform
-from typing import Dict, List
+import subprocess
 
 
 class CLIInspector:
     """Inspect installed CLI tools and detect models dynamically"""
 
-    def _run_cli_command(self, command: List[str], timeout: int = 10) -> subprocess.CompletedProcess:
+    def _run_cli_command(self, command: list[str], timeout: int = 10) -> subprocess.CompletedProcess:
         """
         Run CLI command with platform-specific handling.
 
@@ -39,15 +38,10 @@ class CLIInspector:
             command = ["powershell", "-Command", cmd_str]
 
         return subprocess.run(
-            command,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            encoding='utf-8',
-            errors='replace'
+            command, capture_output=True, text=True, timeout=timeout, encoding="utf-8", errors="replace"
         )
 
-    def inspect_gemini(self) -> Dict:
+    def inspect_gemini(self) -> dict:
         """
         Detect Gemini CLI and model
 
@@ -70,10 +64,7 @@ class CLIInspector:
             result = self._run_cli_command(["gemini", "--version"], timeout=10)
 
             if result.returncode != 0:
-                return {
-                    "available": False,
-                    "error": "gemini CLI not found or not in PATH"
-                }
+                return {"available": False, "error": "gemini CLI not found or not in PATH"}
 
             version = result.stdout.strip()
 
@@ -118,38 +109,27 @@ class CLIInspector:
                 print(f"   Warning: Could not detect Gemini model: {e}")
                 print(f"   Using default: {model}")
 
-            return {
-                "available": True,
-                "model": model,
-                "context_window": context_window,
-                "version": version
-            }
+            return {"available": True, "model": model, "context_window": context_window, "version": version}
 
         except FileNotFoundError:
-            return {
-                "available": False,
-                "error": "gemini command not found. Is Google AI CLI installed?"
-            }
+            return {"available": False, "error": "gemini command not found. Is Google AI CLI installed?"}
 
         except subprocess.TimeoutExpired:
             # gemini --version timed out (PowerShell overhead on Windows)
             # Still consider it available, just with unknown version
-            print(f"   Info: Gemini version detection timed out")
-            print(f"   Using defaults: gemini-3-pro-preview")
+            print("   Info: Gemini version detection timed out")
+            print("   Using defaults: gemini-3-pro-preview")
             return {
                 "available": True,
                 "model": "gemini-3-pro-preview",
                 "context_window": 1000000,
-                "version": "unknown (timeout)"
+                "version": "unknown (timeout)",
             }
 
         except Exception as e:
-            return {
-                "available": False,
-                "error": str(e)
-            }
+            return {"available": False, "error": str(e)}
 
-    def inspect_claude(self) -> Dict:
+    def inspect_claude(self) -> dict:
         """
         Detect Claude CLI and model
 
@@ -172,10 +152,7 @@ class CLIInspector:
             result = self._run_cli_command(["claude", "--version"], timeout=15)
 
             if result.returncode != 0:
-                return {
-                    "available": False,
-                    "error": "claude CLI not found or not in PATH"
-                }
+                return {"available": False, "error": "claude CLI not found or not in PATH"}
 
             version_output = result.stdout.strip()
 
@@ -215,38 +192,27 @@ class CLIInspector:
                     model = "claude-haiku-3"
                 context_window = 200000
 
-            return {
-                "available": True,
-                "model": model,
-                "context_window": context_window,
-                "version": version_output
-            }
+            return {"available": True, "model": model, "context_window": context_window, "version": version_output}
 
         except FileNotFoundError:
-            return {
-                "available": False,
-                "error": "claude command not found. Is Anthropic CLI installed?"
-            }
+            return {"available": False, "error": "claude command not found. Is Anthropic CLI installed?"}
 
         except subprocess.TimeoutExpired:
             # claude --version timed out (PowerShell overhead on Windows)
             # Still consider it available, just with unknown version
-            print(f"   Info: Claude version detection timed out")
-            print(f"   Using defaults: claude-sonnet-4.5")
+            print("   Info: Claude version detection timed out")
+            print("   Using defaults: claude-sonnet-4.5")
             return {
                 "available": True,
                 "model": "claude-sonnet-4.5",
                 "context_window": 200000,
-                "version": "unknown (timeout)"
+                "version": "unknown (timeout)",
             }
 
         except Exception as e:
-            return {
-                "available": False,
-                "error": str(e)
-            }
+            return {"available": False, "error": str(e)}
 
-    def get_capabilities_summary(self) -> Dict:
+    def get_capabilities_summary(self) -> dict:
         """
         Get complete capabilities summary
 
@@ -260,8 +226,4 @@ class CLIInspector:
         gemini = self.inspect_gemini()
         claude = self.inspect_claude()
 
-        return {
-            "gemini": gemini,
-            "claude": claude,
-            "system_ready": gemini["available"] and claude["available"]
-        }
+        return {"gemini": gemini, "claude": claude, "system_ready": gemini["available"] and claude["available"]}

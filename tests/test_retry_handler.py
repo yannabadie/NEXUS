@@ -16,13 +16,9 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.execution_pkg.execution.retry_handler import (
-    DEFAULT_BACKOFF_FACTOR,
     DEFAULT_BASE_DELAY,
     DEFAULT_MAX_ATTEMPTS,
-    DEFAULT_MAX_DELAY,
     RetryAttempt,
     RetryHandler,
     RetryPolicy,
@@ -32,10 +28,10 @@ from core.execution_pkg.execution.retry_handler import (
     reset_retry_handler,
 )
 
-
 # =============================================================================
 # RetryPolicy Tests
 # =============================================================================
+
 
 class TestRetryPolicy:
     """Test RetryPolicy dataclass."""
@@ -60,6 +56,7 @@ class TestRetryPolicy:
 # RetryAttempt Tests
 # =============================================================================
 
+
 class TestRetryAttempt:
     """Test RetryAttempt dataclass."""
 
@@ -78,6 +75,7 @@ class TestRetryAttempt:
 # =============================================================================
 # RetryResult Tests
 # =============================================================================
+
 
 class TestRetryResult:
     """Test RetryResult dataclass."""
@@ -101,13 +99,17 @@ class TestRetryResult:
 # RetryStats Tests
 # =============================================================================
 
+
 class TestRetryStats:
     """Test RetryStats dataclass."""
 
     def test_to_dict(self):
         s = RetryStats(
-            configured_policies=2, total_executions=100,
-            total_retries=10, total_successes=90, total_failures=10,
+            configured_policies=2,
+            total_executions=100,
+            total_retries=10,
+            total_successes=90,
+            total_failures=10,
         )
         d = s.to_dict()
         assert d["total_retries"] == 10
@@ -116,6 +118,7 @@ class TestRetryStats:
 # =============================================================================
 # Policy Management Tests
 # =============================================================================
+
 
 class TestPolicyManagement:
     """Test policy CRUD."""
@@ -167,6 +170,7 @@ class TestPolicyManagement:
 # Delay Calculation Tests
 # =============================================================================
 
+
 class TestDelayCalculation:
     """Test exponential backoff delay."""
 
@@ -197,6 +201,7 @@ class TestDelayCalculation:
 # Execute Tests
 # =============================================================================
 
+
 class TestExecute:
     """Test retry execution."""
 
@@ -212,11 +217,13 @@ class TestExecute:
         h = RetryHandler()
         h.configure("api", max_attempts=3, base_delay=0.01, jitter=False)
         counter = [0]
+
         def flaky():
             counter[0] += 1
             if counter[0] < 3:
                 raise RuntimeError("flaky")
             return "ok"
+
         result = h.execute("api", flaky, sleep_fn=lambda d: None)
         assert result.success is True
         assert result.attempts == 3
@@ -238,11 +245,14 @@ class TestExecute:
         h = RetryHandler()
         h.configure("api", max_attempts=3)
         call_count = [0]
+
         def failing():
             call_count[0] += 1
             raise ValueError("not retryable")
+
         result = h.execute(
-            "api", failing,
+            "api",
+            failing,
             retryable=lambda e: isinstance(e, RuntimeError),  # Only RuntimeError
             sleep_fn=lambda d: None,
         )
@@ -254,13 +264,16 @@ class TestExecute:
         h.configure("api", max_attempts=3, base_delay=0.01, jitter=False)
         retries = []
         counter = [0]
+
         def flaky():
             counter[0] += 1
             if counter[0] < 3:
                 raise RuntimeError("err")
             return "ok"
+
         result = h.execute(
-            "api", flaky,
+            "api",
+            flaky,
             on_retry=lambda attempt, err, delay: retries.append(attempt),
             sleep_fn=lambda d: None,
         )
@@ -286,11 +299,13 @@ class TestExecute:
         h = RetryHandler()
         h.configure("api", max_attempts=3, base_delay=1.0, jitter=False)
         counter = [0]
+
         def flaky():
             counter[0] += 1
             if counter[0] < 3:
                 raise RuntimeError("err")
             return "ok"
+
         result = h.execute("api", flaky, sleep_fn=lambda d: None)
         assert result.total_delay > 0
 
@@ -298,6 +313,7 @@ class TestExecute:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test retry handler statistics."""
@@ -312,9 +328,11 @@ class TestStatistics:
         h.configure("api", max_attempts=2, base_delay=0.01, jitter=False)
         h.execute("api", lambda: "ok", sleep_fn=lambda d: None)
         counter = [0]
+
         def fail():
             counter[0] += 1
             raise RuntimeError("err")
+
         h.execute("api", fail, sleep_fn=lambda d: None)
         stats = h.get_stats()
         assert stats.total_executions == 2
@@ -332,6 +350,7 @@ class TestStatistics:
 # =============================================================================
 # State Tests
 # =============================================================================
+
 
 class TestState:
     """Test state management."""
@@ -362,6 +381,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global retry handler."""
 
@@ -388,25 +408,38 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_execution_package(self):
         from core.execution_pkg.execution import (
-            RetryHandler, RetryPolicy, RetryResult,
-            RetryAttempt, RetryStats,
-            get_retry_handler, reset_retry_handler,
+            RetryAttempt,
+            RetryHandler,
+            RetryPolicy,
+            RetryResult,
+            RetryStats,
+            get_retry_handler,
+            reset_retry_handler,
         )
-        assert all([
-            RetryHandler, RetryPolicy, RetryResult,
-            RetryAttempt, RetryStats,
-            get_retry_handler, reset_retry_handler,
-        ])
+
+        assert all(
+            [
+                RetryHandler,
+                RetryPolicy,
+                RetryResult,
+                RetryAttempt,
+                RetryStats,
+                get_retry_handler,
+                reset_retry_handler,
+            ]
+        )
 
     def test_from_module(self):
         from core.execution_pkg.execution.retry_handler import (
-            RetryHandler, DEFAULT_MAX_ATTEMPTS,
-            DEFAULT_BASE_DELAY, DEFAULT_MAX_DELAY,
+            DEFAULT_BASE_DELAY,
+            DEFAULT_MAX_ATTEMPTS,
         )
+
         assert DEFAULT_MAX_ATTEMPTS == 3
         assert DEFAULT_BASE_DELAY == 1.0

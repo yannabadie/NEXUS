@@ -53,9 +53,8 @@ import dataclasses
 import logging
 import threading
 from collections import deque
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from dataclasses import dataclass
+from datetime import UTC, datetime
 
 _logger = logging.getLogger(__name__)
 
@@ -70,6 +69,7 @@ MAX_DECISIONS: int = 50000
 # =============================================================================
 # Dataclasses
 # =============================================================================
+
 
 @dataclass
 class RoutingDecisionRecord:
@@ -90,6 +90,7 @@ class RoutingDecisionRecord:
         was_optimal: Whether this selection was optimal in hindsight.
         timestamp: ISO timestamp of the decision.
     """
+
     decision_id: str = ""
     policy: str = ""
     selected_model: str = ""
@@ -122,6 +123,7 @@ class PolicyMetrics:
         total_cost_tokens: Sum of token costs across all decisions.
         total_latency_ms: Sum of latency across all decisions.
     """
+
     policy: str = ""
     total_decisions: int = 0
     optimal_decisions: int = 0
@@ -178,6 +180,7 @@ class AnalyzerStats:
         unique_models: Number of distinct models used.
         overall_optimality_rate: Global optimality rate across all policies.
     """
+
     total_decisions: int = 0
     unique_policies: int = 0
     unique_models: int = 0
@@ -191,6 +194,7 @@ class AnalyzerStats:
 # =============================================================================
 # Main Analyzer Class
 # =============================================================================
+
 
 class RoutingEffectivenessAnalyzer:
     """
@@ -238,7 +242,7 @@ class RoutingEffectivenessAnalyzer:
         self._decisions: deque[RoutingDecisionRecord] = deque(maxlen=max_decisions)
 
         # Per-policy aggregated metrics
-        self._policy_metrics: Dict[str, PolicyMetrics] = {}
+        self._policy_metrics: dict[str, PolicyMetrics] = {}
 
         # Counter for generating decision IDs
         self._counter = 0
@@ -246,10 +250,7 @@ class RoutingEffectivenessAnalyzer:
         # Track unique models seen
         self._models_seen: set[str] = set()
 
-        _logger.debug(
-            f"[ROUTING] RoutingEffectivenessAnalyzer initialized "
-            f"(max_decisions={max_decisions})"
-        )
+        _logger.debug(f"[ROUTING] RoutingEffectivenessAnalyzer initialized (max_decisions={max_decisions})")
 
     def record_decision(
         self,
@@ -259,7 +260,7 @@ class RoutingEffectivenessAnalyzer:
         outcome_quality: float = 0.0,
         cost_tokens: int = 0,
         latency_ms: float = 0.0,
-        was_optimal: bool = True
+        was_optimal: bool = True,
     ) -> RoutingDecisionRecord:
         """
         Record a routing decision and update policy metrics.
@@ -294,7 +295,7 @@ class RoutingEffectivenessAnalyzer:
                 cost_tokens=cost_tokens,
                 latency_ms=latency_ms,
                 was_optimal=was_optimal,
-                timestamp=datetime.now(timezone.utc).isoformat()
+                timestamp=datetime.now(UTC).isoformat(),
             )
 
             # Update policy metrics
@@ -323,7 +324,7 @@ class RoutingEffectivenessAnalyzer:
 
             return record
 
-    def get_policy_metrics(self, policy: str) -> Optional[PolicyMetrics]:
+    def get_policy_metrics(self, policy: str) -> PolicyMetrics | None:
         """
         Get aggregated metrics for a specific policy.
 
@@ -336,7 +337,7 @@ class RoutingEffectivenessAnalyzer:
         with self._lock:
             return self._policy_metrics.get(policy)
 
-    def get_all_metrics(self) -> List[PolicyMetrics]:
+    def get_all_metrics(self) -> list[PolicyMetrics]:
         """
         Get metrics for all policies, sorted by total decisions descending.
 
@@ -348,7 +349,7 @@ class RoutingEffectivenessAnalyzer:
             metrics.sort(key=lambda m: m.total_decisions, reverse=True)
             return metrics
 
-    def get_best_policy(self) -> Optional[str]:
+    def get_best_policy(self) -> str | None:
         """
         Get the policy with the highest optimality rate.
 
@@ -359,13 +360,10 @@ class RoutingEffectivenessAnalyzer:
             if not self._policy_metrics:
                 return None
 
-            best = max(
-                self._policy_metrics.values(),
-                key=lambda m: m.optimality_rate
-            )
+            best = max(self._policy_metrics.values(), key=lambda m: m.optimality_rate)
             return best.policy
 
-    def get_decisions_by_model(self, model: str) -> List[RoutingDecisionRecord]:
+    def get_decisions_by_model(self, model: str) -> list[RoutingDecisionRecord]:
         """
         Get all decisions that selected a specific model.
 
@@ -376,12 +374,9 @@ class RoutingEffectivenessAnalyzer:
             List of RoutingDecisionRecord instances, chronological order.
         """
         with self._lock:
-            return [
-                record for record in self._decisions
-                if record.selected_model == model
-            ]
+            return [record for record in self._decisions if record.selected_model == model]
 
-    def get_recent_decisions(self, limit: int = 10) -> List[RoutingDecisionRecord]:
+    def get_recent_decisions(self, limit: int = 10) -> list[RoutingDecisionRecord]:
         """
         Get the most recent decisions.
 
@@ -398,7 +393,7 @@ class RoutingEffectivenessAnalyzer:
             recent.reverse()
             return recent[:limit]
 
-    def list_policies(self) -> List[str]:
+    def list_policies(self) -> list[str]:
         """
         List all policies that have been used, alphabetically sorted.
 
@@ -426,17 +421,14 @@ class RoutingEffectivenessAnalyzer:
             if total_decisions == 0:
                 overall_optimality = 0.0
             else:
-                total_optimal = sum(
-                    1 for record in self._decisions
-                    if record.was_optimal
-                )
+                total_optimal = sum(1 for record in self._decisions if record.was_optimal)
                 overall_optimality = total_optimal / total_decisions
 
             return AnalyzerStats(
                 total_decisions=total_decisions,
                 unique_policies=unique_policies,
                 unique_models=unique_models,
-                overall_optimality_rate=overall_optimality
+                overall_optimality_rate=overall_optimality,
             )
 
     @property
@@ -479,12 +471,9 @@ class RoutingEffectivenessAnalyzer:
         with self._lock:
             return {
                 "stats": stats.to_dict(),
-                "policies": {
-                    policy: metrics.to_dict()
-                    for policy, metrics in self._policy_metrics.items()
-                },
+                "policies": {policy: metrics.to_dict() for policy, metrics in self._policy_metrics.items()},
                 "max_decisions": self._max_decisions,
-                "decision_count": len(self._decisions)
+                "decision_count": len(self._decisions),
             }
 
 
@@ -492,13 +481,11 @@ class RoutingEffectivenessAnalyzer:
 # Singleton Pattern (V12.4)
 # =============================================================================
 
-_instance: Optional[RoutingEffectivenessAnalyzer] = None
+_instance: RoutingEffectivenessAnalyzer | None = None
 _lock = threading.Lock()
 
 
-def get_routing_analyzer(
-    max_decisions: int = MAX_DECISIONS
-) -> RoutingEffectivenessAnalyzer:
+def get_routing_analyzer(max_decisions: int = MAX_DECISIONS) -> RoutingEffectivenessAnalyzer:
     """
     Get the global RoutingEffectivenessAnalyzer singleton.
 

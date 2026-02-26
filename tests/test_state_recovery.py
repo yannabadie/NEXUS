@@ -21,8 +21,6 @@ Validates:
 
 import time
 
-import pytest
-
 from core.infrastructure.session.state_recovery import (
     RecoveryResult,
     RecoveryStats,
@@ -33,10 +31,10 @@ from core.infrastructure.session.state_recovery import (
     reset_recovery_manager,
 )
 
-
 # =============================================================================
 # SnapshotReason Tests
 # =============================================================================
+
 
 class TestSnapshotReason:
     """Test SnapshotReason enum."""
@@ -67,12 +65,14 @@ class TestSnapshotReason:
 # StateSnapshot Tests
 # =============================================================================
 
+
 class TestStateSnapshot:
     """Test StateSnapshot dataclass."""
 
     def test_basic_creation(self):
         snap = StateSnapshot(
-            snapshot_id="snap1", session_id="sess1",
+            snapshot_id="snap1",
+            session_id="sess1",
             state={"phase": "EXECUTING"},
         )
         assert snap.snapshot_id == "snap1"
@@ -81,13 +81,17 @@ class TestStateSnapshot:
 
     def test_auto_timestamp(self):
         snap = StateSnapshot(
-            snapshot_id="snap1", session_id="sess1", state={},
+            snapshot_id="snap1",
+            session_id="sess1",
+            state={},
         )
         assert snap.timestamp > 0
 
     def test_defaults(self):
         snap = StateSnapshot(
-            snapshot_id="snap1", session_id="sess1", state={},
+            snapshot_id="snap1",
+            session_id="sess1",
+            state={},
         )
         assert snap.reason == SnapshotReason.MANUAL
         assert snap.label == ""
@@ -95,8 +99,10 @@ class TestStateSnapshot:
 
     def test_to_dict(self):
         snap = StateSnapshot(
-            snapshot_id="snap1", session_id="sess1",
-            state={"a": 1, "b": 2}, reason=SnapshotReason.SAVEPOINT,
+            snapshot_id="snap1",
+            session_id="sess1",
+            state={"a": 1, "b": 2},
+            reason=SnapshotReason.SAVEPOINT,
             label="before_deploy",
         )
         d = snap.to_dict()
@@ -109,6 +115,7 @@ class TestStateSnapshot:
 # =============================================================================
 # RecoveryResult Tests
 # =============================================================================
+
 
 class TestRecoveryResult:
     """Test RecoveryResult dataclass."""
@@ -125,8 +132,11 @@ class TestRecoveryResult:
 
     def test_to_dict(self):
         r = RecoveryResult(
-            success=True, snapshot_id="s1", session_id="sess1",
-            state={"phase": "IDLE"}, reason="recovered",
+            success=True,
+            snapshot_id="s1",
+            session_id="sess1",
+            state={"phase": "IDLE"},
+            reason="recovered",
         )
         d = r.to_dict()
         assert d["success"] is True
@@ -138,29 +148,36 @@ class TestRecoveryResult:
 # RecoveryStats Tests
 # =============================================================================
 
+
 class TestRecoveryStats:
     """Test RecoveryStats dataclass."""
 
     def test_basic(self):
         stats = RecoveryStats(
-            total_snapshots=10, total_recoveries=5,
-            successful_recoveries=4, failed_recoveries=1,
+            total_snapshots=10,
+            total_recoveries=5,
+            successful_recoveries=4,
+            failed_recoveries=1,
             sessions_tracked=3,
         )
         assert stats.success_rate == 0.8
 
     def test_zero_recoveries(self):
         stats = RecoveryStats(
-            total_snapshots=5, total_recoveries=0,
-            successful_recoveries=0, failed_recoveries=0,
+            total_snapshots=5,
+            total_recoveries=0,
+            successful_recoveries=0,
+            failed_recoveries=0,
             sessions_tracked=2,
         )
         assert stats.success_rate == 0.0
 
     def test_to_dict(self):
         stats = RecoveryStats(
-            total_snapshots=1, total_recoveries=1,
-            successful_recoveries=1, failed_recoveries=0,
+            total_snapshots=1,
+            total_recoveries=1,
+            successful_recoveries=1,
+            failed_recoveries=0,
             sessions_tracked=1,
         )
         d = stats.to_dict()
@@ -171,6 +188,7 @@ class TestRecoveryStats:
 # =============================================================================
 # Capture Tests
 # =============================================================================
+
 
 class TestCapture:
     """Test state capture."""
@@ -224,6 +242,7 @@ class TestCapture:
 # =============================================================================
 # Query Tests
 # =============================================================================
+
 
 class TestQuery:
     """Test snapshot queries."""
@@ -291,6 +310,7 @@ class TestQuery:
 # Recovery Tests
 # =============================================================================
 
+
 class TestRecovery:
     """Test state recovery."""
 
@@ -352,6 +372,7 @@ class TestRecovery:
 # Rollback Tests
 # =============================================================================
 
+
 class TestRollback:
     """Test rollback functionality."""
 
@@ -398,6 +419,7 @@ class TestRollback:
 # Max Snapshots Tests
 # =============================================================================
 
+
 class TestMaxSnapshots:
     """Test max snapshot eviction."""
 
@@ -422,6 +444,7 @@ class TestMaxSnapshots:
 # =============================================================================
 # Cleanup Tests
 # =============================================================================
+
 
 class TestCleanup:
     """Test cleanup operations."""
@@ -465,6 +488,7 @@ class TestCleanup:
 # Statistics Tests
 # =============================================================================
 
+
 class TestStatistics:
     """Test recovery statistics."""
 
@@ -497,6 +521,7 @@ class TestStatistics:
 # =============================================================================
 # State Tests
 # =============================================================================
+
 
 class TestState:
     """Test state management."""
@@ -544,6 +569,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global recovery manager."""
 
@@ -570,24 +596,36 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_session_package(self):
         from core.infrastructure.session import (
-            StateRecoveryManager, StateSnapshot, RecoveryResult,
-            RecoveryStats, SnapshotReason,
-            get_recovery_manager, reset_recovery_manager,
+            RecoveryResult,
+            RecoveryStats,
+            SnapshotReason,
+            StateRecoveryManager,
+            StateSnapshot,
+            get_recovery_manager,
+            reset_recovery_manager,
         )
-        assert all([
-            StateRecoveryManager, StateSnapshot, RecoveryResult,
-            RecoveryStats, SnapshotReason,
-            get_recovery_manager, reset_recovery_manager,
-        ])
+
+        assert all(
+            [
+                StateRecoveryManager,
+                StateSnapshot,
+                RecoveryResult,
+                RecoveryStats,
+                SnapshotReason,
+                get_recovery_manager,
+                reset_recovery_manager,
+            ]
+        )
 
     def test_from_module(self):
         from core.infrastructure.session.state_recovery import (
-            StateRecoveryManager, StateSnapshot, RecoveryResult,
-            SnapshotReason, MAX_SNAPSHOTS_PER_SESSION,
+            MAX_SNAPSHOTS_PER_SESSION,
         )
+
         assert MAX_SNAPSHOTS_PER_SESSION == 100

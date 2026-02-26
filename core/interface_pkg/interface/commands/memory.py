@@ -5,8 +5,7 @@ These commands manage Project Memory (RAG) for context retrieval.
 Uses MemoryService for business logic (Service Layer Pattern).
 """
 
-from typing import List
-from .registry import Command, CommandContext, CommandResult, CommandStatus
+from .registry import Command, CommandContext, CommandRegistry, CommandResult, CommandStatus
 
 
 def _get_memory_service(context: CommandContext):
@@ -25,7 +24,7 @@ def _get_memory_service(context: CommandContext):
 
     # Get project_memory from orchestrator
     project_memory = None
-    if hasattr(context.orchestrator, 'project_memory'):
+    if hasattr(context.orchestrator, "project_memory"):
         project_memory = context.orchestrator.project_memory
 
     if not project_memory:
@@ -33,23 +32,19 @@ def _get_memory_service(context: CommandContext):
 
     # Get workspace_path from extras or orchestrator
     workspace_path = context.extras.get("workspace_path")
-    if not workspace_path and hasattr(context.orchestrator, 'workspace_path'):
+    if not workspace_path and hasattr(context.orchestrator, "workspace_path"):
         workspace_path = context.orchestrator.workspace_path
 
     if not workspace_path:
         # Fallback: try to get from repl if available
         repl = context.extras.get("repl")
-        if repl and hasattr(repl, 'workspace_path'):
+        if repl and hasattr(repl, "workspace_path"):
             workspace_path = repl.workspace_path
 
     if not workspace_path:
         raise ValueError("workspace_path not available in context")
 
-    return MemoryService(
-        project_memory=project_memory,
-        workspace_path=workspace_path,
-        console=context.console
-    )
+    return MemoryService(project_memory=project_memory, workspace_path=workspace_path, console=context.console)
 
 
 class LearnCommand(Command):
@@ -60,7 +55,7 @@ class LearnCommand(Command):
         return "/learn"
 
     @property
-    def aliases(self) -> List[str]:
+    def aliases(self) -> list[str]:
         return []
 
     @property
@@ -78,20 +73,11 @@ class LearnCommand(Command):
             result = service.learn(args.strip() if args else "")
 
             if result.success:
-                return CommandResult(
-                    status=CommandStatus.SUCCESS,
-                    message=""
-                )
+                return CommandResult(status=CommandStatus.SUCCESS, message="")
             else:
-                return CommandResult(
-                    status=CommandStatus.ERROR,
-                    message=result.error or "Learn failed"
-                )
+                return CommandResult(status=CommandStatus.ERROR, message=result.error or "Learn failed")
         except Exception as e:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message=f"Learn command failed: {e}"
-            )
+            return CommandResult(status=CommandStatus.ERROR, message=f"Learn command failed: {e}")
 
 
 class ForgetCommand(Command):
@@ -102,7 +88,7 @@ class ForgetCommand(Command):
         return "/forget"
 
     @property
-    def aliases(self) -> List[str]:
+    def aliases(self) -> list[str]:
         return []
 
     @property
@@ -120,20 +106,11 @@ class ForgetCommand(Command):
             result = service.forget(args.strip() if args else "")
 
             if result.success:
-                return CommandResult(
-                    status=CommandStatus.SUCCESS,
-                    message=""
-                )
+                return CommandResult(status=CommandStatus.SUCCESS, message="")
             else:
-                return CommandResult(
-                    status=CommandStatus.ERROR,
-                    message=result.error or "Forget failed"
-                )
+                return CommandResult(status=CommandStatus.ERROR, message=result.error or "Forget failed")
         except Exception as e:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message=f"Forget command failed: {e}"
-            )
+            return CommandResult(status=CommandStatus.ERROR, message=f"Forget command failed: {e}")
 
 
 class MemoryStatusCommand(Command):
@@ -144,7 +121,7 @@ class MemoryStatusCommand(Command):
         return "/memory-status"
 
     @property
-    def aliases(self) -> List[str]:
+    def aliases(self) -> list[str]:
         return ["/ms"]
 
     @property
@@ -156,15 +133,9 @@ class MemoryStatusCommand(Command):
         try:
             service = _get_memory_service(context)
             service.get_status()
-            return CommandResult(
-                status=CommandStatus.SUCCESS,
-                message=""
-            )
+            return CommandResult(status=CommandStatus.SUCCESS, message="")
         except Exception as e:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message=f"Failed to get memory status: {e}"
-            )
+            return CommandResult(status=CommandStatus.ERROR, message=f"Failed to get memory status: {e}")
 
 
 class RagCommand(Command):
@@ -175,7 +146,7 @@ class RagCommand(Command):
         return "/rag"
 
     @property
-    def aliases(self) -> List[str]:
+    def aliases(self) -> list[str]:
         return []
 
     @property
@@ -191,15 +162,9 @@ class RagCommand(Command):
         try:
             service = _get_memory_service(context)
             service.handle_rag_command(args.strip() if args else "")
-            return CommandResult(
-                status=CommandStatus.SUCCESS,
-                message=""
-            )
+            return CommandResult(status=CommandStatus.SUCCESS, message="")
         except Exception as e:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message=f"RAG command failed: {e}"
-            )
+            return CommandResult(status=CommandStatus.ERROR, message=f"RAG command failed: {e}")
 
 
 def register_memory_commands(registry: "CommandRegistry") -> None:

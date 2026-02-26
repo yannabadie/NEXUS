@@ -14,15 +14,14 @@ The coordinator calls auto_memory.get_recommendation(task_type, task_description
 Boost info is stored in _last_unified_recommendation instead of _last_auto_memory_suggestion.
 """
 
+from unittest.mock import Mock
+
 import pytest
-from unittest.mock import Mock, MagicMock, patch
-from dataclasses import dataclass
 
-from core.intelligence.swarm.mode_selector import ModeSelector, ModeProposal, AgentAssignment
-from core.intelligence.swarm.collaboration_modes import CollaborationMode
-from core.intelligence.swarm.task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
 from core.intelligence.swarm.agent_metrics import AgentProfile
-
+from core.intelligence.swarm.collaboration_modes import CollaborationMode
+from core.intelligence.swarm.mode_selector import ModeSelector
+from core.intelligence.swarm.task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
 
 # ============================================================================
 # Test Fixtures
@@ -57,16 +56,13 @@ def mock_task_analysis():
 def mock_agents():
     """Create mock agent profiles for testing."""
     gemini = AgentProfile(
-        agent_id="gemini_primary",
-        provider="gemini",
-        model="gemini-3-pro-preview",
-        capabilities=["coding", "research"]
+        agent_id="gemini_primary", provider="gemini", model="gemini-3-pro-preview", capabilities=["coding", "research"]
     )
     claude = AgentProfile(
         agent_id="claude_opus",
         provider="claude",
         model="claude-opus-4-6-20250116",
-        capabilities=["coding", "creativity"]
+        capabilities=["coding", "creativity"],
     )
     return [gemini, claude]
 
@@ -90,7 +86,7 @@ class TestHighConfidenceModeBoost:
             "suggested_mode": "lead_support",
             "suggested_lead": "gemini",
             "confidence": 0.85,
-            "modes_to_avoid": []
+            "modes_to_avoid": [],
         }
 
         # Create ModeSelector with mock AutoMemory
@@ -102,7 +98,7 @@ class TestHighConfidenceModeBoost:
             initial_scores[mode] = selector._score_mode(mode, mock_task_analysis, mock_agents)
 
         # Run select_mode which applies AutoMemory boost
-        proposal = selector.select_mode(mock_task_analysis, mock_agents)
+        selector.select_mode(mock_task_analysis, mock_agents)
 
         # Verify AutoMemory was consulted (legacy path: single arg)
         mock_auto_memory.get_recommendation.assert_called_once_with("coding")
@@ -120,7 +116,7 @@ class TestHighConfidenceModeBoost:
             "suggested_mode": "parallel",
             "suggested_lead": None,
             "confidence": 0.80,
-            "modes_to_avoid": []
+            "modes_to_avoid": [],
         }
 
         selector = ModeSelector(auto_memory=mock_auto_memory)
@@ -147,7 +143,7 @@ class TestMediumConfidenceModeBoost:
             "suggested_mode": "ping_pong",
             "suggested_lead": "claude",
             "confidence": 0.75,
-            "modes_to_avoid": []
+            "modes_to_avoid": [],
         }
 
         selector = ModeSelector(auto_memory=mock_auto_memory)
@@ -167,7 +163,7 @@ class TestMediumConfidenceModeBoost:
             "suggested_mode": "sequential",
             "suggested_lead": None,
             "confidence": 0.70,
-            "modes_to_avoid": []
+            "modes_to_avoid": [],
         }
 
         selector = ModeSelector(auto_memory=mock_auto_memory)
@@ -202,7 +198,7 @@ class TestLowConfidenceModeBoost:
             "suggested_mode": "specialist",
             "suggested_lead": "gemini",
             "confidence": 0.60,
-            "modes_to_avoid": []
+            "modes_to_avoid": [],
         }
 
         selector = ModeSelector(auto_memory=mock_auto_memory)
@@ -221,7 +217,7 @@ class TestLowConfidenceModeBoost:
             "suggested_mode": "parallel",
             "suggested_lead": None,
             "confidence": 0.50,
-            "modes_to_avoid": []
+            "modes_to_avoid": [],
         }
 
         selector = ModeSelector(auto_memory=mock_auto_memory)
@@ -249,11 +245,11 @@ class TestBelowThresholdIgnored:
             "suggested_mode": "red_blue",
             "suggested_lead": "claude",
             "confidence": 0.40,
-            "modes_to_avoid": []
+            "modes_to_avoid": [],
         }
 
         selector = ModeSelector(auto_memory=mock_auto_memory)
-        proposal = selector.select_mode(mock_task_analysis, mock_agents)
+        selector.select_mode(mock_task_analysis, mock_agents)
 
         # Should be None because confidence was too low
         assert selector._last_auto_memory_suggestion is None
@@ -266,7 +262,7 @@ class TestBelowThresholdIgnored:
             "suggested_mode": "specialist",
             "suggested_lead": "gemini",
             "confidence": 0.49,
-            "modes_to_avoid": []
+            "modes_to_avoid": [],
         }
 
         selector = ModeSelector(auto_memory=mock_auto_memory)
@@ -293,7 +289,7 @@ class TestLeadBonus:
             "suggested_mode": "lead_support",
             "suggested_lead": "claude",
             "confidence": 0.75,
-            "modes_to_avoid": []
+            "modes_to_avoid": [],
         }
 
         selector = ModeSelector(auto_memory=mock_auto_memory)
@@ -313,15 +309,17 @@ class TestLeadBonus:
             "suggested_mode": "lead_support",
             "suggested_lead": "claude",
             "confidence": 0.65,  # Below 0.7 threshold for lead bonus
-            "modes_to_avoid": []
+            "modes_to_avoid": [],
         }
 
         selector = ModeSelector(auto_memory=mock_auto_memory)
 
         # Verify the suggestion info doesn't include lead promotion
         # (since confidence < 0.7 for lead bonus)
-        assert selector._last_auto_memory_suggestion is None or \
-               selector._last_auto_memory_suggestion.get("suggested_lead") is None
+        assert (
+            selector._last_auto_memory_suggestion is None
+            or selector._last_auto_memory_suggestion.get("suggested_lead") is None
+        )
 
 
 # ============================================================================
@@ -367,7 +365,7 @@ class TestEdgeCases:
             "suggested_mode": "nonexistent_mode",
             "suggested_lead": None,
             "confidence": 0.85,
-            "modes_to_avoid": []
+            "modes_to_avoid": [],
         }
 
         selector = ModeSelector(auto_memory=mock_auto_memory)
@@ -385,11 +383,11 @@ class TestEdgeCases:
             "suggested_mode": "parallel",
             "suggested_lead": None,
             "confidence": 0.85,
-            "modes_to_avoid": ["red_blue", "specialist"]
+            "modes_to_avoid": ["red_blue", "specialist"],
         }
 
         selector = ModeSelector(auto_memory=mock_auto_memory)
-        proposal = selector.select_mode(mock_task_analysis, mock_agents)
+        selector.select_mode(mock_task_analysis, mock_agents)
 
         # Legacy auto_memory path sets _last_auto_memory_suggestion
         assert selector._last_auto_memory_suggestion is not None
@@ -416,14 +414,11 @@ class TestMemorySystemsIntegration:
             "suggested_mode": "sequential",
             "suggested_lead": "gemini",
             "confidence": 0.80,
-            "modes_to_avoid": []
+            "modes_to_avoid": [],
         }
 
-        selector = ModeSelector(
-            success_memory=mock_success_memory,
-            auto_memory=mock_auto_memory
-        )
-        proposal = selector.select_mode(mock_task_analysis, mock_agents)
+        selector = ModeSelector(success_memory=mock_success_memory, auto_memory=mock_auto_memory)
+        selector.select_mode(mock_task_analysis, mock_agents)
 
         # Legacy path: both memory systems are consulted independently
         mock_success_memory.get_best_mode_for_similar.assert_called_once()
@@ -451,7 +446,7 @@ class TestReasoningGeneration:
             "suggested_mode": "parallel",
             "suggested_lead": None,
             "confidence": 0.85,
-            "modes_to_avoid": []
+            "modes_to_avoid": [],
         }
 
         selector = ModeSelector(auto_memory=mock_auto_memory)
@@ -462,7 +457,9 @@ class TestReasoningGeneration:
         assert len(proposal.reasoning) > 0
         # Reasoning should mention complexity, domains, or selection logic
         reasoning_lower = proposal.reasoning.lower()
-        assert ("complexity" in reasoning_lower or
-                "selection" in reasoning_lower or
-                "agent" in reasoning_lower or
-                "capability" in reasoning_lower)
+        assert (
+            "complexity" in reasoning_lower
+            or "selection" in reasoning_lower
+            or "agent" in reasoning_lower
+            or "capability" in reasoning_lower
+        )

@@ -24,7 +24,7 @@ import logging
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -41,9 +41,11 @@ MAX_EVENTS_PER_SESSION = 10000
 # Types
 # =============================================================================
 
+
 @dataclass
 class PhaseMetric:
     """Metric for a single phase execution."""
+
     session_id: str
     phase: str
     duration_ms: float = 0.0
@@ -51,7 +53,7 @@ class PhaseMetric:
     cost: float = 0.0
     timestamp: float = field(default_factory=time.monotonic)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "session_id": self.session_id,
             "phase": self.phase,
@@ -64,6 +66,7 @@ class PhaseMetric:
 @dataclass
 class AgentAction:
     """Record of an agent action within a session."""
+
     session_id: str
     agent_id: str
     action_type: str  # tool_call, brainstorm, validate, etc.
@@ -72,7 +75,7 @@ class AgentAction:
     duration_ms: float = 0.0
     timestamp: float = field(default_factory=time.monotonic)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "session_id": self.session_id,
             "agent_id": self.agent_id,
@@ -86,6 +89,7 @@ class AgentAction:
 @dataclass
 class SessionMetrics:
     """Aggregated metrics for a single session."""
+
     session_id: str
     total_phases: int = 0
     total_actions: int = 0
@@ -94,9 +98,9 @@ class SessionMetrics:
     total_cost: float = 0.0
     success_rate: float = 0.0
     average_quality: float = 0.0
-    agents_involved: List[str] = field(default_factory=list)
+    agents_involved: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "session_id": self.session_id,
             "total_phases": self.total_phases,
@@ -113,13 +117,14 @@ class SessionMetrics:
 @dataclass
 class AnalyticsStats:
     """Overall analytics statistics."""
+
     total_sessions: int
     total_phases: int
     total_actions: int
     total_tokens: int
     total_cost: float
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_sessions": self.total_sessions,
             "total_phases": self.total_phases,
@@ -132,6 +137,7 @@ class AnalyticsStats:
 # =============================================================================
 # Session Analytics
 # =============================================================================
+
 
 class SessionAnalytics:
     """
@@ -147,9 +153,9 @@ class SessionAnalytics:
 
     def __init__(self, *, max_sessions: int = MAX_SESSIONS):
         self._max_sessions = max_sessions
-        self._phases: Dict[str, List[PhaseMetric]] = {}  # session_id -> phases
-        self._actions: Dict[str, List[AgentAction]] = {}  # session_id -> actions
-        self._session_order: List[str] = []  # Track insertion order for eviction
+        self._phases: dict[str, list[PhaseMetric]] = {}  # session_id -> phases
+        self._actions: dict[str, list[AgentAction]] = {}  # session_id -> actions
+        self._session_order: list[str] = []  # Track insertion order for eviction
         self._lock = threading.Lock()
 
     def _ensure_session(self, session_id: str) -> None:
@@ -217,7 +223,7 @@ class SessionAnalytics:
     # Session Metrics
     # =========================================================================
 
-    def get_session_metrics(self, session_id: str) -> Optional[SessionMetrics]:
+    def get_session_metrics(self, session_id: str) -> SessionMetrics | None:
         """Compute aggregate metrics for a session."""
         phases = self._phases.get(session_id)
         actions = self._actions.get(session_id)
@@ -249,11 +255,11 @@ class SessionAnalytics:
             agents_involved=agents,
         )
 
-    def get_phase_breakdown(self, session_id: str) -> List[PhaseMetric]:
+    def get_phase_breakdown(self, session_id: str) -> list[PhaseMetric]:
         """Get all phase metrics for a session."""
         return list(self._phases.get(session_id, []))
 
-    def get_agent_actions(self, session_id: str, *, agent_id: Optional[str] = None) -> List[AgentAction]:
+    def get_agent_actions(self, session_id: str, *, agent_id: str | None = None) -> list[AgentAction]:
         """Get agent actions for a session, optionally filtered by agent."""
         actions = self._actions.get(session_id, [])
         if agent_id:
@@ -264,7 +270,7 @@ class SessionAnalytics:
     # Cross-Session Analysis
     # =========================================================================
 
-    def get_agent_effectiveness(self, agent_id: str) -> Dict[str, Any]:
+    def get_agent_effectiveness(self, agent_id: str) -> dict[str, Any]:
         """Get aggregate effectiveness for an agent across all sessions."""
         all_actions = []
         for actions in self._actions.values():
@@ -284,7 +290,7 @@ class SessionAnalytics:
             "sessions_participated": len({a.session_id for a in all_actions}),
         }
 
-    def list_sessions(self) -> List[str]:
+    def list_sessions(self) -> list[str]:
         """List all tracked session IDs."""
         return list(self._session_order)
 
@@ -322,7 +328,7 @@ class SessionAnalytics:
             self._actions.clear()
             self._session_order.clear()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "session_count": self.session_count,
             "max_sessions": self._max_sessions,
@@ -334,7 +340,7 @@ class SessionAnalytics:
 # Global Instance
 # =============================================================================
 
-_analytics: Optional[SessionAnalytics] = None
+_analytics: SessionAnalytics | None = None
 _analytics_lock = threading.Lock()
 
 

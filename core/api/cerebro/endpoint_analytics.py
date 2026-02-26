@@ -25,8 +25,8 @@ from __future__ import annotations
 import dataclasses
 import logging
 import threading
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any
 
 _logger = logging.getLogger(__name__)
@@ -42,6 +42,7 @@ MAX_REQUESTS: int = 50000
 # =============================================================================
 # Types
 # =============================================================================
+
 
 @dataclass
 class EndpointRequestRecord:
@@ -157,6 +158,7 @@ class EndpointAnalyticsStats:
 # Endpoint Analytics
 # =============================================================================
 
+
 class EndpointAnalytics:
     """Track API endpoint performance with bounded request history.
 
@@ -216,7 +218,7 @@ class EndpointAnalytics:
                 latency_ms=latency_ms,
                 error=error,
                 error_type=error_type,
-                timestamp=datetime.now(timezone.utc).isoformat(),
+                timestamp=datetime.now(UTC).isoformat(),
             )
 
             # FIFO eviction
@@ -253,9 +255,7 @@ class EndpointAnalytics:
     # Profile Queries
     # =========================================================================
 
-    def get_endpoint_profile(
-        self, endpoint: str, method: str = "GET"
-    ) -> EndpointProfile | None:
+    def get_endpoint_profile(self, endpoint: str, method: str = "GET") -> EndpointProfile | None:
         """Get the aggregated profile for a specific endpoint and method.
 
         Args:
@@ -298,9 +298,7 @@ class EndpointAnalytics:
                 reverse=True,
             )[:limit]
 
-    def get_error_prone_endpoints(
-        self, min_requests: int = 3, threshold: float = 0.1
-    ) -> list[EndpointProfile]:
+    def get_error_prone_endpoints(self, min_requests: int = 3, threshold: float = 0.1) -> list[EndpointProfile]:
         """Return endpoints with error rates exceeding the threshold.
 
         Filters to endpoints with at least min_requests total requests
@@ -314,19 +312,13 @@ class EndpointAnalytics:
             List of EndpointProfile instances matching the criteria.
         """
         with self._lock:
-            return [
-                p for p in self._profiles.values()
-                if p.total_requests >= min_requests
-                and p.error_rate > threshold
-            ]
+            return [p for p in self._profiles.values() if p.total_requests >= min_requests and p.error_rate > threshold]
 
     # =========================================================================
     # Request Queries
     # =========================================================================
 
-    def get_recent_requests(
-        self, limit: int = 10, endpoint: str | None = None
-    ) -> list[EndpointRequestRecord]:
+    def get_recent_requests(self, limit: int = 10, endpoint: str | None = None) -> list[EndpointRequestRecord]:
         """Return the most recent request records.
 
         Args:
@@ -338,9 +330,7 @@ class EndpointAnalytics:
         """
         with self._lock:
             if endpoint is not None:
-                filtered = [
-                    r for r in self._requests if r.endpoint == endpoint
-                ]
+                filtered = [r for r in self._requests if r.endpoint == endpoint]
             else:
                 filtered = list(self._requests)
             return filtered[-limit:]
@@ -373,12 +363,8 @@ class EndpointAnalytics:
             return EndpointAnalyticsStats(
                 total_requests=total,
                 unique_endpoints=unique,
-                overall_error_rate=(
-                    errors / total if total > 0 else 0.0
-                ),
-                avg_latency_ms=(
-                    total_latency / total if total > 0 else 0.0
-                ),
+                overall_error_rate=(errors / total if total > 0 else 0.0),
+                avg_latency_ms=(total_latency / total if total > 0 else 0.0),
             )
 
     # =========================================================================

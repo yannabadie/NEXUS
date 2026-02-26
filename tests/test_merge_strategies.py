@@ -4,20 +4,18 @@ Tests for V8.3.3 Parallel Merge Strategies
 Tests the merge strategy system for PARALLEL mode execution.
 """
 
-import pytest
 import os
 from unittest.mock import patch
 
 from core.intelligence.swarm.merge_strategies import (
-    MergeStrategyType,
+    DeduplicateMergeStrategy,
     MergeContext,
     MergeResult,
-    MergeStrategy,
+    MergeStrategyType,
     NaiveMergeStrategy,
-    DeduplicateMergeStrategy,
     WeightedMergeStrategy,
-    get_merge_strategy,
     get_default_merge_strategy,
+    get_merge_strategy,
 )
 from core.intelligence.swarm.mode_executors import AgentResponse
 
@@ -54,12 +52,7 @@ class TestMergeContext:
         outputs = [AgentResponse(agent_id="gemini", content="analysis")]
         task_analysis = {"primary_domain": "CODING", "gemini_fit_score": 0.8}
 
-        context = MergeContext(
-            task_input="fix bug",
-            outputs=outputs,
-            task_analysis=task_analysis,
-            agent_assignments=[]
-        )
+        context = MergeContext(task_input="fix bug", outputs=outputs, task_analysis=task_analysis, agent_assignments=[])
 
         assert context.task_analysis["primary_domain"] == "CODING"
 
@@ -76,7 +69,7 @@ class TestNaiveMergeStrategy:
         """Should merge two outputs with separators"""
         outputs = [
             AgentResponse(agent_id="gemini", content="Analysis from Gemini"),
-            AgentResponse(agent_id="claude", content="Analysis from Claude")
+            AgentResponse(agent_id="claude", content="Analysis from Claude"),
         ]
         context = MergeContext(task_input="test", outputs=outputs)
         strategy = NaiveMergeStrategy()
@@ -102,14 +95,7 @@ class TestNaiveMergeStrategy:
 
     def test_handles_error_output(self):
         """Should display error outputs with error indicator"""
-        outputs = [
-            AgentResponse(
-                agent_id="gemini",
-                content="",
-                status="error",
-                error="Connection failed"
-            )
-        ]
+        outputs = [AgentResponse(agent_id="gemini", content="", status="error", error="Connection failed")]
         context = MergeContext(task_input="test", outputs=outputs)
 
         result = NaiveMergeStrategy().merge(context)
@@ -121,7 +107,7 @@ class TestNaiveMergeStrategy:
         """Should handle mix of success and error outputs"""
         outputs = [
             AgentResponse(agent_id="gemini", content="Success result"),
-            AgentResponse(agent_id="claude", content="", status="error", error="Timeout")
+            AgentResponse(agent_id="claude", content="", status="error", error="Timeout"),
         ]
         context = MergeContext(task_input="test", outputs=outputs)
 
@@ -153,14 +139,10 @@ class TestDeduplicateMergeStrategy:
     def test_removes_duplicate_sentences(self):
         """Should remove semantically similar sentences"""
         outputs = [
+            AgentResponse(agent_id="gemini", content="The bug is in auth.py. Fix line 42. Check credentials."),
             AgentResponse(
-                agent_id="gemini",
-                content="The bug is in auth.py. Fix line 42. Check credentials."
+                agent_id="claude", content="The bug is in auth.py. Also verify the tests. Check credentials too."
             ),
-            AgentResponse(
-                agent_id="claude",
-                content="The bug is in auth.py. Also verify the tests. Check credentials too."
-            )
         ]
         context = MergeContext(task_input="find bug", outputs=outputs)
 
@@ -176,7 +158,7 @@ class TestDeduplicateMergeStrategy:
         """Should keep sentences that are unique to each agent"""
         outputs = [
             AgentResponse(agent_id="gemini", content="Research shows X."),
-            AgentResponse(agent_id="claude", content="Code analysis reveals Y.")
+            AgentResponse(agent_id="claude", content="Code analysis reveals Y."),
         ]
         context = MergeContext(task_input="analyze", outputs=outputs)
 
@@ -190,7 +172,7 @@ class TestDeduplicateMergeStrategy:
         """Should handle empty content gracefully"""
         outputs = [
             AgentResponse(agent_id="gemini", content=""),
-            AgentResponse(agent_id="claude", content="Some content")
+            AgentResponse(agent_id="claude", content="Some content"),
         ]
         context = MergeContext(task_input="test", outputs=outputs)
 
@@ -202,7 +184,7 @@ class TestDeduplicateMergeStrategy:
         """Should include deduplication statistics in metadata"""
         outputs = [
             AgentResponse(agent_id="gemini", content="Point A. Point B."),
-            AgentResponse(agent_id="claude", content="Point A. Point C.")
+            AgentResponse(agent_id="claude", content="Point A. Point C."),
         ]
         context = MergeContext(task_input="test", outputs=outputs)
 
@@ -225,18 +207,10 @@ class TestWeightedMergeStrategy:
         """Should put higher fit score agent first"""
         outputs = [
             AgentResponse(agent_id="claude", content="Code analysis..."),
-            AgentResponse(agent_id="gemini", content="Research findings...")
+            AgentResponse(agent_id="gemini", content="Research findings..."),
         ]
-        task_analysis = {
-            "primary_domain": "RESEARCH",
-            "gemini_fit_score": 0.9,
-            "claude_fit_score": 0.4
-        }
-        context = MergeContext(
-            task_input="research task",
-            outputs=outputs,
-            task_analysis=task_analysis
-        )
+        task_analysis = {"primary_domain": "RESEARCH", "gemini_fit_score": 0.9, "claude_fit_score": 0.4}
+        context = MergeContext(task_input="research task", outputs=outputs, task_analysis=task_analysis)
 
         result = WeightedMergeStrategy().merge(context)
 
@@ -247,15 +221,9 @@ class TestWeightedMergeStrategy:
 
     def test_adds_expert_indicator(self):
         """Should add expert indicator for high fit scores"""
-        outputs = [
-            AgentResponse(agent_id="gemini", content="Expert analysis")
-        ]
+        outputs = [AgentResponse(agent_id="gemini", content="Expert analysis")]
         task_analysis = {"gemini_fit_score": 0.85, "claude_fit_score": 0.3}
-        context = MergeContext(
-            task_input="test",
-            outputs=outputs,
-            task_analysis=task_analysis
-        )
+        context = MergeContext(task_input="test", outputs=outputs, task_analysis=task_analysis)
 
         result = WeightedMergeStrategy().merge(context)
 
@@ -263,10 +231,7 @@ class TestWeightedMergeStrategy:
 
     def test_no_task_analysis_defaults_equal(self):
         """Should use equal weights when no task_analysis provided"""
-        outputs = [
-            AgentResponse(agent_id="gemini", content="A"),
-            AgentResponse(agent_id="claude", content="B")
-        ]
+        outputs = [AgentResponse(agent_id="gemini", content="A"), AgentResponse(agent_id="claude", content="B")]
         context = MergeContext(task_input="test", outputs=outputs)
 
         result = WeightedMergeStrategy().merge(context)
@@ -277,16 +242,8 @@ class TestWeightedMergeStrategy:
     def test_metadata_includes_scores(self):
         """Should include fit scores in metadata"""
         outputs = [AgentResponse(agent_id="gemini", content="test")]
-        task_analysis = {
-            "primary_domain": "CODING",
-            "gemini_fit_score": 0.6,
-            "claude_fit_score": 0.8
-        }
-        context = MergeContext(
-            task_input="test",
-            outputs=outputs,
-            task_analysis=task_analysis
-        )
+        task_analysis = {"primary_domain": "CODING", "gemini_fit_score": 0.6, "claude_fit_score": 0.8}
+        context = MergeContext(task_input="test", outputs=outputs, task_analysis=task_analysis)
 
         result = WeightedMergeStrategy().merge(context)
 
@@ -371,7 +328,7 @@ class TestParallelExecutorIntegration:
 
         # ParallelExecutor should accept merge_strategy parameter
         executor = ParallelExecutor()
-        assert hasattr(executor, '_merge_strategy')
+        assert hasattr(executor, "_merge_strategy")
 
     def test_parallel_executor_with_custom_strategy(self):
         """ParallelExecutor should accept custom merge strategy"""

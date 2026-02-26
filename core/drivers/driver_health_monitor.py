@@ -31,7 +31,7 @@ import time
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -52,8 +52,10 @@ STALE_THRESHOLD_SECONDS = 300.0  # No events for 5min = stale
 # Types
 # =============================================================================
 
+
 class HealthStatus(Enum):
     """Driver health status."""
+
     HEALTHY = "healthy"
     DEGRADED = "degraded"
     UNHEALTHY = "unhealthy"
@@ -63,6 +65,7 @@ class HealthStatus(Enum):
 @dataclass
 class HealthEvent:
     """A single health event."""
+
     driver_id: str
     success: bool
     latency_ms: float = 0.0
@@ -78,6 +81,7 @@ class HealthEvent:
 @dataclass
 class DriverHealth:
     """Health summary for a driver."""
+
     driver_id: str
     status: HealthStatus = HealthStatus.UNKNOWN
     total_requests: int = 0
@@ -88,9 +92,9 @@ class DriverHealth:
     p95_latency_ms: float = 0.0
     total_tokens: int = 0
     last_event_age_seconds: float = 0.0
-    recent_errors: List[str] = field(default_factory=list)
+    recent_errors: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "driver_id": self.driver_id,
             "status": self.status.value,
@@ -108,6 +112,7 @@ class DriverHealth:
 @dataclass
 class HealthAlert:
     """An alert triggered by health degradation."""
+
     driver_id: str
     alert_type: str  # "degraded", "unhealthy", "recovered", "stale"
     message: str
@@ -119,7 +124,7 @@ class HealthAlert:
         if self.timestamp == 0.0:
             self.timestamp = time.monotonic()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "driver_id": self.driver_id,
             "alert_type": self.alert_type,
@@ -132,6 +137,7 @@ class HealthAlert:
 @dataclass
 class MonitorStats:
     """Overall monitoring statistics."""
+
     drivers_tracked: int
     healthy_count: int
     degraded_count: int
@@ -139,7 +145,7 @@ class MonitorStats:
     total_events: int
     total_alerts: int
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "drivers_tracked": self.drivers_tracked,
             "healthy_count": self.healthy_count,
@@ -153,6 +159,7 @@ class MonitorStats:
 # =============================================================================
 # Driver Health Monitor
 # =============================================================================
+
 
 class DriverHealthMonitor:
     """
@@ -175,14 +182,14 @@ class DriverHealthMonitor:
         degraded_latency_ms: float = DEGRADED_LATENCY_MS,
         unhealthy_latency_ms: float = UNHEALTHY_LATENCY_MS,
     ):
-        self._events: Dict[str, deque] = defaultdict(lambda: deque(maxlen=max_history))
+        self._events: dict[str, deque] = defaultdict(lambda: deque(maxlen=max_history))
         self._max_history = max_history
         self._degraded_error_rate = degraded_error_rate
         self._unhealthy_error_rate = unhealthy_error_rate
         self._degraded_latency_ms = degraded_latency_ms
         self._unhealthy_latency_ms = unhealthy_latency_ms
-        self._last_status: Dict[str, HealthStatus] = {}
-        self._alerts: List[HealthAlert] = []
+        self._last_status: dict[str, HealthStatus] = {}
+        self._alerts: list[HealthAlert] = []
         self._lock = threading.Lock()
 
     # =========================================================================
@@ -268,7 +275,7 @@ class DriverHealthMonitor:
             recent_errors=recent_errors,
         )
 
-    def get_healthy_drivers(self) -> List[str]:
+    def get_healthy_drivers(self) -> list[str]:
         """Get list of healthy driver IDs."""
         result = []
         with self._lock:
@@ -279,7 +286,7 @@ class DriverHealthMonitor:
                 result.append(did)
         return sorted(result)
 
-    def get_all_health(self) -> Dict[str, DriverHealth]:
+    def get_all_health(self) -> dict[str, DriverHealth]:
         """Get health for all tracked drivers."""
         with self._lock:
             driver_ids = list(self._events.keys())
@@ -293,7 +300,7 @@ class DriverHealthMonitor:
     # Alerts
     # =========================================================================
 
-    def get_alerts(self, *, limit: int = 50) -> List[HealthAlert]:
+    def get_alerts(self, *, limit: int = 50) -> list[HealthAlert]:
         """Get recent health alerts."""
         with self._lock:
             return list(self._alerts[-limit:])
@@ -354,7 +361,7 @@ class DriverHealthMonitor:
         return HealthStatus.HEALTHY
 
     @staticmethod
-    def _percentile(values: List[float], pct: int) -> float:
+    def _percentile(values: list[float], pct: int) -> float:
         """Calculate percentile."""
         if not values:
             return 0.0
@@ -421,7 +428,7 @@ class DriverHealthMonitor:
             self._last_status.pop(driver_id, None)
             return True
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "driver_count": self.driver_count,
             "alert_count": self.alert_count,
@@ -433,7 +440,7 @@ class DriverHealthMonitor:
 # Global Instance
 # =============================================================================
 
-_monitor: Optional[DriverHealthMonitor] = None
+_monitor: DriverHealthMonitor | None = None
 _monitor_lock = threading.Lock()
 
 

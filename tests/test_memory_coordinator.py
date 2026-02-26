@@ -33,27 +33,26 @@ Test Categories:
 Total: 130+ tests
 """
 
-import pytest
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch, PropertyMock
-from typing import Dict, List, Optional
+from unittest.mock import MagicMock
+
+import pytest
 
 from core.memory_pkg.memory.coordinator import (
-    MemoryCoordinator,
-    DomainWeights,
-    UnifiedRecommendation,
-    MemorySource,
-    DEFAULT_SEMANTIC_WEIGHT,
     DEFAULT_PROCEDURAL_WEIGHT,
-    LEARNING_RATE,
-    MIN_SAMPLES_FOR_ADAPTATION
+    DEFAULT_SEMANTIC_WEIGHT,
+    MIN_SAMPLES_FOR_ADAPTATION,
+    DomainWeights,
+    MemoryCoordinator,
+    MemorySource,
+    UnifiedRecommendation,
 )
-
 
 # =============================================================================
 # DomainWeights Tests (~10)
 # =============================================================================
+
 
 class TestDomainWeights:
     """Test DomainWeights dataclass."""
@@ -68,12 +67,7 @@ class TestDomainWeights:
 
     def test_custom_values(self):
         """Test custom initialization."""
-        dw = DomainWeights(
-            semantic_weight=0.7,
-            procedural_weight=0.3,
-            sample_count=10,
-            success_count=7
-        )
+        dw = DomainWeights(semantic_weight=0.7, procedural_weight=0.3, sample_count=10, success_count=7)
         assert dw.semantic_weight == 0.7
         assert dw.procedural_weight == 0.3
         assert dw.sample_count == 10
@@ -101,12 +95,7 @@ class TestDomainWeights:
 
     def test_to_dict_format(self):
         """Test to_dict returns correct format."""
-        dw = DomainWeights(
-            semantic_weight=0.65,
-            procedural_weight=0.35,
-            sample_count=10,
-            success_count=7
-        )
+        dw = DomainWeights(semantic_weight=0.65, procedural_weight=0.35, sample_count=10, success_count=7)
         result = dw.to_dict()
 
         assert isinstance(result, dict)
@@ -124,12 +113,7 @@ class TestDomainWeights:
 
     def test_to_dict_rounding(self):
         """Test to_dict rounds floats to 3 decimals."""
-        dw = DomainWeights(
-            semantic_weight=0.666666,
-            procedural_weight=0.333333,
-            sample_count=3,
-            success_count=2
-        )
+        dw = DomainWeights(semantic_weight=0.666666, procedural_weight=0.333333, sample_count=3, success_count=2)
         result = dw.to_dict()
 
         assert result["semantic_weight"] == 0.667
@@ -147,6 +131,7 @@ class TestDomainWeights:
 # UnifiedRecommendation Tests (~5)
 # =============================================================================
 
+
 class TestUnifiedRecommendation:
     """Test UnifiedRecommendation dataclass."""
 
@@ -158,7 +143,7 @@ class TestUnifiedRecommendation:
             confidence=0.85,
             source=MemorySource.BOTH,
             modes_to_avoid=["sequential"],
-            reasoning="Both memories agree"
+            reasoning="Both memories agree",
         )
         result = rec.to_dict()
 
@@ -172,12 +157,7 @@ class TestUnifiedRecommendation:
     def test_to_dict_none_values(self):
         """Test to_dict with None values."""
         rec = UnifiedRecommendation(
-            mode=None,
-            lead=None,
-            confidence=0.0,
-            source=MemorySource.NONE,
-            modes_to_avoid=[],
-            reasoning="Cold start"
+            mode=None, lead=None, confidence=0.0, source=MemorySource.NONE, modes_to_avoid=[], reasoning="Cold start"
         )
         result = rec.to_dict()
 
@@ -194,7 +174,7 @@ class TestUnifiedRecommendation:
             confidence=0.876543,
             source=MemorySource.SUCCESS,
             modes_to_avoid=[],
-            reasoning="Test"
+            reasoning="Test",
         )
         result = rec.to_dict()
         assert result["confidence"] == 0.877
@@ -207,7 +187,7 @@ class TestUnifiedRecommendation:
             confidence=0.92,
             source=MemorySource.AUTO,
             modes_to_avoid=["specialist", "red_blue"],
-            reasoning="High confidence from auto"
+            reasoning="High confidence from auto",
         )
 
         assert rec.mode == "ping_pong"
@@ -221,6 +201,7 @@ class TestUnifiedRecommendation:
 # =============================================================================
 # Constructor Tests (~10)
 # =============================================================================
+
 
 class TestCoordinatorConstructor:
     """Test MemoryCoordinator initialization."""
@@ -280,12 +261,7 @@ class TestCoordinatorConstructor:
         """Test loads weights from path if exists."""
         weights_file = tmp_path / "weights.json"
         weights_data = {
-            "coding": {
-                "semantic_weight": 0.7,
-                "procedural_weight": 0.3,
-                "sample_count": 10,
-                "success_count": 8
-            }
+            "coding": {"semantic_weight": 0.7, "procedural_weight": 0.3, "sample_count": 10, "success_count": 8}
         }
         weights_file.write_text(json.dumps(weights_data))
 
@@ -312,6 +288,7 @@ class TestCoordinatorConstructor:
 # =============================================================================
 # get_recommendation - Cold Start (~10)
 # =============================================================================
+
 
 class TestGetRecommendationColdStart:
     """Test get_recommendation with no memory data."""
@@ -440,6 +417,7 @@ class TestGetRecommendationColdStart:
 # =============================================================================
 # get_recommendation - Success Only (~10)
 # =============================================================================
+
 
 class TestGetRecommendationSuccessOnly:
     """Test get_recommendation with only SuccessMemory data."""
@@ -570,6 +548,7 @@ class TestGetRecommendationSuccessOnly:
 # get_recommendation - Auto Only (~10)
 # =============================================================================
 
+
 class TestGetRecommendationAutoOnly:
     """Test get_recommendation with only AutoMemory data."""
 
@@ -583,7 +562,7 @@ class TestGetRecommendationAutoOnly:
             "suggested_mode": "sequential",
             "suggested_lead": "gemini",
             "confidence": 0.7,
-            "modes_to_avoid": []
+            "modes_to_avoid": [],
         }
 
         coord = MemoryCoordinator(success_mock, auto_mock)
@@ -597,10 +576,7 @@ class TestGetRecommendationAutoOnly:
         success_mock.get_best_mode_for_similar.return_value = None
 
         auto_mock = MagicMock()
-        auto_mock.get_recommendation.return_value = {
-            "suggested_mode": "sequential",
-            "confidence": 0.8
-        }
+        auto_mock.get_recommendation.return_value = {"suggested_mode": "sequential", "confidence": 0.8}
 
         coord = MemoryCoordinator(success_mock, auto_mock)
         rec = coord.get_recommendation("test task", "coding")
@@ -614,10 +590,7 @@ class TestGetRecommendationAutoOnly:
         success_mock.get_best_mode_for_similar.return_value = None
 
         auto_mock = MagicMock()
-        auto_mock.get_recommendation.return_value = {
-            "suggested_mode": "lead_support",
-            "confidence": 0.6
-        }
+        auto_mock.get_recommendation.return_value = {"suggested_mode": "lead_support", "confidence": 0.6}
 
         coord = MemoryCoordinator(success_mock, auto_mock)
         rec = coord.get_recommendation("test task", "coding")
@@ -633,7 +606,7 @@ class TestGetRecommendationAutoOnly:
         auto_mock.get_recommendation.return_value = {
             "suggested_mode": "specialist",
             "suggested_lead": "claude",
-            "confidence": 0.9
+            "confidence": 0.9,
         }
 
         coord = MemoryCoordinator(success_mock, auto_mock)
@@ -650,7 +623,7 @@ class TestGetRecommendationAutoOnly:
         auto_mock.get_recommendation.return_value = {
             "suggested_mode": "parallel",
             "confidence": 0.8,
-            "modes_to_avoid": ["sequential", "ping_pong"]
+            "modes_to_avoid": ["sequential", "ping_pong"],
         }
 
         coord = MemoryCoordinator(success_mock, auto_mock)
@@ -664,10 +637,7 @@ class TestGetRecommendationAutoOnly:
         success_mock.get_best_mode_for_similar.return_value = None
 
         auto_mock = MagicMock()
-        auto_mock.get_recommendation.return_value = {
-            "suggested_mode": "red_blue",
-            "confidence": 0.75
-        }
+        auto_mock.get_recommendation.return_value = {"suggested_mode": "red_blue", "confidence": 0.75}
 
         coord = MemoryCoordinator(success_mock, auto_mock)
         rec = coord.get_recommendation("test task", "security_audit")
@@ -680,10 +650,7 @@ class TestGetRecommendationAutoOnly:
         success_mock.get_best_mode_for_similar.return_value = None
 
         auto_mock = MagicMock()
-        auto_mock.get_recommendation.return_value = {
-            "suggested_mode": "parallel",
-            "confidence": 0.8
-        }
+        auto_mock.get_recommendation.return_value = {"suggested_mode": "parallel", "confidence": 0.8}
 
         coord = MemoryCoordinator(success_mock, auto_mock)
         rec = coord.get_recommendation("test task", "coding")
@@ -696,10 +663,7 @@ class TestGetRecommendationAutoOnly:
         success_mock.get_best_mode_for_similar.return_value = None
 
         auto_mock = MagicMock()
-        auto_mock.get_recommendation.return_value = {
-            "suggested_mode": "parallel",
-            "confidence": 0.8
-        }
+        auto_mock.get_recommendation.return_value = {"suggested_mode": "parallel", "confidence": 0.8}
 
         coord = MemoryCoordinator(success_mock, auto_mock)
         rec = coord.get_recommendation("test task", "coding")
@@ -712,10 +676,7 @@ class TestGetRecommendationAutoOnly:
         success_mock.get_best_mode_for_similar.return_value = None
 
         auto_mock = MagicMock()
-        auto_mock.get_recommendation.return_value = {
-            "suggested_mode": "parallel",
-            "confidence": 0.8
-        }
+        auto_mock.get_recommendation.return_value = {"suggested_mode": "parallel", "confidence": 0.8}
 
         coord = MemoryCoordinator(success_mock, auto_mock)
         coord.get_recommendation("test task", "coding")
@@ -726,6 +687,7 @@ class TestGetRecommendationAutoOnly:
 # =============================================================================
 # get_recommendation - Agreement (~10)
 # =============================================================================
+
 
 class TestGetRecommendationAgreement:
     """Test get_recommendation when both memories agree."""
@@ -739,7 +701,7 @@ class TestGetRecommendationAgreement:
         auto_mock.get_recommendation.return_value = {
             "suggested_mode": "parallel",
             "suggested_lead": "gemini",
-            "confidence": 0.6
+            "confidence": 0.6,
         }
 
         coord = MemoryCoordinator(success_mock, auto_mock)
@@ -753,10 +715,7 @@ class TestGetRecommendationAgreement:
         success_mock.get_best_mode_for_similar.return_value = ("parallel", "task_123", 0.8)
 
         auto_mock = MagicMock()
-        auto_mock.get_recommendation.return_value = {
-            "suggested_mode": "parallel",
-            "confidence": 0.6
-        }
+        auto_mock.get_recommendation.return_value = {"suggested_mode": "parallel", "confidence": 0.6}
 
         coord = MemoryCoordinator(success_mock, auto_mock)
         rec = coord.get_recommendation("test task", "coding")
@@ -771,10 +730,7 @@ class TestGetRecommendationAgreement:
         success_mock.get_best_mode_for_similar.return_value = ("parallel", "task_123", 0.9)
 
         auto_mock = MagicMock()
-        auto_mock.get_recommendation.return_value = {
-            "suggested_mode": "parallel",
-            "confidence": 0.95
-        }
+        auto_mock.get_recommendation.return_value = {"suggested_mode": "parallel", "confidence": 0.95}
 
         coord = MemoryCoordinator(success_mock, auto_mock)
         rec = coord.get_recommendation("test task", "coding")
@@ -787,10 +743,7 @@ class TestGetRecommendationAgreement:
         success_mock.get_best_mode_for_similar.return_value = ("ping_pong", "task_123", 0.7)
 
         auto_mock = MagicMock()
-        auto_mock.get_recommendation.return_value = {
-            "suggested_mode": "ping_pong",
-            "confidence": 0.6
-        }
+        auto_mock.get_recommendation.return_value = {"suggested_mode": "ping_pong", "confidence": 0.6}
 
         coord = MemoryCoordinator(success_mock, auto_mock)
         rec = coord.get_recommendation("test task", "coding")
@@ -806,7 +759,7 @@ class TestGetRecommendationAgreement:
         auto_mock.get_recommendation.return_value = {
             "suggested_mode": "parallel",
             "suggested_lead": "claude",
-            "confidence": 0.6
+            "confidence": 0.6,
         }
 
         coord = MemoryCoordinator(success_mock, auto_mock)
@@ -823,7 +776,7 @@ class TestGetRecommendationAgreement:
         auto_mock.get_recommendation.return_value = {
             "suggested_mode": "parallel",
             "confidence": 0.6,
-            "modes_to_avoid": ["sequential"]
+            "modes_to_avoid": ["sequential"],
         }
 
         coord = MemoryCoordinator(success_mock, auto_mock)
@@ -837,10 +790,7 @@ class TestGetRecommendationAgreement:
         success_mock.get_best_mode_for_similar.return_value = ("parallel", "task_123", 0.7)
 
         auto_mock = MagicMock()
-        auto_mock.get_recommendation.return_value = {
-            "suggested_mode": "parallel",
-            "confidence": 0.6
-        }
+        auto_mock.get_recommendation.return_value = {"suggested_mode": "parallel", "confidence": 0.6}
 
         coord = MemoryCoordinator(success_mock, auto_mock)
         rec = coord.get_recommendation("test task", "coding")
@@ -853,10 +803,7 @@ class TestGetRecommendationAgreement:
         success_mock.get_best_mode_for_similar.return_value = ("parallel", "task_123", 0.7)
 
         auto_mock = MagicMock()
-        auto_mock.get_recommendation.return_value = {
-            "suggested_mode": "parallel",
-            "confidence": 0.6
-        }
+        auto_mock.get_recommendation.return_value = {"suggested_mode": "parallel", "confidence": 0.6}
 
         coord = MemoryCoordinator(success_mock, auto_mock)
         coord.get_recommendation("test task", "coding")
@@ -869,10 +816,7 @@ class TestGetRecommendationAgreement:
         success_mock.get_best_mode_for_similar.return_value = ("parallel", "task_123", 0.95)
 
         auto_mock = MagicMock()
-        auto_mock.get_recommendation.return_value = {
-            "suggested_mode": "parallel",
-            "confidence": 0.9
-        }
+        auto_mock.get_recommendation.return_value = {"suggested_mode": "parallel", "confidence": 0.9}
 
         coord = MemoryCoordinator(success_mock, auto_mock)
         rec = coord.get_recommendation("test task", "coding")
@@ -888,6 +832,7 @@ class TestGetRecommendationAgreement:
 # get_recommendation - Conflict (~15)
 # =============================================================================
 
+
 class TestGetRecommendationConflict:
     """Test get_recommendation when memories conflict."""
 
@@ -897,10 +842,7 @@ class TestGetRecommendationConflict:
         success_mock.get_best_mode_for_similar.return_value = ("parallel", "task_123", 0.9)
 
         auto_mock = MagicMock()
-        auto_mock.get_recommendation.return_value = {
-            "suggested_mode": "sequential",
-            "confidence": 0.5
-        }
+        auto_mock.get_recommendation.return_value = {"suggested_mode": "sequential", "confidence": 0.5}
 
         coord = MemoryCoordinator(success_mock, auto_mock)
         rec = coord.get_recommendation("test task", "coding")
@@ -915,10 +857,7 @@ class TestGetRecommendationConflict:
         success_mock.get_best_mode_for_similar.return_value = ("parallel", "task_123", 0.3)
 
         auto_mock = MagicMock()
-        auto_mock.get_recommendation.return_value = {
-            "suggested_mode": "sequential",
-            "confidence": 0.9
-        }
+        auto_mock.get_recommendation.return_value = {"suggested_mode": "sequential", "confidence": 0.9}
 
         coord = MemoryCoordinator(success_mock, auto_mock)
         rec = coord.get_recommendation("test task", "coding")
@@ -933,10 +872,7 @@ class TestGetRecommendationConflict:
         success_mock.get_best_mode_for_similar.return_value = ("parallel", "task_123", 0.667)
 
         auto_mock = MagicMock()
-        auto_mock.get_recommendation.return_value = {
-            "suggested_mode": "sequential",
-            "confidence": 1.0
-        }
+        auto_mock.get_recommendation.return_value = {"suggested_mode": "sequential", "confidence": 1.0}
 
         coord = MemoryCoordinator(success_mock, auto_mock)
         rec = coord.get_recommendation("test task", "coding")
@@ -951,10 +887,7 @@ class TestGetRecommendationConflict:
         success_mock.get_best_mode_for_similar.return_value = ("parallel", "task_123", 0.9)
 
         auto_mock = MagicMock()
-        auto_mock.get_recommendation.return_value = {
-            "suggested_mode": "sequential",
-            "confidence": 0.5
-        }
+        auto_mock.get_recommendation.return_value = {"suggested_mode": "sequential", "confidence": 0.5}
 
         coord = MemoryCoordinator(success_mock, auto_mock)
         rec = coord.get_recommendation("test task", "coding")
@@ -971,7 +904,7 @@ class TestGetRecommendationConflict:
         auto_mock.get_recommendation.return_value = {
             "suggested_mode": "sequential",
             "confidence": 0.5,
-            "modes_to_avoid": ["ping_pong"]
+            "modes_to_avoid": ["ping_pong"],
         }
 
         coord = MemoryCoordinator(success_mock, auto_mock)
@@ -988,7 +921,7 @@ class TestGetRecommendationConflict:
         auto_mock.get_recommendation.return_value = {
             "suggested_mode": "sequential",
             "suggested_lead": "gemini",
-            "confidence": 0.5
+            "confidence": 0.5,
         }
 
         coord = MemoryCoordinator(success_mock, auto_mock)
@@ -1005,7 +938,7 @@ class TestGetRecommendationConflict:
         auto_mock.get_recommendation.return_value = {
             "suggested_mode": "sequential",
             "suggested_lead": "claude",
-            "confidence": 0.9
+            "confidence": 0.9,
         }
 
         coord = MemoryCoordinator(success_mock, auto_mock)
@@ -1019,10 +952,7 @@ class TestGetRecommendationConflict:
         success_mock.get_best_mode_for_similar.return_value = ("parallel", "task_123", 0.9)
 
         auto_mock = MagicMock()
-        auto_mock.get_recommendation.return_value = {
-            "suggested_mode": "sequential",
-            "confidence": 0.5
-        }
+        auto_mock.get_recommendation.return_value = {"suggested_mode": "sequential", "confidence": 0.5}
 
         coord = MemoryCoordinator(success_mock, auto_mock)
         rec = coord.get_recommendation("test task", "coding")
@@ -1035,10 +965,7 @@ class TestGetRecommendationConflict:
         success_mock.get_best_mode_for_similar.return_value = ("parallel", "task_123", 0.3)
 
         auto_mock = MagicMock()
-        auto_mock.get_recommendation.return_value = {
-            "suggested_mode": "sequential",
-            "confidence": 0.9
-        }
+        auto_mock.get_recommendation.return_value = {"suggested_mode": "sequential", "confidence": 0.9}
 
         coord = MemoryCoordinator(success_mock, auto_mock)
         rec = coord.get_recommendation("test task", "coding")
@@ -1051,10 +978,7 @@ class TestGetRecommendationConflict:
         success_mock.get_best_mode_for_similar.return_value = ("parallel", "task_123", 0.9)
 
         auto_mock = MagicMock()
-        auto_mock.get_recommendation.return_value = {
-            "suggested_mode": "sequential",
-            "confidence": 0.5
-        }
+        auto_mock.get_recommendation.return_value = {"suggested_mode": "sequential", "confidence": 0.5}
 
         coord = MemoryCoordinator(success_mock, auto_mock)
         coord.get_recommendation("test task", "coding")
@@ -1067,10 +991,7 @@ class TestGetRecommendationConflict:
         success_mock.get_best_mode_for_similar.return_value = ("parallel", "task_123", 0.3)
 
         auto_mock = MagicMock()
-        auto_mock.get_recommendation.return_value = {
-            "suggested_mode": "sequential",
-            "confidence": 0.9
-        }
+        auto_mock.get_recommendation.return_value = {"suggested_mode": "sequential", "confidence": 0.9}
 
         coord = MemoryCoordinator(success_mock, auto_mock)
         coord.get_recommendation("test task", "coding")
@@ -1083,10 +1004,7 @@ class TestGetRecommendationConflict:
         success_mock.get_best_mode_for_similar.return_value = ("parallel", "task_123", 0.668)
 
         auto_mock = MagicMock()
-        auto_mock.get_recommendation.return_value = {
-            "suggested_mode": "sequential",
-            "confidence": 1.001
-        }
+        auto_mock.get_recommendation.return_value = {"suggested_mode": "sequential", "confidence": 1.001}
 
         coord = MemoryCoordinator(success_mock, auto_mock)
         rec = coord.get_recommendation("test task", "coding")
@@ -1096,21 +1014,14 @@ class TestGetRecommendationConflict:
 
     def test_different_modes_conflict(self):
         """Test various mode conflicts."""
-        modes_pairs = [
-            ("parallel", "sequential"),
-            ("ping_pong", "specialist"),
-            ("lead_support", "red_blue")
-        ]
+        modes_pairs = [("parallel", "sequential"), ("ping_pong", "specialist"), ("lead_support", "red_blue")]
 
         for success_mode, auto_mode in modes_pairs:
             success_mock = MagicMock()
             success_mock.get_best_mode_for_similar.return_value = (success_mode, "task_123", 0.9)
 
             auto_mock = MagicMock()
-            auto_mock.get_recommendation.return_value = {
-                "suggested_mode": auto_mode,
-                "confidence": 0.5
-            }
+            auto_mock.get_recommendation.return_value = {"suggested_mode": auto_mode, "confidence": 0.5}
 
             coord = MemoryCoordinator(success_mock, auto_mock)
             rec = coord.get_recommendation("test task", "coding")
@@ -1127,7 +1038,7 @@ class TestGetRecommendationConflict:
                 "semantic_weight": 0.3,  # Lower semantic
                 "procedural_weight": 0.7,  # Higher procedural
                 "sample_count": 10,
-                "success_count": 7
+                "success_count": 7,
             }
         }
         weights_file.write_text(json.dumps(weights_data))
@@ -1136,10 +1047,7 @@ class TestGetRecommendationConflict:
         success_mock.get_best_mode_for_similar.return_value = ("parallel", "task_123", 0.8)
 
         auto_mock = MagicMock()
-        auto_mock.get_recommendation.return_value = {
-            "suggested_mode": "sequential",
-            "confidence": 0.8
-        }
+        auto_mock.get_recommendation.return_value = {"suggested_mode": "sequential", "confidence": 0.8}
 
         coord = MemoryCoordinator(success_mock, auto_mock, weights_path=weights_file)
         rec = coord.get_recommendation("test task", "coding")
@@ -1153,6 +1061,7 @@ class TestGetRecommendationConflict:
 # get_recommendation - Error Handling (~5)
 # =============================================================================
 
+
 class TestGetRecommendationErrorHandling:
     """Test error handling in get_recommendation."""
 
@@ -1162,10 +1071,7 @@ class TestGetRecommendationErrorHandling:
         success_mock.get_best_mode_for_similar.side_effect = Exception("DB error")
 
         auto_mock = MagicMock()
-        auto_mock.get_recommendation.return_value = {
-            "suggested_mode": "parallel",
-            "confidence": 0.7
-        }
+        auto_mock.get_recommendation.return_value = {"suggested_mode": "parallel", "confidence": 0.7}
 
         coord = MemoryCoordinator(success_mock, auto_mock)
         rec = coord.get_recommendation("test task", "coding")
@@ -1210,10 +1116,7 @@ class TestGetRecommendationErrorHandling:
         success_mock.get_best_mode_for_similar.return_value = ("parallel",)  # Too short
 
         auto_mock = MagicMock()
-        auto_mock.get_recommendation.return_value = {
-            "suggested_mode": "sequential",
-            "confidence": 0.7
-        }
+        auto_mock.get_recommendation.return_value = {"suggested_mode": "sequential", "confidence": 0.7}
 
         coord = MemoryCoordinator(success_mock, auto_mock)
 
@@ -1231,10 +1134,7 @@ class TestGetRecommendationErrorHandling:
         success_mock.get_best_mode_for_similar.return_value = None
 
         auto_mock = MagicMock()
-        auto_mock.get_recommendation.return_value = {
-            "suggested_mode": "parallel",
-            "confidence": 0.6
-        }
+        auto_mock.get_recommendation.return_value = {"suggested_mode": "parallel", "confidence": 0.6}
 
         coord = MemoryCoordinator(success_mock, auto_mock)
         rec = coord.get_recommendation("", "coding")
@@ -1246,6 +1146,7 @@ class TestGetRecommendationErrorHandling:
 # =============================================================================
 # consolidate Tests (~10)
 # =============================================================================
+
 
 class TestConsolidate:
     """Test consolidation of episodic to procedural patterns."""
@@ -1290,7 +1191,7 @@ class TestConsolidate:
         """Test finds mode with highest average quality."""
         entries = []
         # 5 parallel with avg 0.9
-        for i in range(5):
+        for _i in range(5):
             entry = MagicMock()
             entry.primary_domain = "coding"
             entry.domains = ["coding"]
@@ -1299,7 +1200,7 @@ class TestConsolidate:
             entries.append(entry)
 
         # 5 sequential with avg 0.6
-        for i in range(5):
+        for _i in range(5):
             entry = MagicMock()
             entry.primary_domain = "coding"
             entry.domains = ["coding"]
@@ -1320,7 +1221,7 @@ class TestConsolidate:
         """Test consolidates multiple domains."""
         entries = []
         # 6 coding entries
-        for i in range(6):
+        for _i in range(6):
             entry = MagicMock()
             entry.primary_domain = "coding"
             entry.domains = ["coding"]
@@ -1329,7 +1230,7 @@ class TestConsolidate:
             entries.append(entry)
 
         # 5 research entries
-        for i in range(5):
+        for _i in range(5):
             entry = MagicMock()
             entry.primary_domain = "research"
             entry.domains = ["research"]
@@ -1349,7 +1250,7 @@ class TestConsolidate:
         """Test uses domains[0] when primary_domain is None."""
         entries = []
         # Need at least 10 total entries AND 5 per domain to trigger consolidation
-        for i in range(10):
+        for _i in range(10):
             entry = MagicMock()
             entry.primary_domain = None
             entry.domains = ["coding", "debugging"]
@@ -1370,7 +1271,7 @@ class TestConsolidate:
         """Test uses 'general' when domains empty."""
         entries = []
         # Need at least 10 total entries AND 5 per domain to trigger consolidation
-        for i in range(10):
+        for _i in range(10):
             entry = MagicMock()
             entry.primary_domain = None
             entry.domains = []
@@ -1400,7 +1301,7 @@ class TestConsolidate:
     def test_empty_mode_scores(self):
         """Test handles entries with no modes."""
         entries = []
-        for i in range(10):
+        for _i in range(10):
             entry = MagicMock()
             entry.primary_domain = "coding"
             entry.domains = ["coding"]
@@ -1421,6 +1322,7 @@ class TestConsolidate:
 # =============================================================================
 # get_stats Tests (~5)
 # =============================================================================
+
 
 class TestGetStats:
     """Test statistics reporting."""
@@ -1469,10 +1371,7 @@ class TestGetStats:
         """Test includes detailed domain weights."""
         coord = MemoryCoordinator(None, None)
         coord._domain_weights["coding"] = DomainWeights(
-            semantic_weight=0.7,
-            procedural_weight=0.3,
-            sample_count=10,
-            success_count=7
+            semantic_weight=0.7, procedural_weight=0.3, sample_count=10, success_count=7
         )
 
         stats = coord.get_stats()
@@ -1485,6 +1384,7 @@ class TestGetStats:
 # =============================================================================
 # Adaptive Weights - get_weights_for_domain Tests (~5)
 # =============================================================================
+
 
 class TestGetWeightsForDomain:
     """Test domain-specific weight retrieval."""
@@ -1500,10 +1400,7 @@ class TestGetWeightsForDomain:
     def test_returns_learned_weights_for_known_domain(self):
         """Test returns learned weights for known domain."""
         coord = MemoryCoordinator(None, None)
-        coord._domain_weights["coding"] = DomainWeights(
-            semantic_weight=0.7,
-            procedural_weight=0.3
-        )
+        coord._domain_weights["coding"] = DomainWeights(semantic_weight=0.7, procedural_weight=0.3)
 
         semantic, procedural = coord.get_weights_for_domain("coding")
 
@@ -1523,14 +1420,8 @@ class TestGetWeightsForDomain:
     def test_multiple_domains_independent(self):
         """Test different domains have independent weights."""
         coord = MemoryCoordinator(None, None)
-        coord._domain_weights["coding"] = DomainWeights(
-            semantic_weight=0.7,
-            procedural_weight=0.3
-        )
-        coord._domain_weights["research"] = DomainWeights(
-            semantic_weight=0.4,
-            procedural_weight=0.6
-        )
+        coord._domain_weights["coding"] = DomainWeights(semantic_weight=0.7, procedural_weight=0.3)
+        coord._domain_weights["research"] = DomainWeights(semantic_weight=0.4, procedural_weight=0.6)
 
         coding_s, coding_p = coord.get_weights_for_domain("coding")
         research_s, research_p = coord.get_weights_for_domain("research")
@@ -1542,6 +1433,7 @@ class TestGetWeightsForDomain:
 # =============================================================================
 # Adaptive Weights - record_feedback Tests (~15)
 # =============================================================================
+
 
 class TestRecordFeedback:
     """Test adaptive weight learning via feedback."""
@@ -1583,7 +1475,7 @@ class TestRecordFeedback:
 
         initial_semantic = DEFAULT_SEMANTIC_WEIGHT
 
-        for i in range(MIN_SAMPLES_FOR_ADAPTATION - 1):
+        for _i in range(MIN_SAMPLES_FOR_ADAPTATION - 1):
             coord.record_feedback("coding", MemorySource.SUCCESS, True)
 
         # Should still be default
@@ -1594,7 +1486,7 @@ class TestRecordFeedback:
         coord = MemoryCoordinator(None, None)
 
         # Get to MIN_SAMPLES
-        for i in range(MIN_SAMPLES_FOR_ADAPTATION):
+        for _i in range(MIN_SAMPLES_FOR_ADAPTATION):
             coord.record_feedback("coding", MemorySource.BOTH, True)
 
         # Should still be defaults
@@ -1606,10 +1498,10 @@ class TestRecordFeedback:
         coord = MemoryCoordinator(None, None)
 
         # Get to MIN_SAMPLES with failures to avoid weight changes
-        for i in range(MIN_SAMPLES_FOR_ADAPTATION - 1):
+        for _i in range(MIN_SAMPLES_FOR_ADAPTATION - 1):
             coord.record_feedback("coding", MemorySource.BOTH, True)
 
-        initial = coord._domain_weights["coding"].semantic_weight
+        _ = coord._domain_weights["coding"].semantic_weight
 
         # Now trigger adaptation
         coord.record_feedback("coding", MemorySource.SUCCESS, True)
@@ -1623,7 +1515,7 @@ class TestRecordFeedback:
         coord = MemoryCoordinator(None, None)
 
         # Get to MIN_SAMPLES
-        for i in range(MIN_SAMPLES_FOR_ADAPTATION - 1):
+        for _i in range(MIN_SAMPLES_FOR_ADAPTATION - 1):
             coord.record_feedback("coding", MemorySource.BOTH, True)
 
         initial = coord._domain_weights["coding"].semantic_weight
@@ -1640,7 +1532,7 @@ class TestRecordFeedback:
         coord = MemoryCoordinator(None, None)
 
         # Get to MIN_SAMPLES
-        for i in range(MIN_SAMPLES_FOR_ADAPTATION - 1):
+        for _i in range(MIN_SAMPLES_FOR_ADAPTATION - 1):
             coord.record_feedback("coding", MemorySource.BOTH, True)
 
         initial = coord._domain_weights["coding"].procedural_weight
@@ -1657,7 +1549,7 @@ class TestRecordFeedback:
         coord = MemoryCoordinator(None, None)
 
         # Get to MIN_SAMPLES
-        for i in range(MIN_SAMPLES_FOR_ADAPTATION - 1):
+        for _i in range(MIN_SAMPLES_FOR_ADAPTATION - 1):
             coord.record_feedback("coding", MemorySource.BOTH, True)
 
         initial = coord._domain_weights["coding"].procedural_weight
@@ -1678,11 +1570,11 @@ class TestRecordFeedback:
             semantic_weight=0.21,
             procedural_weight=0.79,
             sample_count=MIN_SAMPLES_FOR_ADAPTATION,
-            success_count=0  # All failures
+            success_count=0,  # All failures
         )
 
         # Multiple failures should clamp to 0.2
-        for i in range(10):
+        for _i in range(10):
             coord.record_feedback("coding", MemorySource.SUCCESS, False)
 
         assert coord._domain_weights["coding"].semantic_weight >= 0.2
@@ -1696,11 +1588,11 @@ class TestRecordFeedback:
             semantic_weight=0.79,
             procedural_weight=0.21,
             sample_count=MIN_SAMPLES_FOR_ADAPTATION,
-            success_count=MIN_SAMPLES_FOR_ADAPTATION  # All successes
+            success_count=MIN_SAMPLES_FOR_ADAPTATION,  # All successes
         )
 
         # Multiple successes should clamp to 0.8
-        for i in range(10):
+        for _i in range(10):
             coord.record_feedback("coding", MemorySource.SUCCESS, True)
 
         assert coord._domain_weights["coding"].semantic_weight <= 0.8
@@ -1724,7 +1616,7 @@ class TestRecordFeedback:
         coord = MemoryCoordinator(None, None, weights_path=weights_file)
 
         # Trigger adaptation
-        for i in range(MIN_SAMPLES_FOR_ADAPTATION):
+        for _i in range(MIN_SAMPLES_FOR_ADAPTATION):
             coord.record_feedback("coding", MemorySource.SUCCESS, True)
 
         # File should exist
@@ -1735,6 +1627,7 @@ class TestRecordFeedback:
 # Persistence Tests (~10)
 # =============================================================================
 
+
 class TestPersistence:
     """Test weight persistence."""
 
@@ -1744,10 +1637,7 @@ class TestPersistence:
         coord = MemoryCoordinator(None, None, weights_path=weights_file)
 
         coord._domain_weights["coding"] = DomainWeights(
-            semantic_weight=0.7,
-            procedural_weight=0.3,
-            sample_count=10,
-            success_count=7
+            semantic_weight=0.7, procedural_weight=0.3, sample_count=10, success_count=7
         )
 
         coord._save_weights()
@@ -1758,12 +1648,7 @@ class TestPersistence:
         """Test _load_weights reads JSON file."""
         weights_file = tmp_path / "weights.json"
         weights_data = {
-            "coding": {
-                "semantic_weight": 0.65,
-                "procedural_weight": 0.35,
-                "sample_count": 15,
-                "success_count": 12
-            }
+            "coding": {"semantic_weight": 0.65, "procedural_weight": 0.35, "sample_count": 15, "success_count": 12}
         }
         weights_file.write_text(json.dumps(weights_data))
 
@@ -1779,10 +1664,7 @@ class TestPersistence:
         coord1 = MemoryCoordinator(None, None, weights_path=weights_file)
 
         coord1._domain_weights["coding"] = DomainWeights(
-            semantic_weight=0.72,
-            procedural_weight=0.28,
-            sample_count=20,
-            success_count=15
+            semantic_weight=0.72, procedural_weight=0.28, sample_count=20, success_count=15
         )
         coord1._save_weights()
 
@@ -1832,14 +1714,8 @@ class TestPersistence:
         weights_file = tmp_path / "weights.json"
         coord = MemoryCoordinator(None, None, weights_path=weights_file)
 
-        coord._domain_weights["coding"] = DomainWeights(
-            semantic_weight=0.7,
-            procedural_weight=0.3
-        )
-        coord._domain_weights["research"] = DomainWeights(
-            semantic_weight=0.4,
-            procedural_weight=0.6
-        )
+        coord._domain_weights["coding"] = DomainWeights(semantic_weight=0.7, procedural_weight=0.3)
+        coord._domain_weights["research"] = DomainWeights(semantic_weight=0.4, procedural_weight=0.6)
 
         coord._save_weights()
 
@@ -1868,6 +1744,7 @@ class TestPersistence:
 # Edge Cases (~10)
 # =============================================================================
 
+
 class TestEdgeCases:
     """Test edge cases and boundary conditions."""
 
@@ -1877,10 +1754,7 @@ class TestEdgeCases:
         success_mock.get_best_mode_for_similar.return_value = None
 
         auto_mock = MagicMock()
-        auto_mock.get_recommendation.return_value = {
-            "suggested_mode": "parallel",
-            "confidence": 0.6
-        }
+        auto_mock.get_recommendation.return_value = {"suggested_mode": "parallel", "confidence": 0.6}
 
         coord = MemoryCoordinator(success_mock, auto_mock)
         rec = coord.get_recommendation("", "coding")
@@ -1920,10 +1794,7 @@ class TestEdgeCases:
         success_mock.get_best_mode_for_similar.return_value = None
 
         auto_mock = MagicMock()
-        auto_mock.get_recommendation.return_value = {
-            "suggested_mode": "parallel",
-            "confidence": -0.5
-        }
+        auto_mock.get_recommendation.return_value = {"suggested_mode": "parallel", "confidence": -0.5}
 
         coord = MemoryCoordinator(success_mock, auto_mock)
         rec = coord.get_recommendation("test task", "coding")
@@ -1940,10 +1811,7 @@ class TestEdgeCases:
         auto_mock.get_recommendation.return_value = None
 
         coord = MemoryCoordinator(success_mock, auto_mock)
-        coord._domain_weights["research"] = DomainWeights(
-            semantic_weight=0.3,
-            procedural_weight=0.7
-        )
+        coord._domain_weights["research"] = DomainWeights(semantic_weight=0.3, procedural_weight=0.7)
 
         rec = coord.get_recommendation("test task", "coding", domains=["research", "coding"])
 
@@ -1957,10 +1825,7 @@ class TestEdgeCases:
         success_mock.get_best_mode_for_similar.return_value = None
 
         auto_mock = MagicMock()
-        auto_mock.get_recommendation.return_value = {
-            "suggested_mode": "parallel",
-            "confidence": 0.7
-        }
+        auto_mock.get_recommendation.return_value = {"suggested_mode": "parallel", "confidence": 0.7}
 
         coord = MemoryCoordinator(success_mock, auto_mock)
         rec = coord.get_recommendation("测试任务 🚀", "coding")
@@ -1975,10 +1840,7 @@ class TestEdgeCases:
         success_mock.get_best_mode_for_similar.return_value = None
 
         auto_mock = MagicMock()
-        auto_mock.get_recommendation.return_value = {
-            "suggested_mode": "parallel",
-            "confidence": 0.7
-        }
+        auto_mock.get_recommendation.return_value = {"suggested_mode": "parallel", "confidence": 0.7}
 
         coord = MemoryCoordinator(success_mock, auto_mock)
         rec = coord.get_recommendation(long_desc, "coding")
@@ -2007,7 +1869,7 @@ class TestEdgeCases:
     def test_zero_quality_scores_in_consolidate(self):
         """Test consolidate with zero quality scores."""
         entries = []
-        for i in range(10):
+        for _i in range(10):
             entry = MagicMock()
             entry.primary_domain = "coding"
             entry.domains = ["coding"]

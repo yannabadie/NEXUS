@@ -48,9 +48,9 @@ from __future__ import annotations
 import dataclasses
 import logging
 import threading
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -66,6 +66,7 @@ MAX_INTERACTIONS: int = 50000
 # Dataclasses
 # =============================================================================
 
+
 @dataclass
 class InteractionRecord:
     """
@@ -74,6 +75,7 @@ class InteractionRecord:
     Captures metadata for one user interaction event including type,
     response latency, satisfaction signal, and contextual information.
     """
+
     interaction_id: str = ""
     interaction_type: str = ""  # ask, confirm, choose, announce
     user_response_ms: float = 0.0
@@ -81,7 +83,7 @@ class InteractionRecord:
     context: str = ""
     timestamp: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return dataclasses.asdict(self)
 
@@ -93,6 +95,7 @@ class InteractionTypeProfile:
 
     Computed from all interactions of this type (ask, confirm, choose, announce).
     """
+
     interaction_type: str = ""
     total_interactions: int = 0
     satisfied_count: int = 0
@@ -112,7 +115,7 @@ class InteractionTypeProfile:
             return 0.0
         return self.total_response_ms / self.total_interactions
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary with computed properties."""
         base = dataclasses.asdict(self)
         base["satisfaction_rate"] = round(self.satisfaction_rate, 4)
@@ -127,12 +130,13 @@ class InteractionQualityStats:
 
     Provides high-level summary of all tracked interactions.
     """
+
     total_interactions: int = 0
     unique_types: int = 0
     overall_satisfaction_rate: float = 0.0
     avg_response_ms: float = 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return dataclasses.asdict(self)
 
@@ -140,6 +144,7 @@ class InteractionQualityStats:
 # =============================================================================
 # Interaction Quality Tracker
 # =============================================================================
+
 
 class InteractionQualityTracker:
     """
@@ -169,8 +174,8 @@ class InteractionQualityTracker:
                               Oldest interactions are evicted when limit is reached.
         """
         self._max_interactions = max_interactions
-        self._interactions: List[InteractionRecord] = []
-        self._profiles: Dict[str, InteractionTypeProfile] = {}
+        self._interactions: list[InteractionRecord] = []
+        self._profiles: dict[str, InteractionTypeProfile] = {}
         self._counter = 1
         self._lock = threading.Lock()
 
@@ -210,7 +215,7 @@ class InteractionQualityTracker:
                 user_response_ms=user_response_ms,
                 satisfied=satisfied,
                 context=context,
-                timestamp=datetime.now(timezone.utc).isoformat(),
+                timestamp=datetime.now(UTC).isoformat(),
             )
 
             # FIFO eviction
@@ -221,9 +226,7 @@ class InteractionQualityTracker:
 
             # Update type profile
             if interaction_type not in self._profiles:
-                self._profiles[interaction_type] = InteractionTypeProfile(
-                    interaction_type=interaction_type
-                )
+                self._profiles[interaction_type] = InteractionTypeProfile(interaction_type=interaction_type)
 
             profile = self._profiles[interaction_type]
             profile.total_interactions += 1
@@ -237,7 +240,7 @@ class InteractionQualityTracker:
     # Profile Queries
     # =========================================================================
 
-    def get_type_profile(self, interaction_type: str) -> Optional[InteractionTypeProfile]:
+    def get_type_profile(self, interaction_type: str) -> InteractionTypeProfile | None:
         """
         Get the profile for a specific interaction type.
 
@@ -250,7 +253,7 @@ class InteractionQualityTracker:
         with self._lock:
             return self._profiles.get(interaction_type)
 
-    def get_all_profiles(self) -> List[InteractionTypeProfile]:
+    def get_all_profiles(self) -> list[InteractionTypeProfile]:
         """
         Get profiles for all interaction types.
 
@@ -268,8 +271,8 @@ class InteractionQualityTracker:
     def get_recent_interactions(
         self,
         limit: int = 10,
-        interaction_type: Optional[str] = None,
-    ) -> List[InteractionRecord]:
+        interaction_type: str | None = None,
+    ) -> list[InteractionRecord]:
         """
         Get recent interactions, optionally filtered by type.
 
@@ -284,14 +287,12 @@ class InteractionQualityTracker:
             interactions = list(self._interactions)
 
         if interaction_type:
-            interactions = [
-                i for i in interactions if i.interaction_type == interaction_type
-            ]
+            interactions = [i for i in interactions if i.interaction_type == interaction_type]
 
         interactions.reverse()
         return interactions[:limit]
 
-    def list_interaction_types(self) -> List[str]:
+    def list_interaction_types(self) -> list[str]:
         """
         Get list of all tracked interaction types.
 
@@ -319,12 +320,8 @@ class InteractionQualityTracker:
             if total == 0:
                 return InteractionQualityStats()
 
-            satisfied_count = sum(
-                1 for i in self._interactions if i.satisfied
-            )
-            total_response_ms = sum(
-                i.user_response_ms for i in self._interactions
-            )
+            satisfied_count = sum(1 for i in self._interactions if i.satisfied)
+            total_response_ms = sum(i.user_response_ms for i in self._interactions)
 
             return InteractionQualityStats(
                 total_interactions=total,
@@ -354,7 +351,7 @@ class InteractionQualityTracker:
             self._profiles.clear()
             self._counter = 1
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         Convert tracker to dictionary representation.
 
@@ -384,7 +381,7 @@ class InteractionQualityTracker:
 # Global Instance
 # =============================================================================
 
-_instance: Optional[InteractionQualityTracker] = None
+_instance: InteractionQualityTracker | None = None
 _lock = threading.Lock()
 
 

@@ -16,31 +16,26 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.execution_pkg.execution.reliability_pattern_tracker import (
     MAX_ATTEMPTS,
     ReliabilityPatternTracker,
+    ReliabilityStats,
     RetryAttempt,
     ToolReliabilityProfile,
-    ReliabilityStats,
     get_reliability_tracker,
     reset_reliability_tracker,
 )
-
 
 # =============================================================================
 # RetryAttempt Tests
 # =============================================================================
 
+
 class TestRetryAttempt:
     """Test RetryAttempt dataclass."""
 
     def test_to_dict(self):
-        a = RetryAttempt(
-            attempt_id="ra_000000", tool_name="bash",
-            retry_count=2, success=True
-        )
+        a = RetryAttempt(attempt_id="ra_000000", tool_name="bash", retry_count=2, success=True)
         d = a.to_dict()
         assert d["tool_name"] == "bash"
         assert d["retry_count"] == 2
@@ -49,6 +44,7 @@ class TestRetryAttempt:
 # =============================================================================
 # ToolReliabilityProfile Tests
 # =============================================================================
+
 
 class TestToolReliabilityProfile:
     """Test ToolReliabilityProfile dataclass."""
@@ -89,6 +85,7 @@ class TestToolReliabilityProfile:
 # ReliabilityStats Tests
 # =============================================================================
 
+
 class TestReliabilityStats:
     """Test ReliabilityStats dataclass."""
 
@@ -101,6 +98,7 @@ class TestReliabilityStats:
 # =============================================================================
 # Recording Tests
 # =============================================================================
+
 
 class TestRecording:
     """Test attempt recording."""
@@ -134,6 +132,7 @@ class TestRecording:
 # =============================================================================
 # Query Tests
 # =============================================================================
+
 
 class TestQueries:
     """Test query methods."""
@@ -176,7 +175,7 @@ class TestQueries:
 
     def test_recent_attempts(self):
         t = ReliabilityPatternTracker()
-        for i in range(5):
+        for _i in range(5):
             t.record_attempt("bash")
         recent = t.get_recent_attempts(limit=3)
         assert len(recent) == 3
@@ -200,12 +199,13 @@ class TestQueries:
 # Bounded History Tests
 # =============================================================================
 
+
 class TestBoundedHistory:
     """Test bounded attempt history."""
 
     def test_eviction(self):
         t = ReliabilityPatternTracker(max_attempts=5)
-        for i in range(10):
+        for _i in range(10):
             t.record_attempt("bash")
         assert t.attempt_count == 5
 
@@ -213,6 +213,7 @@ class TestBoundedHistory:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test tracker statistics."""
@@ -240,6 +241,7 @@ class TestStatistics:
 # State Tests
 # =============================================================================
 
+
 class TestState:
     """Test state management."""
 
@@ -265,6 +267,7 @@ class TestState:
 # =============================================================================
 # Global Singleton Tests
 # =============================================================================
+
 
 class TestGlobalSingleton:
     """Test global reliability tracker."""
@@ -292,21 +295,30 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_execution_package(self):
         from core.execution_pkg.execution import (
-            ReliabilityPatternTracker, ReliabilityRetryAttempt,
-            ToolReliabilityProfile, ReliabilityStats,
-            get_reliability_tracker, reset_reliability_tracker,
+            ReliabilityPatternTracker,
+            ReliabilityRetryAttempt,
+            ReliabilityStats,
+            ToolReliabilityProfile,
+            get_reliability_tracker,
+            reset_reliability_tracker,
         )
-        assert all([
-            ReliabilityPatternTracker, ReliabilityRetryAttempt,
-            ToolReliabilityProfile, ReliabilityStats,
-            get_reliability_tracker, reset_reliability_tracker,
-        ])
+
+        assert all(
+            [
+                ReliabilityPatternTracker,
+                ReliabilityRetryAttempt,
+                ToolReliabilityProfile,
+                ReliabilityStats,
+                get_reliability_tracker,
+                reset_reliability_tracker,
+            ]
+        )
 
     def test_constants(self):
-        from core.execution_pkg.execution.reliability_pattern_tracker import MAX_ATTEMPTS
         assert MAX_ATTEMPTS == 50000

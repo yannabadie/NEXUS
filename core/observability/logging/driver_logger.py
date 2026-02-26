@@ -18,12 +18,12 @@ Usage:
 import logging
 import os
 import sys
-from typing import Any, Dict, Optional
-
+from typing import Any
 
 # Configure basic logging format
 _LOG_FORMAT = "[%(levelname)s] %(name)s: %(message)s"
 _DATE_FORMAT = "%H:%M:%S"
+
 
 # Get log level from environment (respects .env LOG_LEVEL)
 def _get_default_level() -> int:
@@ -32,7 +32,7 @@ def _get_default_level() -> int:
     return getattr(logging, level_name, logging.INFO)
 
 
-def _format_extras(extras: Dict[str, Any]) -> str:
+def _format_extras(extras: dict[str, Any]) -> str:
     """Format extra parameters as key=value pairs."""
     if not extras:
         return ""
@@ -100,7 +100,7 @@ class DriverLogger:
 
 
 # Cache of driver loggers
-_driver_loggers: Dict[str, DriverLogger] = {}
+_driver_loggers: dict[str, DriverLogger] = {}
 
 
 def get_driver_logger(name: str) -> DriverLogger:

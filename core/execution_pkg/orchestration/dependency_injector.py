@@ -33,7 +33,7 @@ from __future__ import annotations
 import logging
 import threading
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -42,17 +42,19 @@ _logger = logging.getLogger(__name__)
 # Types
 # =============================================================================
 
+
 @dataclass
 class Capability:
     """A registered capability."""
+
     name: str
     provider: str = ""
     description: str = ""
     exclusive: bool = False  # Only one agent can use at a time
     available: bool = True
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "provider": self.provider,
@@ -65,11 +67,12 @@ class Capability:
 @dataclass
 class AgentRequirements:
     """Requirements for an agent."""
-    agent_id: str
-    required: Set[str] = field(default_factory=set)
-    optional: Set[str] = field(default_factory=set)
 
-    def to_dict(self) -> Dict[str, Any]:
+    agent_id: str
+    required: set[str] = field(default_factory=set)
+    optional: set[str] = field(default_factory=set)
+
+    def to_dict(self) -> dict[str, Any]:
         return {
             "agent_id": self.agent_id,
             "required": sorted(self.required),
@@ -80,15 +83,16 @@ class AgentRequirements:
 @dataclass
 class ValidationResult:
     """Result of validating agent readiness."""
+
     agent_id: str
     ready: bool
-    satisfied: List[str] = field(default_factory=list)
-    missing: List[str] = field(default_factory=list)
-    unavailable: List[str] = field(default_factory=list)
-    optional_satisfied: List[str] = field(default_factory=list)
-    optional_missing: List[str] = field(default_factory=list)
+    satisfied: list[str] = field(default_factory=list)
+    missing: list[str] = field(default_factory=list)
+    unavailable: list[str] = field(default_factory=list)
+    optional_satisfied: list[str] = field(default_factory=list)
+    optional_missing: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "agent_id": self.agent_id,
             "ready": self.ready,
@@ -103,11 +107,12 @@ class ValidationResult:
 @dataclass
 class Conflict:
     """A capability conflict between agents."""
+
     capability: str
-    agents: List[str]
+    agents: list[str]
     reason: str
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "capability": self.capability,
             "agents": self.agents,
@@ -118,13 +123,14 @@ class Conflict:
 @dataclass
 class DependencyManifest:
     """Complete dependency manifest for an agent."""
-    agent_id: str
-    required_capabilities: List[str]
-    optional_capabilities: List[str]
-    resolved: Dict[str, str]  # capability -> provider
-    unresolved: List[str]
 
-    def to_dict(self) -> Dict[str, Any]:
+    agent_id: str
+    required_capabilities: list[str]
+    optional_capabilities: list[str]
+    resolved: dict[str, str]  # capability -> provider
+    unresolved: list[str]
+
+    def to_dict(self) -> dict[str, Any]:
         return {
             "agent_id": self.agent_id,
             "required": self.required_capabilities,
@@ -138,6 +144,7 @@ class DependencyManifest:
 # Dependency Injector
 # =============================================================================
 
+
 class DependencyInjector:
     """
     Capability registry and agent dependency resolver.
@@ -150,8 +157,8 @@ class DependencyInjector:
     """
 
     def __init__(self):
-        self._capabilities: Dict[str, Capability] = {}
-        self._requirements: Dict[str, AgentRequirements] = {}
+        self._capabilities: dict[str, Capability] = {}
+        self._requirements: dict[str, AgentRequirements] = {}
         self._lock = threading.Lock()
 
     # =========================================================================
@@ -165,7 +172,7 @@ class DependencyInjector:
         provider: str = "",
         description: str = "",
         exclusive: bool = False,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> Capability:
         """
         Register a capability.
@@ -211,7 +218,7 @@ class DependencyInjector:
         cap = self._capabilities.get(name)
         return cap is not None and cap.available
 
-    def get_capability(self, name: str) -> Optional[Capability]:
+    def get_capability(self, name: str) -> Capability | None:
         """Get a capability by name."""
         return self._capabilities.get(name)
 
@@ -222,9 +229,9 @@ class DependencyInjector:
     def require(
         self,
         agent_id: str,
-        capabilities: List[str],
+        capabilities: list[str],
         *,
-        optional: Optional[List[str]] = None,
+        optional: list[str] | None = None,
     ) -> AgentRequirements:
         """
         Declare an agent's capability requirements.
@@ -244,7 +251,7 @@ class DependencyInjector:
                 reqs.optional.update(optional)
         return reqs
 
-    def get_requirements(self, agent_id: str) -> Optional[AgentRequirements]:
+    def get_requirements(self, agent_id: str) -> AgentRequirements | None:
         """Get requirements for an agent."""
         return self._requirements.get(agent_id)
 
@@ -299,7 +306,7 @@ class DependencyInjector:
                 optional_missing=optional_missing,
             )
 
-    def validate_all(self) -> List[ValidationResult]:
+    def validate_all(self) -> list[ValidationResult]:
         """Validate all registered agents."""
         with self._lock:
             agent_ids = list(self._requirements.keys())
@@ -309,7 +316,7 @@ class DependencyInjector:
     # Conflict Detection
     # =========================================================================
 
-    def detect_conflicts(self, agent_ids: Optional[List[str]] = None) -> List[Conflict]:
+    def detect_conflicts(self, agent_ids: list[str] | None = None) -> list[Conflict]:
         """
         Detect capability conflicts between agents.
 
@@ -323,7 +330,7 @@ class DependencyInjector:
                 agent_ids = list(self._requirements.keys())
 
             # Map: capability -> [agents needing it]
-            cap_to_agents: Dict[str, List[str]] = {}
+            cap_to_agents: dict[str, list[str]] = {}
             for aid in agent_ids:
                 reqs = self._requirements.get(aid)
                 if reqs is None:
@@ -337,11 +344,13 @@ class DependencyInjector:
                     continue
                 cap = self._capabilities.get(cap_name)
                 if cap and cap.exclusive:
-                    conflicts.append(Conflict(
-                        capability=cap_name,
-                        agents=sorted(agents),
-                        reason=f"Exclusive capability '{cap_name}' required by multiple agents",
-                    ))
+                    conflicts.append(
+                        Conflict(
+                            capability=cap_name,
+                            agents=sorted(agents),
+                            reason=f"Exclusive capability '{cap_name}' required by multiple agents",
+                        )
+                    )
 
         return conflicts
 
@@ -349,7 +358,7 @@ class DependencyInjector:
     # Manifest
     # =========================================================================
 
-    def get_manifest(self, agent_id: str) -> Optional[DependencyManifest]:
+    def get_manifest(self, agent_id: str) -> DependencyManifest | None:
         """
         Get a dependency manifest for an agent.
 
@@ -382,14 +391,14 @@ class DependencyInjector:
     # Listing
     # =========================================================================
 
-    def list_capabilities(self, *, available_only: bool = False) -> List[Capability]:
+    def list_capabilities(self, *, available_only: bool = False) -> list[Capability]:
         """List all registered capabilities."""
         caps = list(self._capabilities.values())
         if available_only:
             caps = [c for c in caps if c.available]
         return sorted(caps, key=lambda c: c.name)
 
-    def list_agents(self) -> List[str]:
+    def list_agents(self) -> list[str]:
         """List all agents with requirements."""
         return sorted(self._requirements.keys())
 
@@ -411,18 +420,12 @@ class DependencyInjector:
             self._capabilities.clear()
             self._requirements.clear()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "capability_count": self.capability_count,
             "agent_count": self.agent_count,
-            "capabilities": {
-                name: cap.to_dict()
-                for name, cap in sorted(self._capabilities.items())
-            },
-            "agents": {
-                aid: reqs.to_dict()
-                for aid, reqs in sorted(self._requirements.items())
-            },
+            "capabilities": {name: cap.to_dict() for name, cap in sorted(self._capabilities.items())},
+            "agents": {aid: reqs.to_dict() for aid, reqs in sorted(self._requirements.items())},
         }
 
 
@@ -430,7 +433,7 @@ class DependencyInjector:
 # Global Instance
 # =============================================================================
 
-_injector: Optional[DependencyInjector] = None
+_injector: DependencyInjector | None = None
 _injector_lock = threading.Lock()
 
 

@@ -31,9 +31,10 @@ import statistics
 import threading
 import time
 from collections import defaultdict, deque
+from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any, Deque, Dict, Generator, List, Optional, Set
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -50,14 +51,16 @@ DEFAULT_PERCENTILES = (50, 90, 95, 99)
 # Types
 # =============================================================================
 
+
 @dataclass
 class TimingRecord:
     """A single timing observation."""
+
     category: str  # e.g. "fsm.transition", "llm.call", "swarm.negotiation"
-    name: str      # e.g. "IDLE->BRAINSTORMING", "claude/opus", "ping_pong"
+    name: str  # e.g. "IDLE->BRAINSTORMING", "claude/opus", "ping_pong"
     duration_ms: float
     timestamp: float = 0.0
-    tags: Dict[str, str] = field(default_factory=dict)
+    tags: dict[str, str] = field(default_factory=dict)
     success: bool = True
 
     def __post_init__(self):
@@ -68,6 +71,7 @@ class TimingRecord:
 @dataclass
 class TimingStats:
     """Aggregated statistics for a timing category+name."""
+
     category: str
     name: str
     count: int = 0
@@ -88,7 +92,7 @@ class TimingStats:
             return 0.0
         return self.success_count / self.count
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "category": self.category,
             "name": self.name,
@@ -108,13 +112,14 @@ class TimingStats:
 @dataclass
 class Bottleneck:
     """An identified performance bottleneck."""
+
     category: str
     name: str
     severity: str  # "low", "medium", "high"
     reason: str
     stats: TimingStats
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "category": self.category,
             "name": self.name,
@@ -129,14 +134,15 @@ class Bottleneck:
 @dataclass
 class ProfileReport:
     """Complete profiling report."""
+
     total_records: int
-    categories: List[str]
-    stats: List[TimingStats]
-    bottlenecks: List[Bottleneck]
-    slowest_spans: List[TimingStats]
+    categories: list[str]
+    stats: list[TimingStats]
+    bottlenecks: list[Bottleneck]
+    slowest_spans: list[TimingStats]
     uptime_ms: float
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_records": self.total_records,
             "categories": self.categories,
@@ -152,19 +158,22 @@ class ProfileReport:
 # Active Span (for context manager)
 # =============================================================================
 
+
 @dataclass
 class _ActiveSpan:
     """An in-progress timing span."""
+
     category: str
     name: str
     start: float
-    tags: Dict[str, str] = field(default_factory=dict)
+    tags: dict[str, str] = field(default_factory=dict)
     success: bool = True
 
 
 # =============================================================================
 # Performance Profiler
 # =============================================================================
+
 
 class PerformanceProfiler:
     """
@@ -187,9 +196,7 @@ class PerformanceProfiler:
         bottleneck_threshold_ms: float = 1000.0,
         high_p95_threshold_ms: float = 5000.0,
     ):
-        self._records: Dict[str, Deque[TimingRecord]] = defaultdict(
-            lambda: deque(maxlen=max_records)
-        )
+        self._records: dict[str, deque[TimingRecord]] = defaultdict(lambda: deque(maxlen=max_records))
         self._max_records = max_records
         self._bottleneck_threshold_ms = bottleneck_threshold_ms
         self._high_p95_threshold_ms = high_p95_threshold_ms
@@ -207,7 +214,7 @@ class PerformanceProfiler:
         name: str,
         duration_ms: float,
         *,
-        tags: Optional[Dict[str, str]] = None,
+        tags: dict[str, str] | None = None,
         success: bool = True,
     ) -> None:
         """
@@ -308,7 +315,7 @@ class PerformanceProfiler:
         category: str,
         name: str = "",
         *,
-        tags: Optional[Dict[str, str]] = None,
+        tags: dict[str, str] | None = None,
     ) -> Generator[_ActiveSpan, None, None]:
         """
         Context manager for timing a block of code.
@@ -349,7 +356,7 @@ class PerformanceProfiler:
     # Statistics
     # =========================================================================
 
-    def get_stats(self, category: str, name: str) -> Optional[TimingStats]:
+    def get_stats(self, category: str, name: str) -> TimingStats | None:
         """Get aggregated stats for a specific category+name."""
         key = f"{category}:{name}"
         with self._lock:
@@ -358,7 +365,7 @@ class PerformanceProfiler:
             return None
         return self._compute_stats(category, name, records)
 
-    def get_all_stats(self) -> List[TimingStats]:
+    def get_all_stats(self) -> list[TimingStats]:
         """Get stats for all recorded categories."""
         with self._lock:
             snapshot = {k: list(v) for k, v in self._records.items()}
@@ -368,22 +375,22 @@ class PerformanceProfiler:
             results.append(self._compute_stats(cat, name, records))
         return results
 
-    def get_category_stats(self, category: str) -> List[TimingStats]:
+    def get_category_stats(self, category: str) -> list[TimingStats]:
         """Get stats for all names within a category."""
         prefix = f"{category}:"
         with self._lock:
-            snapshot = {
-                k: list(v) for k, v in self._records.items()
-                if k.startswith(prefix)
-            }
+            snapshot = {k: list(v) for k, v in self._records.items() if k.startswith(prefix)}
         results = []
         for key, records in sorted(snapshot.items()):
-            name = key[len(prefix):]
+            name = key[len(prefix) :]
             results.append(self._compute_stats(category, name, records))
         return results
 
     def _compute_stats(
-        self, category: str, name: str, records: List[TimingRecord],
+        self,
+        category: str,
+        name: str,
+        records: list[TimingRecord],
     ) -> TimingStats:
         """Compute statistics from a list of records."""
         durations = [r.duration_ms for r in records]
@@ -414,7 +421,7 @@ class PerformanceProfiler:
         return stats
 
     @staticmethod
-    def _percentile(sorted_data: List[float], pct: int) -> float:
+    def _percentile(sorted_data: list[float], pct: int) -> float:
         """Calculate percentile from sorted data."""
         n = len(sorted_data)
         idx = (pct / 100) * (n - 1)
@@ -427,7 +434,7 @@ class PerformanceProfiler:
     # Bottleneck Detection
     # =========================================================================
 
-    def detect_bottlenecks(self) -> List[Bottleneck]:
+    def detect_bottlenecks(self) -> list[Bottleneck]:
         """
         Identify performance bottlenecks.
 
@@ -445,31 +452,37 @@ class PerformanceProfiler:
 
             # High mean latency
             if stats.mean_ms > self._bottleneck_threshold_ms:
-                bottlenecks.append(Bottleneck(
-                    category=stats.category,
-                    name=stats.name,
-                    severity="high" if stats.mean_ms > self._high_p95_threshold_ms else "medium",
-                    reason=f"High mean latency: {stats.mean_ms:.1f}ms",
-                    stats=stats,
-                ))
+                bottlenecks.append(
+                    Bottleneck(
+                        category=stats.category,
+                        name=stats.name,
+                        severity="high" if stats.mean_ms > self._high_p95_threshold_ms else "medium",
+                        reason=f"High mean latency: {stats.mean_ms:.1f}ms",
+                        stats=stats,
+                    )
+                )
             # High P95
             elif stats.p95_ms > self._high_p95_threshold_ms:
-                bottlenecks.append(Bottleneck(
-                    category=stats.category,
-                    name=stats.name,
-                    severity="high",
-                    reason=f"High P95 latency: {stats.p95_ms:.1f}ms",
-                    stats=stats,
-                ))
+                bottlenecks.append(
+                    Bottleneck(
+                        category=stats.category,
+                        name=stats.name,
+                        severity="high",
+                        reason=f"High P95 latency: {stats.p95_ms:.1f}ms",
+                        stats=stats,
+                    )
+                )
             # High failure rate
             elif stats.success_rate < 0.8:
-                bottlenecks.append(Bottleneck(
-                    category=stats.category,
-                    name=stats.name,
-                    severity="medium",
-                    reason=f"High failure rate: {(1 - stats.success_rate) * 100:.1f}%",
-                    stats=stats,
-                ))
+                bottlenecks.append(
+                    Bottleneck(
+                        category=stats.category,
+                        name=stats.name,
+                        severity="medium",
+                        reason=f"High failure rate: {(1 - stats.success_rate) * 100:.1f}%",
+                        stats=stats,
+                    )
+                )
 
         bottlenecks.sort(key=lambda b: b.stats.mean_ms, reverse=True)
         return bottlenecks
@@ -519,7 +532,7 @@ class PerformanceProfiler:
         with self._lock:
             return len(self._records)
 
-    def get_categories(self) -> List[str]:
+    def get_categories(self) -> list[str]:
         """List all recorded categories."""
         with self._lock:
             return sorted(set(k.split(":")[0] for k in self._records))
@@ -532,7 +545,7 @@ class PerformanceProfiler:
             self._total_records = 0
         return count
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_records": self._total_records,
             "category_count": self.category_count,
@@ -545,7 +558,7 @@ class PerformanceProfiler:
 # Global Instance
 # =============================================================================
 
-_profiler: Optional[PerformanceProfiler] = None
+_profiler: PerformanceProfiler | None = None
 _profiler_lock = threading.Lock()
 
 

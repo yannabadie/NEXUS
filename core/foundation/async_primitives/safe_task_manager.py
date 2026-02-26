@@ -26,10 +26,10 @@ References:
 import asyncio
 import logging
 import traceback
-from typing import Any, Callable, Coroutine, Dict, Optional, Set
-from dataclasses import dataclass, field
+from collections.abc import Callable, Coroutine
+from dataclasses import dataclass
 from datetime import datetime
-
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ class TaskInfo:
     name: str
     created_at: datetime
     task: asyncio.Task
-    on_error: Optional[Callable[[Exception], None]] = None
+    on_error: Callable[[Exception], None] | None = None
 
 
 class SafeTaskManager:
@@ -52,7 +52,7 @@ class SafeTaskManager:
     """
 
     _instance: Optional["SafeTaskManager"] = None
-    _active_tasks: Dict[int, TaskInfo] = {}
+    _active_tasks: dict[int, TaskInfo] = {}
     _completed_count: int = 0
     _failed_count: int = 0
 
@@ -68,8 +68,8 @@ class SafeTaskManager:
     def create_task(
         cls,
         coro: Coroutine[Any, Any, Any],
-        name: Optional[str] = None,
-        on_error: Optional[Callable[[Exception], None]] = None,
+        name: str | None = None,
+        on_error: Callable[[Exception], None] | None = None,
     ) -> asyncio.Task:
         """
         Create an asyncio task with automatic error handling.
@@ -135,13 +135,13 @@ class SafeTaskManager:
             logger.debug(f"SafeTaskManager: Task '{task_name}' completed successfully")
 
     @classmethod
-    def get_active_tasks(cls) -> Dict[str, TaskInfo]:
+    def get_active_tasks(cls) -> dict[str, TaskInfo]:
         """Get all currently active tasks."""
         instance = cls()
         return {info.name: info for info in instance._active_tasks.values()}
 
     @classmethod
-    def get_stats(cls) -> Dict[str, int]:
+    def get_stats(cls) -> dict[str, int]:
         """Get task statistics."""
         instance = cls()
         return {
@@ -197,8 +197,8 @@ class SafeTaskManager:
 # Convenience function for direct import
 def create_safe_task(
     coro: Coroutine[Any, Any, Any],
-    name: Optional[str] = None,
-    on_error: Optional[Callable[[Exception], None]] = None,
+    name: str | None = None,
+    on_error: Callable[[Exception], None] | None = None,
 ) -> asyncio.Task:
     """
     Convenience wrapper for SafeTaskManager.create_task().

@@ -31,10 +31,9 @@ import json
 import logging
 import threading
 import uuid
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Set
 
 logger = logging.getLogger(__name__)
 
@@ -42,14 +41,15 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Principle:
     """A single learned principle with dynamic scoring."""
+
     id: str
     text: str
-    tags: List[str]
+    tags: list[str]
     source_task: str
     created_at: str
     usage_count: int = 0
     success_count: int = 0
-    last_used: Optional[str] = None
+    last_used: str | None = None
 
     @property
     def score(self) -> float:
@@ -69,9 +69,9 @@ class Principle:
         self.usage_count += 1
         if success:
             self.success_count += 1
-        self.last_used = datetime.now(timezone.utc).isoformat()
+        self.last_used = datetime.now(UTC).isoformat()
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "id": self.id,
             "text": self.text,
@@ -85,7 +85,7 @@ class Principle:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "Principle":
+    def from_dict(cls, data: dict) -> "Principle":
         return cls(
             id=data["id"],
             text=data["text"],
@@ -106,8 +106,8 @@ class PrincipleLibrary:
     approach. High-scoring principles are retrieved for future task guidance.
     """
 
-    def __init__(self, persist_path: Optional[Path] = None, max_principles: int = 200):
-        self._principles: Dict[str, Principle] = {}
+    def __init__(self, persist_path: Path | None = None, max_principles: int = 200):
+        self._principles: dict[str, Principle] = {}
         self._persist_path = persist_path
         self._max_principles = max_principles
 
@@ -118,7 +118,7 @@ class PrincipleLibrary:
     def add_principle(
         self,
         text: str,
-        tags: List[str],
+        tags: list[str],
         source_task: str = "",
     ) -> Principle:
         """
@@ -147,7 +147,7 @@ class PrincipleLibrary:
             text=text,
             tags=tags,
             source_task=source_task,
-            created_at=datetime.now(timezone.utc).isoformat(),
+            created_at=datetime.now(UTC).isoformat(),
         )
         self._principles[principle.id] = principle
 
@@ -176,10 +176,10 @@ class PrincipleLibrary:
 
     def retrieve(
         self,
-        tags: Optional[List[str]] = None,
+        tags: list[str] | None = None,
         top_k: int = 5,
         min_score: float = 0.0,
-    ) -> List[Principle]:
+    ) -> list[Principle]:
         """
         Retrieve relevant principles sorted by relevance and score.
 
@@ -214,17 +214,17 @@ class PrincipleLibrary:
         candidates.sort(key=lambda x: x[0], reverse=True)
         return [p for _, p in candidates[:top_k]]
 
-    def get_principle(self, principle_id: str) -> Optional[Principle]:
+    def get_principle(self, principle_id: str) -> Principle | None:
         """Get a specific principle by ID."""
         return self._principles.get(principle_id)
 
-    def get_all(self) -> List[Principle]:
+    def get_all(self) -> list[Principle]:
         """Get all principles sorted by score."""
         return sorted(self._principles.values(), key=lambda p: p.score, reverse=True)
 
     def format_for_prompt(
         self,
-        tags: Optional[List[str]] = None,
+        tags: list[str] | None = None,
         top_k: int = 3,
     ) -> str:
         """
@@ -280,7 +280,7 @@ class PrincipleLibrary:
         except Exception as e:
             logger.warning(f"PrincipleLibrary load failed: {e}")
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> dict:
         """Get library statistics."""
         if not self._principles:
             return {
@@ -298,9 +298,9 @@ class PrincipleLibrary:
             "top_tags": self._get_top_tags(5),
         }
 
-    def _get_top_tags(self, n: int) -> List[str]:
+    def _get_top_tags(self, n: int) -> list[str]:
         """Get the N most common tags."""
-        tag_counts: Dict[str, int] = {}
+        tag_counts: dict[str, int] = {}
         for p in self._principles.values():
             for tag in p.tags:
                 tag_counts[tag] = tag_counts.get(tag, 0) + 1
@@ -313,11 +313,11 @@ class PrincipleLibrary:
 
 
 # Module-level singleton
-_library: Optional[PrincipleLibrary] = None
+_library: PrincipleLibrary | None = None
 _library_lock = threading.Lock()
 
 
-def get_principle_library(persist_path: Optional[Path] = None) -> PrincipleLibrary:
+def get_principle_library(persist_path: Path | None = None) -> PrincipleLibrary:
     """Get or create the global PrincipleLibrary instance."""
     global _library
     if _library is None:

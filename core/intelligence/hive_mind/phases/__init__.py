@@ -14,12 +14,12 @@ Phase Flow:
 """
 
 from .phase_analysis import IndependentAnalysisPhase
-from .phase_debate import StrategicDebatePhase
 from .phase_architecture import ArchitectureGenerationPhase
-from .phase_execution import MonitoredExecutionPhase
-from .phase_diagnosis import FailureDiagnosisPhase
-from .phase_retry import AdaptiveRetryPhase
 from .phase_consolidation import KnowledgeConsolidationPhase
+from .phase_debate import StrategicDebatePhase
+from .phase_diagnosis import FailureDiagnosisPhase
+from .phase_execution import MonitoredExecutionPhase
+from .phase_retry import AdaptiveRetryPhase
 
 __all__ = [
     "IndependentAnalysisPhase",

@@ -27,6 +27,7 @@ Usage:
 
 from __future__ import annotations
 
+import builtins
 import json
 import logging
 import threading
@@ -35,7 +36,7 @@ import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -52,22 +53,24 @@ MAX_CHECKPOINTS_PER_SESSION = 50
 # Types
 # =============================================================================
 
+
 @dataclass
 class Checkpoint:
     """A saved checkpoint."""
+
     checkpoint_id: str
     session_id: str
     label: str
-    state: Dict[str, Any]
+    state: dict[str, Any]
     created_at: float = 0.0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
     sequence: int = 0  # Order within session
 
     def __post_init__(self):
         if self.created_at == 0.0:
             self.created_at = time.monotonic()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "checkpoint_id": self.checkpoint_id,
             "session_id": self.session_id,
@@ -79,7 +82,7 @@ class Checkpoint:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> Checkpoint:
+    def from_dict(cls, data: dict[str, Any]) -> Checkpoint:
         return cls(
             checkpoint_id=data["checkpoint_id"],
             session_id=data["session_id"],
@@ -94,15 +97,16 @@ class Checkpoint:
 @dataclass
 class CheckpointInfo:
     """Lightweight checkpoint summary (without full state)."""
+
     checkpoint_id: str
     session_id: str
     label: str
     sequence: int
     created_at: float
-    state_keys: List[str]
-    metadata: Dict[str, Any]
+    state_keys: list[str]
+    metadata: dict[str, Any]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "checkpoint_id": self.checkpoint_id,
             "session_id": self.session_id,
@@ -117,15 +121,16 @@ class CheckpointInfo:
 @dataclass
 class RestoreResult:
     """Result of restoring from a checkpoint."""
+
     checkpoint_id: str
     session_id: str
     label: str
-    state: Dict[str, Any]
+    state: dict[str, Any]
     sequence: int
     success: bool = True
     error: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "checkpoint_id": self.checkpoint_id,
             "session_id": self.session_id,
@@ -140,6 +145,7 @@ class RestoreResult:
 # =============================================================================
 # Checkpoint Manager
 # =============================================================================
+
 
 class CheckpointManager:
     """
@@ -157,13 +163,13 @@ class CheckpointManager:
     def __init__(
         self,
         *,
-        checkpoint_dir: Optional[str] = None,
+        checkpoint_dir: str | None = None,
         persist: bool = True,
         max_per_session: int = MAX_CHECKPOINTS_PER_SESSION,
     ):
-        self._checkpoints: Dict[str, Checkpoint] = {}  # id -> Checkpoint
-        self._sessions: Dict[str, List[str]] = defaultdict(list)  # session -> [ids]
-        self._sequences: Dict[str, int] = defaultdict(int)  # session -> next seq
+        self._checkpoints: dict[str, Checkpoint] = {}  # id -> Checkpoint
+        self._sessions: dict[str, list[str]] = defaultdict(list)  # session -> [ids]
+        self._sequences: dict[str, int] = defaultdict(int)  # session -> next seq
         self._checkpoint_dir = Path(checkpoint_dir) if checkpoint_dir else Path(DEFAULT_CHECKPOINT_DIR)
         self._persist = persist
         self._max_per_session = max_per_session
@@ -181,8 +187,8 @@ class CheckpointManager:
         session_id: str,
         label: str,
         *,
-        state: Optional[Dict[str, Any]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        state: dict[str, Any] | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> str:
         """
         Create a checkpoint.
@@ -228,12 +234,12 @@ class CheckpointManager:
     # Query
     # =========================================================================
 
-    def get(self, checkpoint_id: str) -> Optional[Checkpoint]:
+    def get(self, checkpoint_id: str) -> Checkpoint | None:
         """Get a checkpoint by ID."""
         with self._lock:
             return self._checkpoints.get(checkpoint_id)
 
-    def list(self, session_id: str) -> List[CheckpointInfo]:
+    def list(self, session_id: str) -> builtins.list[CheckpointInfo]:
         """
         List all checkpoints for a session.
 
@@ -245,18 +251,20 @@ class CheckpointManager:
             for cp_id in cp_ids:
                 cp = self._checkpoints.get(cp_id)
                 if cp:
-                    results.append(CheckpointInfo(
-                        checkpoint_id=cp.checkpoint_id,
-                        session_id=cp.session_id,
-                        label=cp.label,
-                        sequence=cp.sequence,
-                        created_at=cp.created_at,
-                        state_keys=list(cp.state.keys()),
-                        metadata=cp.metadata,
-                    ))
+                    results.append(
+                        CheckpointInfo(
+                            checkpoint_id=cp.checkpoint_id,
+                            session_id=cp.session_id,
+                            label=cp.label,
+                            sequence=cp.sequence,
+                            created_at=cp.created_at,
+                            state_keys=list(cp.state.keys()),
+                            metadata=cp.metadata,
+                        )
+                    )
         return results
 
-    def latest(self, session_id: str) -> Optional[Checkpoint]:
+    def latest(self, session_id: str) -> Checkpoint | None:
         """Get the most recent checkpoint for a session."""
         with self._lock:
             cp_ids = self._sessions.get(session_id, [])
@@ -324,10 +332,10 @@ class CheckpointManager:
                 return 0
 
             idx = cp_ids.index(checkpoint_id)
-            to_remove = cp_ids[idx + 1:]  # Everything after target
+            to_remove = cp_ids[idx + 1 :]  # Everything after target
             for rid in to_remove:
                 self._checkpoints.pop(rid, None)
-            self._sessions[session_id] = cp_ids[:idx + 1]
+            self._sessions[session_id] = cp_ids[: idx + 1]
 
             # Reset sequence counter
             self._sequences[session_id] = idx + 1
@@ -413,7 +421,7 @@ class CheckpointManager:
     def session_count(self) -> int:
         return len([s for s, ids in self._sessions.items() if ids])
 
-    def get_sessions(self) -> List[str]:
+    def get_sessions(self) -> builtins.list[str]:
         """List all sessions with checkpoints."""
         return sorted(s for s, ids in self._sessions.items() if ids)
 
@@ -424,15 +432,11 @@ class CheckpointManager:
             self._sessions.clear()
             self._sequences.clear()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "checkpoint_count": self.checkpoint_count,
             "session_count": self.session_count,
-            "sessions": {
-                sid: len(ids)
-                for sid, ids in self._sessions.items()
-                if ids
-            },
+            "sessions": {sid: len(ids) for sid, ids in self._sessions.items() if ids},
         }
 
     # =========================================================================
@@ -446,10 +450,7 @@ class CheckpointManager:
             self._checkpoint_dir.mkdir(parents=True, exist_ok=True)
             index_file = self._checkpoint_dir / "index.json"
             data = {
-                "checkpoints": {
-                    cp_id: cp.to_dict()
-                    for cp_id, cp in self._checkpoints.items()
-                },
+                "checkpoints": {cp_id: cp.to_dict() for cp_id, cp in self._checkpoints.items()},
                 "sessions": dict(self._sessions),
                 "sequences": dict(self._sequences),
             }
@@ -480,7 +481,7 @@ class CheckpointManager:
 # Global Instance
 # =============================================================================
 
-_manager: Optional[CheckpointManager] = None
+_manager: CheckpointManager | None = None
 _manager_lock = threading.Lock()
 
 

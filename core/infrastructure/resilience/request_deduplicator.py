@@ -32,7 +32,7 @@ import logging
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -49,9 +49,11 @@ MAX_ENTRIES = 10_000
 # Types
 # =============================================================================
 
+
 @dataclass
 class DeduplicationEntry:
     """A tracked request."""
+
     request_id: str
     fingerprint: str
     status: str  # "pending", "completed", "failed"
@@ -59,7 +61,7 @@ class DeduplicationEntry:
     created_at: float = 0.0
     completed_at: float = 0.0
     ttl_seconds: float = DEFAULT_TTL_SECONDS
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         if self.created_at == 0.0:
@@ -73,7 +75,7 @@ class DeduplicationEntry:
     def age_seconds(self) -> float:
         return time.monotonic() - self.created_at
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "request_id": self.request_id,
             "fingerprint": self.fingerprint[:12],
@@ -87,13 +89,14 @@ class DeduplicationEntry:
 @dataclass
 class CheckResult:
     """Result of a deduplication check."""
+
     is_duplicate: bool
     fingerprint: str
     status: str = ""  # "new", "pending", "completed", "failed"
     cached_result: Any = None
-    entry: Optional[DeduplicationEntry] = None
+    entry: DeduplicationEntry | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "is_duplicate": self.is_duplicate,
             "fingerprint": self.fingerprint[:12],
@@ -105,6 +108,7 @@ class CheckResult:
 @dataclass
 class DeduplicationStats:
     """Statistics for deduplication."""
+
     total_checks: int = 0
     duplicates_caught: int = 0
     entries_active: int = 0
@@ -116,7 +120,7 @@ class DeduplicationStats:
             return 0.0
         return self.duplicates_caught / self.total_checks
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_checks": self.total_checks,
             "duplicates_caught": self.duplicates_caught,
@@ -129,6 +133,7 @@ class DeduplicationStats:
 # =============================================================================
 # Request Deduplicator
 # =============================================================================
+
 
 class RequestDeduplicator:
     """
@@ -144,7 +149,7 @@ class RequestDeduplicator:
         default_ttl: float = DEFAULT_TTL_SECONDS,
         max_entries: int = MAX_ENTRIES,
     ):
-        self._entries: Dict[str, DeduplicationEntry] = {}
+        self._entries: dict[str, DeduplicationEntry] = {}
         self._default_ttl = default_ttl
         self._max_entries = max_entries
         self._lock = threading.Lock()
@@ -158,9 +163,9 @@ class RequestDeduplicator:
     def check(
         self,
         operation: str,
-        fields: Dict[str, Any],
+        fields: dict[str, Any],
         *,
-        ttl: Optional[float] = None,
+        ttl: float | None = None,
     ) -> CheckResult:
         """
         Check if a request is a duplicate.
@@ -211,7 +216,7 @@ class RequestDeduplicator:
     def is_duplicate(
         self,
         operation: str,
-        fields: Dict[str, Any],
+        fields: dict[str, Any],
     ) -> bool:
         """Simple check without registering."""
         fingerprint = self._fingerprint(operation, fields)
@@ -226,7 +231,7 @@ class RequestDeduplicator:
     def complete(
         self,
         operation: str,
-        fields: Dict[str, Any],
+        fields: dict[str, Any],
         *,
         result: Any = None,
     ) -> bool:
@@ -248,7 +253,7 @@ class RequestDeduplicator:
     def fail(
         self,
         operation: str,
-        fields: Dict[str, Any],
+        fields: dict[str, Any],
     ) -> bool:
         """
         Mark a request as failed (allows retry).
@@ -266,7 +271,7 @@ class RequestDeduplicator:
     def remove(
         self,
         operation: str,
-        fields: Dict[str, Any],
+        fields: dict[str, Any],
     ) -> bool:
         """Remove an entry entirely (allows immediate retry)."""
         fingerprint = self._fingerprint(operation, fields)
@@ -280,8 +285,8 @@ class RequestDeduplicator:
     def get_entry(
         self,
         operation: str,
-        fields: Dict[str, Any],
-    ) -> Optional[DeduplicationEntry]:
+        fields: dict[str, Any],
+    ) -> DeduplicationEntry | None:
         """Get an entry by operation + fields."""
         fingerprint = self._fingerprint(operation, fields)
         with self._lock:
@@ -306,10 +311,7 @@ class RequestDeduplicator:
     def cleanup_expired(self) -> int:
         """Remove expired entries. Returns count removed."""
         with self._lock:
-            expired = [
-                fp for fp, entry in self._entries.items()
-                if entry.is_expired
-            ]
+            expired = [fp for fp, entry in self._entries.items() if entry.is_expired]
             for fp in expired:
                 del self._entries[fp]
         return len(expired)
@@ -332,7 +334,7 @@ class RequestDeduplicator:
     # =========================================================================
 
     @staticmethod
-    def _fingerprint(operation: str, fields: Dict[str, Any]) -> str:
+    def _fingerprint(operation: str, fields: dict[str, Any]) -> str:
         """Generate a deterministic fingerprint for a request."""
         canonical = json.dumps(
             {"op": operation, **fields},
@@ -364,7 +366,7 @@ class RequestDeduplicator:
             self._total_checks = 0
             self._duplicates_caught = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         stats = self.get_stats()
         return {
             "entry_count": self.entry_count,
@@ -378,7 +380,7 @@ class RequestDeduplicator:
 # Global Instance
 # =============================================================================
 
-_deduplicator: Optional[RequestDeduplicator] = None
+_deduplicator: RequestDeduplicator | None = None
 _dedup_lock = threading.Lock()
 
 

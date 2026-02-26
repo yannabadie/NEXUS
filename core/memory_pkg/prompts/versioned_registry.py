@@ -36,9 +36,9 @@ import hashlib
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -47,25 +47,27 @@ _logger = logging.getLogger(__name__)
 # Data Types
 # =============================================================================
 
+
 @dataclass
 class PromptVersion:
     """A single version of a prompt template."""
+
     version: int
     content: str
     content_hash: str
     author: str = ""
     changelog: str = ""
     created_at: str = ""
-    variables: List[str] = field(default_factory=list)
+    variables: list[str] = field(default_factory=list)
     line_count: int = 0
 
     def __post_init__(self):
         if not self.created_at:
-            self.created_at = datetime.now(timezone.utc).isoformat()
+            self.created_at = datetime.now(UTC).isoformat()
         if not self.line_count:
             self.line_count = len(self.content.splitlines())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "version": self.version,
             "content_hash": self.content_hash,
@@ -77,7 +79,7 @@ class PromptVersion:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any], content: str = "") -> PromptVersion:
+    def from_dict(cls, data: dict[str, Any], content: str = "") -> PromptVersion:
         return cls(
             version=data["version"],
             content=content,
@@ -93,14 +95,15 @@ class PromptVersion:
 @dataclass
 class PromptEntry:
     """A prompt template with its full version history."""
+
     name: str
     current_version: int = 0
-    versions: List[PromptVersion] = field(default_factory=list)
-    tags: List[str] = field(default_factory=list)
+    versions: list[PromptVersion] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
     description: str = ""
 
     @property
-    def latest(self) -> Optional[PromptVersion]:
+    def latest(self) -> PromptVersion | None:
         if not self.versions:
             return None
         return self.versions[-1]
@@ -109,13 +112,13 @@ class PromptEntry:
     def version_count(self) -> int:
         return len(self.versions)
 
-    def get_version(self, version: int) -> Optional[PromptVersion]:
+    def get_version(self, version: int) -> PromptVersion | None:
         for v in self.versions:
             if v.version == version:
                 return v
         return None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "current_version": self.current_version,
@@ -130,6 +133,7 @@ class PromptEntry:
 # Prompt Registry
 # =============================================================================
 
+
 class PromptRegistry:
     """
     Versioned prompt template registry.
@@ -138,7 +142,7 @@ class PromptRegistry:
     and enables rollback to previous versions. Persists to disk.
     """
 
-    def __init__(self, storage_path: Optional[Path] = None):
+    def __init__(self, storage_path: Path | None = None):
         """
         Initialize the prompt registry.
 
@@ -146,7 +150,7 @@ class PromptRegistry:
             storage_path: Directory for storing versioned prompts (None = in-memory)
         """
         self._storage_path = Path(storage_path) if storage_path else None
-        self._entries: Dict[str, PromptEntry] = {}
+        self._entries: dict[str, PromptEntry] = {}
 
         if self._storage_path:
             self._load()
@@ -158,7 +162,7 @@ class PromptRegistry:
         *,
         author: str = "",
         changelog: str = "",
-        tags: Optional[List[str]] = None,
+        tags: list[str] | None = None,
         description: str = "",
     ) -> PromptVersion:
         """
@@ -179,9 +183,7 @@ class PromptRegistry:
             ValueError: If prompt already exists (use update() instead)
         """
         if name in self._entries:
-            raise ValueError(
-                f"Prompt '{name}' already exists. Use update() to add a new version."
-            )
+            raise ValueError(f"Prompt '{name}' already exists. Use update() to add a new version.")
 
         content_hash = self._hash_content(content)
         variables = self._extract_variables(content)
@@ -262,7 +264,7 @@ class PromptRegistry:
         _logger.info(f"Updated prompt '{name}' to v{new_version_num}")
         return version
 
-    def get(self, name: str, version: Optional[int] = None) -> Optional[str]:
+    def get(self, name: str, version: int | None = None) -> str | None:
         """
         Get prompt content.
 
@@ -283,9 +285,7 @@ class PromptRegistry:
 
         return entry.latest.content if entry.latest else None
 
-    def get_version_info(
-        self, name: str, version: Optional[int] = None
-    ) -> Optional[PromptVersion]:
+    def get_version_info(self, name: str, version: int | None = None) -> PromptVersion | None:
         """
         Get full version metadata.
 
@@ -305,7 +305,7 @@ class PromptRegistry:
 
         return entry.latest
 
-    def get_entry(self, name: str) -> Optional[PromptEntry]:
+    def get_entry(self, name: str) -> PromptEntry | None:
         """Get the full prompt entry with all versions."""
         return self._entries.get(name)
 
@@ -314,7 +314,7 @@ class PromptRegistry:
         name: str,
         version_a: int,
         version_b: int,
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Generate a unified diff between two versions.
 
@@ -365,9 +365,7 @@ class PromptRegistry:
 
         target = entry.get_version(target_version)
         if not target:
-            raise ValueError(
-                f"Version {target_version} not found for prompt '{name}'"
-            )
+            raise ValueError(f"Version {target_version} not found for prompt '{name}'")
 
         return self.update(
             name,
@@ -376,7 +374,7 @@ class PromptRegistry:
             changelog=f"Rollback to v{target_version}",
         )
 
-    def list_prompts(self) -> List[Dict[str, Any]]:
+    def list_prompts(self) -> list[dict[str, Any]]:
         """
         List all registered prompts with summary info.
 
@@ -394,7 +392,7 @@ class PromptRegistry:
             for entry in self._entries.values()
         ]
 
-    def list_versions(self, name: str) -> List[Dict[str, Any]]:
+    def list_versions(self, name: str) -> list[dict[str, Any]]:
         """
         List all versions of a prompt.
 
@@ -426,7 +424,7 @@ class PromptRegistry:
             return True
         return False
 
-    def search(self, query: str) -> List[str]:
+    def search(self, query: str) -> list[str]:
         """
         Search prompts by name, tags, or description.
 
@@ -454,9 +452,10 @@ class PromptRegistry:
     def _hash_content(self, content: str) -> str:
         return hashlib.sha256(content.encode("utf-8")).hexdigest()[:16]
 
-    def _extract_variables(self, content: str) -> List[str]:
+    def _extract_variables(self, content: str) -> list[str]:
         """Extract {variable} placeholders from content."""
         import re
+
         return sorted(set(re.findall(r"\{(\w+)\}", content)))
 
     def _save(self) -> None:
@@ -469,11 +468,8 @@ class PromptRegistry:
         # Save metadata (without full content)
         metadata = {
             "version": "1.0",
-            "updated_at": datetime.now(timezone.utc).isoformat(),
-            "prompts": {
-                name: entry.to_dict()
-                for name, entry in self._entries.items()
-            },
+            "updated_at": datetime.now(UTC).isoformat(),
+            "prompts": {name: entry.to_dict() for name, entry in self._entries.items()},
         }
         registry_file.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
 
@@ -518,13 +514,10 @@ class PromptRegistry:
         except (json.JSONDecodeError, KeyError) as e:
             _logger.warning(f"Failed to load prompt registry: {e}")
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Export registry state."""
         return {
             "prompt_count": len(self._entries),
             "total_versions": sum(e.version_count for e in self._entries.values()),
-            "prompts": {
-                name: entry.to_dict()
-                for name, entry in self._entries.items()
-            },
+            "prompts": {name: entry.to_dict() for name, entry in self._entries.items()},
         }

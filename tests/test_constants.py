@@ -5,19 +5,17 @@ Validates centralized constants are correctly defined and accessible.
 """
 
 import pytest
+
 from core.constants import (
-    TIMEOUTS,
+    CONSTANTS_VERSION,
+    COST_ESTIMATES,
+    DEBATE_LIMITS,
+    EXECUTION_LIMITS,
+    MEMORY_LIMITS,
     RETRY_LIMITS,
     SAGA_LIMITS,
-    DEBATE_LIMITS,
-    MEMORY_LIMITS,
-    EXECUTION_LIMITS,
     THRESHOLDS,
-    COST_ESTIMATES,
-    CONSTANTS_VERSION,
-    Timeouts,
-    RetryLimits,
-    SagaLimits,
+    TIMEOUTS,
 )
 
 
@@ -43,7 +41,7 @@ class TestTimeouts:
 
     def test_timeouts_frozen(self):
         """Timeout dataclass should be frozen (immutable)."""
-        with pytest.raises(Exception):  # FrozenInstanceError
+        with pytest.raises(AttributeError):  # FrozenInstanceError
             TIMEOUTS.BASH_COMMAND = 999
 
 

@@ -30,7 +30,6 @@ import threading
 import time
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -39,29 +38,29 @@ logger = logging.getLogger(__name__)
 # Data Structures
 # =============================================================================
 
+
 @dataclass
 class Pointer:
     """Compact reference to externally stored content."""
-    pointer_id: str          # Unique hash-based ID
-    summary: str             # Compact summary for context injection
-    source: str              # Origin (e.g., "read:src/auth.py", "grep:pattern")
-    content_length: int      # Original content length (chars)
-    token_estimate: int      # Estimated tokens saved
+
+    pointer_id: str  # Unique hash-based ID
+    summary: str  # Compact summary for context injection
+    source: str  # Origin (e.g., "read:src/auth.py", "grep:pattern")
+    content_length: int  # Original content length (chars)
+    token_estimate: int  # Estimated tokens saved
     created_at: float = field(default_factory=time.time)
-    access_count: int = 0    # How many times retrieved
+    access_count: int = 0  # How many times retrieved
 
     @property
     def context_representation(self) -> str:
         """Format for injection into LLM context."""
-        return (
-            f"[PTR:{self.pointer_id[:8]}] {self.source} "
-            f"({self.content_length} chars) — {self.summary}"
-        )
+        return f"[PTR:{self.pointer_id[:8]}] {self.source} ({self.content_length} chars) — {self.summary}"
 
 
 @dataclass
 class PointerStats:
     """Statistics for pointer memory usage."""
+
     total_stored: int
     total_retrieved: int
     tokens_saved: int
@@ -73,6 +72,7 @@ class PointerStats:
 # =============================================================================
 # Summarization Heuristics
 # =============================================================================
+
 
 def _generate_summary(content: str, source: str, max_length: int = 200) -> str:
     """Generate a compact summary of content using heuristics.
@@ -88,14 +88,14 @@ def _generate_summary(content: str, source: str, max_length: int = 200) -> str:
     # File read: first few lines + structure hint
     if source.startswith("read:") or source.startswith("file:"):
         preview_lines = lines[:5]
-        preview = "\n".join(l.strip()[:80] for l in preview_lines)
+        preview = "\n".join(ln.strip()[:80] for ln in preview_lines)
         suffix = f" ... ({total_lines} lines total)" if total_lines > 5 else ""
         return f"{preview}{suffix}"
 
     # Grep results: count matches + sample
     if source.startswith("grep:") or source.startswith("search:"):
         match_count = total_lines
-        samples = [l.strip()[:60] for l in lines[:3]]
+        samples = [ln.strip()[:60] for ln in lines[:3]]
         return f"{match_count} matches. Samples: {'; '.join(samples)}"
 
     # Web fetch: first sentence + domain
@@ -121,6 +121,7 @@ def _estimate_tokens(text: str) -> int:
 # =============================================================================
 # Pointer Memory
 # =============================================================================
+
 
 class PointerMemory:
     """
@@ -148,7 +149,7 @@ class PointerMemory:
         self._size_threshold = size_threshold or self.SIZE_THRESHOLD
         self._max_pointers = max_pointers or self.MAX_POINTERS
         self._store: OrderedDict[str, str] = OrderedDict()  # pointer_id → content
-        self._pointers: Dict[str, Pointer] = {}  # pointer_id → Pointer metadata
+        self._pointers: dict[str, Pointer] = {}  # pointer_id → Pointer metadata
         self._total_stored = 0
         self._total_retrieved = 0
         self._tokens_saved = 0
@@ -225,14 +226,11 @@ class PointerMemory:
             # Evict if over limits
             self._evict_if_needed()
 
-        logger.debug(
-            f"PointerMemory: stored {pid[:8]} ({content_len} chars, "
-            f"~{saved} tokens saved) from {source}"
-        )
+        logger.debug(f"PointerMemory: stored {pid[:8]} ({content_len} chars, ~{saved} tokens saved) from {source}")
 
         return pointer
 
-    def retrieve(self, pointer_id: str) -> Optional[str]:
+    def retrieve(self, pointer_id: str) -> str | None:
         """
         Retrieve full content by pointer ID.
 
@@ -260,14 +258,8 @@ class PointerMemory:
         """Get pointer memory statistics."""
         with self._lock:
             active = len(self._store)
-            total_original = sum(
-                p.content_length for p in self._pointers.values()
-                if p.pointer_id in self._store
-            )
-            total_summary = sum(
-                len(p.summary) for p in self._pointers.values()
-                if p.pointer_id in self._store
-            )
+            total_original = sum(p.content_length for p in self._pointers.values() if p.pointer_id in self._store)
+            total_summary = sum(len(p.summary) for p in self._pointers.values() if p.pointer_id in self._store)
             ratio = total_summary / max(total_original, 1)
 
         return PointerStats(
@@ -315,7 +307,7 @@ class PointerMemory:
 # Singleton
 # =============================================================================
 
-_instance: Optional[PointerMemory] = None
+_instance: PointerMemory | None = None
 _instance_lock = threading.Lock()
 
 

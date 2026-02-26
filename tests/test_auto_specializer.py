@@ -14,28 +14,23 @@ Validates:
 - Module exports
 """
 
-from datetime import datetime, timezone, timedelta
-from unittest.mock import MagicMock
-
-import pytest
-
-from core.intelligence.swarm.agent_metrics import AgentPool, AgentProfile, AgentInvocationResult
 from core.intelligence.evolution.auto_specializer import (
     AutoSpecializer,
+    DomainProfile,
     SpecializationConfig,
     SpecializationProposal,
-    DomainProfile,
 )
-
+from core.intelligence.swarm.agent_metrics import AgentPool, AgentProfile
 
 # =============================================================================
 # Fixtures
 # =============================================================================
 
+
 class FakeSuccessEntry:
     """Minimal success entry for testing."""
-    def __init__(self, domains, quality_score=0.8, swarm_mode="parallel",
-                 agents_used=None, duration_seconds=5.0):
+
+    def __init__(self, domains, quality_score=0.8, swarm_mode="parallel", agents_used=None, duration_seconds=5.0):
         self.domains = domains
         self.quality_score = quality_score
         self.swarm_mode = swarm_mode
@@ -45,6 +40,7 @@ class FakeSuccessEntry:
 
 class FakeSuccessMemory:
     """Minimal success memory for testing."""
+
     def __init__(self, entries=None):
         self._entries = entries or []
 
@@ -55,12 +51,20 @@ class FakeSuccessMemory:
 def _make_pool() -> AgentPool:
     """Create a standard test pool."""
     pool = AgentPool()
-    pool.register(AgentProfile(
-        agent_id="gemini_primary", provider="gemini", model="gemini-3-pro",
-    ))
-    pool.register(AgentProfile(
-        agent_id="claude_opus", provider="claude", model="claude-opus-4-5",
-    ))
+    pool.register(
+        AgentProfile(
+            agent_id="gemini_primary",
+            provider="gemini",
+            model="gemini-3-pro",
+        )
+    )
+    pool.register(
+        AgentProfile(
+            agent_id="claude_opus",
+            provider="claude",
+            model="claude-opus-4-5",
+        )
+    )
     return pool
 
 
@@ -79,6 +83,7 @@ def _make_domain_entries(domain, count=15, quality=0.85):
 # =============================================================================
 # SpecializationConfig Tests
 # =============================================================================
+
 
 class TestSpecializationConfig:
     """Test configuration defaults."""
@@ -106,6 +111,7 @@ class TestSpecializationConfig:
 # =============================================================================
 # DomainProfile Tests
 # =============================================================================
+
 
 class TestDomainProfile:
     """Test domain profile metrics."""
@@ -146,6 +152,7 @@ class TestDomainProfile:
 # SpecializationProposal Tests
 # =============================================================================
 
+
 class TestSpecializationProposal:
     """Test proposal representation."""
 
@@ -185,6 +192,7 @@ class TestSpecializationProposal:
 # AutoSpecializer - Domain Profiling Tests
 # =============================================================================
 
+
 class TestDomainProfiling:
     """Test domain profile building from SuccessMemory."""
 
@@ -214,9 +222,8 @@ class TestDomainProfiling:
         assert profile["success_rate"] > 0.8
 
     def test_multiple_domains(self):
-        entries = (
-            _make_domain_entries("coding", count=15, quality=0.9) +
-            _make_domain_entries("research", count=8, quality=0.7)
+        entries = _make_domain_entries("coding", count=15, quality=0.9) + _make_domain_entries(
+            "research", count=8, quality=0.7
         )
         memory = FakeSuccessMemory(entries)
         pool = _make_pool()
@@ -228,10 +235,7 @@ class TestDomainProfiling:
 
     def test_multi_domain_entry(self):
         """Entry with multiple domains should count for each."""
-        entries = [
-            FakeSuccessEntry(domains=["coding", "research"], quality_score=0.9)
-            for _ in range(15)
-        ]
+        entries = [FakeSuccessEntry(domains=["coding", "research"], quality_score=0.9) for _ in range(15)]
         memory = FakeSuccessMemory(entries)
         pool = _make_pool()
         specializer = AutoSpecializer(pool, memory)
@@ -246,6 +250,7 @@ class TestDomainProfiling:
 # =============================================================================
 # AutoSpecializer - Qualification Tests
 # =============================================================================
+
 
 class TestQualification:
     """Test qualification criteria."""
@@ -307,6 +312,7 @@ class TestQualification:
 # AutoSpecializer - Specialist Count Tests
 # =============================================================================
 
+
 class TestSpecialistLimit:
     """Test specialist agent counting and limits."""
 
@@ -326,14 +332,22 @@ class TestSpecialistLimit:
         pool = _make_pool()
 
         # Add existing specialists
-        pool.register(AgentProfile(
-            agent_id="coding_expert_1", provider="spawned", model="custom",
-            capabilities=["coding"],
-        ))
-        pool.register(AgentProfile(
-            agent_id="coding_expert_2", provider="spawned", model="custom",
-            capabilities=["coding"],
-        ))
+        pool.register(
+            AgentProfile(
+                agent_id="coding_expert_1",
+                provider="spawned",
+                model="custom",
+                capabilities=["coding"],
+            )
+        )
+        pool.register(
+            AgentProfile(
+                agent_id="coding_expert_2",
+                provider="spawned",
+                model="custom",
+                capabilities=["coding"],
+            )
+        )
 
         config = SpecializationConfig(max_specialists_per_domain=2)
         specializer = AutoSpecializer(pool, memory, config=config)
@@ -350,7 +364,9 @@ class TestSpecialistLimit:
 
         # Add inactive specialist
         profile = AgentProfile(
-            agent_id="old_coding", provider="spawned", model="custom",
+            agent_id="old_coding",
+            provider="spawned",
+            model="custom",
             capabilities=["coding"],
         )
         profile.is_active = False
@@ -367,6 +383,7 @@ class TestSpecialistLimit:
 # =============================================================================
 # AutoSpecializer - Cooldown Tests
 # =============================================================================
+
 
 class TestCooldown:
     """Test cooldown between proposals."""
@@ -411,6 +428,7 @@ class TestCooldown:
 # =============================================================================
 # AutoSpecializer - Proposal Management Tests
 # =============================================================================
+
 
 class TestProposalManagement:
     """Test proposal lifecycle."""
@@ -460,7 +478,7 @@ class TestProposalManagement:
         pid = proposals[0].proposal_id
         specializer.accept_proposal(pid)
 
-        pending = specializer.list_proposals(status="pending")
+        specializer.list_proposals(status="pending")
         accepted = specializer.list_proposals(status="accepted")
         assert all(p.status == "accepted" for p in accepted)
 
@@ -479,6 +497,7 @@ class TestProposalManagement:
 # =============================================================================
 # AutoSpecializer - Proposal Content Tests
 # =============================================================================
+
 
 class TestProposalContent:
     """Test proposal metadata and content."""
@@ -535,6 +554,7 @@ class TestProposalContent:
 # AutoSpecializer - State Export Tests
 # =============================================================================
 
+
 class TestStateExport:
     """Test state serialization."""
 
@@ -586,6 +606,7 @@ class TestStateExport:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test that auto-specializer types are importable."""
 
@@ -593,17 +614,17 @@ class TestModuleExports:
         from core.intelligence.evolution import (
             AutoSpecializer,
             SpecializationConfig,
-            SpecializationProposal,
-            DomainProfile,
         )
+
         assert AutoSpecializer is not None
         assert SpecializationConfig is not None
 
     def test_from_module(self):
         from core.intelligence.evolution.auto_specializer import (
             AutoSpecializer,
+            DomainProfile,
             SpecializationConfig,
             SpecializationProposal,
-            DomainProfile,
         )
+
         assert all([AutoSpecializer, SpecializationConfig, SpecializationProposal, DomainProfile])

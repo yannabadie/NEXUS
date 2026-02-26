@@ -38,10 +38,10 @@ Date: 2026-02-15
 from __future__ import annotations
 
 import logging
-import subprocess
 import shutil
+import subprocess
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 from .base import BaseHandler, ToolResult
 
@@ -65,7 +65,7 @@ class SandboxHandler(BaseHandler):
     def __init__(
         self,
         workspace_path: Path,
-        validation_service: Optional[Any] = None,
+        validation_service: Any | None = None,
         image: str = DEFAULT_SANDBOX_IMAGE,
         memory_limit: str = "256m",
         cpu_limit: float = 1.0,
@@ -87,7 +87,7 @@ class SandboxHandler(BaseHandler):
         self._memory_limit = memory_limit
         self._cpu_limit = cpu_limit
         self._timeout = timeout
-        self._docker_available: Optional[bool] = None
+        self._docker_available: bool | None = None
 
     @property
     def tool_name(self) -> str:
@@ -112,7 +112,7 @@ class SandboxHandler(BaseHandler):
 
         return self._docker_available
 
-    def execute(self, args: Dict[str, Any]) -> ToolResult:
+    def execute(self, args: dict[str, Any]) -> ToolResult:
         """
         Execute command inside a sandboxed Docker container.
 
@@ -186,30 +186,39 @@ class SandboxHandler(BaseHandler):
             List of command arguments for subprocess
         """
         docker_args = [
-            "docker", "run",
-            "--rm",                                      # Ephemeral (auto-cleanup)
-            "--network=none",                            # No network access
-            "--read-only",                               # Read-only root filesystem
-            "--tmpfs=/tmp:rw,noexec,nosuid,size=64m",   # Writable /tmp (limited)
-            f"--memory={self._memory_limit}",            # Memory cap
-            f"--cpus={self._cpu_limit}",                 # CPU cap
-            "--security-opt=no-new-privileges",          # No privilege escalation
-            "--pids-limit=128",                           # Process count limit
-            f"--stop-timeout={int(self._timeout)}",      # Graceful stop timeout
+            "docker",
+            "run",
+            "--rm",  # Ephemeral (auto-cleanup)
+            "--network=none",  # No network access
+            "--read-only",  # Read-only root filesystem
+            "--tmpfs=/tmp:rw,noexec,nosuid,size=64m",  # Writable /tmp (limited)
+            f"--memory={self._memory_limit}",  # Memory cap
+            f"--cpus={self._cpu_limit}",  # CPU cap
+            "--security-opt=no-new-privileges",  # No privilege escalation
+            "--pids-limit=128",  # Process count limit
+            f"--stop-timeout={int(self._timeout)}",  # Graceful stop timeout
         ]
 
         # Mount workspace as read-only
         workspace_str = str(self.workspace_path.resolve())
-        docker_args.extend([
-            "-v", f"{workspace_str}:/workspace:ro",
-            "-w", "/workspace",
-        ])
+        docker_args.extend(
+            [
+                "-v",
+                f"{workspace_str}:/workspace:ro",
+                "-w",
+                "/workspace",
+            ]
+        )
 
         # Set the image and command
-        docker_args.extend([
-            self._image,
-            "/bin/sh", "-c", command,
-        ])
+        docker_args.extend(
+            [
+                self._image,
+                "/bin/sh",
+                "-c",
+                command,
+            ]
+        )
 
         return docker_args
 

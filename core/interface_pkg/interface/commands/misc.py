@@ -6,19 +6,20 @@ These commands provide various utility functions for the REPL.
 V9.1: TelemetryCommand and BudgetCommand now use Service Layer (TelemetryService, BudgetService).
 """
 
-from typing import List
-from .registry import Command, CommandContext, CommandResult, CommandStatus
+from .registry import Command, CommandContext, CommandRegistry, CommandResult, CommandStatus
 
 
 def _get_telemetry_service(context: CommandContext):
     """Get or create TelemetryService from context."""
     from core.observability.telemetry import _get_telemetry_service as get_service
+
     return get_service(context)
 
 
 def _get_budget_service(context: CommandContext):
     """Get or create BudgetService from context."""
     from core.observability.telemetry import _get_budget_service as get_service
+
     return get_service(context)
 
 
@@ -30,7 +31,7 @@ class ClearCommand(Command):
         return "/clear"
 
     @property
-    def aliases(self) -> List[str]:
+    def aliases(self) -> list[str]:
         return ["/cls"]
 
     @property
@@ -40,10 +41,7 @@ class ClearCommand(Command):
     def execute(self, args: str, context: CommandContext) -> CommandResult:
         """Execute clear command."""
         context.console.clear()
-        return CommandResult(
-            status=CommandStatus.SUCCESS,
-            message=""
-        )
+        return CommandResult(status=CommandStatus.SUCCESS, message="")
 
 
 class ModeCommand(Command):
@@ -54,7 +52,7 @@ class ModeCommand(Command):
         return "/mode"
 
     @property
-    def aliases(self) -> List[str]:
+    def aliases(self) -> list[str]:
         return []
 
     @property
@@ -68,16 +66,10 @@ class ModeCommand(Command):
     def execute(self, args: str, context: CommandContext) -> CommandResult:
         """Execute mode command."""
         if not args.strip():
-            return CommandResult(
-                status=CommandStatus.INVALID_ARGS,
-                message="Usage: /mode <mode_name>"
-            )
+            return CommandResult(status=CommandStatus.INVALID_ARGS, message="Usage: /mode <mode_name>")
 
         context.orchestrator.blackboard["mode"] = args.strip()
-        return CommandResult(
-            status=CommandStatus.SUCCESS,
-            message=f"Mode changed to: {args.strip()}"
-        )
+        return CommandResult(status=CommandStatus.SUCCESS, message=f"Mode changed to: {args.strip()}")
 
 
 class ResetCommand(Command):
@@ -88,7 +80,7 @@ class ResetCommand(Command):
         return "/reset"
 
     @property
-    def aliases(self) -> List[str]:
+    def aliases(self) -> list[str]:
         return []
 
     @property
@@ -99,15 +91,9 @@ class ResetCommand(Command):
         """Execute reset command."""
         try:
             context.orchestrator.reset_to_idle()
-            return CommandResult(
-                status=CommandStatus.SUCCESS,
-                message="Orchestrator reset to IDLE"
-            )
+            return CommandResult(status=CommandStatus.SUCCESS, message="Orchestrator reset to IDLE")
         except Exception as e:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message=f"Reset failed: {e}"
-            )
+            return CommandResult(status=CommandStatus.ERROR, message=f"Reset failed: {e}")
 
 
 class DoctorCommand(Command):
@@ -118,7 +104,7 @@ class DoctorCommand(Command):
         return "/doctor"
 
     @property
-    def aliases(self) -> List[str]:
+    def aliases(self) -> list[str]:
         return ["/diag"]
 
     @property
@@ -129,22 +115,13 @@ class DoctorCommand(Command):
         """Execute doctor command."""
         repl = context.extras.get("repl")
         if not repl:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message="REPL instance not available"
-            )
+            return CommandResult(status=CommandStatus.ERROR, message="REPL instance not available")
 
         try:
             repl.run_doctor()
-            return CommandResult(
-                status=CommandStatus.SUCCESS,
-                message=""
-            )
+            return CommandResult(status=CommandStatus.SUCCESS, message="")
         except Exception as e:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message=f"Diagnostics failed: {e}"
-            )
+            return CommandResult(status=CommandStatus.ERROR, message=f"Diagnostics failed: {e}")
 
 
 class TelemetryCommand(Command):
@@ -155,7 +132,7 @@ class TelemetryCommand(Command):
         return "/telemetry"
 
     @property
-    def aliases(self) -> List[str]:
+    def aliases(self) -> list[str]:
         return ["/tel"]
 
     @property
@@ -191,18 +168,12 @@ class TelemetryCommand(Command):
             if result.success:
                 return CommandResult(
                     status=CommandStatus.SUCCESS,
-                    message=""  # Service handles its own output
+                    message="",  # Service handles its own output
                 )
             else:
-                return CommandResult(
-                    status=CommandStatus.ERROR,
-                    message=result.error or "Telemetry command failed"
-                )
+                return CommandResult(status=CommandStatus.ERROR, message=result.error or "Telemetry command failed")
         except Exception as e:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message=f"Telemetry command failed: {e}"
-            )
+            return CommandResult(status=CommandStatus.ERROR, message=f"Telemetry command failed: {e}")
 
 
 class BudgetCommand(Command):
@@ -213,7 +184,7 @@ class BudgetCommand(Command):
         return "/budget"
 
     @property
-    def aliases(self) -> List[str]:
+    def aliases(self) -> list[str]:
         return []
 
     @property
@@ -240,18 +211,12 @@ class BudgetCommand(Command):
                 result = service.reset(confirmed=False)
             elif subcommand == "add":
                 if len(parts) < 2:
-                    return CommandResult(
-                        status=CommandStatus.INVALID_ARGS,
-                        message="Usage: /budget add <amount>"
-                    )
+                    return CommandResult(status=CommandStatus.INVALID_ARGS, message="Usage: /budget add <amount>")
                 try:
                     amount = float(parts[1])
                     result = service.add_credit(amount)
                 except ValueError:
-                    return CommandResult(
-                        status=CommandStatus.INVALID_ARGS,
-                        message="Amount must be a number"
-                    )
+                    return CommandResult(status=CommandStatus.INVALID_ARGS, message="Amount must be a number")
             elif subcommand == "history":
                 result = service.history()
             else:
@@ -261,18 +226,12 @@ class BudgetCommand(Command):
             if result.success:
                 return CommandResult(
                     status=CommandStatus.SUCCESS,
-                    message=""  # Service handles its own output
+                    message="",  # Service handles its own output
                 )
             else:
-                return CommandResult(
-                    status=CommandStatus.ERROR,
-                    message=result.error or "Budget command failed"
-                )
+                return CommandResult(status=CommandStatus.ERROR, message=result.error or "Budget command failed")
         except Exception as e:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message=f"Budget command failed: {e}"
-            )
+            return CommandResult(status=CommandStatus.ERROR, message=f"Budget command failed: {e}")
 
 
 class TutorialCommand(Command):
@@ -283,7 +242,7 @@ class TutorialCommand(Command):
         return "/tutorial"
 
     @property
-    def aliases(self) -> List[str]:
+    def aliases(self) -> list[str]:
         return ["/tut"]
 
     @property
@@ -294,22 +253,13 @@ class TutorialCommand(Command):
         """Execute tutorial command."""
         repl = context.extras.get("repl")
         if not repl:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message="REPL instance not available"
-            )
+            return CommandResult(status=CommandStatus.ERROR, message="REPL instance not available")
 
         try:
             repl.run_tutorial()
-            return CommandResult(
-                status=CommandStatus.SUCCESS,
-                message=""
-            )
+            return CommandResult(status=CommandStatus.SUCCESS, message="")
         except Exception as e:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message=f"Tutorial failed: {e}"
-            )
+            return CommandResult(status=CommandStatus.ERROR, message=f"Tutorial failed: {e}")
 
 
 class QuickstartCommand(Command):
@@ -320,7 +270,7 @@ class QuickstartCommand(Command):
         return "/quickstart"
 
     @property
-    def aliases(self) -> List[str]:
+    def aliases(self) -> list[str]:
         return ["/qs"]
 
     @property
@@ -331,22 +281,13 @@ class QuickstartCommand(Command):
         """Execute quickstart command."""
         repl = context.extras.get("repl")
         if not repl:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message="REPL instance not available"
-            )
+            return CommandResult(status=CommandStatus.ERROR, message="REPL instance not available")
 
         try:
             repl.show_quickstart()
-            return CommandResult(
-                status=CommandStatus.SUCCESS,
-                message=""
-            )
+            return CommandResult(status=CommandStatus.SUCCESS, message="")
         except Exception as e:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message=f"Quickstart failed: {e}"
-            )
+            return CommandResult(status=CommandStatus.ERROR, message=f"Quickstart failed: {e}")
 
 
 class ChatCommand(Command):
@@ -357,7 +298,7 @@ class ChatCommand(Command):
         return "/chat"
 
     @property
-    def aliases(self) -> List[str]:
+    def aliases(self) -> list[str]:
         return []
 
     @property
@@ -368,22 +309,13 @@ class ChatCommand(Command):
         """Execute chat command."""
         repl = context.extras.get("repl")
         if not repl:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message="REPL instance not available"
-            )
+            return CommandResult(status=CommandStatus.ERROR, message="REPL instance not available")
 
         try:
             repl.toggle_chat_mode()
-            return CommandResult(
-                status=CommandStatus.SUCCESS,
-                message=""
-            )
+            return CommandResult(status=CommandStatus.SUCCESS, message="")
         except Exception as e:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message=f"Chat toggle failed: {e}"
-            )
+            return CommandResult(status=CommandStatus.ERROR, message=f"Chat toggle failed: {e}")
 
 
 def register_misc_commands(registry: "CommandRegistry") -> None:

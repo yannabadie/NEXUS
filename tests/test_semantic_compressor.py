@@ -13,16 +13,16 @@ Date: 2026-02-17
 Epic: 1.1 (Context Compression)
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
-from typing import Any
+from unittest.mock import AsyncMock
 
-from core.intelligence.hive_mind.semantic_compressor import (
-    SemanticCompressor,
-    CompressionResult,
-    COMPRESSION_PROMPTS,
-)
+import pytest
+
 from core.drivers.protocol import DriverResponse, DriverResponseStatus
+from core.intelligence.hive_mind.semantic_compressor import (
+    COMPRESSION_PROMPTS,
+    CompressionResult,
+    SemanticCompressor,
+)
 
 
 @pytest.fixture
@@ -85,7 +85,8 @@ class TestBasicCompression:
             output_tokens=50,
         )
 
-        original_content = """
+        original_content = (
+            """
         ANALYSIS RESULT:
         The task requires implementing user authentication for the web application.
         After careful consideration, I propose using JWT (JSON Web Tokens) for stateless
@@ -94,7 +95,9 @@ class TestBasicCompression:
         validation, and refresh mechanisms. Key risks include token expiration handling
         and secure storage of secrets. Required capabilities include cryptography libraries
         and middleware integration.
-        """ * 5  # Make it verbose
+        """
+            * 5
+        )  # Make it verbose
 
         result = await compressor.compress_phase_output(
             phase_name="analysis",
@@ -103,7 +106,10 @@ class TestBasicCompression:
         )
 
         assert isinstance(result, CompressionResult)
-        assert result.compressed_content == "Task: Implement auth. Approach: JWT tokens. Complexity: MODERATE. Risks: Token expiry."
+        assert (
+            result.compressed_content
+            == "Task: Implement auth. Approach: JWT tokens. Complexity: MODERATE. Risks: Token expiry."
+        )
         assert result.original_tokens > result.compressed_tokens
         assert result.compression_ratio > 0.5  # At least 50% reduction
         assert result.phase_name == "analysis"
@@ -118,13 +124,16 @@ class TestBasicCompression:
             output_tokens=40,
         )
 
-        debate_history = """
+        debate_history = (
+            """
         GEMINI: I think we should use PostgreSQL for the database.
         CLAUDE: I agree with PostgreSQL, it's battle-tested and reliable.
         GEMINI: For indexing, we could use B-tree indexes on primary keys.
         CLAUDE: I'm not sure B-tree is optimal. We might need hash indexes for equality lookups.
         GEMINI: That's a valid point. Let's discuss the tradeoffs.
-        """ * 3
+        """
+            * 3
+        )
 
         result = await compressor.compress_phase_output(
             phase_name="debate",
@@ -271,7 +280,7 @@ class TestMaxTokensCalculation:
         # With 80% target: max = 250 * 0.2 = 50 tokens
         original_content = "X" * 1000
 
-        result = await compressor.compress_phase_output(
+        await compressor.compress_phase_output(
             phase_name="consolidation",
             content=original_content,
             # No max_output_tokens specified - should auto-calculate
@@ -291,7 +300,7 @@ class TestMaxTokensCalculation:
             content="Custom",
         )
 
-        result = await compressor.compress_phase_output(
+        await compressor.compress_phase_output(
             phase_name="analysis",
             content="Content " * 100,
             max_output_tokens=150,  # Explicit

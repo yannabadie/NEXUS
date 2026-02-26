@@ -14,20 +14,20 @@ Author: Claude (NEXUS V12.2 IRONCLAD)
 Date: 2025-12-16
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import Enum
-from typing import Optional
 from uuid import UUID, uuid4
 
 from sqlmodel import Field, SQLModel
-
 
 # =============================================================================
 # Enums
 # =============================================================================
 
+
 class AuditAction(str, Enum):
     """Audit action categories."""
+
     # Authentication
     AUTH_LOGIN = "auth:login"
     AUTH_LOGOUT = "auth:logout"
@@ -61,6 +61,7 @@ class AuditAction(str, Enum):
 
 class AuditStatus(str, Enum):
     """Audit event status."""
+
     SUCCESS = "success"
     DENIED = "denied"
     ERROR = "error"
@@ -68,6 +69,7 @@ class AuditStatus(str, Enum):
 
 class HITLRequestStatus(str, Enum):
     """Human-in-the-Loop request status."""
+
     PENDING = "pending"
     ANSWERED = "answered"
     EXPIRED = "expired"
@@ -76,14 +78,16 @@ class HITLRequestStatus(str, Enum):
 
 class HITLRequestType(str, Enum):
     """Human-in-the-Loop request types."""
-    ASK = "ask"           # Free-form question
-    CONFIRM = "confirm"   # Yes/No confirmation
-    CHOOSE = "choose"     # Multiple choice
+
+    ASK = "ask"  # Free-form question
+    CONFIRM = "confirm"  # Yes/No confirmation
+    CHOOSE = "choose"  # Multiple choice
 
 
 # =============================================================================
 # AuditLog Model
 # =============================================================================
+
 
 class AuditLog(SQLModel, table=True):
     """
@@ -108,6 +112,7 @@ class AuditLog(SQLModel, table=True):
             status=AuditStatus.SUCCESS,
         )
     """
+
     __tablename__ = "audit_logs"
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
@@ -117,18 +122,18 @@ class AuditLog(SQLModel, table=True):
     # Action details
     action: str = Field(index=True)  # e.g., "file:read", "user:login"
     resource_type: str  # e.g., "file", "user", "workflow"
-    resource_id: Optional[str] = Field(default=None, max_length=500)  # e.g., file path, user UUID
+    resource_id: str | None = Field(default=None, max_length=500)  # e.g., file path, user UUID
 
     # Result
     status: str = Field(default="success")  # "success", "denied", "error"
-    details: Optional[str] = Field(default=None, max_length=2000)  # JSON string for additional context
+    details: str | None = Field(default=None, max_length=2000)  # JSON string for additional context
 
     # Request metadata
-    ip_address: Optional[str] = Field(default=None, max_length=45)  # IPv6 max length
-    user_agent: Optional[str] = Field(default=None, max_length=500)
+    ip_address: str | None = Field(default=None, max_length=45)  # IPv6 max length
+    user_agent: str | None = Field(default=None, max_length=500)
 
     # Timestamp
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None), index=True)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None), index=True)
 
     def __repr__(self) -> str:
         return f"AuditLog({self.action}, user={self.user_id}, status={self.status})"
@@ -137,6 +142,7 @@ class AuditLog(SQLModel, table=True):
 # =============================================================================
 # HITLRequest Model
 # =============================================================================
+
 
 class HITLRequest(SQLModel, table=True):
     """
@@ -157,6 +163,7 @@ class HITLRequest(SQLModel, table=True):
             prompt="Delete all files?",
         )
     """
+
     __tablename__ = "hitl_requests"
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
@@ -166,23 +173,23 @@ class HITLRequest(SQLModel, table=True):
     # Request details
     request_type: str  # "ask", "confirm", "choose"
     prompt: str = Field(max_length=2000)
-    options: Optional[str] = Field(default=None, max_length=2000)  # JSON array for choices
+    options: str | None = Field(default=None, max_length=2000)  # JSON array for choices
 
     # Context (for resuming workflow)
-    context_data: Optional[str] = Field(default=None, max_length=10000)  # JSON workflow context
+    context_data: str | None = Field(default=None, max_length=10000)  # JSON workflow context
 
     # State
     status: str = Field(default="pending", index=True)  # pending, answered, expired, cancelled
-    answer: Optional[str] = Field(default=None, max_length=2000)
+    answer: str | None = Field(default=None, max_length=2000)
 
     # Timestamps
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
-    answered_at: Optional[datetime] = Field(default=None)
-    expires_at: datetime = Field(default_factory=lambda: (datetime.now(timezone.utc) + timedelta(hours=24)).replace(tzinfo=None))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
+    answered_at: datetime | None = Field(default=None)
+    expires_at: datetime = Field(default_factory=lambda: (datetime.now(UTC) + timedelta(hours=24)).replace(tzinfo=None))
 
     def is_expired(self) -> bool:
         """Check if request has expired."""
-        return datetime.now(timezone.utc).replace(tzinfo=None) > self.expires_at
+        return datetime.now(UTC).replace(tzinfo=None) > self.expires_at
 
     def is_pending(self) -> bool:
         """Check if request is still pending."""

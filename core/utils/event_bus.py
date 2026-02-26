@@ -33,9 +33,9 @@ import logging
 import threading
 import time
 import uuid
-from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -52,15 +52,17 @@ DEFAULT_PRIORITY = 50
 # Types
 # =============================================================================
 
+
 @dataclass
 class Event:
     """An event emitted on the bus."""
+
     topic: str
     data: Any = None
     event_id: str = ""
     timestamp: float = 0.0
     source: str = ""
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         if not self.event_id:
@@ -68,7 +70,7 @@ class Event:
         if self.timestamp == 0.0:
             self.timestamp = time.monotonic()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "event_id": self.event_id,
             "topic": self.topic,
@@ -81,6 +83,7 @@ class Event:
 @dataclass
 class Subscription:
     """A registered event handler."""
+
     sub_id: str
     pattern: str  # topic pattern (supports * wildcard)
     handler: Callable[[Event], Any]
@@ -98,16 +101,17 @@ class Subscription:
 @dataclass
 class EmitResult:
     """Result of emitting an event."""
+
     event_id: str
     topic: str
     handlers_called: int
-    errors: List[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
 
     @property
     def success(self) -> bool:
         return len(self.errors) == 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "event_id": self.event_id,
             "topic": self.topic,
@@ -120,6 +124,7 @@ class EmitResult:
 # =============================================================================
 # Event Bus
 # =============================================================================
+
 
 class EventBus:
     """
@@ -135,8 +140,8 @@ class EventBus:
         max_history: int = MAX_HISTORY,
         capture_history: bool = True,
     ):
-        self._subscriptions: List[Subscription] = []
-        self._history: List[Event] = []
+        self._subscriptions: list[Subscription] = []
+        self._history: list[Event] = []
         self._max_history = max_history
         self._capture_history = capture_history
         self._lock = threading.Lock()
@@ -207,12 +212,10 @@ class EventBus:
         """
         with self._lock:
             before = len(self._subscriptions)
-            self._subscriptions = [
-                s for s in self._subscriptions if s.sub_id != sub_id
-            ]
+            self._subscriptions = [s for s in self._subscriptions if s.sub_id != sub_id]
             return len(self._subscriptions) < before
 
-    def off_all(self, pattern: Optional[str] = None) -> int:
+    def off_all(self, pattern: str | None = None) -> int:
         """
         Remove all subscriptions, optionally filtered by pattern.
 
@@ -225,9 +228,7 @@ class EventBus:
                 self._subscriptions.clear()
                 return count
             before = len(self._subscriptions)
-            self._subscriptions = [
-                s for s in self._subscriptions if s.pattern != pattern
-            ]
+            self._subscriptions = [s for s in self._subscriptions if s.pattern != pattern]
             return before - len(self._subscriptions)
 
     # =========================================================================
@@ -240,7 +241,7 @@ class EventBus:
         data: Any = None,
         *,
         source: str = "",
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> EmitResult:
         """
         Emit an event to all matching subscribers.
@@ -266,14 +267,11 @@ class EventBus:
             with self._lock:
                 self._history.append(event)
                 if len(self._history) > self._max_history:
-                    self._history = self._history[-self._max_history:]
+                    self._history = self._history[-self._max_history :]
 
         # Find matching subscriptions
         with self._lock:
-            matching = [
-                s for s in self._subscriptions
-                if s.matches(topic, source)
-            ]
+            matching = [s for s in self._subscriptions if s.matches(topic, source)]
             # Sort by priority
             matching.sort(key=lambda s: s.priority)
 
@@ -293,10 +291,7 @@ class EventBus:
         # Remove one-shot subscriptions
         if to_remove:
             with self._lock:
-                self._subscriptions = [
-                    s for s in self._subscriptions
-                    if s.sub_id not in set(to_remove)
-                ]
+                self._subscriptions = [s for s in self._subscriptions if s.sub_id not in set(to_remove)]
 
         self._emit_count += 1
 
@@ -328,9 +323,9 @@ class EventBus:
     def get_history(
         self,
         *,
-        topic: Optional[str] = None,
+        topic: str | None = None,
         limit: int = 50,
-    ) -> List[Event]:
+    ) -> list[Event]:
         """
         Get event history.
 
@@ -349,7 +344,7 @@ class EventBus:
 
         return events[:limit]
 
-    def get_topics(self) -> List[str]:
+    def get_topics(self) -> list[str]:
         """Get all topics that have been emitted."""
         with self._lock:
             return sorted(set(e.topic for e in self._history))
@@ -361,7 +356,7 @@ class EventBus:
             self._history.clear()
             return count
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "subscription_count": self.subscription_count,
             "emit_count": self._emit_count,
@@ -374,7 +369,7 @@ class EventBus:
 # Global Instance
 # =============================================================================
 
-_bus: Optional[EventBus] = None
+_bus: EventBus | None = None
 _bus_lock = threading.Lock()
 
 

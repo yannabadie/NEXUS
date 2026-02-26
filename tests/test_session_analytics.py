@@ -20,8 +20,6 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.infrastructure.session.session_analytics import (
     MAX_SESSIONS,
     AgentAction,
@@ -33,10 +31,10 @@ from core.infrastructure.session.session_analytics import (
     reset_session_analytics,
 )
 
-
 # =============================================================================
 # PhaseMetric Tests
 # =============================================================================
+
 
 class TestPhaseMetric:
     """Test PhaseMetric dataclass."""
@@ -56,6 +54,7 @@ class TestPhaseMetric:
 # AgentAction Tests
 # =============================================================================
 
+
 class TestAgentAction:
     """Test AgentAction dataclass."""
 
@@ -73,14 +72,20 @@ class TestAgentAction:
 # SessionMetrics Tests
 # =============================================================================
 
+
 class TestSessionMetrics:
     """Test SessionMetrics dataclass."""
 
     def test_to_dict(self):
         m = SessionMetrics(
-            session_id="s1", total_phases=3, total_actions=10,
-            total_duration_ms=5000, total_tokens=3000, total_cost=0.15,
-            success_rate=0.9, average_quality=0.85,
+            session_id="s1",
+            total_phases=3,
+            total_actions=10,
+            total_duration_ms=5000,
+            total_tokens=3000,
+            total_cost=0.15,
+            success_rate=0.9,
+            average_quality=0.85,
         )
         d = m.to_dict()
         assert d["total_phases"] == 3
@@ -90,6 +95,7 @@ class TestSessionMetrics:
 # =============================================================================
 # AnalyticsStats Tests
 # =============================================================================
+
 
 class TestAnalyticsStats:
     """Test AnalyticsStats dataclass."""
@@ -103,6 +109,7 @@ class TestAnalyticsStats:
 # =============================================================================
 # Phase Recording Tests
 # =============================================================================
+
 
 class TestPhaseRecording:
     """Test phase metric recording."""
@@ -125,6 +132,7 @@ class TestPhaseRecording:
 # Action Recording Tests
 # =============================================================================
 
+
 class TestActionRecording:
     """Test agent action recording."""
 
@@ -145,6 +153,7 @@ class TestActionRecording:
 # =============================================================================
 # Session Metrics Tests
 # =============================================================================
+
 
 class TestSessionMetricsComputation:
     """Test session metrics computation."""
@@ -184,6 +193,7 @@ class TestSessionMetricsComputation:
 # Agent Actions Query Tests
 # =============================================================================
 
+
 class TestAgentActionsQuery:
     """Test agent actions querying."""
 
@@ -207,6 +217,7 @@ class TestAgentActionsQuery:
 # Cross-Session Tests
 # =============================================================================
 
+
 class TestCrossSession:
     """Test cross-session analysis."""
 
@@ -217,7 +228,7 @@ class TestCrossSession:
         a.record_action("s3", agent_id="claude", action="tool", success=False)
         eff = a.get_agent_effectiveness("claude")
         assert eff["total_actions"] == 3
-        assert abs(eff["success_rate"] - 2/3) < 0.01
+        assert abs(eff["success_rate"] - 2 / 3) < 0.01
         assert eff["sessions_participated"] == 3
 
     def test_agent_effectiveness_not_found(self):
@@ -242,6 +253,7 @@ class TestCrossSession:
 # Session Eviction Tests
 # =============================================================================
 
+
 class TestSessionEviction:
     """Test session eviction when at limit."""
 
@@ -259,6 +271,7 @@ class TestSessionEviction:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test analytics statistics."""
@@ -290,6 +303,7 @@ class TestStatistics:
 # State Tests
 # =============================================================================
 
+
 class TestState:
     """Test state management."""
 
@@ -318,6 +332,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global session analytics."""
 
@@ -344,21 +359,32 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_session_package(self):
         from core.infrastructure.session import (
-            SessionAnalytics, PhaseMetric, AgentAction,
-            SessionMetrics, AnalyticsStats,
-            get_session_analytics, reset_session_analytics,
+            AgentAction,
+            AnalyticsStats,
+            PhaseMetric,
+            SessionAnalytics,
+            SessionMetrics,
+            get_session_analytics,
+            reset_session_analytics,
         )
-        assert all([
-            SessionAnalytics, PhaseMetric, AgentAction,
-            SessionMetrics, AnalyticsStats,
-            get_session_analytics, reset_session_analytics,
-        ])
+
+        assert all(
+            [
+                SessionAnalytics,
+                PhaseMetric,
+                AgentAction,
+                SessionMetrics,
+                AnalyticsStats,
+                get_session_analytics,
+                reset_session_analytics,
+            ]
+        )
 
     def test_constants(self):
-        from core.infrastructure.session.session_analytics import MAX_SESSIONS
         assert MAX_SESSIONS == 5000

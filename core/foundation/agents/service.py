@@ -30,13 +30,14 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from core.orchestration_v7 import OrchestratorV7
     from core.interface_pkg.interface.console_v7 import ConsoleV7
+    from core.orchestration_v7 import OrchestratorV7
 
 
 @dataclass
 class SpawnResult:
     """Result of a spawn operation."""
+
     success: bool
     agent_id: str | None = None
     agent_uuid: str | None = None
@@ -48,6 +49,7 @@ class SpawnResult:
 @dataclass
 class AgentInfo:
     """Information about a spawned agent."""
+
     agent_id: str
     role: str
     created_at: str
@@ -58,6 +60,7 @@ class AgentInfo:
 @dataclass
 class PoolStats:
     """Agent pool statistics."""
+
     total_agents: int
     total_invocations: int
     average_importance: float
@@ -72,12 +75,7 @@ class AgentService:
     Extracted from InteractiveNexusV7 (repl.py) for proper separation of concerns.
     """
 
-    def __init__(
-        self,
-        orchestrator: OrchestratorV7,
-        workspace_path: Path,
-        console: ConsoleV7
-    ):
+    def __init__(self, orchestrator: OrchestratorV7, workspace_path: Path, console: ConsoleV7):
         """
         Initialize AgentService.
 
@@ -124,7 +122,7 @@ class AgentService:
         self._agents_dir.mkdir(exist_ok=True)
 
         # Create slug from role
-        role_slug = re.sub(r'[^a-z0-9]+', '_', role.lower()).strip('_')
+        role_slug = re.sub(r"[^a-z0-9]+", "_", role.lower()).strip("_")
         agent_dir = self._agents_dir / role_slug
 
         # 0b. Existence check
@@ -140,9 +138,9 @@ class AgentService:
         if agent_dir.exists() and force:
             shutil.rmtree(agent_dir)
 
-        self.console.print("\n" + "="*60)
+        self.console.print("\n" + "=" * 60)
         self.console.print(f"[factory] SPAWNING AGENT: {role}")
-        self.console.print("="*60)
+        self.console.print("=" * 60)
 
         # ========== STEP 2a: IDENTITY MANAGEMENT ==========
         agent_uuid = str(uuid_module.uuid4())
@@ -187,7 +185,7 @@ class AgentService:
                 inference_config = {
                     "provider": "claude",
                     "model": "claude-sonnet-4-5-20250929",
-                    "reasoning": "Default model (no explicit selection in brainstorm)"
+                    "reasoning": "Default model (no explicit selection in brainstorm)",
                 }
                 self.console.print("   Model: claude/claude-sonnet-4-5-20250929 (default)")
 
@@ -203,7 +201,7 @@ class AgentService:
             # Write system prompt
             (agent_dir / "system_prompt.md").write_text(generated_prompt)
 
-            prompt_lines = len(generated_prompt.split('\n'))
+            prompt_lines = len(generated_prompt.split("\n"))
             self.console.print(f"\n[checkmark] Agent '{role_slug}' created!")
             self.console.print(f"   Path: {agent_dir}")
             self.console.print(f"   UUID: {agent_uuid}")
@@ -213,14 +211,10 @@ class AgentService:
             self._register_agent_as_tool(role_slug)
 
             self.console.print("\nUse /agents to list all agents")
-            self.console.print("="*60 + "\n")
+            self.console.print("=" * 60 + "\n")
 
             return SpawnResult(
-                success=True,
-                agent_id=role_slug,
-                agent_uuid=agent_uuid,
-                agent_path=agent_dir,
-                prompt_lines=prompt_lines
+                success=True, agent_id=role_slug, agent_uuid=agent_uuid, agent_path=agent_dir, prompt_lines=prompt_lines
             )
 
         except Exception as e:
@@ -228,7 +222,7 @@ class AgentService:
             # Cleanup on failure
             if agent_dir.exists():
                 shutil.rmtree(agent_dir)
-            self.console.print("="*60 + "\n")
+            self.console.print("=" * 60 + "\n")
             return SpawnResult(success=False, error=str(e))
 
     def list_agents(self) -> list[AgentInfo]:
@@ -240,9 +234,9 @@ class AgentService:
         """
         agents = []
 
-        self.console.print("\n" + "="*60)
+        self.console.print("\n" + "=" * 60)
         self.console.print("[factory] SPAWNED AGENTS")
-        self.console.print("="*60)
+        self.console.print("=" * 60)
 
         if not self._agents_dir.exists() or not any(self._agents_dir.iterdir()):
             self.console.print("\nNo agents spawned yet.")
@@ -255,10 +249,10 @@ class AgentService:
                         cert = json.loads(cert_file.read_text())
                         agent_info = AgentInfo(
                             agent_id=agent_path.name,
-                            role=cert.get('role', agent_path.name),
-                            created_at=cert.get('created_at', 'N/A'),
-                            uuid=cert.get('uuid', 'N/A'),
-                            path=agent_path
+                            role=cert.get("role", agent_path.name),
+                            created_at=cert.get("created_at", "N/A"),
+                            uuid=cert.get("uuid", "N/A"),
+                            path=agent_path,
                         )
                         agents.append(agent_info)
 
@@ -266,7 +260,7 @@ class AgentService:
                         self.console.print(f"     ID: {agent_info.agent_id}")
                         self.console.print(f"     Created: {agent_info.created_at[:10]}")
 
-        self.console.print("\n" + "="*60 + "\n")
+        self.console.print("\n" + "=" * 60 + "\n")
         return agents
 
     def get_pool_stats(self) -> PoolStats | None:
@@ -277,7 +271,7 @@ class AgentService:
             PoolStats object or None if agent pool is disabled
         """
         # Check if agent pool is available
-        if not hasattr(self.orchestrator, 'agent_pool') or not self.orchestrator.agent_pool:
+        if not hasattr(self.orchestrator, "agent_pool") or not self.orchestrator.agent_pool:
             self.console.print("\n[warning]  AgentMetrics disabled")
             self.console.print("   Set AGENT_METRICS=True in .env to enable")
             return None
@@ -285,9 +279,9 @@ class AgentService:
         pool = self.orchestrator.agent_pool
         stats = pool.get_pool_stats()
 
-        self.console.print("\n" + "="*60)
+        self.console.print("\n" + "=" * 60)
         self.console.print("[chart] AGENT POOL STATISTICS (DyLAN Metrics)")
-        self.console.print("="*60)
+        self.console.print("=" * 60)
 
         # Pool summary
         self.console.print(f"\nTotal Agents: {stats['agents']}")
@@ -295,11 +289,11 @@ class AgentService:
         self.console.print(f"Average Pool Importance: {stats['average_pool_importance']:.4f}")
 
         # Per-agent details
-        agents_detail = stats.get('agents_detail', {})
+        agents_detail = stats.get("agents_detail", {})
         for agent_id, agent_data in agents_detail.items():
-            self.console.print(f"\n{'-'*60}")
+            self.console.print(f"\n{'-' * 60}")
             self.console.print(f"[robot] Agent: {agent_id}")
-            self.console.print(f"{'-'*60}")
+            self.console.print(f"{'-' * 60}")
             self.console.print(f"  Provider:       {agent_data['provider']}")
             self.console.print(f"  Model:          {agent_data['model']}")
             self.console.print(f"  Capabilities:   {', '.join(agent_data.get('capabilities', []))}")
@@ -308,16 +302,16 @@ class AgentService:
             self.console.print(f"  Success Rate:   {agent_data['success_rate']:.1%}")
 
         # DyLAN formula explanation
-        self.console.print(f"\n{'-'*60}")
+        self.console.print(f"\n{'-' * 60}")
         self.console.print("[info]  DyLAN Formula: importance = quality / (tokens/1000 + time)")
         self.console.print("   Higher importance = better quality/cost ratio")
-        self.console.print("="*60 + "\n")
+        self.console.print("=" * 60 + "\n")
 
         return PoolStats(
-            total_agents=stats['agents'],
-            total_invocations=stats['total_invocations'],
-            average_importance=stats['average_pool_importance'],
-            agents_detail=agents_detail
+            total_agents=stats["agents"],
+            total_invocations=stats["total_invocations"],
+            average_importance=stats["average_pool_importance"],
+            agents_detail=agents_detail,
         )
 
     # ==================== PRIVATE HELPERS ====================
@@ -337,7 +331,18 @@ class AgentService:
 
         # Domain mappings
         domain_keywords = {
-            "coding": ["python", "java", "javascript", "typescript", "rust", "go", "c++", "code", "developer", "programmer"],
+            "coding": [
+                "python",
+                "java",
+                "javascript",
+                "typescript",
+                "rust",
+                "go",
+                "c++",
+                "code",
+                "developer",
+                "programmer",
+            ],
             "data": ["sql", "database", "data", "analytics", "pandas", "numpy"],
             "devops": ["docker", "kubernetes", "k8s", "aws", "azure", "gcp", "cloud", "devops", "ci/cd"],
             "security": ["security", "pentest", "vulnerability", "audit", "crypto"],
@@ -372,16 +377,15 @@ class AgentService:
 
         def on_progress(msg: str, progress: float):
             """Progress callback for console output"""
-            self.console.print(f"   [{int(progress*100):3d}%] {msg}")
+            self.console.print(f"   [{int(progress * 100):3d}%] {msg}")
 
         try:
             # Try to load the spawn brainstorm template
             try:
-                task_template = load_prompt("spawn_brainstorm", {
-                    "role": role,
-                    "agent_uuid": agent_uuid,
-                    "domains": ", ".join(domains) if domains else "general"
-                })
+                task_template = load_prompt(
+                    "spawn_brainstorm",
+                    {"role": role, "agent_uuid": agent_uuid, "domains": ", ".join(domains) if domains else "general"},
+                )
             except FileNotFoundError:
                 # Fallback inline task if prompt file not found
                 task_template = f"""
@@ -409,17 +413,10 @@ Provide ONLY the final System Prompt. Start with '# {role}'.
 """
 
             # Run BrainstormPhase in prompt mode
-            phase = BrainstormPhase(
-                self.orchestrator,
-                self.workspace_path,
-                progress_callback=on_progress
-            )
+            phase = BrainstormPhase(self.orchestrator, self.workspace_path, progress_callback=on_progress)
 
             result = phase.run(
-                parent_id="NEXUS_V8.1.8",
-                parent_path=self.workspace_path,
-                mode="prompt",
-                custom_task=task_template
+                parent_id="NEXUS_V8.1.8", parent_path=self.workspace_path, mode="prompt", custom_task=task_template
             )
 
             if result.generated_prompt:
@@ -450,11 +447,11 @@ Provide ONLY the final System Prompt. Start with '# {role}'.
 
         # Look for the Inference Configuration section
         inference_pattern = (
-            r'##\s*Inference\s+Configuration\s*\n'
-            r'(?:.*?\n)*?'
-            r'provider:\s*(\w+)\s*\n'
-            r'(?:.*?\n)*?'
-            r'model:\s*([^\n]+)'
+            r"##\s*Inference\s+Configuration\s*\n"
+            r"(?:.*?\n)*?"
+            r"provider:\s*(\w+)\s*\n"
+            r"(?:.*?\n)*?"
+            r"model:\s*([^\n]+)"
         )
 
         match = re.search(inference_pattern, prompt, re.IGNORECASE)
@@ -464,7 +461,7 @@ Provide ONLY the final System Prompt. Start with '# {role}'.
             model = match.group(2).strip()
 
             # Extract reasoning if present
-            reasoning_pattern = r'reasoning:\s*([^\n]+)'
+            reasoning_pattern = r"reasoning:\s*([^\n]+)"
             reasoning_match = re.search(reasoning_pattern, prompt, re.IGNORECASE)
             reasoning = reasoning_match.group(1).strip() if reasoning_match else None
 
@@ -474,11 +471,7 @@ Provide ONLY the final System Prompt. Start with '# {role}'.
                 self.console.print(f"   [warning] Invalid provider '{provider}', defaulting to claude")
                 provider = "claude"
 
-            return {
-                "provider": provider,
-                "model": model,
-                "reasoning": reasoning
-            }
+            return {"provider": provider, "model": model, "reasoning": reasoning}
 
         return None
 
@@ -496,22 +489,36 @@ Provide ONLY the final System Prompt. Start with '# {role}'.
         """
         # Valid NEXUS tools
         valid_tools = {
-            "read", "write", "edit", "list_dir", "bash", "git",
-            "web_search", "web_fetch", "glob", "grep", "todo_write",
-            "read_file", "write_file", "edit_file",  # Aliases
+            "read",
+            "write",
+            "edit",
+            "list_dir",
+            "bash",
+            "git",
+            "web_search",
+            "web_fetch",
+            "glob",
+            "grep",
+            "todo_write",
+            "read_file",
+            "write_file",
+            "edit_file",  # Aliases
             "mcp",  # MCP prefix
         }
 
         # Find potential tool references (backticked words that look like tools)
-        potential_tools = re.findall(r'`([a-z_]+)`', prompt.lower())
+        potential_tools = re.findall(r"`([a-z_]+)`", prompt.lower())
 
         hallucinated = []
         for tool in potential_tools:
             # Check if it's a valid tool or starts with valid prefix
-            if tool not in valid_tools and not tool.startswith("mcp_") and not tool.startswith("agent_"):
-                # Filter out common non-tool words
-                if tool not in {"true", "false", "none", "null", "json", "yaml", "md", "py"}:
-                    hallucinated.append(tool)
+            if (
+                tool not in valid_tools
+                and not tool.startswith("mcp_")
+                and not tool.startswith("agent_")
+                and tool not in {"true", "false", "none", "null", "json", "yaml", "md", "py"}
+            ):
+                hallucinated.append(tool)
 
         return list(set(hallucinated))
 
@@ -593,6 +600,7 @@ Creator: Yann Abadie
         """
         try:
             from core.security_pkg.governance.red_team.prompt_validator import SpawnPromptValidator
+
             validator = SpawnPromptValidator()
             validation_result = validator.validate(prompt)
 
@@ -621,7 +629,7 @@ Creator: Yann Abadie
         role: str,
         domains: list[str],
         inference_config: dict[str, str],
-        generated_prompt: str
+        generated_prompt: str,
     ) -> dict[str, Any]:
         """
         Create agent configuration dictionary.
@@ -648,8 +656,8 @@ Creator: Yann Abadie
             "specialization": {
                 "mission": f"Specialized agent for: {role}",
                 "domains": domains if domains else [],
-                "tools_priority": []
-            }
+                "tools_priority": [],
+            },
         }
 
     def _register_agent_as_tool(self, role_slug: str) -> None:
@@ -663,13 +671,10 @@ Creator: Yann Abadie
 
         if self.orchestrator.agent_pool:
             discover_and_register_spawned_agents(
-                workspace_path=self.workspace_path,
-                agent_pool=self.orchestrator.agent_pool
+                workspace_path=self.workspace_path, agent_pool=self.orchestrator.agent_pool
             )
 
-        if hasattr(self.orchestrator, 'agent_tool_registry'):
+        if hasattr(self.orchestrator, "agent_tool_registry"):
             self.orchestrator.agent_tool_registry.refresh()
-            self.orchestrator.agent_tool_registry.register_with_tool_manager(
-                self.orchestrator.tool_manager
-            )
+            self.orchestrator.agent_tool_registry.register_with_tool_manager(self.orchestrator.tool_manager)
             self.console.print(f"   Registered as tool: agent_{role_slug}")

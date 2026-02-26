@@ -4,16 +4,14 @@ Tests for Phase 15: Stream Parser
 Tests the unified stream parser for Gemini CLI and Claude CLI formats.
 """
 
-import pytest
 from core.utils.stream_parser import (
-    parse_stream_chunk,
-    is_result_message,
     extract_final_result,
     extract_stats,
-    is_tool_message,
     extract_tool_info,
+    is_result_message,
+    is_tool_message,
+    parse_stream_chunk,
 )
-
 
 # ============================================================================
 # Gemini Stream-JSON Tests
@@ -229,7 +227,7 @@ class TestRealFormatSamples:
             '{"type":"message","timestamp":"2025-12-05T09:46:42.999Z","role":"user","content":"Say hello"}',
             '{"type":"message","timestamp":"2025-12-05T09:46:45.485Z","role":"assistant","content":"Hello","delta":true}',
             '{"type":"message","timestamp":"2025-12-05T09:46:45.490Z","role":"assistant","content":"!","delta":true}',
-            '{"type":"result","timestamp":"2025-12-05T09:46:45.497Z","status":"success","stats":{"total_tokens":100,"duration_ms":2498}}'
+            '{"type":"result","timestamp":"2025-12-05T09:46:45.497Z","status":"success","stats":{"total_tokens":100,"duration_ms":2498}}',
         ]
 
         accumulated = []
@@ -253,7 +251,7 @@ class TestRealFormatSamples:
             '{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hello"}}}',
             '{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" world"}}}',
             '{"type":"stream_event","event":{"type":"content_block_stop","index":0}}',
-            '{"type":"result","subtype":"success","result":"Hello world","total_cost_usd":0.06,"duration_ms":5000}'
+            '{"type":"result","subtype":"success","result":"Hello world","total_cost_usd":0.06,"duration_ms":5000}',
         ]
 
         accumulated = []

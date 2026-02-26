@@ -4,13 +4,13 @@ Tests for Tool Manager - NEXUS V7
 Tests all 11 tools, security layers (bash blacklist, PathGuardian), and evolution mode.
 """
 
-import pytest
-import json
-import tempfile
 import shutil
-from pathlib import Path
-from unittest.mock import patch, MagicMock
 import sys
+import tempfile
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -21,10 +21,10 @@ from core.execution_pkg.execution.tool_manager import (
 )
 from core.security_pkg.security.execution_policy import ExecutionPolicy
 
-
 # ============================================================================
 # Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def temp_workspace():
@@ -56,10 +56,12 @@ def tool_manager(temp_workspace):
 @pytest.fixture
 def mock_tool_request():
     """Factory for creating mock tool requests."""
+
     class MockToolRequest:
         def __init__(self, tool_name: str, arguments: dict):
             self.tool_name = tool_name
             self.arguments = arguments
+
     return MockToolRequest
 
 
@@ -67,17 +69,13 @@ def mock_tool_request():
 # ToolResult Tests
 # ============================================================================
 
+
 class TestToolResult:
     """Test ToolResult data class."""
 
     def test_init_success(self):
         """Test ToolResult initialization."""
-        result = ToolResult(
-            tool_name="read",
-            status="SUCCESS",
-            output="File content here",
-            error=""
-        )
+        result = ToolResult(tool_name="read", status="SUCCESS", output="File content here", error="")
 
         assert result.tool_name == "read"
         assert result.status == "SUCCESS"
@@ -86,24 +84,14 @@ class TestToolResult:
 
     def test_init_failure(self):
         """Test ToolResult with failure."""
-        result = ToolResult(
-            tool_name="write",
-            status="FAILURE",
-            output="",
-            error="File not found"
-        )
+        result = ToolResult(tool_name="write", status="FAILURE", output="", error="File not found")
 
         assert result.status == "FAILURE"
         assert result.error == "File not found"
 
     def test_to_dict(self):
         """Test ToolResult serialization."""
-        result = ToolResult(
-            tool_name="bash",
-            status="SUCCESS",
-            output="output text",
-            error="stderr text"
-        )
+        result = ToolResult(tool_name="bash", status="SUCCESS", output="output text", error="stderr text")
 
         d = result.to_dict()
 
@@ -114,11 +102,7 @@ class TestToolResult:
 
     def test_default_error(self):
         """Test default empty error."""
-        result = ToolResult(
-            tool_name="test",
-            status="SUCCESS",
-            output="out"
-        )
+        result = ToolResult(tool_name="test", status="SUCCESS", output="out")
 
         assert result.error == ""
 
@@ -126,6 +110,7 @@ class TestToolResult:
 # ============================================================================
 # Bash Blacklist Security Tests
 # ============================================================================
+
 
 class TestBashBlacklist:
     """Test bash command security (via ExecutionPolicy)."""
@@ -215,6 +200,7 @@ class TestBashBlacklist:
 # Read Tool Tests
 # ============================================================================
 
+
 class TestReadTool:
     """Test read tool functionality."""
 
@@ -247,15 +233,13 @@ class TestReadTool:
 # Write Tool Tests
 # ============================================================================
 
+
 class TestWriteTool:
     """Test write tool functionality."""
 
     def test_write_new_file(self, tool_manager, mock_tool_request, temp_workspace):
         """Write a new file."""
-        request = mock_tool_request("write", {
-            "file_path": "new_file.txt",
-            "content": "New content"
-        })
+        request = mock_tool_request("write", {"file_path": "new_file.txt", "content": "New content"})
         result = tool_manager.execute(request)
 
         assert result.status == "SUCCESS"
@@ -263,10 +247,7 @@ class TestWriteTool:
 
     def test_write_creates_directories(self, tool_manager, mock_tool_request, temp_workspace):
         """Write should create parent directories."""
-        request = mock_tool_request("write", {
-            "file_path": "new_dir/sub_dir/file.txt",
-            "content": "Deep content"
-        })
+        request = mock_tool_request("write", {"file_path": "new_dir/sub_dir/file.txt", "content": "Deep content"})
         result = tool_manager.execute(request)
 
         assert result.status == "SUCCESS"
@@ -274,10 +255,7 @@ class TestWriteTool:
 
     def test_write_overwrite_existing(self, tool_manager, mock_tool_request, temp_workspace):
         """Write should overwrite existing file."""
-        request = mock_tool_request("write", {
-            "file_path": "test_file.txt",
-            "content": "Updated content"
-        })
+        request = mock_tool_request("write", {"file_path": "test_file.txt", "content": "Updated content"})
         result = tool_manager.execute(request)
 
         assert result.status == "SUCCESS"
@@ -288,16 +266,15 @@ class TestWriteTool:
 # Edit Tool Tests
 # ============================================================================
 
+
 class TestEditTool:
     """Test edit tool functionality."""
 
     def test_edit_replace_string(self, tool_manager, mock_tool_request, temp_workspace):
         """Edit should replace string in file."""
-        request = mock_tool_request("edit", {
-            "file_path": "test_file.txt",
-            "old_string": "Hello",
-            "new_string": "Goodbye"
-        })
+        request = mock_tool_request(
+            "edit", {"file_path": "test_file.txt", "old_string": "Hello", "new_string": "Goodbye"}
+        )
         result = tool_manager.execute(request)
 
         assert result.status == "SUCCESS"
@@ -305,11 +282,9 @@ class TestEditTool:
 
     def test_edit_string_not_found(self, tool_manager, mock_tool_request):
         """Edit should fail if string not found."""
-        request = mock_tool_request("edit", {
-            "file_path": "test_file.txt",
-            "old_string": "NONEXISTENT",
-            "new_string": "replacement"
-        })
+        request = mock_tool_request(
+            "edit", {"file_path": "test_file.txt", "old_string": "NONEXISTENT", "new_string": "replacement"}
+        )
         result = tool_manager.execute(request)
 
         assert result.status == "FAILURE"
@@ -317,11 +292,7 @@ class TestEditTool:
 
     def test_edit_file_not_found(self, tool_manager, mock_tool_request):
         """Edit should fail if file not found."""
-        request = mock_tool_request("edit", {
-            "file_path": "nonexistent.txt",
-            "old_string": "x",
-            "new_string": "y"
-        })
+        request = mock_tool_request("edit", {"file_path": "nonexistent.txt", "old_string": "x", "new_string": "y"})
         result = tool_manager.execute(request)
 
         assert result.status == "FAILURE"
@@ -330,6 +301,7 @@ class TestEditTool:
 # ============================================================================
 # List Dir Tool Tests
 # ============================================================================
+
 
 class TestListDirTool:
     """Test list_dir tool functionality."""
@@ -362,6 +334,7 @@ class TestListDirTool:
 # ============================================================================
 # Git Tool Tests
 # ============================================================================
+
 
 class TestGitTool:
     """Test git tool functionality."""
@@ -430,6 +403,7 @@ class TestGitTool:
 # Web Search Tool Tests
 # ============================================================================
 
+
 class TestWebSearchTool:
     """Test web_search tool functionality."""
 
@@ -441,14 +415,10 @@ class TestWebSearchTool:
         assert result.status == "ERROR"
         assert "query" in result.error.lower()
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_web_search_success(self, mock_run, tool_manager, mock_tool_request):
         """web_search should call Gemini CLI."""
-        mock_run.return_value = MagicMock(
-            returncode=0,
-            stdout="Search results here",
-            stderr=""
-        )
+        mock_run.return_value = MagicMock(returncode=0, stdout="Search results here", stderr="")
 
         request = mock_tool_request("web_search", {"query": "Python asyncio"})
         result = tool_manager.execute(request)
@@ -460,6 +430,7 @@ class TestWebSearchTool:
 # ============================================================================
 # Web Fetch Tool Tests
 # ============================================================================
+
 
 class TestWebFetchTool:
     """Test web_fetch tool functionality."""
@@ -491,6 +462,7 @@ class TestWebFetchTool:
 # ============================================================================
 # Glob Tool Tests
 # ============================================================================
+
 
 class TestGlobTool:
     """Test glob tool functionality."""
@@ -557,6 +529,7 @@ class TestGlobTool:
 # Grep Tool Tests
 # ============================================================================
 
+
 class TestGrepTool:
     """Test grep tool functionality."""
 
@@ -594,10 +567,7 @@ class TestGrepTool:
 
     def test_grep_case_insensitive(self, tool_manager, mock_tool_request):
         """grep should support case-insensitive search."""
-        request = mock_tool_request("grep", {
-            "pattern": "HELLO",
-            "case_sensitive": False
-        })
+        request = mock_tool_request("grep", {"pattern": "HELLO", "case_sensitive": False})
         result = tool_manager.execute(request)
 
         assert result.status == "SUCCESS"
@@ -634,6 +604,7 @@ class TestGrepTool:
 # Todo Write Tool Tests
 # ============================================================================
 
+
 class TestTodoWriteTool:
     """Test todo_write tool functionality."""
 
@@ -647,12 +618,15 @@ class TestTodoWriteTool:
 
     def test_todo_write_creates_file(self, tool_manager, mock_tool_request, temp_workspace):
         """todo_write should create plan file."""
-        request = mock_tool_request("todo_write", {
-            "todos": [
-                {"id": 1, "description": "Task 1", "status": "pending"},
-                {"id": 2, "description": "Task 2", "status": "in_progress"}
-            ]
-        })
+        request = mock_tool_request(
+            "todo_write",
+            {
+                "todos": [
+                    {"id": 1, "description": "Task 1", "status": "pending"},
+                    {"id": 2, "description": "Task 2", "status": "in_progress"},
+                ]
+            },
+        )
         result = tool_manager.execute(request)
 
         assert result.status == "SUCCESS"
@@ -660,12 +634,15 @@ class TestTodoWriteTool:
 
     def test_todo_write_formats_output(self, tool_manager, mock_tool_request):
         """todo_write should format output correctly."""
-        request = mock_tool_request("todo_write", {
-            "todos": [
-                {"id": 1, "description": "First task", "status": "completed"},
-                {"id": 2, "description": "Second task", "status": "pending"}
-            ]
-        })
+        request = mock_tool_request(
+            "todo_write",
+            {
+                "todos": [
+                    {"id": 1, "description": "First task", "status": "completed"},
+                    {"id": 2, "description": "Second task", "status": "pending"},
+                ]
+            },
+        )
         result = tool_manager.execute(request)
 
         assert result.status == "SUCCESS"
@@ -676,6 +653,7 @@ class TestTodoWriteTool:
 # ============================================================================
 # Unknown Tool Tests
 # ============================================================================
+
 
 class TestUnknownTool:
     """Test handling of unknown tools."""
@@ -693,14 +671,24 @@ class TestUnknownTool:
 # Tool Manager Initialization Tests
 # ============================================================================
 
+
 class TestToolManagerInit:
     """Test ToolManager initialization."""
 
     def test_all_tools_registered(self, tool_manager):
         """All 11 tools should be registered."""
         expected_tools = [
-            "bash", "read", "write", "edit", "list_dir",
-            "git", "web_search", "web_fetch", "glob", "grep", "todo_write"
+            "bash",
+            "read",
+            "write",
+            "edit",
+            "list_dir",
+            "git",
+            "web_search",
+            "web_fetch",
+            "glob",
+            "grep",
+            "todo_write",
         ]
 
         for tool in expected_tools:
@@ -710,7 +698,7 @@ class TestToolManagerInit:
 
     def test_evolution_mode_disabled_by_default(self, tool_manager):
         """Evolution mode should be disabled by default."""
-        assert tool_manager.evolution_mode == False
+        assert not tool_manager.evolution_mode
 
     def test_paths_computed_correctly(self, temp_workspace):
         """Paths should be computed correctly from workspace."""
@@ -724,18 +712,19 @@ class TestToolManagerInit:
 # Evolution Mode Tests
 # ============================================================================
 
+
 class TestEvolutionMode:
     """Test evolution mode restrictions."""
 
     def test_evolution_mode_can_be_enabled(self, tool_manager):
         """Evolution mode can be toggled."""
-        assert tool_manager.evolution_mode == False
+        assert not tool_manager.evolution_mode
 
         tool_manager.evolution_mode = True
-        assert tool_manager.evolution_mode == True
+        assert tool_manager.evolution_mode
 
         tool_manager.evolution_mode = False
-        assert tool_manager.evolution_mode == False
+        assert not tool_manager.evolution_mode
 
 
 if __name__ == "__main__":

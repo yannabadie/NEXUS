@@ -1,24 +1,24 @@
 """Tests for Multi-Dimensional Evaluation Panel (CRM-inspired)."""
 
 import pytest
+
 from core.intelligence.reasoning.evaluation_panel import (
-    EvalDimension,
+    DEFAULT_WEIGHTS,
+    CoherenceEvaluator,
     DimensionScore,
-    PanelResult,
+    EvalDimension,
     EvaluationPanel,
     FactualEvaluator,
-    ReasoningEvaluator,
     HelpfulnessEvaluator,
-    CoherenceEvaluator,
-    DEFAULT_WEIGHTS,
+    ReasoningEvaluator,
     get_evaluation_panel,
     reset_evaluation_panel,
 )
 
-
 # =============================================================================
 # EvalDimension
 # =============================================================================
+
 
 class TestEvalDimension:
     def test_four_dimensions(self):
@@ -35,6 +35,7 @@ class TestEvalDimension:
 # =============================================================================
 # FactualEvaluator
 # =============================================================================
+
 
 class TestFactualEvaluator:
     def setup_method(self):
@@ -64,6 +65,7 @@ class TestFactualEvaluator:
 # =============================================================================
 # ReasoningEvaluator
 # =============================================================================
+
 
 class TestReasoningEvaluator:
     def setup_method(self):
@@ -95,6 +97,7 @@ class TestReasoningEvaluator:
 # HelpfulnessEvaluator
 # =============================================================================
 
+
 class TestHelpfulnessEvaluator:
     def setup_method(self):
         self.evaluator = HelpfulnessEvaluator()
@@ -122,6 +125,7 @@ class TestHelpfulnessEvaluator:
 # =============================================================================
 # CoherenceEvaluator
 # =============================================================================
+
 
 class TestCoherenceEvaluator:
     def setup_method(self):
@@ -154,6 +158,7 @@ class TestCoherenceEvaluator:
 # =============================================================================
 # EvaluationPanel - Aggregation
 # =============================================================================
+
 
 class TestPanelAggregation:
     def setup_method(self):
@@ -207,14 +212,17 @@ class TestPanelAggregation:
 # EvaluationPanel - Custom Weights
 # =============================================================================
 
+
 class TestCustomWeights:
     def test_factual_heavy_weighting(self):
-        heavy_factual = EvaluationPanel(weights={
-            EvalDimension.FACTUAL: 0.7,
-            EvalDimension.REASONING: 0.1,
-            EvalDimension.HELPFULNESS: 0.1,
-            EvalDimension.COHERENCE: 0.1,
-        })
+        heavy_factual = EvaluationPanel(
+            weights={
+                EvalDimension.FACTUAL: 0.7,
+                EvalDimension.REASONING: 0.1,
+                EvalDimension.HELPFULNESS: 0.1,
+                EvalDimension.COHERENCE: 0.1,
+            }
+        )
         # Grounded output should score higher with factual-heavy weights
         output = "At file auth.py line 42. According to version 2.0 documentation."
         result = heavy_factual.evaluate(output)
@@ -226,6 +234,7 @@ class TestCustomWeights:
 # =============================================================================
 # EvaluationPanel - History & Stats
 # =============================================================================
+
 
 class TestPanelHistory:
     def test_evaluation_count(self):
@@ -269,6 +278,7 @@ class TestPanelHistory:
 # DimensionScore
 # =============================================================================
 
+
 class TestDimensionScore:
     def test_to_dict(self):
         ds = DimensionScore(
@@ -287,6 +297,7 @@ class TestDimensionScore:
 # =============================================================================
 # Singleton
 # =============================================================================
+
 
 class TestSingleton:
     def test_get_returns_same(self):

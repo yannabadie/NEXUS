@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any
 
 from .base import BaseHandler, ToolResult
 
@@ -31,12 +31,7 @@ class SwarmDelegateHandler(BaseHandler):
     # Maximum Swarm recursion depth (prevents infinite loops)
     MAX_SWARM_DEPTH = 2
 
-    def __init__(
-        self,
-        workspace_path: Path,
-        validation_service: Any = None,
-        swarm_bridge: Optional[Any] = None
-    ):
+    def __init__(self, workspace_path: Path, validation_service: Any = None, swarm_bridge: Any | None = None):
         super().__init__(workspace_path, validation_service)
         self._swarm_bridge = swarm_bridge
         self._logger = logging.getLogger(__name__)
@@ -46,7 +41,7 @@ class SwarmDelegateHandler(BaseHandler):
         return "swarm_delegate"
 
     @property
-    def swarm_bridge(self) -> Optional[Any]:
+    def swarm_bridge(self) -> Any | None:
         """Get the configured SwarmBridge."""
         return self._swarm_bridge
 
@@ -55,7 +50,7 @@ class SwarmDelegateHandler(BaseHandler):
         """Set the SwarmBridge (for lazy initialization)."""
         self._swarm_bridge = bridge
 
-    def execute(self, args: Dict[str, Any]) -> ToolResult:
+    def execute(self, args: dict[str, Any]) -> ToolResult:
         """
         Delegate subtask to Swarm Engine.
 
@@ -80,9 +75,7 @@ class SwarmDelegateHandler(BaseHandler):
         current_depth = args.get("_swarm_depth", 0)
 
         if current_depth >= self.MAX_SWARM_DEPTH:
-            self._logger.warning(
-                f"swarm_delegate blocked: depth {current_depth} >= max {self.MAX_SWARM_DEPTH}"
-            )
+            self._logger.warning(f"swarm_delegate blocked: depth {current_depth} >= max {self.MAX_SWARM_DEPTH}")
             return ToolResult(
                 tool_name=self.tool_name,
                 status="ERROR",
@@ -90,7 +83,7 @@ class SwarmDelegateHandler(BaseHandler):
                 error=(
                     f"Max swarm recursion depth ({self.MAX_SWARM_DEPTH}) reached. "
                     f"Nested Swarm calls are limited to prevent infinite loops."
-                )
+                ),
             )
 
         # Guard: SwarmBridge must be configured
@@ -99,7 +92,7 @@ class SwarmDelegateHandler(BaseHandler):
                 tool_name=self.tool_name,
                 status="ERROR",
                 output="",
-                error="SwarmBridge not configured. Cannot delegate to Swarm."
+                error="SwarmBridge not configured. Cannot delegate to Swarm.",
             )
 
         task = args.get("task")
@@ -116,13 +109,13 @@ class SwarmDelegateHandler(BaseHandler):
                 tool_name=self.tool_name,
                 status="ERROR",
                 output="",
-                error="Missing 'task' argument. Provide the subtask to delegate."
+                error="Missing 'task' argument. Provide the subtask to delegate.",
             )
 
         try:
             # Import locally to avoid circular imports
-            from core.intelligence.swarm.collaboration_modes import CollaborationMode
             from core.intelligence.hive_mind.swarm_bridge import HivePhase
+            from core.intelligence.swarm.collaboration_modes import CollaborationMode
 
             # Parse mode
             mode = self._parse_mode(mode_str, CollaborationMode)
@@ -143,12 +136,12 @@ class SwarmDelegateHandler(BaseHandler):
                     mode=mode,
                     phase=phase,
                     context_categories=context_categories,
-                    config={"_swarm_depth": next_depth}
+                    config={"_swarm_depth": next_depth},
                 )
             )
 
             # FEEDBACK LOOP: Inject results into HiveMind context
-            if result.success and hasattr(self._swarm_bridge, 'inject_results_into_context'):
+            if result.success and hasattr(self._swarm_bridge, "inject_results_into_context"):
                 self._swarm_bridge.inject_results_into_context(result)
 
             # Build output with metadata
@@ -156,24 +149,19 @@ class SwarmDelegateHandler(BaseHandler):
             if result.fallback_chain and len(result.fallback_chain) > 1:
                 chain_str = " -> ".join(m.value for m in result.fallback_chain)
                 output_parts.append(f"[Fallback chain: {chain_str}]")
-            output_parts.append(
-                f"[Mode: {result.mode_used.value}, Time: {result.execution_time:.2f}s]"
-            )
+            output_parts.append(f"[Mode: {result.mode_used.value}, Time: {result.execution_time:.2f}s]")
 
             return ToolResult(
                 tool_name=self.tool_name,
                 status="SUCCESS" if result.success else "FAILURE",
                 output="\n".join(output_parts),
-                error="; ".join(result.failure_diagnostics) if not result.success else ""
+                error="; ".join(result.failure_diagnostics) if not result.success else "",
             )
 
         except Exception as e:
             self._logger.error(f"swarm_delegate failed: {e}")
             return ToolResult(
-                tool_name=self.tool_name,
-                status="ERROR",
-                output="",
-                error=f"Swarm delegation error: {str(e)}"
+                tool_name=self.tool_name, status="ERROR", output="", error=f"Swarm delegation error: {str(e)}"
             )
 
     def _parse_mode(self, mode_str: str, CollaborationMode: Any) -> Any:
@@ -191,10 +179,10 @@ class SwarmDelegateHandler(BaseHandler):
                     tool_name=self.tool_name,
                     status="ERROR",
                     output="",
-                    error=f"Invalid mode: '{mode_str}'. Valid modes: {valid_modes}"
+                    error=f"Invalid mode: '{mode_str}'. Valid modes: {valid_modes}",
                 )
 
-    def _parse_phase(self, phase_str: Optional[str], HivePhase: Any) -> Any:
+    def _parse_phase(self, phase_str: str | None, HivePhase: Any) -> Any:
         """Parse HivePhase string to enum (or None)."""
         if not phase_str:
             return None
@@ -207,14 +195,12 @@ class SwarmDelegateHandler(BaseHandler):
                 tool_name=self.tool_name,
                 status="ERROR",
                 output="",
-                error=f"Invalid phase: '{phase_str}'. Valid phases: {valid_phases}"
+                error=f"Invalid phase: '{phase_str}'. Valid phases: {valid_phases}",
             )
 
 
 def create_swarm_handler(
-    workspace_path: Path,
-    validation_service: Any = None,
-    swarm_bridge: Any = None
+    workspace_path: Path, validation_service: Any = None, swarm_bridge: Any = None
 ) -> SwarmDelegateHandler:
     """
     Factory function to create SwarmDelegateHandler.

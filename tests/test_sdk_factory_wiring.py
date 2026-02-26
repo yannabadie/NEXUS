@@ -10,19 +10,19 @@ Validates:
 - ModelRouter.route_for_sdk selects correct model
 """
 
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
 import pytest
 
-from core.drivers.async_factory import AsyncDriverFactory
 from core.drivers.async_claude_driver import AsyncClaudeDriver
+from core.drivers.async_factory import AsyncDriverFactory
 from core.drivers.async_gemini_driver import AsyncGeminiDriver
 from core.execution_pkg.routing.model_router import ModelRouter, TaskType
-
 
 # =============================================================================
 # Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def base_config():
@@ -73,6 +73,7 @@ def sdk_only_config(base_config):
 # Factory CLI Backward Compatibility
 # =============================================================================
 
+
 class TestFactoryCLICompat:
     """Verify CLI drivers still work unchanged."""
 
@@ -114,6 +115,7 @@ class TestFactoryCLICompat:
 # SDK Driver Creation
 # =============================================================================
 
+
 class TestSDKDriverCreation:
     """Test SDK driver instantiation via factory."""
 
@@ -121,7 +123,7 @@ class TestSDKDriverCreation:
     def test_get_claude_sdk(self, mock_init, sdk_config, tmp_path):
         """get_claude_sdk() creates AnthropicSDKDriver."""
         factory = AsyncDriverFactory(sdk_config, tmp_path)
-        driver = factory.get_claude_sdk()
+        factory.get_claude_sdk()
         mock_init.assert_called_once()
         # Verify API key was passed
         call_kwargs = mock_init.call_args
@@ -131,7 +133,7 @@ class TestSDKDriverCreation:
     def test_get_gemini_sdk(self, mock_init, sdk_config, tmp_path):
         """get_gemini_sdk() creates GoogleGenAISDKDriver."""
         factory = AsyncDriverFactory(sdk_config, tmp_path)
-        driver = factory.get_gemini_sdk()
+        factory.get_gemini_sdk()
         mock_init.assert_called_once()
         call_kwargs = mock_init.call_args
         assert call_kwargs[1]["api_key"] == "AIzaSy-test-key-5678"
@@ -162,6 +164,7 @@ class TestSDKDriverCreation:
 # Driver Mode Selection
 # =============================================================================
 
+
 class TestDriverModeSelection:
     """Test driver_mode config behavior."""
 
@@ -175,7 +178,7 @@ class TestDriverModeSelection:
     def test_auto_mode_with_key_returns_sdk(self, mock_init, sdk_config, tmp_path):
         """auto mode with API key returns SDK driver."""
         factory = AsyncDriverFactory(sdk_config, tmp_path)
-        driver = factory.get_best_claude()
+        factory.get_best_claude()
         # Should be SDK driver (mock prevents actual instantiation)
         mock_init.assert_called_once()
 
@@ -189,7 +192,7 @@ class TestDriverModeSelection:
     def test_sdk_mode_uses_sdk(self, mock_init, sdk_only_config, tmp_path):
         """sdk mode uses SDK driver."""
         factory = AsyncDriverFactory(sdk_only_config, tmp_path)
-        driver = factory.get_best_claude()
+        factory.get_best_claude()
         mock_init.assert_called_once()
 
     def test_sdk_availability_flags(self, sdk_config, tmp_path):
@@ -214,6 +217,7 @@ class TestDriverModeSelection:
 # =============================================================================
 # Driver Info
 # =============================================================================
+
 
 class TestDriverInfo:
     """Test get_driver_info() reporting."""
@@ -251,6 +255,7 @@ class TestDriverInfo:
 # Model Router SDK Integration
 # =============================================================================
 
+
 class TestModelRouterSDK:
     """Test ModelRouter.route_for_sdk()."""
 
@@ -282,6 +287,7 @@ class TestModelRouterSDK:
 # =============================================================================
 # Process Management (unchanged)
 # =============================================================================
+
 
 class TestProcessManagement:
     """Verify process management still works."""

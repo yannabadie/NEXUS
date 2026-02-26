@@ -10,7 +10,6 @@ Target: ~90 tests across 21 test categories.
 import pytest
 
 from core.intelligence.hive_mind.task_graph import (
-    EvaluatorStats,
     GraphMetrics,
     GraphStats,
     NodeStatus,
@@ -21,10 +20,10 @@ from core.intelligence.hive_mind.task_graph import (
     reset_graph_evaluator,
 )
 
-
 # =============================================================================
 # Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def empty_graph():
@@ -84,8 +83,8 @@ def reset_singleton():
 # 1. NodeStatus enum values
 # =============================================================================
 
-class TestNodeStatus:
 
+class TestNodeStatus:
     def test_pending_value(self):
         assert NodeStatus.PENDING.value == "pending"
 
@@ -112,8 +111,8 @@ class TestNodeStatus:
 # 2. TaskNode dataclass and is_terminal property
 # =============================================================================
 
-class TestTaskNode:
 
+class TestTaskNode:
     def test_defaults(self):
         node = TaskNode(node_id="n1")
         assert node.node_id == "n1"
@@ -162,8 +161,8 @@ class TestTaskNode:
 # 3. GraphMetrics - fields and is_good property
 # =============================================================================
 
-class TestGraphMetrics:
 
+class TestGraphMetrics:
     def test_fields(self):
         m = GraphMetrics(node_f1=0.8, structural_similarity=0.7, tool_f1=0.9, composite=0.8)
         assert m.node_f1 == 0.8
@@ -192,13 +191,17 @@ class TestGraphMetrics:
 # 4. GraphStats dataclass
 # =============================================================================
 
-class TestGraphStats:
 
+class TestGraphStats:
     def test_fields(self):
         s = GraphStats(
-            total_nodes=5, total_edges=4, max_depth=3,
-            max_parallelism=2, critical_path_length=3,
-            leaf_nodes=1, root_nodes=1,
+            total_nodes=5,
+            total_edges=4,
+            max_depth=3,
+            max_parallelism=2,
+            critical_path_length=3,
+            leaf_nodes=1,
+            root_nodes=1,
         )
         assert s.total_nodes == 5
         assert s.total_edges == 4
@@ -213,8 +216,8 @@ class TestGraphStats:
 # 5. add_node: basic and with all fields
 # =============================================================================
 
-class TestAddNode:
 
+class TestAddNode:
     def test_basic_add(self, empty_graph):
         node = empty_graph.add_node("n1")
         assert isinstance(node, TaskNode)
@@ -223,8 +226,11 @@ class TestAddNode:
 
     def test_add_with_all_fields(self, empty_graph):
         node = empty_graph.add_node(
-            "n1", description="Desc", agent_id="claude",
-            tool_name="bash", priority=10,
+            "n1",
+            description="Desc",
+            agent_id="claude",
+            tool_name="bash",
+            priority=10,
         )
         assert node.description == "Desc"
         assert node.agent_id == "claude"
@@ -252,8 +258,8 @@ class TestAddNode:
 # 6. add_edge: valid, self-loop, missing node
 # =============================================================================
 
-class TestAddEdge:
 
+class TestAddEdge:
     def test_valid_edge(self, empty_graph):
         empty_graph.add_node("A")
         empty_graph.add_node("B")
@@ -294,8 +300,8 @@ class TestAddEdge:
 # 7. Cycle detection
 # =============================================================================
 
-class TestCycleDetection:
 
+class TestCycleDetection:
     def test_direct_cycle_rejected(self, empty_graph):
         empty_graph.add_node("A")
         empty_graph.add_node("B")
@@ -338,8 +344,8 @@ class TestCycleDetection:
 # 8. remove_node
 # =============================================================================
 
-class TestRemoveNode:
 
+class TestRemoveNode:
     def test_remove_existing_node(self, empty_graph):
         empty_graph.add_node("A")
         result = empty_graph.remove_node("A")
@@ -373,8 +379,8 @@ class TestRemoveNode:
 # 9. topological_sort
 # =============================================================================
 
-class TestTopologicalSort:
 
+class TestTopologicalSort:
     def test_linear_chain(self, linear_graph):
         order = linear_graph.topological_sort()
         assert order == ["A", "B", "C"]
@@ -423,8 +429,8 @@ class TestTopologicalSort:
 # 10. get_ready_nodes
 # =============================================================================
 
-class TestGetReadyNodes:
 
+class TestGetReadyNodes:
     def test_no_deps_all_pending(self, empty_graph):
         empty_graph.add_node("A")
         empty_graph.add_node("B")
@@ -477,8 +483,8 @@ class TestGetReadyNodes:
 # 11. get_parallel_groups
 # =============================================================================
 
-class TestGetParallelGroups:
 
+class TestGetParallelGroups:
     def test_linear_chain_one_per_group(self, linear_graph):
         groups = linear_graph.get_parallel_groups()
         assert len(groups) == 3
@@ -515,8 +521,8 @@ class TestGetParallelGroups:
 # 12. get_critical_path
 # =============================================================================
 
-class TestGetCriticalPath:
 
+class TestGetCriticalPath:
     def test_linear_chain(self, linear_graph):
         path = linear_graph.get_critical_path()
         assert path == ["A", "B", "C"]
@@ -568,8 +574,8 @@ class TestGetCriticalPath:
 # 13. get_stats
 # =============================================================================
 
-class TestGetStats:
 
+class TestGetStats:
     def test_linear_stats(self, linear_graph):
         s = linear_graph.get_stats()
         assert s.total_nodes == 3
@@ -616,8 +622,8 @@ class TestGetStats:
 # 14. Evaluator: node_f1
 # =============================================================================
 
-class TestEvaluatorNodeF1:
 
+class TestEvaluatorNodeF1:
     def test_perfect_match(self, evaluator):
         pred = TaskGraph()
         ref = TaskGraph()
@@ -686,8 +692,8 @@ class TestEvaluatorNodeF1:
 # 15. Evaluator: structural_similarity
 # =============================================================================
 
-class TestEvaluatorStructuralSimilarity:
 
+class TestEvaluatorStructuralSimilarity:
     def test_identical_edges(self, evaluator):
         pred = TaskGraph()
         ref = TaskGraph()
@@ -766,8 +772,8 @@ class TestEvaluatorStructuralSimilarity:
 # 16. Evaluator: tool_f1
 # =============================================================================
 
-class TestEvaluatorToolF1:
 
+class TestEvaluatorToolF1:
     def test_matching_tools(self, evaluator):
         pred = TaskGraph()
         ref = TaskGraph()
@@ -826,8 +832,8 @@ class TestEvaluatorToolF1:
 # 17. Evaluator: composite score and is_good
 # =============================================================================
 
-class TestEvaluatorComposite:
 
+class TestEvaluatorComposite:
     def test_perfect_composite(self, evaluator):
         pred = TaskGraph()
         ref = TaskGraph()
@@ -865,11 +871,7 @@ class TestEvaluatorComposite:
         ref.add_node("A", tool_name="read")
         ref.add_node("C", tool_name="bash")
         metrics = evaluator.evaluate(pred, ref)
-        expected = (
-            0.4 * metrics.node_f1
-            + 0.35 * metrics.structural_similarity
-            + 0.25 * metrics.tool_f1
-        )
+        expected = 0.4 * metrics.node_f1 + 0.35 * metrics.structural_similarity + 0.25 * metrics.tool_f1
         assert metrics.composite == pytest.approx(expected)
 
     def test_borderline_is_good(self, evaluator):
@@ -884,8 +886,8 @@ class TestEvaluatorComposite:
 # 18. Evaluator: get_stats tracking
 # =============================================================================
 
-class TestEvaluatorStats:
 
+class TestEvaluatorStats:
     def test_initial_stats(self, evaluator):
         stats = evaluator.get_stats()
         assert stats.total_evaluations == 0
@@ -929,8 +931,8 @@ class TestEvaluatorStats:
 # 19. Singleton pattern
 # =============================================================================
 
-class TestSingleton:
 
+class TestSingleton:
     def test_get_returns_evaluator(self):
         e = get_graph_evaluator()
         assert isinstance(e, TaskGraphEvaluator)
@@ -964,8 +966,8 @@ class TestSingleton:
 # 20. Empty graph handling
 # =============================================================================
 
-class TestEmptyGraph:
 
+class TestEmptyGraph:
     def test_len_zero(self, empty_graph):
         assert len(empty_graph) == 0
 
@@ -1005,8 +1007,8 @@ class TestEmptyGraph:
 # 21. Complex graph scenarios
 # =============================================================================
 
-class TestComplexGraphs:
 
+class TestComplexGraphs:
     def test_fan_out(self, empty_graph):
         """
         Root fans out to many children:
@@ -1139,7 +1141,7 @@ class TestComplexGraphs:
 
         metrics = evaluator.evaluate(pred, ref)
         assert metrics.node_f1 == pytest.approx(1.0)  # Same nodes
-        assert metrics.tool_f1 == pytest.approx(1.0)   # Same tools
+        assert metrics.tool_f1 == pytest.approx(1.0)  # Same tools
         # Structural differs: shared edge (A,B), pred has (B,C), ref has (A,C)
         # tp=1, fp=1, fn=1 => edge_f1 = 2*(0.5)*(0.5)/1.0 = 0.5
         # pred depth=3 levels, ref depth=2 levels

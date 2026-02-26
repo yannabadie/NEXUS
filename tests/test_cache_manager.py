@@ -17,7 +17,6 @@ Validates:
 """
 
 import time
-import pytest
 
 from core.memory_pkg.memory.cache_manager import (
     DEFAULT_MAX_SIZE,
@@ -29,10 +28,10 @@ from core.memory_pkg.memory.cache_manager import (
     reset_cache_manager,
 )
 
-
 # =============================================================================
 # CacheEntry Tests
 # =============================================================================
+
 
 class TestCacheEntry:
     """Test CacheEntry dataclass."""
@@ -58,6 +57,7 @@ class TestCacheEntry:
 # CacheStats Tests
 # =============================================================================
 
+
 class TestCacheStats:
     """Test CacheStats dataclass."""
 
@@ -71,6 +71,7 @@ class TestCacheStats:
 # =============================================================================
 # Core Operations Tests
 # =============================================================================
+
 
 class TestCoreOperations:
     """Test put, get, has, delete."""
@@ -123,6 +124,7 @@ class TestCoreOperations:
 # LRU Eviction Tests
 # =============================================================================
 
+
 class TestLRUEviction:
     """Test LRU eviction behavior."""
 
@@ -158,6 +160,7 @@ class TestLRUEviction:
 # TTL Expiration Tests
 # =============================================================================
 
+
 class TestTTLExpiration:
     """Test TTL-based expiration."""
 
@@ -191,6 +194,7 @@ class TestTTLExpiration:
 # get_or_compute Tests
 # =============================================================================
 
+
 class TestGetOrCompute:
     """Test get_or_compute pattern."""
 
@@ -203,9 +207,11 @@ class TestGetOrCompute:
         c = CacheManager()
         c.put("key1", "cached")
         call_count = [0]
+
         def compute():
             call_count[0] += 1
             return "computed"
+
         result = c.get_or_compute("key1", compute)
         assert result == "cached"
         assert call_count[0] == 0
@@ -219,6 +225,7 @@ class TestGetOrCompute:
 # =============================================================================
 # Namespace Tests
 # =============================================================================
+
 
 class TestNamespace:
     """Test namespace operations."""
@@ -260,6 +267,7 @@ class TestNamespace:
 # Cleanup Tests
 # =============================================================================
 
+
 class TestCleanup:
     """Test expired entry cleanup."""
 
@@ -280,6 +288,7 @@ class TestCleanup:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test cache statistics."""
@@ -311,6 +320,7 @@ class TestStatistics:
 # =============================================================================
 # State Tests
 # =============================================================================
+
 
 class TestState:
     """Test state management."""
@@ -345,6 +355,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global cache manager."""
 
@@ -371,22 +382,29 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_memory_package(self):
         from core.memory_pkg.memory import (
-            CacheManager, CacheEntry, CacheStats,
-            get_cache_manager, reset_cache_manager,
+            CacheEntry,
+            CacheManager,
+            CacheStats,
+            get_cache_manager,
+            reset_cache_manager,
         )
-        assert all([
-            CacheManager, CacheEntry, CacheStats,
-            get_cache_manager, reset_cache_manager,
-        ])
+
+        assert all(
+            [
+                CacheManager,
+                CacheEntry,
+                CacheStats,
+                get_cache_manager,
+                reset_cache_manager,
+            ]
+        )
 
     def test_from_module(self):
-        from core.memory_pkg.memory.cache_manager import (
-            CacheManager, DEFAULT_MAX_SIZE, DEFAULT_TTL,
-        )
         assert DEFAULT_MAX_SIZE == 1000
         assert DEFAULT_TTL == 300.0

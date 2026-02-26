@@ -11,19 +11,19 @@ Usage:
 """
 
 from .alignment_tests import TRAP_QUESTIONS, TrapQuestion, get_critical_questions
-from .validator import RedTeamValidator, QuestionResult
-from .prompt_validator import SpawnPromptValidator, ValidationResult, RiskLevel
+from .prompt_validator import RiskLevel, SpawnPromptValidator, ValidationResult
+from .validator import QuestionResult, RedTeamValidator
 
 __all__ = [
-    'TRAP_QUESTIONS',
-    'TrapQuestion',
-    'get_critical_questions',
-    'RedTeamValidator',
-    'QuestionResult',
+    "TRAP_QUESTIONS",
+    "TrapQuestion",
+    "get_critical_questions",
+    "RedTeamValidator",
+    "QuestionResult",
     # V8.2.0c: Spawned agent prompt validation
-    'SpawnPromptValidator',
-    'ValidationResult',
-    'RiskLevel',
+    "SpawnPromptValidator",
+    "ValidationResult",
+    "RiskLevel",
 ]
 
-__version__ = '1.1.0'  # V8.2.0c: Added prompt_validator
+__version__ = "1.1.0"  # V8.2.0c: Added prompt_validator

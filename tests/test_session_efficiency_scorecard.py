@@ -15,22 +15,20 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.infrastructure.session.session_efficiency_scorecard import (
     MAX_SESSION_RECORDS,
+    ScorecardStats,
     SessionEfficiencyScorecard,
     SessionProfile,
     SessionRecord,
-    ScorecardStats,
     get_session_scorecard,
     reset_session_scorecard,
 )
 
-
 # =============================================================================
 # SessionRecord Tests
 # =============================================================================
+
 
 class TestSessionRecord:
     """Test SessionRecord dataclass."""
@@ -62,6 +60,7 @@ class TestSessionRecord:
 # =============================================================================
 # SessionProfile Tests
 # =============================================================================
+
 
 class TestSessionProfile:
     """Test SessionProfile dataclass."""
@@ -114,6 +113,7 @@ class TestSessionProfile:
 # ScorecardStats Tests
 # =============================================================================
 
+
 class TestScorecardStats:
     """Test ScorecardStats dataclass."""
 
@@ -127,6 +127,7 @@ class TestScorecardStats:
 # Recording Tests
 # =============================================================================
 
+
 class TestRecording:
     """Test session recording."""
 
@@ -138,10 +139,8 @@ class TestRecording:
 
     def test_profile_updates(self):
         s = SessionEfficiencyScorecard()
-        s.record_session("sess_1", tasks_completed=5, tasks_attempted=10,
-                         tool_calls_total=20, tool_calls_successful=18)
-        s.record_session("sess_1", tasks_completed=3, tasks_attempted=5,
-                         tool_calls_total=10, tool_calls_successful=8)
+        s.record_session("sess_1", tasks_completed=5, tasks_attempted=10, tool_calls_total=20, tool_calls_successful=18)
+        s.record_session("sess_1", tasks_completed=3, tasks_attempted=5, tool_calls_total=10, tool_calls_successful=8)
         p = s.get_session_profile("sess_1")
         assert p is not None
         assert p.total_records == 2
@@ -158,6 +157,7 @@ class TestRecording:
 # =============================================================================
 # Query Tests
 # =============================================================================
+
 
 class TestQueries:
     """Test query methods."""
@@ -210,6 +210,7 @@ class TestQueries:
 # Bounded History Tests
 # =============================================================================
 
+
 class TestBoundedHistory:
     """Test bounded record history."""
 
@@ -224,6 +225,7 @@ class TestBoundedHistory:
 # Statistics Tests
 # =============================================================================
 
+
 class TestStatistics:
     """Test scorecard statistics."""
 
@@ -234,10 +236,8 @@ class TestStatistics:
 
     def test_stats_after_recording(self):
         s = SessionEfficiencyScorecard()
-        s.record_session("sess_1", tasks_completed=8, tasks_attempted=10,
-                         tool_calls_total=20, tool_calls_successful=18)
-        s.record_session("sess_2", tasks_completed=4, tasks_attempted=5,
-                         tool_calls_total=10, tool_calls_successful=9)
+        s.record_session("sess_1", tasks_completed=8, tasks_attempted=10, tool_calls_total=20, tool_calls_successful=18)
+        s.record_session("sess_2", tasks_completed=4, tasks_attempted=5, tool_calls_total=10, tool_calls_successful=9)
         stats = s.get_stats()
         assert stats.total_records == 2
         assert stats.unique_sessions == 2
@@ -251,6 +251,7 @@ class TestStatistics:
 # =============================================================================
 # State Tests
 # =============================================================================
+
 
 class TestState:
     """Test state management."""
@@ -278,6 +279,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global session scorecard."""
 
@@ -304,19 +306,30 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_session_package(self):
         from core.infrastructure.session import (
-            SessionEfficiencyScorecard, SessionRecord, SessionProfile,
-            ScorecardStats, get_session_scorecard, reset_session_scorecard,
+            ScorecardStats,
+            SessionEfficiencyScorecard,
+            SessionProfile,
+            SessionRecord,
+            get_session_scorecard,
+            reset_session_scorecard,
         )
-        assert all([
-            SessionEfficiencyScorecard, SessionRecord, SessionProfile,
-            ScorecardStats, get_session_scorecard, reset_session_scorecard,
-        ])
+
+        assert all(
+            [
+                SessionEfficiencyScorecard,
+                SessionRecord,
+                SessionProfile,
+                ScorecardStats,
+                get_session_scorecard,
+                reset_session_scorecard,
+            ]
+        )
 
     def test_constants(self):
-        from core.infrastructure.session.session_efficiency_scorecard import MAX_SESSION_RECORDS
         assert MAX_SESSION_RECORDS == 50000

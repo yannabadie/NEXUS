@@ -19,19 +19,13 @@ Covers:
 - Edge cases: phase failures, budget exceeded, user cancellation
 """
 
-import asyncio
 import logging
-import os
 import sys
 import time
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
 from unittest.mock import (
     AsyncMock,
     MagicMock,
-    PropertyMock,
-    call,
     patch,
 )
 
@@ -45,41 +39,33 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 # ---------------------------------------------------------------------------
 # Module under test
 # ---------------------------------------------------------------------------
+from core.intelligence.hive_mind.adaptive_debate import TaskComplexity
+from core.intelligence.hive_mind.confidence_monitor import (
+    AbortRecommendation,
+    ConfidenceTrajectory,
+)
 from core.intelligence.hive_mind.orchestrator import HiveMindResult, TrueHiveMind
+from core.intelligence.hive_mind.phases.phase_analysis import AnalysisPhaseResult
+from core.intelligence.hive_mind.phases.phase_architecture import ArchitecturePhaseResult
+from core.intelligence.hive_mind.phases.phase_consolidation import ConsolidationPhaseResult
+from core.intelligence.hive_mind.phases.phase_debate import DebatePhaseResult
+from core.intelligence.hive_mind.phases.phase_diagnosis import DiagnosisPhaseResult
+from core.intelligence.hive_mind.phases.phase_execution import ExecutionPhaseResult
+from core.intelligence.hive_mind.phases.phase_retry import RetryPhaseResult
 from core.intelligence.hive_mind.types import (
     AgentArchitecture,
-    AgentSpec,
     AnalysisComparison,
-    BreakpointResponse,
     DebateArgument,
     DebateResult,
-    Disagreement,
-    ExecutionIssue,
     ExecutionPlan,
-    ExecutionStep,
     FailureDiagnosis,
     FailureType,
     HiveMindState,
     IndependentAnalysis,
-    IssueSeverity,
     KnowledgeConsolidation,
     MonitoredStepResult,
     RAGConfig,
     RetryDecision,
-    UserBreakpoint,
-)
-from core.intelligence.hive_mind.adaptive_debate import TaskComplexity
-from core.intelligence.hive_mind.phases.phase_analysis import AnalysisPhaseResult
-from core.intelligence.hive_mind.phases.phase_debate import DebatePhaseResult
-from core.intelligence.hive_mind.phases.phase_architecture import ArchitecturePhaseResult
-from core.intelligence.hive_mind.phases.phase_execution import ExecutionPhaseResult
-from core.intelligence.hive_mind.phases.phase_diagnosis import DiagnosisPhaseResult
-from core.intelligence.hive_mind.phases.phase_retry import RetryPhaseResult
-from core.intelligence.hive_mind.phases.phase_consolidation import ConsolidationPhaseResult
-from core.intelligence.hive_mind.confidence_monitor import (
-    AbortRecommendation,
-    ConfidenceTrajectory,
-    PhaseConfidence,
 )
 
 logger = logging.getLogger(__name__)
@@ -88,6 +74,7 @@ logger = logging.getLogger(__name__)
 # ===========================================================================
 # Helpers / Factories
 # ===========================================================================
+
 
 def _make_independent_analysis(agent_id: str = "gemini", confidence: float = 0.9) -> IndependentAnalysis:
     """Create a minimal IndependentAnalysis for testing."""
@@ -142,7 +129,7 @@ def _make_debate_result(
 
 
 def _make_architecture(
-    agents_to_use: Optional[List[str]] = None,
+    agents_to_use: list[str] | None = None,
     status: str = "READY",
 ) -> AgentArchitecture:
     """Create a minimal AgentArchitecture."""
@@ -236,7 +223,7 @@ def _make_debate_phase_result(was_skipped: bool = True) -> DebatePhaseResult:
     )
 
 
-def _make_arch_phase_result(agents_spawned: Optional[List[str]] = None) -> ArchitecturePhaseResult:
+def _make_arch_phase_result(agents_spawned: list[str] | None = None) -> ArchitecturePhaseResult:
     return ArchitecturePhaseResult(
         architecture=_make_architecture(),
         agents_spawned=agents_spawned or [],
@@ -247,7 +234,7 @@ def _make_arch_phase_result(agents_spawned: Optional[List[str]] = None) -> Archi
 def _make_exec_phase_result(
     success: bool = True,
     needs_diagnosis: bool = False,
-    failure_step: Optional[str] = None,
+    failure_step: str | None = None,
 ) -> ExecutionPhaseResult:
     return ExecutionPhaseResult(
         success=success,
@@ -274,7 +261,7 @@ def _make_diagnosis_phase_result(
 
 def _make_retry_phase_result(
     action: str = "RETRY",
-    modified_arch: Optional[AgentArchitecture] = None,
+    modified_arch: AgentArchitecture | None = None,
 ) -> RetryPhaseResult:
     return RetryPhaseResult(
         decision=RetryDecision(
@@ -302,6 +289,7 @@ def _make_consolidation_phase_result(archived: int = 3) -> ConsolidationPhaseRes
 # ===========================================================================
 # Fixture: fully mocked TrueHiveMind instance
 # ===========================================================================
+
 
 @pytest.fixture
 def tmp_workspace(tmp_path: Path) -> Path:
@@ -383,7 +371,8 @@ def hive_mind(tmp_workspace, mock_config, mock_gemini, mock_claude):
 # Helper to run process_task with all phases mocked
 # ---------------------------------------------------------------------------
 
-def _wire_happy_path(hm: TrueHiveMind) -> Dict[str, MagicMock]:
+
+def _wire_happy_path(hm: TrueHiveMind) -> dict[str, MagicMock]:
     """Wire all phases for a successful happy-path execution.
 
     Returns dict of mocked phases for assertion.
@@ -419,13 +408,21 @@ def _wire_happy_path(hm: TrueHiveMind) -> Dict[str, MagicMock]:
     hm.confidence_monitor.record = MagicMock()
     hm.confidence_monitor.should_abort = MagicMock(
         return_value=AbortRecommendation(
-            should_abort=False, reason="OK", confidence=0.85, threshold=0.30,
+            should_abort=False,
+            reason="OK",
+            confidence=0.85,
+            threshold=0.30,
         )
     )
     hm.confidence_monitor.get_trajectory = MagicMock(
         return_value=ConfidenceTrajectory(
-            entries=[], trend="stable", average=0.85,
-            minimum=0.80, maximum=0.92, latest=0.85, drop_detected=False,
+            entries=[],
+            trend="stable",
+            average=0.85,
+            minimum=0.80,
+            maximum=0.92,
+            latest=0.85,
+            drop_detected=False,
         )
     )
 
@@ -433,9 +430,13 @@ def _wire_happy_path(hm: TrueHiveMind) -> Dict[str, MagicMock]:
     hm.budget_allocator.reset = MagicMock()
     hm.budget_allocator.allocate = MagicMock(return_value={"execution": 17500})
     hm.budget_allocator.report_actual = MagicMock()
-    hm.budget_allocator.get_stats = MagicMock(return_value={
-        "total_spent": 1000, "redistributed": 0, "utilization": 0.02,
-    })
+    hm.budget_allocator.get_stats = MagicMock(
+        return_value={
+            "total_spent": 1000,
+            "redistributed": 0,
+            "utilization": 0.02,
+        }
+    )
 
     # Mock phase audit logger
     with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_audit:
@@ -457,6 +458,7 @@ def _wire_happy_path(hm: TrueHiveMind) -> Dict[str, MagicMock]:
 # SECTION 1: HiveMindResult dataclass
 # ===========================================================================
 
+
 class TestHiveMindResult:
     """Tests for the HiveMindResult dataclass."""
 
@@ -465,7 +467,13 @@ class TestHiveMindResult:
             success=True,
             output="Task completed",
             state=HiveMindState.HIVE_SUCCESS,
-            phases_completed=["analysis", "debate_skipped", "architecture", "execution_success_attempt_1", "consolidation"],
+            phases_completed=[
+                "analysis",
+                "debate_skipped",
+                "architecture",
+                "execution_success_attempt_1",
+                "consolidation",
+            ],
             total_duration=10.5,
             total_tokens=5000,
             agents_used=["gemini", "claude"],
@@ -500,9 +508,15 @@ class TestHiveMindResult:
 
     def test_default_error_is_none(self):
         result = HiveMindResult(
-            success=True, output="ok", state=HiveMindState.HIVE_SUCCESS,
-            phases_completed=[], total_duration=0, total_tokens=0,
-            agents_used=[], agents_spawned=[], artifacts_created=[],
+            success=True,
+            output="ok",
+            state=HiveMindState.HIVE_SUCCESS,
+            phases_completed=[],
+            total_duration=0,
+            total_tokens=0,
+            agents_used=[],
+            agents_spawned=[],
+            artifacts_created=[],
             knowledge_archived=0,
         )
         assert result.error is None
@@ -525,10 +539,16 @@ class TestHiveMindResult:
 
     def test_agents_spawned_populated(self):
         result = HiveMindResult(
-            success=True, output="ok", state=HiveMindState.HIVE_SUCCESS,
-            phases_completed=[], total_duration=0, total_tokens=0,
-            agents_used=["gemini"], agents_spawned=["specialist_1"],
-            artifacts_created=[], knowledge_archived=0,
+            success=True,
+            output="ok",
+            state=HiveMindState.HIVE_SUCCESS,
+            phases_completed=[],
+            total_duration=0,
+            total_tokens=0,
+            agents_used=["gemini"],
+            agents_spawned=["specialist_1"],
+            artifacts_created=[],
+            knowledge_archived=0,
         )
         assert result.agents_spawned == ["specialist_1"]
 
@@ -536,6 +556,7 @@ class TestHiveMindResult:
 # ===========================================================================
 # SECTION 2: TrueHiveMind construction & initialization
 # ===========================================================================
+
 
 class TestTrueHiveMindInit:
     """Tests for constructor and _init_components."""
@@ -642,6 +663,7 @@ class TestTrueHiveMindInit:
 # SECTION 3: State management
 # ===========================================================================
 
+
 class TestStateManagement:
     """Tests for _set_state and state tracking."""
 
@@ -684,6 +706,7 @@ class TestStateManagement:
 # SECTION 4: get_stats
 # ===========================================================================
 
+
 class TestGetStats:
     """Tests for get_stats method."""
 
@@ -712,19 +735,24 @@ class TestGetStats:
 # SECTION 5: Hot-Swap Lead Agent
 # ===========================================================================
 
+
 class TestHotSwapLead:
     """Tests for _check_and_swap_lead and force_lead_swap."""
 
     def test_no_swap_when_not_stagnant(self, hive_mind):
         hive_mind._mock_stag.get_swap_recommendation.return_value = {
-            "should_swap": False, "new_lead": None, "reason": "OK",
+            "should_swap": False,
+            "new_lead": None,
+            "reason": "OK",
         }
         result = hive_mind._check_and_swap_lead("diagnosis text", _make_architecture())
         assert result["swapped"] is False
 
     def test_swap_when_stagnant(self, hive_mind):
         hive_mind._mock_stag.get_swap_recommendation.return_value = {
-            "should_swap": True, "new_lead": "claude", "reason": "Stagnation detected",
+            "should_swap": True,
+            "new_lead": "claude",
+            "reason": "Stagnation detected",
         }
         result = hive_mind._check_and_swap_lead("diagnosis text", _make_architecture())
         assert result["swapped"] is True
@@ -734,11 +762,15 @@ class TestHotSwapLead:
 
     def test_swap_increments_counter(self, hive_mind):
         hive_mind._mock_stag.get_swap_recommendation.return_value = {
-            "should_swap": True, "new_lead": "claude", "reason": "Stagnation",
+            "should_swap": True,
+            "new_lead": "claude",
+            "reason": "Stagnation",
         }
         hive_mind._check_and_swap_lead("diag1", _make_architecture())
         hive_mind._mock_stag.get_swap_recommendation.return_value = {
-            "should_swap": True, "new_lead": "gemini", "reason": "Stagnation",
+            "should_swap": True,
+            "new_lead": "gemini",
+            "reason": "Stagnation",
         }
         hive_mind._check_and_swap_lead("diag2", _make_architecture())
         assert hive_mind._lead_swap_count == 2
@@ -769,6 +801,7 @@ class TestHotSwapLead:
 # ===========================================================================
 # SECTION 6: _create_cancelled_result and _create_failed_result
 # ===========================================================================
+
 
 class TestResultHelpers:
     """Tests for _create_cancelled_result and _create_failed_result."""
@@ -817,6 +850,7 @@ class TestResultHelpers:
 # SECTION 7: _format_output
 # ===========================================================================
 
+
 class TestFormatOutput:
     """Tests for _format_output."""
 
@@ -853,6 +887,7 @@ class TestFormatOutput:
 # ===========================================================================
 # SECTION 8: process_task - happy path (no debate, first-attempt success)
 # ===========================================================================
+
 
 class TestProcessTaskHappyPath:
     """Tests for the full happy-path execution via process_task."""
@@ -990,6 +1025,7 @@ class TestProcessTaskHappyPath:
 # SECTION 9: process_task - debate path
 # ===========================================================================
 
+
 class TestProcessTaskWithDebate:
     """Tests where analysis requires debate."""
 
@@ -1028,8 +1064,12 @@ class TestProcessTaskWithDebate:
         debate = _make_debate_phase_result(was_skipped=False)
         debate.debate_result.debate_history = [
             DebateArgument(
-                agent_id="gemini", turn_number=1, position="SUPPORT",
-                target_point="approach", argument="I agree", evidence=[],
+                agent_id="gemini",
+                turn_number=1,
+                position="SUPPORT",
+                target_point="approach",
+                argument="I agree",
+                evidence=[],
             )
         ]
         hive_mind.phase_debate.execute = AsyncMock(return_value=debate)
@@ -1054,6 +1094,7 @@ class TestProcessTaskWithDebate:
 # SECTION 10: process_task - execution failure -> diagnosis -> retry
 # ===========================================================================
 
+
 class TestProcessTaskRetryLoop:
     """Tests for the execution failure -> diagnosis -> retry loop."""
 
@@ -1064,19 +1105,17 @@ class TestProcessTaskRetryLoop:
 
         # First execution fails, second succeeds
         fail_exec = _make_exec_phase_result(
-            success=False, needs_diagnosis=True, failure_step="step_1",
+            success=False,
+            needs_diagnosis=True,
+            failure_step="step_1",
         )
         success_exec = _make_exec_phase_result(success=True)
-        hive_mind.phase_execution.execute = AsyncMock(
-            side_effect=[fail_exec, success_exec]
-        )
+        hive_mind.phase_execution.execute = AsyncMock(side_effect=[fail_exec, success_exec])
 
         diagnosis = _make_diagnosis_phase_result(user_decision="retry")
         hive_mind.phase_diagnosis = MagicMock()
         hive_mind.phase_diagnosis.execute = AsyncMock(return_value=diagnosis)
-        hive_mind.phase_diagnosis.get_retry_recommendations = MagicMock(
-            return_value={"recommendations": ["fix_x"]}
-        )
+        hive_mind.phase_diagnosis.get_retry_recommendations = MagicMock(return_value={"recommendations": ["fix_x"]})
 
         retry = _make_retry_phase_result(action="RETRY", modified_arch=_make_architecture())
         hive_mind.phase_retry.execute = MagicMock(return_value=retry)
@@ -1097,7 +1136,9 @@ class TestProcessTaskRetryLoop:
         _wire_happy_path(hive_mind)
 
         fail_exec = _make_exec_phase_result(
-            success=False, needs_diagnosis=True, failure_step="step_1",
+            success=False,
+            needs_diagnosis=True,
+            failure_step="step_1",
         )
         hive_mind.phase_execution.execute = AsyncMock(return_value=fail_exec)
 
@@ -1119,7 +1160,9 @@ class TestProcessTaskRetryLoop:
         _wire_happy_path(hive_mind)
 
         fail_exec = _make_exec_phase_result(
-            success=False, needs_diagnosis=True, failure_step="step_1",
+            success=False,
+            needs_diagnosis=True,
+            failure_step="step_1",
         )
         hive_mind.phase_execution.execute = AsyncMock(return_value=fail_exec)
 
@@ -1141,16 +1184,16 @@ class TestProcessTaskRetryLoop:
         _wire_happy_path(hive_mind)
 
         fail_exec = _make_exec_phase_result(
-            success=False, needs_diagnosis=True, failure_step="step_1",
+            success=False,
+            needs_diagnosis=True,
+            failure_step="step_1",
         )
         hive_mind.phase_execution.execute = AsyncMock(return_value=fail_exec)
 
         diagnosis = _make_diagnosis_phase_result(user_decision="retry")
         hive_mind.phase_diagnosis = MagicMock()
         hive_mind.phase_diagnosis.execute = AsyncMock(return_value=diagnosis)
-        hive_mind.phase_diagnosis.get_retry_recommendations = MagicMock(
-            return_value={}
-        )
+        hive_mind.phase_diagnosis.get_retry_recommendations = MagicMock(return_value={})
 
         retry = _make_retry_phase_result(action="STOP")
         hive_mind.phase_retry.execute = MagicMock(return_value=retry)
@@ -1169,7 +1212,8 @@ class TestProcessTaskRetryLoop:
         _wire_happy_path(hive_mind)
 
         fail_exec = _make_exec_phase_result(
-            success=False, needs_diagnosis=False,
+            success=False,
+            needs_diagnosis=False,
         )
         hive_mind.phase_execution.execute = AsyncMock(return_value=fail_exec)
 
@@ -1188,7 +1232,9 @@ class TestProcessTaskRetryLoop:
         _wire_happy_path(hive_mind)
 
         fail_exec = _make_exec_phase_result(
-            success=False, needs_diagnosis=True, failure_step="step_1",
+            success=False,
+            needs_diagnosis=True,
+            failure_step="step_1",
         )
         # All 4 attempts fail
         hive_mind.phase_execution.execute = AsyncMock(return_value=fail_exec)
@@ -1216,15 +1262,14 @@ class TestProcessTaskRetryLoop:
 # SECTION 11: process_task - exception handling
 # ===========================================================================
 
+
 class TestProcessTaskExceptionHandling:
     """Tests for exception handling in process_task."""
 
     @pytest.mark.asyncio
     async def test_exception_in_analysis_returns_failed_result(self, hive_mind):
         _wire_happy_path(hive_mind)
-        hive_mind.phase_analysis.execute = AsyncMock(
-            side_effect=RuntimeError("Analysis exploded")
-        )
+        hive_mind.phase_analysis.execute = AsyncMock(side_effect=RuntimeError("Analysis exploded"))
 
         with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
@@ -1238,9 +1283,7 @@ class TestProcessTaskExceptionHandling:
     @pytest.mark.asyncio
     async def test_exception_in_execution_returns_failed_result(self, hive_mind):
         _wire_happy_path(hive_mind)
-        hive_mind.phase_execution.execute = AsyncMock(
-            side_effect=ValueError("Execution crashed")
-        )
+        hive_mind.phase_execution.execute = AsyncMock(side_effect=ValueError("Execution crashed"))
 
         with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
@@ -1253,9 +1296,7 @@ class TestProcessTaskExceptionHandling:
     @pytest.mark.asyncio
     async def test_exception_in_consolidation_returns_failed_result(self, hive_mind):
         _wire_happy_path(hive_mind)
-        hive_mind.phase_consolidation.execute = AsyncMock(
-            side_effect=Exception("Consolidation error")
-        )
+        hive_mind.phase_consolidation.execute = AsyncMock(side_effect=Exception("Consolidation error"))
 
         with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
@@ -1268,9 +1309,7 @@ class TestProcessTaskExceptionHandling:
     @pytest.mark.asyncio
     async def test_exception_sets_state_to_failed(self, hive_mind):
         _wire_happy_path(hive_mind)
-        hive_mind.phase_analysis.execute = AsyncMock(
-            side_effect=Exception("Boom")
-        )
+        hive_mind.phase_analysis.execute = AsyncMock(side_effect=Exception("Boom"))
 
         with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
@@ -1284,9 +1323,7 @@ class TestProcessTaskExceptionHandling:
         """Phases completed before the exception should still be recorded."""
         _wire_happy_path(hive_mind)
         # Architecture phase will raise
-        hive_mind.phase_architecture.execute = AsyncMock(
-            side_effect=RuntimeError("Arch failed")
-        )
+        hive_mind.phase_architecture.execute = AsyncMock(side_effect=RuntimeError("Arch failed"))
 
         with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
@@ -1303,6 +1340,7 @@ class TestProcessTaskExceptionHandling:
 # ===========================================================================
 # SECTION 12: Confidence monitor / abort
 # ===========================================================================
+
 
 class TestConfidenceAbort:
     """Tests for confidence-based abort in process_task."""
@@ -1362,6 +1400,7 @@ class TestConfidenceAbort:
 # ===========================================================================
 # SECTION 13: Budget tracking
 # ===========================================================================
+
 
 class TestBudgetTracking:
     """Tests for budget-related operations in process_task."""
@@ -1423,6 +1462,7 @@ class TestBudgetTracking:
 # SECTION 14: Phase ordering and state transitions during process_task
 # ===========================================================================
 
+
 class TestPhaseOrdering:
     """Verify correct state transitions happen in the right order."""
 
@@ -1482,6 +1522,7 @@ class TestPhaseOrdering:
 # SECTION 15: process_task with saga enabled
 # ===========================================================================
 
+
 class TestProcessTaskSaga:
     """Tests for saga checkpoint integration."""
 
@@ -1506,7 +1547,9 @@ class TestProcessTaskSaga:
 
             mock_stag = MagicMock()
             mock_stag.get_swap_recommendation.return_value = {
-                "should_swap": False, "new_lead": None, "reason": "OK",
+                "should_swap": False,
+                "new_lead": None,
+                "reason": "OK",
             }
             mock_stag.get_stats.return_value = {}
             mock_stag_cls.return_value = mock_stag
@@ -1547,6 +1590,7 @@ class TestProcessTaskSaga:
 # ===========================================================================
 # SECTION 16: SwarmBridge delegation
 # ===========================================================================
+
 
 class TestSwarmBridgeDelegation:
     """Tests for swarm engine integration during execution."""
@@ -1590,14 +1634,13 @@ class TestSwarmBridgeDelegation:
                 saga_enabled=False,
             )
 
-            mock_sync_inst.set_session_manager.assert_called_once_with(
-                mock_swarm.session_manager
-            )
+            mock_sync_inst.set_session_manager.assert_called_once_with(mock_swarm.session_manager)
 
 
 # ===========================================================================
 # SECTION 17: success_memory recording
 # ===========================================================================
+
 
 class TestSuccessMemoryRecording:
     """Tests for SuccessMemory integration on task success."""
@@ -1611,8 +1654,11 @@ class TestSuccessMemoryRecording:
 
         with (
             patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal,
-            patch("core.intelligence.hive_mind.orchestrator.create_hive_mind_adapters",
-                  create=True, return_value=(MagicMock(), MagicMock())),
+            patch(
+                "core.intelligence.hive_mind.orchestrator.create_hive_mind_adapters",
+                create=True,
+                return_value=(MagicMock(), MagicMock()),
+            ),
         ):
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
@@ -1646,6 +1692,7 @@ class TestSuccessMemoryRecording:
 # SECTION 18: project_memory RAG archival
 # ===========================================================================
 
+
 class TestProjectMemoryArchival:
     """Tests for RAG archival on task completion."""
 
@@ -1658,7 +1705,7 @@ class TestProjectMemoryArchival:
         with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
-            result = await hive_mind.process_task("Archive test")
+            await hive_mind.process_task("Archive test")
 
         hive_mind.context_manager.archive_to_rag.assert_called_once()
 
@@ -1670,7 +1717,7 @@ class TestProjectMemoryArchival:
         with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
-            result = await hive_mind.process_task("No archive test")
+            await hive_mind.process_task("No archive test")
 
         hive_mind.context_manager.archive_to_rag.assert_not_called()
 
@@ -1678,6 +1725,7 @@ class TestProjectMemoryArchival:
 # ===========================================================================
 # SECTION 19: complexity parameter
 # ===========================================================================
+
 
 class TestComplexityParameter:
     """Tests that complexity is passed correctly."""
@@ -1712,6 +1760,7 @@ class TestComplexityParameter:
 # SECTION 20: Hot-swap during retry loop
 # ===========================================================================
 
+
 class TestHotSwapDuringRetry:
     """Tests for hot-swap lead agent during the retry loop."""
 
@@ -1723,12 +1772,12 @@ class TestHotSwapDuringRetry:
 
         # First execution fails, second succeeds
         fail_exec = _make_exec_phase_result(
-            success=False, needs_diagnosis=True, failure_step="step_1",
+            success=False,
+            needs_diagnosis=True,
+            failure_step="step_1",
         )
         success_exec = _make_exec_phase_result(success=True)
-        hive_mind.phase_execution.execute = AsyncMock(
-            side_effect=[fail_exec, success_exec]
-        )
+        hive_mind.phase_execution.execute = AsyncMock(side_effect=[fail_exec, success_exec])
 
         diagnosis = _make_diagnosis_phase_result(user_decision="retry")
         hive_mind.phase_diagnosis = MagicMock()
@@ -1757,6 +1806,7 @@ class TestHotSwapDuringRetry:
 # ===========================================================================
 # SECTION 21: Edge cases
 # ===========================================================================
+
 
 class TestEdgeCases:
     """Edge case tests."""
@@ -1854,6 +1904,7 @@ class TestEdgeCases:
 # SECTION 22: HiveMindState enum coverage
 # ===========================================================================
 
+
 class TestHiveMindStateEnum:
     """Verify all expected states exist in the enum."""
 
@@ -1903,6 +1954,7 @@ class TestHiveMindStateEnum:
 # SECTION 23: context_manager interactions
 # ===========================================================================
 
+
 class TestContextManagerInteractions:
     """Tests for context_manager usage during process_task."""
 
@@ -1933,6 +1985,7 @@ class TestContextManagerInteractions:
 # SECTION 24: telemetry emissions
 # ===========================================================================
 
+
 class TestTelemetryEmissions:
     """Tests that telemetry events are emitted during process_task."""
 
@@ -1961,9 +2014,7 @@ class TestTelemetryEmissions:
     @pytest.mark.asyncio
     async def test_telemetry_trace_ended_on_failure(self, hive_mind):
         _wire_happy_path(hive_mind)
-        hive_mind.phase_analysis.execute = AsyncMock(
-            side_effect=RuntimeError("Boom")
-        )
+        hive_mind.phase_analysis.execute = AsyncMock(side_effect=RuntimeError("Boom"))
 
         with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))

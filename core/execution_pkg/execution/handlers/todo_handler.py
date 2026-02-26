@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any
 
 from .base import BaseHandler, ToolResult
 
@@ -25,18 +25,13 @@ class TodoWriteHandler(BaseHandler):
     """
 
     # Status icons for display
-    STATUS_ICONS = {
-        "pending": "⏳",
-        "in_progress": "🔄",
-        "completed": "✅",
-        "failed": "❌"
-    }
+    STATUS_ICONS = {"pending": "⏳", "in_progress": "🔄", "completed": "✅", "failed": "❌"}
 
     @property
     def tool_name(self) -> str:
         return "todo_write"
 
-    def execute(self, args: Dict[str, Any]) -> ToolResult:
+    def execute(self, args: dict[str, Any]) -> ToolResult:
         """
         Update task/plan list.
 
@@ -77,19 +72,12 @@ class TodoWriteHandler(BaseHandler):
             formatted_todos = self._format_todos(todos)
 
             # Save to file
-            todo_file.write_text(
-                json.dumps(formatted_todos, indent=2),
-                encoding='utf-8'
-            )
+            todo_file.write_text(json.dumps(formatted_todos, indent=2), encoding="utf-8")
 
             # Format output
             output = self._format_output(formatted_todos, todo_file)
 
-            return ToolResult(
-                tool_name=self.tool_name,
-                status="SUCCESS",
-                output=output
-            )
+            return ToolResult(tool_name=self.tool_name, status="SUCCESS", output=output)
 
         except Exception as e:
             return self._error(f"TodoWrite error: {str(e)}")
@@ -101,12 +89,14 @@ class TodoWriteHandler(BaseHandler):
             if not isinstance(todo, dict):
                 continue
 
-            formatted.append({
-                "id": todo.get("id", len(formatted) + 1),
-                "description": todo.get("description", ""),
-                "status": todo.get("status", "pending"),
-                "assigned_agent": todo.get("assigned_agent", "Claude")
-            })
+            formatted.append(
+                {
+                    "id": todo.get("id", len(formatted) + 1),
+                    "description": todo.get("description", ""),
+                    "status": todo.get("status", "pending"),
+                    "assigned_agent": todo.get("assigned_agent", "Claude"),
+                }
+            )
 
         return formatted
 
@@ -116,19 +106,13 @@ class TodoWriteHandler(BaseHandler):
 
         for todo in todos:
             icon = self.STATUS_ICONS.get(todo["status"], "❓")
-            output += (
-                f"{icon} #{todo['id']}: {todo['description']} "
-                f"[{todo['assigned_agent']}] ({todo['status']})\n"
-            )
+            output += f"{icon} #{todo['id']}: {todo['description']} [{todo['assigned_agent']}] ({todo['status']})\n"
 
         output += f"\nPlan saved to: {todo_file}"
         return output
 
 
-def create_todo_handler(
-    workspace_path: Path,
-    validation_service: Any = None
-) -> TodoWriteHandler:
+def create_todo_handler(workspace_path: Path, validation_service: Any = None) -> TodoWriteHandler:
     """
     Factory function to create TodoWriteHandler.
 

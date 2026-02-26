@@ -32,23 +32,26 @@ References:
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import re
-import uuid
 import sys
-from pathlib import Path
-from datetime import datetime
-from typing import AsyncIterator, Optional, Dict, Any, Callable
+import uuid
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
+from datetime import datetime
+from pathlib import Path
+from typing import Any
 
-from core.foundation.async_primitives import CancellationToken, AsyncProcessHandle, create_safe_task
-from core.foundation.async_primitives.process_handle import get_process_registry
 from core.foundation.agents.unified_registry import get_registry
+from core.foundation.async_primitives import AsyncProcessHandle, CancellationToken, create_safe_task
+from core.foundation.async_primitives.process_handle import get_process_registry
 
 
 @dataclass
 class AsyncClaudeDriverConfig:
     """Configuration for AsyncClaudeDriver."""
+
     cli_path: str = "claude"
     timeout: float = 300.0
     model: str = "claude-sonnet-4-5-20250929"
@@ -88,7 +91,7 @@ class AsyncClaudeDriver:
         self.io_buffer.mkdir(exist_ok=True)
 
         # Track ALL active processes by UUID for cancellation
-        self._active_handles: Dict[str, AsyncProcessHandle] = {}
+        self._active_handles: dict[str, AsyncProcessHandle] = {}
 
         # Global registry for cross-driver coordination
         self._registry = get_process_registry()
@@ -97,10 +100,10 @@ class AsyncClaudeDriver:
         self,
         context: str,
         *,
-        session_uuid: Optional[str] = None,
-        token: Optional[CancellationToken] = None,
-        task_id: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        session_uuid: str | None = None,
+        token: CancellationToken | None = None,
+        task_id: str | None = None,
+    ) -> dict[str, Any]:
         """
         Non-blocking invoke that collects full response.
 
@@ -120,12 +123,7 @@ class AsyncClaudeDriver:
             - next_agent: Suggested next agent
         """
         chunks = []
-        async for chunk in self.invoke_stream(
-            context,
-            session_uuid=session_uuid,
-            token=token,
-            task_id=task_id
-        ):
+        async for chunk in self.invoke_stream(context, session_uuid=session_uuid, token=token, task_id=task_id):
             chunks.append(chunk)
 
         full_response = "".join(chunks)
@@ -135,10 +133,10 @@ class AsyncClaudeDriver:
         self,
         context: str,
         *,
-        session_uuid: Optional[str] = None,
-        token: Optional[CancellationToken] = None,
-        task_id: Optional[str] = None,
-        on_token: Optional[Callable[[str], None]] = None,
+        session_uuid: str | None = None,
+        token: CancellationToken | None = None,
+        task_id: str | None = None,
+        on_token: Callable[[str], None] | None = None,
     ) -> AsyncIterator[str]:
         """
         TRUE Non-blocking streaming invoke.
@@ -166,7 +164,8 @@ class AsyncClaudeDriver:
         # Build command
         cmd = [
             str(self.config.cli_path),
-            "-p", f"@{context_file}",
+            "-p",
+            f"@{context_file}",
             "--dangerously-skip-permissions",
         ]
 
@@ -174,7 +173,7 @@ class AsyncClaudeDriver:
         if self.config.model:
             cmd.extend(["--model", self.config.model])
 
-        handle: Optional[AsyncProcessHandle] = None
+        handle: AsyncProcessHandle | None = None
 
         try:
             # TRUE ASYNC: create_subprocess_exec (NOT Popen!)
@@ -187,11 +186,7 @@ class AsyncClaudeDriver:
 
             # Track by UUID
             handle = AsyncProcessHandle(
-                proc=proc,
-                session_uuid=unique_id,
-                task_id=task_id,
-                agent_id="claude",
-                created_at=datetime.now()
+                proc=proc, session_uuid=unique_id, task_id=task_id, agent_id="claude", created_at=datetime.now()
             )
             self._active_handles[unique_id] = handle
             await self._registry.register(handle)
@@ -216,7 +211,7 @@ class AsyncClaudeDriver:
                 """Background task to drain stderr and prevent buffer fill deadlock."""
                 try:
                     async for line_bytes in proc.stderr:
-                        stderr_buffer.append(line_bytes.decode('utf-8', errors='replace'))
+                        stderr_buffer.append(line_bytes.decode("utf-8", errors="replace"))
                 except asyncio.CancelledError:
                     pass  # Expected on cleanup
 
@@ -236,7 +231,7 @@ class AsyncClaudeDriver:
                         await handle.terminate_gracefully()
                         raise TimeoutError(f"Claude CLI timed out after {self.config.timeout}s")
 
-                    line = line_bytes.decode('utf-8', errors='replace')
+                    line = line_bytes.decode("utf-8", errors="replace")
                     if line:
                         yield line
                         if on_token:
@@ -245,18 +240,16 @@ class AsyncClaudeDriver:
                 # Wait for process completion with timeout
                 try:
                     await asyncio.wait_for(proc.wait(), timeout=10.0)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     await handle.terminate_gracefully()
 
                 # Cancel stderr task (should be done by now)
                 stderr_task.cancel()
-                try:
+                with contextlib.suppress(asyncio.CancelledError):
                     await stderr_task
-                except asyncio.CancelledError:
-                    pass
 
                 if proc.returncode != 0:
-                    stderr_content = ''.join(stderr_buffer)
+                    stderr_content = "".join(stderr_buffer)
                     raise RuntimeError(f"Claude CLI failed (code {proc.returncode}): {stderr_content}")
 
                 if self.config.verbose:
@@ -269,7 +262,7 @@ class AsyncClaudeDriver:
         except asyncio.CancelledError:
             # CRITICAL: Re-raise after cleanup (don't swallow!)
             if self.config.verbose:
-                print(f"[AsyncClaudeDriver] Cancelled, cleaning up...", file=sys.stderr)
+                print("[AsyncClaudeDriver] Cancelled, cleaning up...", file=sys.stderr)
             raise
 
         finally:
@@ -327,11 +320,11 @@ class AsyncClaudeDriver:
         """Get count of active processes."""
         return sum(1 for h in self._active_handles.values() if h.is_running)
 
-    def list_active_processes(self) -> list[Dict[str, Any]]:
+    def list_active_processes(self) -> list[dict[str, Any]]:
         """List all active processes."""
         return [h.to_dict() for h in self._active_handles.values() if h.is_running]
 
-    def _parse_hybrid_response(self, raw_text: str) -> Dict[str, Any]:
+    def _parse_hybrid_response(self, raw_text: str) -> dict[str, Any]:
         """
         Parse Claude's natural language response with XML tags.
 
@@ -349,7 +342,7 @@ class AsyncClaudeDriver:
         # Extract content (everything OUTSIDE tool blocks)
         content = raw_text
         for match in tool_matches:
-            content = content.replace(match.group(0), '')
+            content = content.replace(match.group(0), "")
         content = content.strip()
 
         # Parse tool use if present
@@ -370,7 +363,7 @@ class AsyncClaudeDriver:
             tool_use = {
                 "tool_name": tool_name,
                 "arguments": arguments,
-                "expected_outcome": f"Execute {tool_name} successfully"
+                "expected_outcome": f"Execute {tool_name} successfully",
             }
             action_type = "TOOL_USE"
 
@@ -392,24 +385,23 @@ class AsyncClaudeDriver:
             "next_agent": registry.get_alternate("claude"),
         }
 
-    def _parse_keyvalue_args(self, args_text: str) -> Dict[str, str]:
+    def _parse_keyvalue_args(self, args_text: str) -> dict[str, str]:
         """Parse arguments in key=value format (fallback if not JSON)."""
         args = {}
-        for line in args_text.split('\n'):
+        for line in args_text.split("\n"):
             line = line.strip()
-            if '=' in line:
-                key, value = line.split('=', 1)
+            if "=" in line:
+                key, value = line.split("=", 1)
                 args[key.strip()] = value.strip()
         return args
-
 
     def invoke_sync(
         self,
         context: str,
         *,
-        session_uuid: Optional[str] = None,
-        task_id: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        session_uuid: str | None = None,
+        task_id: str | None = None,
+    ) -> dict[str, Any]:
         """
         Synchronous invoke for backward compatibility.
 
@@ -430,25 +422,17 @@ class AsyncClaudeDriver:
             Use `await driver.invoke()` in async code.
         """
         import warnings
+
         warnings.warn(
-            "invoke_sync() is deprecated since V8.4.4. "
-            "Use `await driver.invoke()` in async code.",
+            "invoke_sync() is deprecated since V8.4.4. Use `await driver.invoke()` in async code.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
-        return asyncio.run(self.invoke(
-            context,
-            session_uuid=session_uuid,
-            task_id=task_id
-        ))
+        return asyncio.run(self.invoke(context, session_uuid=session_uuid, task_id=task_id))
 
 
 # Factory function for easy creation
-def create_async_claude_driver(
-    config: Any,
-    workspace_path: Path,
-    model: Optional[str] = None
-) -> AsyncClaudeDriver:
+def create_async_claude_driver(config: Any, workspace_path: Path, model: str | None = None) -> AsyncClaudeDriver:
     """
     Create an AsyncClaudeDriver from a NEXUS config object.
 
@@ -460,10 +444,12 @@ def create_async_claude_driver(
     Returns:
         Configured AsyncClaudeDriver
     """
-    return AsyncClaudeDriver(AsyncClaudeDriverConfig(
-        cli_path=getattr(config, 'claude_cli_path', 'claude'),
-        timeout=getattr(config, 'timeout', 300.0),
-        model=model or getattr(config, 'claude_sonnet_model', 'claude-sonnet-4-5-20250929'),
-        workspace_path=workspace_path,
-        verbose=getattr(config, 'verbose', False),
-    ))
+    return AsyncClaudeDriver(
+        AsyncClaudeDriverConfig(
+            cli_path=getattr(config, "claude_cli_path", "claude"),
+            timeout=getattr(config, "timeout", 300.0),
+            model=model or getattr(config, "claude_sonnet_model", "claude-sonnet-4-5-20250929"),
+            workspace_path=workspace_path,
+            verbose=getattr(config, "verbose", False),
+        )
+    )

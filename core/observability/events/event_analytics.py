@@ -23,9 +23,9 @@ from __future__ import annotations
 import dataclasses
 import logging
 import threading
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -41,9 +41,11 @@ MAX_EVENTS: int = 50000
 # Types
 # =============================================================================
 
+
 @dataclass
 class EventRecord:
     """Record of a single event occurrence."""
+
     event_id: str = ""
     event_type: str = ""
     source: str = ""
@@ -51,13 +53,14 @@ class EventRecord:
     success: bool = True
     timestamp: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return dataclasses.asdict(self)
 
 
 @dataclass
 class EventTypeMetrics:
     """Aggregated metrics per event type."""
+
     event_type: str = ""
     total_events: int = 0
     success_count: int = 0
@@ -75,7 +78,7 @@ class EventTypeMetrics:
             return self.total_processing_ms / self.total_events
         return 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "event_type": self.event_type,
             "total_events": self.total_events,
@@ -89,19 +92,21 @@ class EventTypeMetrics:
 @dataclass
 class EventAnalyticsStats:
     """Overall event analytics statistics."""
+
     total_events: int = 0
     unique_event_types: int = 0
     unique_sources: int = 0
     overall_success_rate: float = 0.0
     avg_processing_ms: float = 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return dataclasses.asdict(self)
 
 
 # =============================================================================
 # Event Analytics
 # =============================================================================
+
 
 class EventAnalytics:
     """
@@ -117,8 +122,8 @@ class EventAnalytics:
 
     def __init__(self, max_events: int = MAX_EVENTS) -> None:
         self._max_events = max_events
-        self._events: List[EventRecord] = []
-        self._type_metrics: Dict[str, EventTypeMetrics] = {}
+        self._events: list[EventRecord] = []
+        self._type_metrics: dict[str, EventTypeMetrics] = {}
         self._counter = 1
         self._lock = threading.Lock()
 
@@ -154,7 +159,7 @@ class EventAnalytics:
                 source=source,
                 processing_time_ms=processing_time_ms,
                 success=success,
-                timestamp=datetime.now(timezone.utc).isoformat(),
+                timestamp=datetime.now(UTC).isoformat(),
             )
 
             # FIFO eviction
@@ -164,9 +169,7 @@ class EventAnalytics:
 
             # Update type metrics
             if event_type not in self._type_metrics:
-                self._type_metrics[event_type] = EventTypeMetrics(
-                    event_type=event_type
-                )
+                self._type_metrics[event_type] = EventTypeMetrics(event_type=event_type)
             m = self._type_metrics[event_type]
             m.total_events += 1
             if success:
@@ -179,12 +182,12 @@ class EventAnalytics:
     # Type Metrics Queries
     # =========================================================================
 
-    def get_type_metrics(self, event_type: str) -> Optional[EventTypeMetrics]:
+    def get_type_metrics(self, event_type: str) -> EventTypeMetrics | None:
         """Get aggregated metrics for a specific event type."""
         with self._lock:
             return self._type_metrics.get(event_type)
 
-    def get_all_type_metrics(self) -> List[EventTypeMetrics]:
+    def get_all_type_metrics(self) -> list[EventTypeMetrics]:
         """Return all type metrics sorted by total_events descending."""
         with self._lock:
             return sorted(
@@ -197,9 +200,7 @@ class EventAnalytics:
     # Event Queries
     # =========================================================================
 
-    def get_recent_events(
-        self, limit: int = 10, event_type: Optional[str] = None
-    ) -> List[EventRecord]:
+    def get_recent_events(self, limit: int = 10, event_type: str | None = None) -> list[EventRecord]:
         """Return last N events, optionally filtered by event type.
 
         Args:
@@ -211,14 +212,12 @@ class EventAnalytics:
         """
         with self._lock:
             if event_type is not None:
-                filtered = [
-                    ev for ev in self._events if ev.event_type == event_type
-                ]
+                filtered = [ev for ev in self._events if ev.event_type == event_type]
             else:
                 filtered = list(self._events)
             return list(reversed(filtered[-limit:]))
 
-    def get_events_by_source(self, source: str) -> List[EventRecord]:
+    def get_events_by_source(self, source: str) -> list[EventRecord]:
         """Return all events from a specific source."""
         with self._lock:
             return [ev for ev in self._events if ev.source == source]
@@ -227,12 +226,12 @@ class EventAnalytics:
     # Listing
     # =========================================================================
 
-    def list_event_types(self) -> List[str]:
+    def list_event_types(self) -> list[str]:
         """Return sorted list of all tracked event types."""
         with self._lock:
             return sorted(self._type_metrics.keys())
 
-    def list_sources(self) -> List[str]:
+    def list_sources(self) -> list[str]:
         """Return sorted list of all unique sources from event history."""
         with self._lock:
             return sorted(set(ev.source for ev in self._events))
@@ -279,7 +278,7 @@ class EventAnalytics:
             self._type_metrics.clear()
             self._counter = 1
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize analytics state to dict.
 
         Note: get_stats(), get_all_type_metrics(), and get_recent_events()
@@ -303,7 +302,7 @@ class EventAnalytics:
 # Global Instance
 # =============================================================================
 
-_instance: Optional[EventAnalytics] = None
+_instance: EventAnalytics | None = None
 _lock = threading.Lock()
 
 

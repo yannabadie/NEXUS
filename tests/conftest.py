@@ -8,12 +8,13 @@ Provides:
 - run_orchestrator_loop: Helper to run process_turn until completion
 """
 
-import pytest
 import sys
 import tempfile
 from pathlib import Path
-from typing import List, Dict, Any, Optional
-from unittest.mock import Mock, MagicMock, patch
+from typing import Any
+from unittest.mock import patch
+
+import pytest
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -37,17 +38,17 @@ class MockDriver:
 
     def __init__(self, agent_name: str):
         self.agent_name = agent_name
-        self._responses: List[Dict] = []
+        self._responses: list[dict] = []
         self._response_index = 0
         self.call_count = 0
-        self.call_history: List[str] = []
+        self.call_history: list[str] = []
 
-    def set_responses(self, responses: List[Dict]) -> None:
+    def set_responses(self, responses: list[dict]) -> None:
         """Set the list of responses to return on successive invoke() calls."""
         self._responses = responses
         self._response_index = 0
 
-    def invoke(self, context: Any = None, **kwargs) -> Dict:
+    def invoke(self, context: Any = None, **kwargs) -> dict:
         """Return the next predefined response."""
         self.call_count += 1
         if context:
@@ -59,7 +60,7 @@ class MockDriver:
                 "sender": self.agent_name,
                 "action_type": "TALK",
                 "content": f"Mock response from {self.agent_name}",
-                "status": "CONTINUE"
+                "status": "CONTINUE",
             }
 
         # Return current response and advance index (with wrap-around)
@@ -84,6 +85,7 @@ class MockConfig(Config):
         # Don't call super().__init__() to avoid loading .env
         # Feature flags with safe test defaults
         from core.config import FeatureFlags
+
         self.features = FeatureFlags()
 
         # Set minimal required attributes
@@ -233,9 +235,10 @@ def orchestrator_with_mocks(tmp_path):
     mock_claude = MockDriver("Claude")
 
     # V12.4: Drivers are created via AsyncDriverFactory, not imported directly
-    with patch('core.drivers.async_factory.AsyncDriverFactory.get_best_gemini') as mock_get_gemini, \
-         patch('core.execution_pkg.orchestration.agent_invoker.AgentInvoker.get_claude_driver') as mock_get_claude:
-
+    with (
+        patch("core.drivers.async_factory.AsyncDriverFactory.get_best_gemini") as mock_get_gemini,
+        patch("core.execution_pkg.orchestration.agent_invoker.AgentInvoker.get_claude_driver") as mock_get_claude,
+    ):
         mock_get_gemini.return_value = mock_gemini
         mock_get_claude.return_value = mock_claude
 
@@ -244,7 +247,7 @@ def orchestrator_with_mocks(tmp_path):
             workspace_path=tmp_path,
             config=config,
             gemini_info={"name": "Gemini 3 Pro", "version": "mock"},
-            claude_info={"name": "Claude Opus", "version": "mock"}
+            claude_info={"name": "Claude Opus", "version": "mock"},
         )
 
     # Replace actual drivers with mocks
@@ -255,7 +258,7 @@ def orchestrator_with_mocks(tmp_path):
     orch._get_claude_driver = lambda *args, **kwargs: mock_claude
 
     # V7.8 Phase 14c.2: Also patch agent_invoker.get_claude_driver since _get_claude_driver now delegates
-    if hasattr(orch, 'agent_invoker'):
+    if hasattr(orch, "agent_invoker"):
         orch.agent_invoker.get_claude_driver = lambda *args, **kwargs: mock_claude
 
     # Store drivers in a dict for easy access in tests
@@ -264,7 +267,7 @@ def orchestrator_with_mocks(tmp_path):
         "gemini": mock_gemini,
         "claude": mock_claude,
         "Gemini": mock_gemini,  # Alias for backwards compat
-        "Claude": mock_claude   # Alias for backwards compat
+        "Claude": mock_claude,  # Alias for backwards compat
     }
 
     return orch
@@ -291,9 +294,10 @@ def orchestrator_with_swarm(tmp_path):
     mock_claude = MockDriver("Claude")
 
     # V12.4: Drivers are created via AsyncDriverFactory, not imported directly
-    with patch('core.drivers.async_factory.AsyncDriverFactory.get_best_gemini') as mock_get_gemini, \
-         patch('core.execution_pkg.orchestration.agent_invoker.AgentInvoker.get_claude_driver') as mock_get_claude:
-
+    with (
+        patch("core.drivers.async_factory.AsyncDriverFactory.get_best_gemini") as mock_get_gemini,
+        patch("core.execution_pkg.orchestration.agent_invoker.AgentInvoker.get_claude_driver") as mock_get_claude,
+    ):
         mock_get_gemini.return_value = mock_gemini
         mock_get_claude.return_value = mock_claude
 
@@ -301,23 +305,20 @@ def orchestrator_with_swarm(tmp_path):
             workspace_path=tmp_path,
             config=config,
             gemini_info={"name": "Gemini 3 Pro", "version": "mock"},
-            claude_info={"name": "Claude Opus", "version": "mock"}
+            claude_info={"name": "Claude Opus", "version": "mock"},
         )
 
     orch.gemini_driver = mock_gemini
 
     # CRITICAL: Patch _get_claude_driver to return our mock (if method still exists)
-    if hasattr(orch, '_get_claude_driver'):
+    if hasattr(orch, "_get_claude_driver"):
         orch._get_claude_driver = lambda *args, **kwargs: mock_claude
 
     # V7.8 Phase 14c.2: Also patch agent_invoker.get_claude_driver since _get_claude_driver now delegates
-    if hasattr(orch, 'agent_invoker'):
+    if hasattr(orch, "agent_invoker"):
         orch.agent_invoker.get_claude_driver = lambda *args, **kwargs: mock_claude
 
-    orch.drivers = {
-        "Gemini": mock_gemini,
-        "Claude": mock_claude
-    }
+    orch.drivers = {"Gemini": mock_gemini, "Claude": mock_claude}
 
     return orch
 
@@ -331,12 +332,13 @@ def run_orchestrator_loop():
         result = run_orchestrator_loop(orch, "Do something", max_iterations=10)
         assert result["final_state"] == "IDLE"
     """
+
     def _run_loop(
         orchestrator,
-        initial_input: Optional[str] = None,
+        initial_input: str | None = None,
         max_iterations: int = 10,
-        terminal_states: Optional[List[str]] = None
-    ) -> Dict[str, Any]:
+        terminal_states: list[str] | None = None,
+    ) -> dict[str, Any]:
         """
         Run process_turn in a loop until a terminal state or max iterations.
 
@@ -387,7 +389,7 @@ def run_orchestrator_loop():
             "final_state": orchestrator.state.name,
             "iterations": iterations,
             "outputs": outputs,
-            "finished": finished
+            "finished": finished,
         }
 
     return _run_loop
@@ -396,6 +398,7 @@ def run_orchestrator_loop():
 # =============================================================================
 # Additional Utility Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def temp_workspace(tmp_path):
@@ -425,5 +428,5 @@ def sample_task_analysis():
         claude_fit_score=0.85,
         raw_input="Fix the bug in auth.py",
         confidence=0.8,
-        detected_keywords=["fix", "bug"]
+        detected_keywords=["fix", "bug"],
     )

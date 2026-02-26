@@ -14,9 +14,9 @@ Usage:
 Phase 4 extraction (medium-high risk, core FSM logic with side effects).
 """
 
-from typing import Optional
-import time
 import logging
+import time
+
 from core.fsm.states import OrchestratorState
 
 
@@ -103,6 +103,7 @@ class StateHandler:
         """
         try:
             from core.observability.telemetry.otel_provider import get_tracer
+
             tracer = get_tracer()
             if tracer:
                 with tracer.start_as_current_span("fsm.transition") as span:
@@ -128,7 +129,7 @@ class StateHandler:
                 from_state=from_state.name,
                 to_state=to_state.name,
                 trigger="fsm_transition",
-                session_id=getattr(self._orch, '_session_uuid', None),
+                session_id=getattr(self._orch, "_session_uuid", None),
             )
 
             # Increment event counter
@@ -139,18 +140,15 @@ class StateHandler:
                 fsm_state = {
                     "current_state": to_state.name,
                     "previous_state": from_state.name,
-                    "session_id": getattr(self._orch, '_session_uuid', None),
+                    "session_id": getattr(self._orch, "_session_uuid", None),
                     "iteration": self._orch.iteration,
                     "timestamp": time.time(),
                 }
                 snapshot = self._orch._snapshot_manager.create_snapshot(
-                    fsm_state,
-                    sequence_number=self._orch._event_count
+                    fsm_state, sequence_number=self._orch._event_count
                 )
                 if snapshot:
-                    self.logger.debug(
-                        f"Created FSM snapshot at event #{self._orch._event_count}"
-                    )
+                    self.logger.debug(f"Created FSM snapshot at event #{self._orch._event_count}")
         except Exception as e:
             self.logger.debug("Telemetry record_transition failed: %s", e)
 
@@ -164,19 +162,15 @@ class StateHandler:
         # Enable evolution permissions when entering EVOLUTION_BRAINSTORM
         if new_state == OrchestratorState.EVOLUTION_BRAINSTORM:
             self._orch.tool_manager.evolution_mode = True
-            self.logger.info(
-                "🧬 EVOLUTION MODE: Extended permissions enabled "
-                "(READ parent, WRITE GENERATION_ACTIVE)"
-            )
+            self.logger.info("🧬 EVOLUTION MODE: Extended permissions enabled (READ parent, WRITE GENERATION_ACTIVE)")
 
         # Disable evolution permissions when leaving EVOLUTION_BRAINSTORM
-        elif (self._orch.state == OrchestratorState.EVOLUTION_BRAINSTORM and
-              new_state != OrchestratorState.EVOLUTION_BRAINSTORM):
+        elif (
+            self._orch.state == OrchestratorState.EVOLUTION_BRAINSTORM
+            and new_state != OrchestratorState.EVOLUTION_BRAINSTORM
+        ):
             self._orch.tool_manager.evolution_mode = False
-            self.logger.info(
-                "🧬 EVOLUTION MODE: Permissions restored to normal "
-                "(workspace only)"
-            )
+            self.logger.info("🧬 EVOLUTION MODE: Permissions restored to normal (workspace only)")
 
     def reset_to_idle(self, clear_task: bool = True):
         """
@@ -227,6 +221,7 @@ class StateHandler:
         # Import transition matrix
         try:
             from core.fsm.states import TRANSITION_MATRIX
+
             allowed_transitions = TRANSITION_MATRIX.get(from_state, set())
             return to_state in allowed_transitions
         except ImportError:

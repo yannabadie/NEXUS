@@ -18,10 +18,9 @@ Usage:
         # Process mutation
 """
 
-import re
 import json
 import logging
-from typing import Optional
+import re
 
 _logger = logging.getLogger(__name__)
 
@@ -90,12 +89,12 @@ class MutationDetector:
             True if valid SEARCH/REPLACE block found, False otherwise
         """
         # Must have FILE: header with a path
-        has_file = bool(re.search(r'FILE:\s*\S+', content))
+        has_file = bool(re.search(r"FILE:\s*\S+", content))
 
         # Must have complete SEARCH/REPLACE block markers
-        has_search = '<<<<<<< SEARCH' in content
-        has_separator = '=======' in content
-        has_replace = '>>>>>>> REPLACE' in content
+        has_search = "<<<<<<< SEARCH" in content
+        has_separator = "=======" in content
+        has_replace = ">>>>>>> REPLACE" in content
 
         # All markers must be present for valid format
         return has_file and has_search and has_separator and has_replace
@@ -119,13 +118,13 @@ class MutationDetector:
             return False
 
         # Must look like a JSON array starting with [{
-        if not re.search(r'\[\s*\{', content):
+        if not re.search(r"\[\s*\{", content):
             return False
 
         # Try to extract and parse JSON
         try:
             # Find JSON array boundaries
-            for match in re.finditer(r'\[\s*\{', content):
+            for match in re.finditer(r"\[\s*\{", content):
                 start = match.start()
                 depth = 0
                 in_string = False
@@ -135,7 +134,7 @@ class MutationDetector:
                     if escape_next:
                         escape_next = False
                         continue
-                    if char == '\\' and in_string:
+                    if char == "\\" and in_string:
                         escape_next = True
                         continue
                     if char == '"' and not escape_next:
@@ -143,17 +142,17 @@ class MutationDetector:
                         continue
                     if in_string:
                         continue
-                    if char == '[':
+                    if char == "[":
                         depth += 1
-                    elif char == ']':
+                    elif char == "]":
                         depth -= 1
                         if depth == 0:
-                            candidate = content[start:i+1]
+                            candidate = content[start : i + 1]
                             try:
                                 parsed = json.loads(candidate)
                                 if isinstance(parsed, list) and len(parsed) > 0:
                                     # Verify all entries have required fields
-                                    req_fields = {'file', 'change', 'reason', 'expected_asi_impact'}
+                                    req_fields = {"file", "change", "reason", "expected_asi_impact"}
                                     if all(isinstance(p, dict) and req_fields.issubset(p.keys()) for p in parsed):
                                         return True
                             except json.JSONDecodeError:
@@ -178,19 +177,10 @@ class ResponseDetector:
     """
 
     # Keywords indicating task completion
-    FINISH_KEYWORDS = [
-        "done", "complete", "finished", "terminé", "fini",
-        "accomplished", "concluded", "task complete"
-    ]
+    FINISH_KEYWORDS = ["done", "complete", "finished", "terminé", "fini", "accomplished", "concluded", "task complete"]
 
     # Error patterns
-    ERROR_PATTERNS = [
-        r"error[:\s]",
-        r"failed[:\s]",
-        r"exception[:\s]",
-        r"cannot\s+",
-        r"unable\s+to"
-    ]
+    ERROR_PATTERNS = [r"error[:\s]", r"failed[:\s]", r"exception[:\s]", r"cannot\s+", r"unable\s+to"]
 
     @classmethod
     def is_finish_signal(cls, content: str) -> bool:
@@ -228,7 +218,7 @@ class ResponseDetector:
 
 
 # Singleton instance for convenience
-_mutation_detector: Optional[MutationDetector] = None
+_mutation_detector: MutationDetector | None = None
 
 
 def get_mutation_detector() -> MutationDetector:

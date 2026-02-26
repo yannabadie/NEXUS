@@ -27,13 +27,14 @@ Usage:
     handler.stop()
 """
 
+import contextlib
 import json
 import logging
 import queue
 import threading
 import time
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from datetime import UTC, datetime
+from typing import Any
 from uuid import uuid4
 
 
@@ -69,8 +70,8 @@ class RedisLogHandler(logging.Handler):
         self._workspace_id = workspace_id
         self._queue: queue.Queue = queue.Queue(maxsize=queue_size)
         self._running = False
-        self._thread: Optional[threading.Thread] = None
-        self._redis: Optional[Any] = None  # redis.Redis (sync)
+        self._thread: threading.Thread | None = None
+        self._redis: Any | None = None  # redis.Redis (sync)
 
         # Stats
         self._stats = {
@@ -91,11 +92,7 @@ class RedisLogHandler(logging.Handler):
             return True
 
         self._running = True
-        self._thread = threading.Thread(
-            target=self._worker,
-            daemon=True,
-            name="RedisLogHandler-Worker"
-        )
+        self._thread = threading.Thread(target=self._worker, daemon=True, name="RedisLogHandler-Worker")
         self._thread.start()
         return True
 
@@ -116,10 +113,8 @@ class RedisLogHandler(logging.Handler):
             self._thread = None
 
         if self._redis:
-            try:
+            with contextlib.suppress(Exception):
                 self._redis.close()
-            except Exception:
-                pass
             self._redis = None
 
     def emit(self, record: logging.LogRecord) -> None:
@@ -140,7 +135,7 @@ class RedisLogHandler(logging.Handler):
                 "level": record.levelname,
                 "message": msg,
                 "logger": record.name,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "funcName": record.funcName,
                 "lineno": record.lineno,
             }
@@ -163,6 +158,7 @@ class RedisLogHandler(logging.Handler):
         # Connect to Redis
         try:
             import redis
+
             self._redis = redis.Redis.from_url(
                 self._redis_url,
                 encoding="utf-8",
@@ -191,7 +187,7 @@ class RedisLogHandler(logging.Handler):
                     "tenant_id": self._tenant_id,
                     "workspace_id": self._workspace_id,
                     "payload": payload,
-                    "timestamp": payload.get("timestamp", datetime.now(timezone.utc).isoformat()),
+                    "timestamp": payload.get("timestamp", datetime.now(UTC).isoformat()),
                     "event_id": uuid4().hex[:12],
                 }
 
@@ -202,11 +198,11 @@ class RedisLogHandler(logging.Handler):
 
             except queue.Empty:
                 continue
-            except Exception as e:
+            except Exception:
                 self._stats["errors"] += 1
                 # Don't log here - could cause infinite loop!
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """
         Get handler statistics.
 
@@ -236,6 +232,7 @@ class RedisLogHandler(logging.Handler):
 # =============================================================================
 # Factory Function
 # =============================================================================
+
 
 def create_redis_log_handler(
     tenant_id: str,

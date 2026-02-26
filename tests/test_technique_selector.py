@@ -20,22 +20,20 @@ import json
 import tempfile
 from pathlib import Path
 
-import pytest
-
 from core.memory_pkg.prompts.technique_selector import (
+    TECHNIQUE_INSTRUCTIONS,
     PromptTechnique,
     SelectionResult,
     TaskCluster,
-    TECHNIQUE_INSTRUCTIONS,
     TechniqueSelector,
     get_technique_selector,
     reset_technique_selector,
 )
 
-
 # =============================================================================
 # PromptTechnique Enum Tests
 # =============================================================================
+
 
 class TestPromptTechnique:
     """Test PromptTechnique enum definition."""
@@ -73,6 +71,7 @@ class TestPromptTechnique:
 # TECHNIQUE_INSTRUCTIONS Tests
 # =============================================================================
 
+
 class TestTechniqueInstructions:
     """Test TECHNIQUE_INSTRUCTIONS dictionary."""
 
@@ -93,6 +92,7 @@ class TestTechniqueInstructions:
 # =============================================================================
 # TaskCluster Tests
 # =============================================================================
+
 
 class TestTaskCluster:
     """Test TaskCluster dataclass and keyword_score()."""
@@ -161,6 +161,7 @@ class TestTaskCluster:
 # =============================================================================
 # TechniqueSelector.select() Tests
 # =============================================================================
+
 
 class TestSelectMethod:
     """Test TechniqueSelector.select() for various task types."""
@@ -246,6 +247,7 @@ class TestSelectMethod:
 # TechniqueSelector.select() with Domain Hints
 # =============================================================================
 
+
 class TestSelectWithDomainHints:
     """Test that domain hints boost cluster scores."""
 
@@ -286,6 +288,7 @@ class TestSelectWithDomainHints:
 # =============================================================================
 # compose_prompt() Tests
 # =============================================================================
+
 
 class TestComposePrompt:
     """Test TechniqueSelector.compose_prompt() injection."""
@@ -334,6 +337,7 @@ class TestComposePrompt:
 # record_outcome() Tests
 # =============================================================================
 
+
 class TestRecordOutcome:
     """Test TechniqueSelector.record_outcome() history tracking."""
 
@@ -381,6 +385,7 @@ class TestRecordOutcome:
 # get_cluster_names() Tests
 # =============================================================================
 
+
 class TestGetClusterNames:
     """Test get_cluster_names() returns all cluster names."""
 
@@ -388,8 +393,7 @@ class TestGetClusterNames:
         tmp = tempfile.mkdtemp()
         selector = TechniqueSelector(storage_path=Path(tmp) / "h.json")
         names = selector.get_cluster_names()
-        expected = ["coding", "debugging", "research", "architecture",
-                    "security", "testing", "documentation", "review"]
+        expected = ["coding", "debugging", "research", "architecture", "security", "testing", "documentation", "review"]
         assert names == expected
 
     def test_returns_list_of_strings(self):
@@ -404,6 +408,7 @@ class TestGetClusterNames:
 # =============================================================================
 # get_technique_stats() Tests
 # =============================================================================
+
 
 class TestGetTechniqueStats:
     """Test get_technique_stats() statistics."""
@@ -440,6 +445,7 @@ class TestGetTechniqueStats:
 # =============================================================================
 # SelectionResult Dataclass Tests
 # =============================================================================
+
 
 class TestSelectionResult:
     """Test SelectionResult dataclass fields."""
@@ -478,6 +484,7 @@ class TestSelectionResult:
 # =============================================================================
 # Persistence Tests
 # =============================================================================
+
 
 class TestPersistence:
     """Test save and reload of technique history."""
@@ -534,6 +541,7 @@ class TestPersistence:
 # Singleton Tests
 # =============================================================================
 
+
 class TestSingleton:
     """Test get_technique_selector and reset_technique_selector."""
 
@@ -569,6 +577,7 @@ class TestSingleton:
 # =============================================================================
 # EMA Historical Score Tests
 # =============================================================================
+
 
 class TestHistoricalScore:
     """Test _get_historical_score() EMA calculation."""

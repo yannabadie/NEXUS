@@ -29,10 +29,10 @@ import logging
 import time
 from collections import deque
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from threading import Lock
-from typing import Any, Deque, Dict, List, Optional
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -41,8 +41,10 @@ _logger = logging.getLogger(__name__)
 # Types
 # =============================================================================
 
+
 class AggregateStatus(Enum):
     """Overall system health status."""
+
     HEALTHY = "healthy"
     DEGRADED = "degraded"
     UNHEALTHY = "unhealthy"
@@ -50,6 +52,7 @@ class AggregateStatus(Enum):
 
 class ComponentCategory(Enum):
     """Categories for health check components."""
+
     DRIVER = "driver"
     INFRASTRUCTURE = "infrastructure"
     SUBSYSTEM = "subsystem"
@@ -59,19 +62,20 @@ class ComponentCategory(Enum):
 @dataclass
 class HealthCheck:
     """A single health check result."""
+
     component: str
     status: str  # "healthy", "degraded", "unhealthy"
     category: str = "subsystem"
     message: str = ""
     latency_ms: float = 0.0
-    details: Dict[str, Any] = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
     timestamp: str = ""
 
     def __post_init__(self):
         if not self.timestamp:
-            self.timestamp = datetime.now(timezone.utc).isoformat()
+            self.timestamp = datetime.now(UTC).isoformat()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "component": self.component,
             "status": self.status,
@@ -86,6 +90,7 @@ class HealthCheck:
 @dataclass
 class TelemetrySummary:
     """Summary of telemetry metrics for the dashboard."""
+
     api_calls: int = 0
     total_tokens: int = 0
     total_errors: int = 0
@@ -94,10 +99,10 @@ class TelemetrySummary:
     session_duration_seconds: float = 0.0
     cost_usd: float = 0.0
     budget_utilization_pct: float = 0.0
-    budget_warning_level: Optional[str] = None
+    budget_warning_level: str | None = None
     error_rate: float = 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "api_calls": self.api_calls,
             "total_tokens": self.total_tokens,
@@ -115,10 +120,11 @@ class TelemetrySummary:
 @dataclass
 class HealthReport:
     """Complete aggregated health report."""
+
     overall_status: str  # "healthy", "degraded", "unhealthy"
     health_score: float  # 0.0 - 1.0
-    components: List[Dict[str, Any]]
-    telemetry: Dict[str, Any]
+    components: list[dict[str, Any]]
+    telemetry: dict[str, Any]
     summary: str  # Human-readable summary
     component_count: int = 0
     healthy_count: int = 0
@@ -128,9 +134,9 @@ class HealthReport:
 
     def __post_init__(self):
         if not self.generated_at:
-            self.generated_at = datetime.now(timezone.utc).isoformat()
+            self.generated_at = datetime.now(UTC).isoformat()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "overall_status": self.overall_status,
             "health_score": round(self.health_score, 3),
@@ -151,7 +157,7 @@ class HealthReport:
 
 # Weight determines how much each component affects the overall health score.
 # Higher weight = more impact on the composite score.
-DEFAULT_WEIGHTS: Dict[str, float] = {
+DEFAULT_WEIGHTS: dict[str, float] = {
     "gemini_driver": 1.0,
     "claude_driver": 1.0,
     "ollama_driver": 0.3,  # Optional component
@@ -165,7 +171,7 @@ DEFAULT_WEIGHTS: Dict[str, float] = {
 }
 
 # Status score mapping
-STATUS_SCORES: Dict[str, float] = {
+STATUS_SCORES: dict[str, float] = {
     "healthy": 1.0,
     "degraded": 0.5,
     "unhealthy": 0.0,
@@ -175,6 +181,7 @@ STATUS_SCORES: Dict[str, float] = {
 # =============================================================================
 # Health Aggregator
 # =============================================================================
+
 
 class HealthAggregator:
     """
@@ -194,7 +201,7 @@ class HealthAggregator:
     def __init__(
         self,
         *,
-        weights: Optional[Dict[str, float]] = None,
+        weights: dict[str, float] | None = None,
         history_size: int = 100,
         stale_threshold_seconds: float = 300.0,
     ):
@@ -215,13 +222,13 @@ class HealthAggregator:
         self._lock = Lock()
 
         # Latest check per component
-        self._latest: Dict[str, HealthCheck] = {}
+        self._latest: dict[str, HealthCheck] = {}
 
         # History per component (ring buffer)
-        self._history: Dict[str, Deque[HealthCheck]] = {}
+        self._history: dict[str, deque[HealthCheck]] = {}
 
         # Telemetry snapshot (updated externally)
-        self._telemetry: Optional[TelemetrySummary] = None
+        self._telemetry: TelemetrySummary | None = None
 
     def record_check(
         self,
@@ -231,7 +238,7 @@ class HealthAggregator:
         category: str = "subsystem",
         message: str = "",
         latency_ms: float = 0.0,
-        details: Optional[Dict[str, Any]] = None,
+        details: dict[str, Any] | None = None,
     ) -> HealthCheck:
         """
         Record a health check result.
@@ -304,7 +311,7 @@ class HealthAggregator:
         )
         self.update_telemetry(summary)
 
-    def get_component_status(self, component: str) -> Optional[HealthCheck]:
+    def get_component_status(self, component: str) -> HealthCheck | None:
         """
         Get the latest health check for a component.
 
@@ -317,7 +324,7 @@ class HealthAggregator:
         with self._lock:
             return self._latest.get(component)
 
-    def get_component_history(self, component: str) -> List[HealthCheck]:
+    def get_component_history(self, component: str) -> list[HealthCheck]:
         """
         Get health check history for a component.
 
@@ -388,9 +395,7 @@ class HealthAggregator:
 
         score = self.compute_health_score()
         status = self.get_overall_status()
-        summary = self._generate_summary(
-            status, score, healthy, degraded, unhealthy, len(components)
-        )
+        summary = self._generate_summary(status, score, healthy, degraded, unhealthy, len(components))
 
         return HealthReport(
             overall_status=status,
@@ -404,7 +409,7 @@ class HealthAggregator:
             unhealthy_count=unhealthy,
         )
 
-    def get_stale_components(self) -> List[str]:
+    def get_stale_components(self) -> list[str]:
         """
         Get components whose last check is older than the stale threshold.
 
@@ -417,9 +422,7 @@ class HealthAggregator:
         with self._lock:
             for component, check in self._latest.items():
                 try:
-                    check_time = datetime.fromisoformat(
-                        check.timestamp.replace("Z", "+00:00")
-                    ).timestamp()
+                    check_time = datetime.fromisoformat(check.timestamp.replace("Z", "+00:00")).timestamp()
                     if now - check_time > self._stale_threshold:
                         stale.append(component)
                 except (ValueError, AttributeError):
@@ -451,12 +454,12 @@ class HealthAggregator:
             return removed
 
     @property
-    def tracked_components(self) -> List[str]:
+    def tracked_components(self) -> list[str]:
         """List all tracked component names."""
         with self._lock:
             return list(self._latest.keys())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Export aggregator state for diagnostics."""
         report = self.get_report()
         return {

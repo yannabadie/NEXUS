@@ -31,16 +31,16 @@ Usage:
     )
 """
 
-from dataclasses import dataclass, field
-from enum import Enum
-from typing import Optional, List, Dict, Any
 import logging
+from dataclasses import dataclass, field
+from typing import Any, Optional
 
 from core.intelligence.swarm.collaboration_modes import CollaborationMode
 
 # Optional imports for enhanced functionality
 try:
-    from core.fsm.stagnation_predictor import StagnationPredictor, PredictionLevel
+    from core.fsm.stagnation_predictor import PredictionLevel, StagnationPredictor
+
     PREDICTOR_AVAILABLE = True
 except ImportError:
     PREDICTOR_AVAILABLE = False
@@ -48,6 +48,7 @@ except ImportError:
 
 try:
     from core.memory_pkg.memory import SuccessMemory  # V2 via backward compat alias
+
     MEMORY_AVAILABLE = True
 except ImportError:
     MEMORY_AVAILABLE = False
@@ -59,6 +60,7 @@ logger = logging.getLogger(__name__)
 # Context for Adaptive Fallback Selection
 # =============================================================================
 
+
 @dataclass
 class FallbackContext:
     """
@@ -66,43 +68,45 @@ class FallbackContext:
 
     Captures all relevant information for choosing the optimal fallback mode.
     """
+
     # Task information
-    domains: List[str] = field(default_factory=list)
+    domains: list[str] = field(default_factory=list)
     complexity: str = "moderate"  # trivial, simple, moderate, complex, expert
     raw_input: str = ""
 
     # Stagnation signals
-    stagnation_level: Optional[str] = None  # none, low, moderate, high, critical
+    stagnation_level: str | None = None  # none, low, moderate, high, critical
     messages_since_progress: int = 0
 
     # Agent state
     current_lead: str = "gemini"
-    agent_metrics: Dict[str, Dict[str, float]] = field(default_factory=dict)
+    agent_metrics: dict[str, dict[str, float]] = field(default_factory=dict)
 
     # Execution history (this task)
-    modes_tried: List[str] = field(default_factory=list)
-    errors_encountered: List[str] = field(default_factory=list)
+    modes_tried: list[str] = field(default_factory=list)
+    errors_encountered: list[str] = field(default_factory=list)
 
     # Optional: Historical performance
-    domain_mode_performance: Dict[str, Dict[str, float]] = field(default_factory=dict)
+    domain_mode_performance: dict[str, dict[str, float]] = field(default_factory=dict)
 
 
 @dataclass
 class FallbackDecision:
     """Result of adaptive fallback selection."""
-    fallback_mode: Optional[CollaborationMode]
+
+    fallback_mode: CollaborationMode | None
     reason: str
     confidence: float  # 0.0 - 1.0
     skip_intermediate: bool = False  # True if we're skipping the normal chain
-    recommended_lead: Optional[str] = None
+    recommended_lead: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "fallback_mode": self.fallback_mode.value if self.fallback_mode else None,
             "reason": self.reason,
             "confidence": self.confidence,
             "skip_intermediate": self.skip_intermediate,
-            "recommended_lead": self.recommended_lead
+            "recommended_lead": self.recommended_lead,
         }
 
 
@@ -112,51 +116,52 @@ class FallbackDecision:
 
 # Domain-aware fallback preferences
 # Maps: current_mode -> domain -> preferred_fallback
-DOMAIN_FALLBACK_PREFERENCES: Dict[str, Dict[str, str]] = {
+DOMAIN_FALLBACK_PREFERENCES: dict[str, dict[str, str]] = {
     "parallel": {
-        "coding": "lead_support",     # Pair programming pattern
-        "research": "sequential",      # Depth over breadth
-        "security": "red_blue",        # Adversarial review
-        "architecture": "lead_support", # Design leadership
-        "default": "sequential"
+        "coding": "lead_support",  # Pair programming pattern
+        "research": "sequential",  # Depth over breadth
+        "security": "red_blue",  # Adversarial review
+        "architecture": "lead_support",  # Design leadership
+        "default": "sequential",
     },
     "red_blue": {
-        "coding": "lead_support",      # Collaborative refactor
-        "security": "specialist",       # Expert deep-dive
-        "default": "lead_support"
+        "coding": "lead_support",  # Collaborative refactor
+        "security": "specialist",  # Expert deep-dive
+        "default": "lead_support",
     },
     "lead_support": {
-        "coding": "specialist",         # Single expert
-        "research": "specialist",       # Deep research
-        "default": "specialist"
+        "coding": "specialist",  # Single expert
+        "research": "specialist",  # Deep research
+        "default": "specialist",
     },
     "ping_pong": {
-        "coding": "lead_support",       # Stable pair
-        "research": "sequential",       # Ordered research
-        "default": "sequential"
+        "coding": "lead_support",  # Stable pair
+        "research": "sequential",  # Ordered research
+        "default": "sequential",
     },
     "sequential": {
-        "default": "specialist"         # Terminal fallback
+        "default": "specialist"  # Terminal fallback
     },
     "specialist": {
-        "default": None                 # No further fallback
-    }
+        "default": None  # No further fallback
+    },
 }
 
 # Stagnation-aware shortcuts
 # When stagnation is high, skip intermediate modes
-STAGNATION_SHORTCUTS: Dict[str, str] = {
-    "parallel": "specialist",      # Skip SEQUENTIAL
-    "red_blue": "specialist",      # Skip LEAD_SUPPORT
+STAGNATION_SHORTCUTS: dict[str, str] = {
+    "parallel": "specialist",  # Skip SEQUENTIAL
+    "red_blue": "specialist",  # Skip LEAD_SUPPORT
     "lead_support": "specialist",  # Already close
-    "ping_pong": "specialist",     # Skip SEQUENTIAL
-    "sequential": "specialist",    # Already close
+    "ping_pong": "specialist",  # Skip SEQUENTIAL
+    "sequential": "specialist",  # Already close
 }
 
 
 # =============================================================================
 # Adaptive Fallback Selector
 # =============================================================================
+
 
 class AdaptiveFallbackSelector:
     """
@@ -173,9 +178,7 @@ class AdaptiveFallbackSelector:
     """
 
     def __init__(
-        self,
-        predictor: Optional["StagnationPredictor"] = None,
-        success_memory: Optional["SuccessMemory"] = None
+        self, predictor: Optional["StagnationPredictor"] = None, success_memory: Optional["SuccessMemory"] = None
     ):
         """
         Initialize selector.
@@ -187,11 +190,7 @@ class AdaptiveFallbackSelector:
         self.predictor = predictor
         self.success_memory = success_memory
 
-    def get_adaptive_fallback(
-        self,
-        current_mode: CollaborationMode,
-        context: FallbackContext
-    ) -> FallbackDecision:
+    def get_adaptive_fallback(self, current_mode: CollaborationMode, context: FallbackContext) -> FallbackDecision:
         """
         Get the best fallback mode for the current context.
 
@@ -207,9 +206,7 @@ class AdaptiveFallbackSelector:
         # 1. Check if we're at terminal mode
         if mode_key == "specialist":
             return FallbackDecision(
-                fallback_mode=None,
-                reason="SPECIALIST is terminal mode - no further fallback",
-                confidence=1.0
+                fallback_mode=None, reason="SPECIALIST is terminal mode - no further fallback", confidence=1.0
             )
 
         # 2. Stagnation shortcut - skip intermediate modes if stagnation is high
@@ -220,7 +217,7 @@ class AdaptiveFallbackSelector:
                     fallback_mode=CollaborationMode.from_string(shortcut_mode),
                     reason=f"High stagnation ({context.stagnation_level}) - skipping to {shortcut_mode}",
                     confidence=0.85,
-                    skip_intermediate=True
+                    skip_intermediate=True,
                 )
 
         # 3. Domain-aware selection
@@ -248,11 +245,7 @@ class AdaptiveFallbackSelector:
 
         return high_stagnation or (many_messages and multiple_errors)
 
-    def _get_domain_fallback(
-        self,
-        mode_key: str,
-        domains: List[str]
-    ) -> Optional[FallbackDecision]:
+    def _get_domain_fallback(self, mode_key: str, domains: list[str]) -> FallbackDecision | None:
         """Get fallback based on domain affinity."""
         if not domains:
             return None
@@ -268,16 +261,12 @@ class AdaptiveFallbackSelector:
                     return FallbackDecision(
                         fallback_mode=CollaborationMode.from_string(fallback_key),
                         reason=f"Domain '{domain}' prefers {fallback_key} for fallback",
-                        confidence=0.75
+                        confidence=0.75,
                     )
 
         return None
 
-    def _get_history_fallback(
-        self,
-        mode_key: str,
-        context: FallbackContext
-    ) -> Optional[FallbackDecision]:
+    def _get_history_fallback(self, mode_key: str, context: FallbackContext) -> FallbackDecision | None:
         """Get fallback based on historical success for this domain."""
         if not self.success_memory:
             return None
@@ -288,7 +277,7 @@ class AdaptiveFallbackSelector:
                 query=context.raw_input or " ".join(context.domains),
                 min_similarity=0.3,
                 apply_decay=True,
-                query_domains=context.domains
+                query_domains=context.domains,
             )
 
             if result:
@@ -298,17 +287,14 @@ class AdaptiveFallbackSelector:
                     return FallbackDecision(
                         fallback_mode=CollaborationMode.from_string(recommended_mode),
                         reason=f"Historical success: {recommended_mode} worked for similar tasks (sim={similarity:.2f})",
-                        confidence=min(0.9, 0.5 + similarity)
+                        confidence=min(0.9, 0.5 + similarity),
                     )
         except Exception as e:
             logger.debug(f"SuccessMemory lookup failed: {e}")
 
         return None
 
-    def _get_static_fallback(
-        self,
-        current_mode: CollaborationMode
-    ) -> FallbackDecision:
+    def _get_static_fallback(self, current_mode: CollaborationMode) -> FallbackDecision:
         """Fall back to the static chain."""
         static_fallback = current_mode.fallback_mode
 
@@ -316,20 +302,14 @@ class AdaptiveFallbackSelector:
             return FallbackDecision(
                 fallback_mode=static_fallback,
                 reason=f"Static fallback chain: {current_mode.value} -> {static_fallback.value}",
-                confidence=0.6
+                confidence=0.6,
             )
 
         return FallbackDecision(
-            fallback_mode=None,
-            reason=f"No fallback available for {current_mode.value}",
-            confidence=1.0
+            fallback_mode=None, reason=f"No fallback available for {current_mode.value}", confidence=1.0
         )
 
-    def update_with_prediction(
-        self,
-        context: FallbackContext,
-        messages: List[str]
-    ) -> FallbackContext:
+    def update_with_prediction(self, context: FallbackContext, messages: list[str]) -> FallbackContext:
         """
         Update context with StagnationPredictor analysis.
 
@@ -361,8 +341,9 @@ class AdaptiveFallbackSelector:
 # Singleton for Global Access
 # =============================================================================
 
-_adaptive_fallback_selector: Optional[AdaptiveFallbackSelector] = None
+_adaptive_fallback_selector: AdaptiveFallbackSelector | None = None
 _selector_lock = None
+
 
 def get_adaptive_fallback_selector() -> AdaptiveFallbackSelector:
     """Get or create the global AdaptiveFallbackSelector singleton."""
@@ -370,6 +351,7 @@ def get_adaptive_fallback_selector() -> AdaptiveFallbackSelector:
 
     if _selector_lock is None:
         import threading
+
         _selector_lock = threading.Lock()
 
     if _adaptive_fallback_selector is None:
@@ -382,23 +364,23 @@ def get_adaptive_fallback_selector() -> AdaptiveFallbackSelector:
                 if PREDICTOR_AVAILABLE:
                     try:
                         from core.fsm.stagnation_predictor import StagnationPredictor
+
                         predictor = StagnationPredictor()
                     except Exception:
                         pass
 
                 if MEMORY_AVAILABLE:
                     try:
-                        from core.memory_pkg.memory import SuccessMemory  # V2 via backward compat alias
                         from pathlib import Path
+
+                        from core.memory_pkg.memory import SuccessMemory  # V2 via backward compat alias
+
                         nexus_root = Path(__file__).parent.parent.parent
                         memory = SuccessMemory(nexus_root)
                     except Exception:
                         pass
 
-                _adaptive_fallback_selector = AdaptiveFallbackSelector(
-                    predictor=predictor,
-                    success_memory=memory
-                )
+                _adaptive_fallback_selector = AdaptiveFallbackSelector(predictor=predictor, success_memory=memory)
 
     return _adaptive_fallback_selector
 

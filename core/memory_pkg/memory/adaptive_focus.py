@@ -39,7 +39,6 @@ import threading
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -48,18 +47,20 @@ logger = logging.getLogger(__name__)
 # Fidelity Tiers
 # =============================================================================
 
+
 class FidelityLevel(str, Enum):
     """Three-tier fidelity for context items."""
-    FULL = "full"                # Verbatim content
-    COMPRESSED = "compressed"    # Key points summary
+
+    FULL = "full"  # Verbatim content
+    COMPRESSED = "compressed"  # Key points summary
     PLACEHOLDER = "placeholder"  # Short reference stub
 
 
 # Token cost multipliers per tier
 TIER_TOKEN_RATIOS = {
-    FidelityLevel.FULL: 1.0,        # 100% of original tokens
-    FidelityLevel.COMPRESSED: 0.3,   # ~30% of original tokens
-    FidelityLevel.PLACEHOLDER: 0.05, # ~5% of original tokens
+    FidelityLevel.FULL: 1.0,  # 100% of original tokens
+    FidelityLevel.COMPRESSED: 0.3,  # ~30% of original tokens
+    FidelityLevel.PLACEHOLDER: 0.05,  # ~5% of original tokens
 }
 
 # Score thresholds for tier assignment (greedy packing adjusts these dynamically)
@@ -71,17 +72,19 @@ DEFAULT_COMPRESSED_THRESHOLD = 0.3
 # Data Types
 # =============================================================================
 
+
 @dataclass
 class FocusItem:
     """A context item with scoring metadata."""
+
     item_id: int
     content: str
-    role: str = ""          # "user", "assistant", "system", "tool"
+    role: str = ""  # "user", "assistant", "system", "tool"
     importance: float = 0.5
     timestamp: float = 0.0
     token_estimate: int = 0
-    pinned: bool = False    # Pinned items always get FULL fidelity
-    metadata: Dict = field(default_factory=dict)
+    pinned: bool = False  # Pinned items always get FULL fidelity
+    metadata: dict = field(default_factory=dict)
 
     def __post_init__(self):
         if self.timestamp == 0.0:
@@ -93,11 +96,12 @@ class FocusItem:
 @dataclass
 class FidelityAssignment:
     """Result of fidelity assignment for a single item."""
+
     item_id: int
     tier: FidelityLevel
     composite_score: float
     allocated_tokens: int
-    content: str            # The content at assigned fidelity
+    content: str  # The content at assigned fidelity
     original_tokens: int
 
     @property
@@ -106,7 +110,7 @@ class FidelityAssignment:
             return 0.0
         return 1.0 - (self.allocated_tokens / self.original_tokens)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "item_id": self.item_id,
             "tier": self.tier.value,
@@ -120,7 +124,8 @@ class FidelityAssignment:
 @dataclass
 class FocusResult:
     """Result of an adaptive focus operation."""
-    assignments: List[FidelityAssignment]
+
+    assignments: list[FidelityAssignment]
     total_tokens_before: int
     total_tokens_after: int
     items_full: int
@@ -133,7 +138,7 @@ class FocusResult:
             return 0.0
         return 1.0 - (self.total_tokens_after / self.total_tokens_before)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "total_tokens_before": self.total_tokens_before,
             "total_tokens_after": self.total_tokens_after,
@@ -147,6 +152,7 @@ class FocusResult:
 # =============================================================================
 # Adaptive Focus Manager
 # =============================================================================
+
 
 class AdaptiveFocusManager:
     """
@@ -164,7 +170,7 @@ class AdaptiveFocusManager:
         length_weight: float = 0.25,
         half_life_seconds: float = 300.0,  # 5 min half-life for recency
     ):
-        self._items: List[FocusItem] = []
+        self._items: list[FocusItem] = []
         self._token_budget = token_budget
         self._importance_weight = importance_weight
         self._recency_weight = recency_weight
@@ -183,7 +189,7 @@ class AdaptiveFocusManager:
         role: str = "",
         importance: float = 0.5,
         pinned: bool = False,
-        metadata: Optional[Dict] = None,
+        metadata: dict | None = None,
     ) -> FocusItem:
         """Add a context item."""
         with self._lock:
@@ -234,14 +240,10 @@ class AdaptiveFocusManager:
         else:
             length_sig = 0.1
 
-        composite = (
-            self._importance_weight * imp
-            + self._recency_weight * recency
-            + self._length_weight * length_sig
-        )
+        composite = self._importance_weight * imp + self._recency_weight * recency + self._length_weight * length_sig
         return max(0.0, min(1.0, composite))
 
-    def score_all(self) -> List[tuple]:
+    def score_all(self) -> list[tuple]:
         """Score all items, return (item, score) sorted by score descending."""
         with self._lock:
             items = list(self._items)
@@ -269,8 +271,12 @@ class AdaptiveFocusManager:
 
         if not items:
             return FocusResult(
-                assignments=[], total_tokens_before=0, total_tokens_after=0,
-                items_full=0, items_compressed=0, items_placeholder=0,
+                assignments=[],
+                total_tokens_before=0,
+                total_tokens_after=0,
+                items_full=0,
+                items_compressed=0,
+                items_placeholder=0,
             )
 
         # Score all items
@@ -283,7 +289,7 @@ class AdaptiveFocusManager:
         sorted_items = sorted(scored, key=lambda x: x[1], reverse=True)
 
         # Greedy tier assignment
-        assignments_map: Dict[int, FidelityAssignment] = {}
+        assignments_map: dict[int, FidelityAssignment] = {}
         budget_remaining = self._token_budget
 
         # Pass 1: Pinned items always FULL
@@ -369,9 +375,22 @@ class AdaptiveFocusManager:
         kept.add(len(sentences) - 1)
 
         signal_words = {
-            "decision", "decided", "because", "error", "fix", "conclusion",
-            "important", "critical", "approach", "result", "finding",
-            "recommend", "solution", "issue", "bug", "architecture",
+            "decision",
+            "decided",
+            "because",
+            "error",
+            "fix",
+            "conclusion",
+            "important",
+            "critical",
+            "approach",
+            "result",
+            "finding",
+            "recommend",
+            "solution",
+            "issue",
+            "bug",
+            "architecture",
         }
         for i, sent in enumerate(sentences):
             words = set(sent.lower().split())
@@ -397,10 +416,11 @@ class AdaptiveFocusManager:
         return f"[{role or 'item'}, {len(words)} words] {preview}..."
 
     @staticmethod
-    def _split_sentences(text: str) -> List[str]:
+    def _split_sentences(text: str) -> list[str]:
         """Split text into sentences."""
         import re
-        sentences = re.split(r'(?<=[.!?])\s+', text.strip())
+
+        sentences = re.split(r"(?<=[.!?])\s+", text.strip())
         return [s.strip() for s in sentences if s.strip()]
 
     # =========================================================================
@@ -438,7 +458,7 @@ class AdaptiveFocusManager:
     def token_budget(self) -> int:
         return self._token_budget
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> dict:
         """Get manager statistics."""
         with self._lock:
             items = list(self._items)
@@ -476,7 +496,7 @@ class AdaptiveFocusManager:
 # Singleton
 # =============================================================================
 
-_manager: Optional[AdaptiveFocusManager] = None
+_manager: AdaptiveFocusManager | None = None
 _manager_lock = threading.Lock()
 
 

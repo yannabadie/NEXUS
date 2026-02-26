@@ -14,7 +14,7 @@ Date: 2025-12-16
 
 import logging
 import os
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
@@ -23,11 +23,11 @@ logger = logging.getLogger(__name__)
 
 # Rate limit configuration per endpoint pattern
 RATE_LIMITS = {
-    "/api/auth/login": "5/minute",      # Brute-force protection
-    "/api/workflow/start": "10/minute", # DoS protection
-    "/api/files/save": "30/minute",     # Abuse protection
-    "/api/files/tree": "20/minute",     # Tree traversal protection
-    "default": "100/minute",            # General API limit
+    "/api/auth/login": "5/minute",  # Brute-force protection
+    "/api/workflow/start": "10/minute",  # DoS protection
+    "/api/files/save": "30/minute",  # Abuse protection
+    "/api/files/tree": "20/minute",  # Tree traversal protection
+    "default": "100/minute",  # General API limit
 }
 
 
@@ -62,7 +62,6 @@ _use_slowapi = False
 
 try:
     from slowapi import Limiter
-    from slowapi.errors import RateLimitExceeded
     from slowapi.util import get_remote_address as slowapi_get_remote
 
     # Check if Redis is available for distributed rate limiting
@@ -70,7 +69,6 @@ try:
 
     try:
         # Try Redis storage for distributed rate limiting
-        from slowapi.middleware import SlowAPIMiddleware
         _limiter = Limiter(
             key_func=slowapi_get_remote,
             storage_uri=redis_url,
@@ -109,7 +107,7 @@ async def rate_limit_exceeded_handler(request: Request, exc) -> Response:
         content={
             "error": "rate_limit_exceeded",
             "message": "Too many requests. Please slow down.",
-            "detail": str(exc.detail) if hasattr(exc, 'detail') else "Rate limit exceeded",
+            "detail": str(exc.detail) if hasattr(exc, "detail") else "Rate limit exceeded",
         },
         headers={"Retry-After": "60"},
     )
@@ -128,7 +126,6 @@ def setup_rate_limiting(app):
 
     try:
         from slowapi.errors import RateLimitExceeded
-        from slowapi.middleware import SlowAPIMiddleware
 
         app.state.limiter = _limiter
         app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
@@ -163,6 +160,7 @@ def limit(limit_string: str):
         # No-op decorator if limiter not available
         def noop_decorator(func: Callable) -> Callable:
             return func
+
         return noop_decorator
 
 
@@ -170,9 +168,10 @@ def limit(limit_string: str):
 # Simple fallback rate limiter (if slowapi not installed)
 # =============================================================================
 
-import time
-from collections import defaultdict
-from threading import Lock
+import time  # noqa: E402  # after slowapi fallback section
+from collections import defaultdict  # noqa: E402
+from threading import Lock  # noqa: E402
+
 
 class SimpleRateLimiter:
     """

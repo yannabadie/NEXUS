@@ -24,16 +24,16 @@ Usage:
 """
 
 import logging
-from dataclasses import dataclass, field
-from typing import List, Dict, Optional
-from enum import Enum
+from dataclasses import dataclass
 from datetime import datetime
+from enum import Enum
 
 logger = logging.getLogger(__name__)
 
 
 class TaskComplexity(Enum):
     """Task complexity levels."""
+
     TRIVIAL = "trivial"
     MODERATE = "moderate"
     COMPLEX = "complex"
@@ -43,6 +43,7 @@ class TaskComplexity(Enum):
 @dataclass
 class DebateParams:
     """Parameters for a debate session."""
+
     min_turns: int = 2
     max_turns: int = 6
     consensus_threshold: float = 0.8
@@ -56,6 +57,7 @@ class DebateParams:
 @dataclass
 class AgentDebateMetrics:
     """Metrics for an agent's debate performance."""
+
     agent_id: str
     total_debates: int = 0
     arguments_made: int = 0
@@ -101,24 +103,24 @@ class AdaptiveDebateConfig:
 
     # Consensus thresholds by complexity
     COMPLEXITY_CONSENSUS = {
-        TaskComplexity.TRIVIAL: 0.9,    # High threshold = quick agreement needed
+        TaskComplexity.TRIVIAL: 0.9,  # High threshold = quick agreement needed
         TaskComplexity.MODERATE: 0.8,
         TaskComplexity.COMPLEX: 0.75,
-        TaskComplexity.EXPERT: 0.7,     # Lower threshold = harder to agree
+        TaskComplexity.EXPERT: 0.7,  # Lower threshold = harder to agree
     }
 
     def __init__(self):
         """Initialize adaptive debate config."""
-        self._debate_history: List[Dict] = []
-        self._agent_metrics: Dict[str, AgentDebateMetrics] = {}
-        self._error_history: List[bool] = []  # True = error occurred
+        self._debate_history: list[dict] = []
+        self._agent_metrics: dict[str, AgentDebateMetrics] = {}
+        self._error_history: list[bool] = []  # True = error occurred
 
     def get_debate_params(
         self,
         complexity: TaskComplexity,
         initial_disagreement: float = 0.5,
-        error_history: List[bool] = None,
-        domain_tags: List[str] = None
+        error_history: list[bool] = None,
+        domain_tags: list[str] = None,
     ) -> DebateParams:
         """
         Get debate parameters adapted to context.
@@ -153,9 +155,7 @@ class AdaptiveDebateConfig:
                 # High error rate = need more careful debate
                 max_turns = min(max_turns + 1, 10)
                 consensus_threshold = max(consensus_threshold - 0.05, 0.65)
-                logger.info(
-                    f"Increased debate turns due to error rate: {error_rate:.0%}"
-                )
+                logger.info(f"Increased debate turns due to error rate: {error_rate:.0%}")
 
         # Adjust for domain complexity
         if domain_tags:
@@ -172,7 +172,7 @@ class AdaptiveDebateConfig:
             timeout_per_turn=30 if complexity != TaskComplexity.EXPERT else 45,
             allow_concessions=True,
             require_evidence=complexity in (TaskComplexity.COMPLEX, TaskComplexity.EXPERT),
-            force_vote_after=max_turns + 2
+            force_vote_after=max_turns + 2,
         )
 
         logger.info(
@@ -192,7 +192,7 @@ class AdaptiveDebateConfig:
         was_forced_vote: bool,
         gemini_satisfaction: float,
         claude_satisfaction: float,
-        task_success: bool
+        task_success: bool,
     ):
         """
         Record a debate outcome for learning.
@@ -216,7 +216,7 @@ class AdaptiveDebateConfig:
             "gemini_satisfaction": gemini_satisfaction,
             "claude_satisfaction": claude_satisfaction,
             "task_success": task_success,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
         self._debate_history.append(outcome)
         self._error_history.append(not task_success)
@@ -234,7 +234,7 @@ class AdaptiveDebateConfig:
         agent_id: str,
         made_concession: bool = False,
         defended_position: bool = True,
-        changed_position: bool = False
+        changed_position: bool = False,
     ):
         """
         Record an agent's debate behavior.
@@ -257,12 +257,7 @@ class AdaptiveDebateConfig:
         if changed_position:
             metrics.positions_changed += 1
 
-    def update_agent_satisfaction(
-        self,
-        agent_id: str,
-        satisfaction: float,
-        won_debate: bool
-    ):
+    def update_agent_satisfaction(self, agent_id: str, satisfaction: float, won_debate: bool):
         """
         Update agent's satisfaction and win rate.
 
@@ -279,22 +274,15 @@ class AdaptiveDebateConfig:
 
         # Rolling average for satisfaction
         metrics.average_satisfaction = (
-            metrics.average_satisfaction * (metrics.total_debates - 1) +
-            satisfaction
+            metrics.average_satisfaction * (metrics.total_debates - 1) + satisfaction
         ) / metrics.total_debates
 
         # Rolling average for win rate
         metrics.win_rate = (
-            metrics.win_rate * (metrics.total_debates - 1) +
-            (1.0 if won_debate else 0.0)
+            metrics.win_rate * (metrics.total_debates - 1) + (1.0 if won_debate else 0.0)
         ) / metrics.total_debates
 
-    def get_optimal_strategy(
-        self,
-        agent_id: str,
-        opponent_id: str,
-        topic: str
-    ) -> Dict:
+    def get_optimal_strategy(self, agent_id: str, opponent_id: str, topic: str) -> dict:
         """
         Get optimal debate strategy based on agent metrics.
 
@@ -309,48 +297,30 @@ class AdaptiveDebateConfig:
         agent_metrics = self._agent_metrics.get(agent_id)
         opponent_metrics = self._agent_metrics.get(opponent_id)
 
-        strategy = {
-            "approach": "balanced",
-            "concession_willingness": 0.5,
-            "evidence_requirement": "medium",
-            "tips": []
-        }
+        strategy = {"approach": "balanced", "concession_willingness": 0.5, "evidence_requirement": "medium", "tips": []}
 
         if opponent_metrics:
             # Adjust based on opponent's flexibility
             if opponent_metrics.flexibility_score > 0.6:
                 strategy["approach"] = "firm"
-                strategy["tips"].append(
-                    "Opponent is flexible - maintain your position firmly"
-                )
+                strategy["tips"].append("Opponent is flexible - maintain your position firmly")
             elif opponent_metrics.flexibility_score < 0.3:
                 strategy["approach"] = "collaborative"
                 strategy["concession_willingness"] = 0.7
-                strategy["tips"].append(
-                    "Opponent is rigid - look for common ground"
-                )
+                strategy["tips"].append("Opponent is rigid - look for common ground")
 
             # Adjust based on opponent's win rate
             if opponent_metrics.win_rate > 0.7:
                 strategy["evidence_requirement"] = "high"
-                strategy["tips"].append(
-                    "Opponent often wins - bring strong evidence"
-                )
+                strategy["tips"].append("Opponent often wins - bring strong evidence")
 
         # Adjust based on own metrics
         if agent_metrics and agent_metrics.average_satisfaction < 0.4:
-            strategy["tips"].append(
-                "Your satisfaction has been low - consider new approaches"
-            )
+            strategy["tips"].append("Your satisfaction has been low - consider new approaches")
 
         return strategy
 
-    def should_force_vote(
-        self,
-        turns_completed: int,
-        consensus_progress: List[float],
-        params: DebateParams
-    ) -> bool:
+    def should_force_vote(self, turns_completed: int, consensus_progress: list[float], params: DebateParams) -> bool:
         """
         Determine if vote should be forced.
 
@@ -371,16 +341,13 @@ class AdaptiveDebateConfig:
             recent = consensus_progress[-3:]
             variance = max(recent) - min(recent)
             if variance < 0.05:
-                logger.info(
-                    f"Consensus stalled at {recent[-1]:.0%} - forcing vote"
-                )
+                logger.info(f"Consensus stalled at {recent[-1]:.0%} - forcing vote")
                 return True
 
         # Check if consensus is regressing
-        if len(consensus_progress) >= 2:
-            if consensus_progress[-1] < consensus_progress[-2] - 0.1:
-                logger.info("Consensus regressing - forcing vote")
-                return True
+        if len(consensus_progress) >= 2 and consensus_progress[-1] < consensus_progress[-2] - 0.1:
+            logger.info("Consensus regressing - forcing vote")
+            return True
 
         return False
 
@@ -391,8 +358,8 @@ class AdaptiveDebateConfig:
         gemini_confidence: float,
         claude_confidence: float,
         gemini_satisfaction: float,
-        claude_satisfaction: float
-    ) -> Dict:
+        claude_satisfaction: float,
+    ) -> dict:
         """
         Calculate final decision when forced vote is needed.
 
@@ -440,10 +407,10 @@ class AdaptiveDebateConfig:
             "reason": reason,
             "gemini_score": gemini_score,
             "claude_score": claude_score,
-            "was_tie": winner == "merged"
+            "was_tie": winner == "merged",
         }
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> dict:
         """Get debate statistics."""
         if not self._debate_history:
             return {
@@ -451,7 +418,7 @@ class AdaptiveDebateConfig:
                 "average_turns": 0,
                 "average_consensus": 0,
                 "forced_vote_rate": 0,
-                "success_rate": 0
+                "success_rate": 0,
             }
 
         total = len(self._debate_history)
@@ -469,8 +436,8 @@ class AdaptiveDebateConfig:
                     "flexibility": m.flexibility_score,
                     "conviction": m.conviction_score,
                     "win_rate": m.win_rate,
-                    "satisfaction": m.average_satisfaction
+                    "satisfaction": m.average_satisfaction,
                 }
                 for agent_id, m in self._agent_metrics.items()
-            }
+            },
         }

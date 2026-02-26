@@ -19,33 +19,36 @@ Usage:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Dict, Any, Optional, Callable
+from collections.abc import Callable
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from core.orchestration_v7 import OrchestratorV7
-    from core.interface_pkg.interface.console_v7 import ConsoleV7
     from core.config import Config
+    from core.interface_pkg.interface.console_v7 import ConsoleV7
+    from core.orchestration_v7 import OrchestratorV7
 
 
 @dataclass
 class SwarmResult:
     """Result of a swarm task execution."""
+
     success: bool
-    mode: Optional[str] = None
-    state: Optional[str] = None
-    analysis: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
+    mode: str | None = None
+    state: str | None = None
+    analysis: dict[str, Any] | None = None
+    error: str | None = None
 
 
 @dataclass
 class SwarmStatus:
     """Status of the swarm engine."""
+
     enabled: bool
     total_tasks: int = 0
     successful: int = 0
     failed: int = 0
-    mode_distribution: Optional[Dict[str, int]] = None
+    mode_distribution: dict[str, int] | None = None
     auto_route: bool = False
 
 
@@ -57,21 +60,9 @@ class SwarmService:
     Extracted from InteractiveNexusV7 (repl.py) for proper separation of concerns.
     """
 
-    COLLABORATION_MODES = [
-        "PARALLEL",
-        "SEQUENTIAL",
-        "LEAD_SUPPORT",
-        "PING_PONG",
-        "SPECIALIST",
-        "RED_BLUE"
-    ]
+    COLLABORATION_MODES = ["PARALLEL", "SEQUENTIAL", "LEAD_SUPPORT", "PING_PONG", "SPECIALIST", "RED_BLUE"]
 
-    def __init__(
-        self,
-        orchestrator: "OrchestratorV7",
-        console: "ConsoleV7",
-        config: "Config"
-    ):
+    def __init__(self, orchestrator: OrchestratorV7, console: ConsoleV7, config: Config):
         """
         Initialize SwarmService.
 
@@ -87,10 +78,7 @@ class SwarmService:
     # ==================== PUBLIC API ====================
 
     def run_task(
-        self,
-        task: str,
-        on_negotiation_turn: Optional[Callable] = None,
-        on_execution_round: Optional[Callable] = None
+        self, task: str, on_negotiation_turn: Callable | None = None, on_execution_round: Callable | None = None
     ) -> SwarmResult:
         """
         Execute task via Hybrid Swarm Engine.
@@ -111,9 +99,9 @@ class SwarmService:
             self.console.print("Enable with SWARM_ENABLED=True in .env")
             return SwarmResult(success=False, error="Swarm engine not initialized")
 
-        self.console.print("\n" + "="*60)
+        self.console.print("\n" + "=" * 60)
         self.console.print("[bee] HYBRID SWARM ENGINE")
-        self.console.print("="*60)
+        self.console.print("=" * 60)
         self.console.print(f"Task: {task[:100]}{'...' if len(task) > 100 else ''}")
         self.console.print("Analyzing task and negotiating collaboration mode...\n")
 
@@ -125,37 +113,33 @@ class SwarmService:
 
         try:
             result = self.orchestrator.process_with_swarm(
-                task,
-                on_negotiation_turn=on_negotiation_turn,
-                on_execution_round=on_execution_round
+                task, on_negotiation_turn=on_negotiation_turn, on_execution_round=on_execution_round
             )
 
             # Display final results
-            self.console.print(f"\n{'='*60}")
+            self.console.print(f"\n{'=' * 60}")
             self.console.print("[chart] SWARM RESULT")
-            self.console.print(f"{'='*60}")
+            self.console.print(f"{'=' * 60}")
             self.console.print(f"Mode: {result.get('mode', 'N/A')}")
             self.console.print(f"Status: {result.get('state', 'N/A')}")
 
             # Show analysis summary if available
-            if result.get('analysis'):
-                analysis = result['analysis']
+            if result.get("analysis"):
+                analysis = result["analysis"]
                 self.console.print(f"Complexity: {analysis.get('complexity', 'N/A')}")
                 self.console.print(f"Domains: {', '.join(analysis.get('domains', []))}")
 
-            self.console.print("="*60 + "\n")
+            self.console.print("=" * 60 + "\n")
 
             return SwarmResult(
-                success=True,
-                mode=result.get('mode'),
-                state=result.get('state'),
-                analysis=result.get('analysis')
+                success=True, mode=result.get("mode"), state=result.get("state"), analysis=result.get("analysis")
             )
 
         except Exception as e:
             self.console.print_error(f"Swarm execution failed: {e}")
-            if getattr(self.config, 'ui_verbose', False):
+            if getattr(self.config, "ui_verbose", False):
                 import traceback
+
                 traceback.print_exc()
             return SwarmResult(success=False, error=str(e))
 
@@ -176,9 +160,9 @@ class SwarmService:
             self.console.print("Enable with SWARM_ENABLED=True in .env")
             return SwarmResult(success=False, error="Swarm engine not initialized")
 
-        self.console.print("\n" + "="*60)
+        self.console.print("\n" + "=" * 60)
         self.console.print("[bee] HYBRID SWARM ENGINE (FSM Mode)")
-        self.console.print("="*60)
+        self.console.print("=" * 60)
         self.console.print(f"Task: {task[:100]}{'...' if len(task) > 100 else ''}")
         self.console.print("Using FSM states (debug mode)...\n")
 
@@ -190,31 +174,32 @@ class SwarmService:
 
             # Process through FSM states until done
             max_iterations = 20
-            final_state = result.get('state', 'UNKNOWN')
+            final_state = result.get("state", "UNKNOWN")
 
             for i in range(max_iterations):
                 step_result = self.orchestrator.step()
 
-                final_state = step_result.get('state', 'UNKNOWN')
-                output = step_result.get('output', '')
+                final_state = step_result.get("state", "UNKNOWN")
+                output = step_result.get("output", "")
 
-                self.console.print(f"[FSM {i+1}] State: {final_state}")
+                self.console.print(f"[FSM {i + 1}] State: {final_state}")
                 if output:
-                    limit = getattr(self.config, 'console_output_limit', 500)
+                    limit = getattr(self.config, "console_output_limit", 500)
                     self.console.print(f"{output[:limit]}{'...' if len(output) > limit else ''}\n")
 
                 # Check if finished
-                if step_result.get('finished') or final_state in ['IDLE', 'WAITING_USER', 'ERROR']:
+                if step_result.get("finished") or final_state in ["IDLE", "WAITING_USER", "ERROR"]:
                     break
 
-            self.console.print("="*60 + "\n")
+            self.console.print("=" * 60 + "\n")
 
             return SwarmResult(success=True, state=final_state)
 
         except Exception as e:
             self.console.print_error(f"Swarm FSM execution failed: {e}")
-            if getattr(self.config, 'ui_verbose', False):
+            if getattr(self.config, "ui_verbose", False):
                 import traceback
+
                 traceback.print_exc()
             return SwarmResult(success=False, error=str(e))
 
@@ -225,14 +210,14 @@ class SwarmService:
         Returns:
             SwarmStatus with engine state and statistics
         """
-        self.console.print("\n" + "="*60)
+        self.console.print("\n" + "=" * 60)
         self.console.print("[bee] SWARM ENGINE STATUS")
-        self.console.print("="*60)
+        self.console.print("=" * 60)
 
         if not self.orchestrator.swarm_engine:
             self.console.print("\n[warning]  Swarm Engine: DISABLED")
             self.console.print("   Enable with SWARM_ENABLED=True in .env")
-            self.console.print("="*60 + "\n")
+            self.console.print("=" * 60 + "\n")
             return SwarmStatus(enabled=False)
 
         self.console.print("\n[checkmark] Swarm Engine: ENABLED")
@@ -242,30 +227,30 @@ class SwarmService:
         try:
             raw_stats = self.orchestrator.swarm_engine.get_stats()
 
-            self.console.print(f"\n{'-'*60}")
+            self.console.print(f"\n{'-' * 60}")
             self.console.print("COLLABORATION MODES")
-            self.console.print(f"{'-'*60}")
+            self.console.print(f"{'-' * 60}")
             for mode in self.COLLABORATION_MODES:
                 self.console.print(f"  - {mode}")
 
             if raw_stats:
-                stats.total_tasks = raw_stats.get('total_tasks', 0)
-                stats.successful = raw_stats.get('successful', 0)
-                stats.failed = raw_stats.get('failed', 0)
-                stats.mode_distribution = raw_stats.get('mode_distribution')
+                stats.total_tasks = raw_stats.get("total_tasks", 0)
+                stats.successful = raw_stats.get("successful", 0)
+                stats.failed = raw_stats.get("failed", 0)
+                stats.mode_distribution = raw_stats.get("mode_distribution")
 
-                self.console.print(f"\n{'-'*60}")
+                self.console.print(f"\n{'-' * 60}")
                 self.console.print("EXECUTION STATISTICS")
-                self.console.print(f"{'-'*60}")
+                self.console.print(f"{'-' * 60}")
                 self.console.print(f"Total Tasks Processed: {stats.total_tasks}")
                 self.console.print(f"Successful: {stats.successful}")
                 self.console.print(f"Failed: {stats.failed}")
 
                 # Mode distribution
                 if stats.mode_distribution:
-                    self.console.print(f"\n{'-'*60}")
+                    self.console.print(f"\n{'-' * 60}")
                     self.console.print("MODE DISTRIBUTION")
-                    self.console.print(f"{'-'*60}")
+                    self.console.print(f"{'-' * 60}")
                     for mode, count in stats.mode_distribution.items():
                         self.console.print(f"  {mode}: {count}")
 
@@ -273,13 +258,13 @@ class SwarmService:
             self.console.print(f"\n[warning]  Could not retrieve stats: {e}")
 
         # Auto-route setting
-        stats.auto_route = getattr(self.config, 'swarm_auto_route', False)
-        self.console.print(f"\n{'-'*60}")
+        stats.auto_route = getattr(self.config, "swarm_auto_route", False)
+        self.console.print(f"\n{'-' * 60}")
         self.console.print("CONFIGURATION")
-        self.console.print(f"{'-'*60}")
+        self.console.print(f"{'-' * 60}")
         self.console.print(f"Auto-Route (MODERATE+ tasks): {'ON' if stats.auto_route else 'OFF'}")
-        self.console.print(f"  Set SWARM_AUTO_ROUTE=True in .env to enable")
-        self.console.print("="*60 + "\n")
+        self.console.print("  Set SWARM_AUTO_ROUTE=True in .env to enable")
+        self.console.print("=" * 60 + "\n")
 
         return stats
 
@@ -291,12 +276,12 @@ class SwarmService:
 
         registry = get_registry()
         agent = registry.get_display_name(message.sender)
-        self.console.print(f"\n{'-'*40}")
+        self.console.print(f"\n{'-' * 40}")
         self.console.print(f"[NEGOTIATION] {agent} (Turn {message.turn_number + 1})")
-        self.console.print(f"{'-'*40}")
+        self.console.print(f"{'-' * 40}")
 
         # Show natural content (truncated based on config)
-        limit = getattr(self.config, 'console_output_limit', 500)
+        limit = getattr(self.config, "console_output_limit", 500)
         content = message.natural_content[:limit] if message.natural_content else ""
         self.console.print(content + ("..." if len(message.natural_content or "") > limit else ""))
 
@@ -306,9 +291,9 @@ class SwarmService:
             if prop.proposed_mode:
                 self.console.print(f"  -> Proposes: {prop.proposed_mode}")
             if prop.agrees_with_partner:
-                self.console.print(f"  -> Agrees with partner: Yes")
+                self.console.print("  -> Agrees with partner: Yes")
             if prop.consensus_reached:
-                self.console.print(f"  [checkmark] CONSENSUS REACHED")
+                self.console.print("  [checkmark] CONSENSUS REACHED")
 
     def _default_execution_callback(self, round_num: int, response) -> None:
         """Default callback for execution rounds."""
@@ -316,12 +301,12 @@ class SwarmService:
 
         registry = get_registry()
         agent = registry.get_display_name(response.agent_id)
-        self.console.print(f"\n{'-'*40}")
+        self.console.print(f"\n{'-' * 40}")
         self.console.print(f"[EXECUTION] Round {round_num + 1} - {agent}")
-        self.console.print(f"{'-'*40}")
+        self.console.print(f"{'-' * 40}")
 
         # Show content (truncated based on config)
-        limit = getattr(self.config, 'console_output_limit', 500)
+        limit = getattr(self.config, "console_output_limit", 500)
         content = response.content[:limit] if response.content else ""
         self.console.print(content + ("..." if len(response.content or "") > limit else ""))
 

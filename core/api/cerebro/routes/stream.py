@@ -31,16 +31,17 @@ V12.2 IRONCLAD:
 """
 
 import asyncio
+import contextlib
 import logging
 import uuid
-from datetime import datetime, timezone
-from typing import List, Optional
+from datetime import UTC, datetime
 from uuid import UUID
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
+from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
 from core.observability.events.redis_bus import get_redis_bus
-from core.observability.events.types import CerebroEvent, CerebroEventType
+from core.observability.events.types import CerebroEventType
+
 from ..deps import WebSocketContext
 
 logger = logging.getLogger(__name__)
@@ -74,6 +75,7 @@ async def _get_context_from_params(
 
     try:
         from ..deps import _decode_token
+
         claims = _decode_token(token)
         if claims:
             # V11.6.2 IRONCLAD: tenant_id from JWT ONLY (Zero Trust)
@@ -133,6 +135,7 @@ async def websocket_stream(
     hibernate_state = None
     try:
         from core.fsm.hibernation_manager import HibernationManager
+
         hibernate_state = await HibernationManager.get_hibernation(
             tenant_id=UUID(ctx.tenant_id),
             workspace_id=ctx.workspace_id,
@@ -144,16 +147,18 @@ async def websocket_stream(
                 workspace_id=ctx.workspace_id,
             )
             if restored:
-                await websocket.send_json({
-                    "event_type": "state.restored",
-                    "payload": {
-                        "previous_state": restored["previous_state"],
-                        "hibernated_at": restored["entered_at"].isoformat(),
-                        "fsm_context": restored.get("fsm_context"),
-                        "active_agent": restored.get("active_agent"),
-                        "turn_count": restored.get("turn_count", 0),
-                    },
-                })
+                await websocket.send_json(
+                    {
+                        "event_type": "state.restored",
+                        "payload": {
+                            "previous_state": restored["previous_state"],
+                            "hibernated_at": restored["entered_at"].isoformat(),
+                            "fsm_context": restored.get("fsm_context"),
+                            "active_agent": restored.get("active_agent"),
+                            "turn_count": restored.get("turn_count", 0),
+                        },
+                    }
+                )
                 logger.info(
                     f"CEREBRO: Restored from hibernation: {ctx.tenant_id}/{ctx.workspace_id} "
                     f"previous_state={restored['previous_state']}"
@@ -167,10 +172,7 @@ async def websocket_stream(
     filter_types: list[CerebroEventType] | None = None
     if event_types:
         try:
-            filter_types = [
-                CerebroEventType(et.strip())
-                for et in event_types.split(",")
-            ]
+            filter_types = [CerebroEventType(et.strip()) for et in event_types.split(",")]
         except ValueError as e:
             await websocket.send_json({"error": f"Invalid event_type: {e}"})
 
@@ -180,32 +182,38 @@ async def websocket_stream(
     # V12.0: Inform client about streaming mode (Redis or in-memory)
     streaming_mode = "redis" if bus.is_connected() else "memory"
     if not bus.is_connected():
-        await websocket.send_json({
-            "event_type": "system.info",
-            "payload": {
-                "message": "Running in development mode (in-memory event bus)",
-                "mode": streaming_mode,
-            },
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "event_id": str(uuid.uuid4()),
-        })
+        await websocket.send_json(
+            {
+                "event_type": "system.info",
+                "payload": {
+                    "message": "Running in development mode (in-memory event bus)",
+                    "mode": streaming_mode,
+                },
+                "timestamp": datetime.now(UTC).isoformat(),
+                "event_id": str(uuid.uuid4()),
+            }
+        )
 
     # Stream events (from Redis or in-memory)
     try:
         # Send initial connected message
-        await websocket.send_json({
-            "event_type": "system.connected",
-            "payload": {
-                "tenant_id": ctx.tenant_id,
-                "workspace_id": ctx.workspace_id,
-                "filter": [et.value for et in filter_types] if filter_types else "all",
-                "mode": streaming_mode,
-            },
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "event_id": str(uuid.uuid4()),
-        })
+        await websocket.send_json(
+            {
+                "event_type": "system.connected",
+                "payload": {
+                    "tenant_id": ctx.tenant_id,
+                    "workspace_id": ctx.workspace_id,
+                    "filter": [et.value for et in filter_types] if filter_types else "all",
+                    "mode": streaming_mode,
+                },
+                "timestamp": datetime.now(UTC).isoformat(),
+                "event_id": str(uuid.uuid4()),
+            }
+        )
 
-        logger.info(f"CEREBRO: Starting event subscription for {ctx.tenant_id}/{ctx.workspace_id} (mode={streaming_mode})")
+        logger.info(
+            f"CEREBRO: Starting event subscription for {ctx.tenant_id}/{ctx.workspace_id} (mode={streaming_mode})"
+        )
 
         # Subscribe and stream events
         async for event in bus.subscribe(
@@ -213,12 +221,14 @@ async def websocket_stream(
             workspace_id=ctx.workspace_id,
             event_types=filter_types,
         ):
-            await websocket.send_json({
-                "event_type": event.event_type.value,
-                "payload": event.payload,
-                "timestamp": event.timestamp,
-                "event_id": event.event_id,
-            })
+            await websocket.send_json(
+                {
+                    "event_type": event.event_type.value,
+                    "payload": event.payload,
+                    "timestamp": event.timestamp,
+                    "event_id": event.event_id,
+                }
+            )
 
     except WebSocketDisconnect:
         logger.info(f"CEREBRO: WebSocket disconnected: {ctx}")
@@ -226,13 +236,13 @@ async def websocket_stream(
         logger.debug(f"CEREBRO: WebSocket cancelled: {ctx}")
     except Exception as e:
         logger.error(f"CEREBRO: WebSocket error: {e}")
-        try:
-            await websocket.send_json({
-                "event_type": "system.error",
-                "payload": {"message": str(e)},
-            })
-        except Exception:
-            pass
+        with contextlib.suppress(Exception):
+            await websocket.send_json(
+                {
+                    "event_type": "system.error",
+                    "payload": {"message": str(e)},
+                }
+            )
 
 
 @router.websocket("/echo")

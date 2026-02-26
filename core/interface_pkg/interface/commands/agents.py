@@ -5,8 +5,7 @@ These commands manage spawned agents and the agent pool.
 Uses AgentService for business logic (Service Layer Pattern).
 """
 
-from typing import List
-from .registry import Command, CommandContext, CommandResult, CommandStatus
+from .registry import Command, CommandContext, CommandRegistry, CommandResult, CommandStatus
 
 
 def _get_agent_service(context: CommandContext):
@@ -25,23 +24,19 @@ def _get_agent_service(context: CommandContext):
 
     # Get workspace_path from extras or orchestrator
     workspace_path = context.extras.get("workspace_path")
-    if not workspace_path and hasattr(context.orchestrator, 'workspace_path'):
+    if not workspace_path and hasattr(context.orchestrator, "workspace_path"):
         workspace_path = context.orchestrator.workspace_path
 
     if not workspace_path:
         # Fallback: try to get from repl if available
         repl = context.extras.get("repl")
-        if repl and hasattr(repl, 'workspace_path'):
+        if repl and hasattr(repl, "workspace_path"):
             workspace_path = repl.workspace_path
 
     if not workspace_path:
         raise ValueError("workspace_path not available in context")
 
-    return AgentService(
-        orchestrator=context.orchestrator,
-        workspace_path=workspace_path,
-        console=context.console
-    )
+    return AgentService(orchestrator=context.orchestrator, workspace_path=workspace_path, console=context.console)
 
 
 class SpawnCommand(Command):
@@ -52,7 +47,7 @@ class SpawnCommand(Command):
         return "/spawn"
 
     @property
-    def aliases(self) -> List[str]:
+    def aliases(self) -> list[str]:
         return []
 
     @property
@@ -67,8 +62,7 @@ class SpawnCommand(Command):
         """Execute spawn command using AgentService."""
         if not args.strip():
             return CommandResult(
-                status=CommandStatus.INVALID_ARGS,
-                message="Usage: /spawn <role> (e.g., /spawn SQL Expert)"
+                status=CommandStatus.INVALID_ARGS, message="Usage: /spawn <role> (e.g., /spawn SQL Expert)"
             )
 
         try:
@@ -76,20 +70,11 @@ class SpawnCommand(Command):
             result = service.spawn(args.strip())
 
             if result.success:
-                return CommandResult(
-                    status=CommandStatus.SUCCESS,
-                    message=""
-                )
+                return CommandResult(status=CommandStatus.SUCCESS, message="")
             else:
-                return CommandResult(
-                    status=CommandStatus.ERROR,
-                    message=result.error or "Spawn failed"
-                )
+                return CommandResult(status=CommandStatus.ERROR, message=result.error or "Spawn failed")
         except Exception as e:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message=f"Failed to spawn agent: {e}"
-            )
+            return CommandResult(status=CommandStatus.ERROR, message=f"Failed to spawn agent: {e}")
 
 
 class AgentsCommand(Command):
@@ -100,7 +85,7 @@ class AgentsCommand(Command):
         return "/agents"
 
     @property
-    def aliases(self) -> List[str]:
+    def aliases(self) -> list[str]:
         return ["/a"]
 
     @property
@@ -112,15 +97,9 @@ class AgentsCommand(Command):
         try:
             service = _get_agent_service(context)
             service.list_agents()
-            return CommandResult(
-                status=CommandStatus.SUCCESS,
-                message=""
-            )
+            return CommandResult(status=CommandStatus.SUCCESS, message="")
         except Exception as e:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message=f"Failed to list agents: {e}"
-            )
+            return CommandResult(status=CommandStatus.ERROR, message=f"Failed to list agents: {e}")
 
 
 class PoolStatsCommand(Command):
@@ -131,7 +110,7 @@ class PoolStatsCommand(Command):
         return "/pool-stats"
 
     @property
-    def aliases(self) -> List[str]:
+    def aliases(self) -> list[str]:
         return ["/ps"]
 
     @property
@@ -143,15 +122,9 @@ class PoolStatsCommand(Command):
         try:
             service = _get_agent_service(context)
             service.get_pool_stats()
-            return CommandResult(
-                status=CommandStatus.SUCCESS,
-                message=""
-            )
+            return CommandResult(status=CommandStatus.SUCCESS, message="")
         except Exception as e:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message=f"Failed to get pool stats: {e}"
-            )
+            return CommandResult(status=CommandStatus.ERROR, message=f"Failed to get pool stats: {e}")
 
 
 def register_agent_commands(registry: "CommandRegistry") -> None:

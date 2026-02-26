@@ -58,9 +58,9 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 from uuid import uuid4
 
 logger = logging.getLogger(__name__)
@@ -78,17 +78,18 @@ class Snapshot:
         fsm_state: Complete FSM state (current_state, session_id, context, etc.)
         metadata: Additional info (event_count, file_size, etc.)
     """
+
     snapshot_id: str
     sequence_number: int
     timestamp: str
-    fsm_state: Dict[str, Any]
-    metadata: Dict[str, Any]
+    fsm_state: dict[str, Any]
+    metadata: dict[str, Any]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "Snapshot":
+    def from_dict(cls, data: dict[str, Any]) -> Snapshot:
         return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
 
     def to_json(self) -> str:
@@ -113,9 +114,9 @@ class SnapshotManager:
 
     def __init__(
         self,
-        workspace_path: Optional[Path] = None,
+        workspace_path: Path | None = None,
         snapshot_interval: int = 100,  # Take snapshot every N events
-        max_snapshots: int = 10,        # Keep last N snapshots
+        max_snapshots: int = 10,  # Keep last N snapshots
     ):
         self._workspace = workspace_path or Path("workspace")
         self._snapshot_dir = self._workspace / ".nexus" / "snapshots"
@@ -136,7 +137,7 @@ class SnapshotManager:
             latest = snapshots[-1]  # Already sorted by sequence number
             self._last_snapshot_seq = latest["sequence_number"]
 
-    def _list_snapshots(self) -> List[Dict[str, Any]]:
+    def _list_snapshots(self) -> list[dict[str, Any]]:
         """
         List all snapshot files in chronological order.
 
@@ -150,14 +151,16 @@ class SnapshotManager:
 
         for snapshot_file in self._snapshot_dir.glob("snapshot_*.json"):
             try:
-                with open(snapshot_file, "r", encoding="utf-8") as f:
+                with open(snapshot_file, encoding="utf-8") as f:
                     data = json.load(f)
-                    snapshots.append({
-                        "file": snapshot_file,
-                        "sequence_number": data["sequence_number"],
-                        "timestamp": data["timestamp"],
-                        "snapshot_id": data["snapshot_id"],
-                    })
+                    snapshots.append(
+                        {
+                            "file": snapshot_file,
+                            "sequence_number": data["sequence_number"],
+                            "timestamp": data["timestamp"],
+                            "snapshot_id": data["snapshot_id"],
+                        }
+                    )
             except (OSError, json.JSONDecodeError, KeyError) as e:
                 logger.warning(f"Failed to read snapshot {snapshot_file}: {e}")
                 continue
@@ -185,10 +188,10 @@ class SnapshotManager:
 
     def create_snapshot(
         self,
-        fsm_state: Dict[str, Any],
+        fsm_state: dict[str, Any],
         sequence_number: int,
         **extra_metadata: Any,
-    ) -> Optional[Snapshot]:
+    ) -> Snapshot | None:
         """
         Create a new snapshot of the FSM state.
 
@@ -201,7 +204,7 @@ class SnapshotManager:
             Created Snapshot object, or None if creation failed
         """
         snapshot_id = uuid4().hex[:12]
-        timestamp = datetime.now(timezone.utc).isoformat()
+        timestamp = datetime.now(UTC).isoformat()
 
         snapshot = Snapshot(
             snapshot_id=snapshot_id,
@@ -221,9 +224,7 @@ class SnapshotManager:
                 f.write(snapshot.to_json())
 
             self._last_snapshot_seq = sequence_number
-            logger.info(
-                f"Created FSM snapshot {snapshot_id} at sequence {sequence_number}"
-            )
+            logger.info(f"Created FSM snapshot {snapshot_id} at sequence {sequence_number}")
 
             # Cleanup old snapshots
             self._cleanup_old_snapshots()
@@ -262,7 +263,7 @@ class SnapshotManager:
 
         return deleted_count
 
-    def get_latest_snapshot(self) -> Optional[Snapshot]:
+    def get_latest_snapshot(self) -> Snapshot | None:
         """
         Load the most recent snapshot.
 
@@ -276,7 +277,7 @@ class SnapshotManager:
 
         latest = snapshots[-1]
         try:
-            with open(latest["file"], "r", encoding="utf-8") as f:
+            with open(latest["file"], encoding="utf-8") as f:
                 data = json.load(f)
                 return Snapshot.from_dict(data)
         except (OSError, json.JSONDecodeError) as e:
@@ -286,8 +287,8 @@ class SnapshotManager:
     def recover(
         self,
         event_store: Any,  # FSMEventStore
-        session_id: Optional[str] = None,
-    ) -> Tuple[Optional[Snapshot], List[Any]]:
+        session_id: str | None = None,
+    ) -> tuple[Snapshot | None, list[Any]]:
         """
         Recover FSM state using latest snapshot + delta events.
 
@@ -310,16 +311,13 @@ class SnapshotManager:
         if snapshot is None:
             # No snapshot exists - must replay all events
             all_events = event_store.replay(session_id=session_id)
-            logger.warning(
-                f"No snapshot found - replaying all {len(all_events)} events"
-            )
+            logger.warning(f"No snapshot found - replaying all {len(all_events)} events")
             return None, all_events
 
         # Get only events since snapshot
         all_events = event_store.replay(session_id=session_id)
         delta_events = [
-            event for event in all_events
-            if hasattr(event, "timestamp") and event.timestamp > snapshot.timestamp
+            event for event in all_events if hasattr(event, "timestamp") and event.timestamp > snapshot.timestamp
         ]
 
         logger.info(
@@ -329,7 +327,7 @@ class SnapshotManager:
 
         return snapshot, delta_events
 
-    def get_snapshot_stats(self) -> Dict[str, Any]:
+    def get_snapshot_stats(self) -> dict[str, Any]:
         """
         Get statistics about the snapshot system.
 
@@ -348,11 +346,7 @@ class SnapshotManager:
                 "max_snapshots": self._max_snapshots,
             }
 
-        total_size = sum(
-            s["file"].stat().st_size
-            for s in snapshots
-            if s["file"].exists()
-        )
+        total_size = sum(s["file"].stat().st_size for s in snapshots if s["file"].exists())
 
         return {
             "count": len(snapshots),
@@ -370,11 +364,11 @@ class SnapshotManager:
 # Module-level singleton
 # =============================================================================
 
-_global_manager: Optional[SnapshotManager] = None
+_global_manager: SnapshotManager | None = None
 
 
 def get_snapshot_manager(
-    workspace_path: Optional[Path] = None,
+    workspace_path: Path | None = None,
     snapshot_interval: int = 100,
 ) -> SnapshotManager:
     """Get or create the global snapshot manager."""
@@ -385,9 +379,9 @@ def get_snapshot_manager(
 
 
 def create_fsm_snapshot(
-    fsm_state: Dict[str, Any],
+    fsm_state: dict[str, Any],
     event_count: int,
-) -> Optional[Snapshot]:
+) -> Snapshot | None:
     """
     Convenience function to create a snapshot.
 

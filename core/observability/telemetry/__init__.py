@@ -15,65 +15,67 @@ V9.1: Service Layer (TelemetryService, BudgetService)
 Future: Export to Langfuse, OTLP, or other backends
 """
 
-from .metrics import TelemetryCollector, MetricType
-from .exporter import TelemetryExporter
 from .budget_tracker import (
-    BudgetTracker,
     BudgetExceededError,
+    BudgetTracker,
     BudgetWarning,
     get_budget_tracker,
 )
+from .error_pattern_analyzer import (
+    AnalyzerStats as ErrorAnalyzerStats,
+)
 
-# V9.1: Service Layer
-from .service import (
-    TelemetryService,
-    BudgetService,
-    ServiceResult,
-    _get_telemetry_service,
-    _get_budget_service,
+# V12.4 COGNITIVE BOOST: Error Pattern Analyzer
+from .error_pattern_analyzer import (
+    ErrorCategoryMetrics,
+    ErrorPattern,
+    ErrorPatternAnalyzer,
+    ErrorRecord,
+    get_error_analyzer,
+    reset_error_analyzer,
+)
+from .exporter import TelemetryExporter
+
+# V12.4: Health Aggregator
+from .health_aggregator import (
+    AggregateStatus,
+    HealthAggregator,
+    HealthCheck,
+    HealthReport,
+    TelemetrySummary,
+)
+from .metrics import MetricType, TelemetryCollector
+
+# V12.4: OpenTelemetry Provider
+from .otel_provider import (
+    get_meter,
+    get_tracer,
+    init_otel,
+    trace_fsm_transition,
+    trace_llm_call,
+)
+
+# V12.4: Performance Profiler
+from .performance_profiler import (
+    Bottleneck,
+    PerformanceProfiler,
+    ProfileReport,
+    TimingRecord,
+    TimingStats,
+    get_profiler,
+    reset_profiler,
 )
 
 # V10 CEREBRO: Redis Log Bridge
 from .redis_bridge import RedisLogHandler, create_redis_log_handler
 
-# V12.4: OpenTelemetry Provider
-from .otel_provider import (
-    init_otel,
-    get_tracer,
-    get_meter,
-    trace_llm_call,
-    trace_fsm_transition,
-)
-
-# V12.4: Health Aggregator
-from .health_aggregator import (
-    HealthAggregator,
-    HealthCheck,
-    HealthReport,
-    TelemetrySummary,
-    AggregateStatus,
-)
-
-# V12.4: Performance Profiler
-from .performance_profiler import (
-    PerformanceProfiler,
-    TimingRecord,
-    TimingStats,
-    Bottleneck,
-    ProfileReport,
-    get_profiler,
-    reset_profiler,
-)
-
-# V12.4 COGNITIVE BOOST: Error Pattern Analyzer
-from .error_pattern_analyzer import (
-    ErrorPatternAnalyzer,
-    ErrorRecord,
-    ErrorCategoryMetrics,
-    ErrorPattern,
-    AnalyzerStats as ErrorAnalyzerStats,
-    get_error_analyzer,
-    reset_error_analyzer,
+# V9.1: Service Layer
+from .service import (
+    BudgetService,
+    ServiceResult,
+    TelemetryService,
+    _get_budget_service,
+    _get_telemetry_service,
 )
 
 __all__ = [

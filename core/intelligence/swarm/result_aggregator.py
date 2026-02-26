@@ -28,9 +28,9 @@ import logging
 import threading
 import time
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -46,21 +46,24 @@ MAX_TASKS = 5000
 # Types
 # =============================================================================
 
+
 class MergeStrategy(Enum):
     """How to merge conflicting values."""
-    UNION = "union"          # Combine all unique values
-    FIRST = "first"          # Use first submitted
-    LATEST = "latest"        # Use last submitted
-    LONGEST = "longest"      # Use longest string value
-    VOTE = "vote"            # Majority wins
+
+    UNION = "union"  # Combine all unique values
+    FIRST = "first"  # Use first submitted
+    LATEST = "latest"  # Use last submitted
+    LONGEST = "longest"  # Use longest string value
+    VOTE = "vote"  # Majority wins
 
 
 @dataclass
 class AgentResult:
     """A result submitted by an agent."""
+
     task_id: str
     agent_id: str
-    data: Dict[str, Any]
+    data: dict[str, Any]
     confidence: float = 1.0
     timestamp: float = 0.0
 
@@ -72,12 +75,13 @@ class AgentResult:
 @dataclass
 class Conflict:
     """A detected conflict between agent results."""
+
     key: str
-    values: Dict[str, Any]  # agent_id -> value
+    values: dict[str, Any]  # agent_id -> value
     resolved: bool = False
     resolution: Any = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "key": self.key,
             "values": {k: str(v)[:100] for k, v in self.values.items()},
@@ -88,14 +92,15 @@ class Conflict:
 @dataclass
 class MergeResult:
     """Result of merging agent outputs."""
+
     task_id: str
-    merged_data: Dict[str, Any]
+    merged_data: dict[str, Any]
     agent_count: int
     conflict_count: int
     keys_merged: int
     strategy: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "task_id": self.task_id,
             "merged_keys": list(self.merged_data.keys()),
@@ -109,12 +114,13 @@ class MergeResult:
 @dataclass
 class AggregatorStats:
     """Aggregator statistics."""
+
     total_tasks: int
     total_submissions: int
     total_merges: int
     total_conflicts: int
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_tasks": self.total_tasks,
             "total_submissions": self.total_submissions,
@@ -126,6 +132,7 @@ class AggregatorStats:
 # =============================================================================
 # Result Aggregator
 # =============================================================================
+
 
 class ResultAggregator:
     """
@@ -140,7 +147,7 @@ class ResultAggregator:
     """
 
     def __init__(self, *, max_tasks: int = MAX_TASKS):
-        self._results: Dict[str, Dict[str, AgentResult]] = defaultdict(dict)  # task -> agent -> result
+        self._results: dict[str, dict[str, AgentResult]] = defaultdict(dict)  # task -> agent -> result
         self._max_tasks = max_tasks
         self._total_submissions = 0
         self._total_merges = 0
@@ -155,7 +162,7 @@ class ResultAggregator:
         self,
         task_id: str,
         agent_id: str,
-        data: Dict[str, Any],
+        data: dict[str, Any],
         *,
         confidence: float = 1.0,
     ) -> AgentResult:
@@ -187,19 +194,19 @@ class ResultAggregator:
     # Query
     # =========================================================================
 
-    def get_results(self, task_id: str) -> List[AgentResult]:
+    def get_results(self, task_id: str) -> list[AgentResult]:
         """Get all results for a task."""
         with self._lock:
             agents = self._results.get(task_id, {})
             return list(agents.values())
 
-    def get_result(self, task_id: str, agent_id: str) -> Optional[AgentResult]:
+    def get_result(self, task_id: str, agent_id: str) -> AgentResult | None:
         """Get a specific agent's result for a task."""
         with self._lock:
             agents = self._results.get(task_id, {})
             return agents.get(agent_id)
 
-    def get_agents(self, task_id: str) -> List[str]:
+    def get_agents(self, task_id: str) -> list[str]:
         """Get list of agents that submitted results for a task."""
         with self._lock:
             return sorted(self._results.get(task_id, {}).keys())
@@ -213,7 +220,7 @@ class ResultAggregator:
     # Conflict Detection
     # =========================================================================
 
-    def detect_conflicts(self, task_id: str) -> List[Conflict]:
+    def detect_conflicts(self, task_id: str) -> list[Conflict]:
         """
         Detect conflicts between agent results for a task.
 
@@ -225,7 +232,7 @@ class ResultAggregator:
                 return []
 
         # Collect all keys and their values per agent
-        key_values: Dict[str, Dict[str, Any]] = defaultdict(dict)
+        key_values: dict[str, dict[str, Any]] = defaultdict(dict)
         for agent_id, result in agents.items():
             for key, value in result.data.items():
                 key_values[key][agent_id] = value
@@ -268,19 +275,23 @@ class ResultAggregator:
 
         if not agents:
             return MergeResult(
-                task_id=task_id, merged_data={}, agent_count=0,
-                conflict_count=0, keys_merged=0, strategy=strategy.value,
+                task_id=task_id,
+                merged_data={},
+                agent_count=0,
+                conflict_count=0,
+                keys_merged=0,
+                strategy=strategy.value,
             )
 
         # Collect all keys and values
-        key_values: Dict[str, Dict[str, Any]] = defaultdict(dict)
-        key_timestamps: Dict[str, Dict[str, float]] = defaultdict(dict)
+        key_values: dict[str, dict[str, Any]] = defaultdict(dict)
+        key_timestamps: dict[str, dict[str, float]] = defaultdict(dict)
         for agent_id, result in agents.items():
             for key, value in result.data.items():
                 key_values[key][agent_id] = value
                 key_timestamps[key][agent_id] = result.timestamp
 
-        merged: Dict[str, Any] = {}
+        merged: dict[str, Any] = {}
         conflict_count = 0
 
         for key, agent_vals in key_values.items():
@@ -293,7 +304,11 @@ class ResultAggregator:
                 # Conflict - apply strategy
                 conflict_count += 1
                 merged[key] = self._resolve(
-                    key, agent_vals, key_timestamps.get(key, {}), strategy, agents,
+                    key,
+                    agent_vals,
+                    key_timestamps.get(key, {}),
+                    strategy,
+                    agents,
                 )
 
         with self._lock:
@@ -311,10 +326,10 @@ class ResultAggregator:
     def _resolve(
         self,
         key: str,
-        agent_vals: Dict[str, Any],
-        timestamps: Dict[str, float],
+        agent_vals: dict[str, Any],
+        timestamps: dict[str, float],
         strategy: MergeStrategy,
-        agents: Dict[str, AgentResult],
+        agents: dict[str, AgentResult],
     ) -> Any:
         """Resolve a conflict using the given strategy."""
         if strategy == MergeStrategy.FIRST:
@@ -330,8 +345,8 @@ class ResultAggregator:
 
         elif strategy == MergeStrategy.VOTE:
             # Count how many agents agree on each value
-            value_counts: Dict[str, int] = defaultdict(int)
-            value_map: Dict[str, Any] = {}
+            value_counts: dict[str, int] = defaultdict(int)
+            value_map: dict[str, Any] = {}
             for v in agent_vals.values():
                 sv = str(v)
                 value_counts[sv] += 1
@@ -344,7 +359,7 @@ class ResultAggregator:
             values = list(agent_vals.values())
             if all(isinstance(v, list) for v in values):
                 combined = []
-                seen: Set[str] = set()
+                seen: set[str] = set()
                 for lst in values:
                     for item in lst:
                         key_str = str(item)
@@ -364,7 +379,7 @@ class ResultAggregator:
     def is_complete(
         self,
         task_id: str,
-        expected_agents: List[str],
+        expected_agents: list[str],
     ) -> bool:
         """Check if all expected agents have submitted results."""
         with self._lock:
@@ -374,8 +389,8 @@ class ResultAggregator:
     def missing_agents(
         self,
         task_id: str,
-        expected_agents: List[str],
-    ) -> List[str]:
+        expected_agents: list[str],
+    ) -> list[str]:
         """Get list of agents that haven't submitted results yet."""
         with self._lock:
             submitted = set(self._results.get(task_id, {}).keys())
@@ -437,7 +452,7 @@ class ResultAggregator:
             self._total_merges = 0
             self._total_conflicts = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "task_count": self.task_count,
             "stats": self.get_stats().to_dict(),
@@ -448,7 +463,7 @@ class ResultAggregator:
 # Global Instance
 # =============================================================================
 
-_aggregator: Optional[ResultAggregator] = None
+_aggregator: ResultAggregator | None = None
 _aggregator_lock = threading.Lock()
 
 

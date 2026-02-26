@@ -35,14 +35,12 @@ Usage:
 """
 
 import logging
-import math
 import re
 import threading
 import time
 from collections import Counter, deque
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -51,35 +49,39 @@ logger = logging.getLogger(__name__)
 # Data Structures
 # =============================================================================
 
+
 class RiskLevel(Enum):
     """Risk classification for inspection results."""
-    LOW = "low"              # No concerns
-    MODERATE = "moderate"    # Minor issues, continue with caution
-    HIGH = "high"            # Significant issues, may need correction
-    CRITICAL = "critical"    # Immediate diagnosis required
+
+    LOW = "low"  # No concerns
+    MODERATE = "moderate"  # Minor issues, continue with caution
+    HIGH = "high"  # Significant issues, may need correction
+    CRITICAL = "critical"  # Immediate diagnosis required
 
 
 class IssuePattern(Enum):
     """Patterns detected across steps."""
-    REPEATED_ERROR = "repeated_error"            # Same error type recurring
+
+    REPEATED_ERROR = "repeated_error"  # Same error type recurring
     ESCALATING_SEVERITY = "escalating_severity"  # Issues getting worse
-    CASCADING_FAILURE = "cascading_failure"       # Errors propagating between steps
+    CASCADING_FAILURE = "cascading_failure"  # Errors propagating between steps
     HALLUCINATION_CLUSTER = "hallucination_cluster"  # Multiple hallucinations
-    OUTPUT_DEGRADATION = "output_degradation"    # Output quality declining
-    STAGNATION = "stagnation"                    # No progress being made
+    OUTPUT_DEGRADATION = "output_degradation"  # Output quality declining
+    STAGNATION = "stagnation"  # No progress being made
 
 
 @dataclass
 class InspectionResult:
     """Result of inspecting a single step."""
+
     step_name: str
     risk_level: RiskLevel
-    risk_score: float              # 0.0 (safe) to 1.0 (critical)
-    requires_diagnosis: bool       # Should trigger Phase 5?
-    detected_patterns: List[IssuePattern]
+    risk_score: float  # 0.0 (safe) to 1.0 (critical)
+    requires_diagnosis: bool  # Should trigger Phase 5?
+    detected_patterns: list[IssuePattern]
     issues_found: int
     issue_summary: str
-    suggestions: List[str]
+    suggestions: list[str]
     inspected_at: float = field(default_factory=time.time)
 
     @property
@@ -90,10 +92,11 @@ class InspectionResult:
 @dataclass
 class GuardStats:
     """Statistics for the inspector guard."""
+
     total_inspections: int
-    total_flags: int               # Steps flagged for diagnosis
-    risk_distribution: Dict[str, int]  # risk_level → count
-    patterns_detected: Dict[str, int]  # pattern → count
+    total_flags: int  # Steps flagged for diagnosis
+    risk_distribution: dict[str, int]  # risk_level → count
+    patterns_detected: dict[str, int]  # pattern → count
     avg_risk_score: float
 
 
@@ -149,6 +152,7 @@ _STAGNATION_RE = [re.compile(p, re.IGNORECASE) for p in STAGNATION_INDICATORS]
 # Inspector Guard
 # =============================================================================
 
+
 class InspectorGuard:
     """
     Post-step verification layer for multi-agent execution.
@@ -161,14 +165,14 @@ class InspectorGuard:
     """
 
     # Risk thresholds
-    DIAGNOSIS_THRESHOLD = 0.7    # Risk score above this triggers diagnosis
+    DIAGNOSIS_THRESHOLD = 0.7  # Risk score above this triggers diagnosis
     HIGH_RISK_THRESHOLD = 0.5
     MODERATE_THRESHOLD = 0.3
 
     # Cascade detection
-    MAX_HISTORY = 50             # Max inspections to keep in history
-    CASCADE_WINDOW = 5           # Steps to look back for cascading patterns
-    REPEAT_THRESHOLD = 3         # Same error N times = cascading
+    MAX_HISTORY = 50  # Max inspections to keep in history
+    CASCADE_WINDOW = 5  # Steps to look back for cascading patterns
+    REPEAT_THRESHOLD = 3  # Same error N times = cascading
 
     def __init__(self, diagnosis_threshold: float = 0.0):
         self._threshold = diagnosis_threshold or self.DIAGNOSIS_THRESHOLD
@@ -190,8 +194,8 @@ class InspectorGuard:
         step_name: str,
         step_output: str,
         step_status: str = "success",
-        step_issues: Optional[List[dict]] = None,
-        previous_inspections: Optional[List[InspectionResult]] = None,
+        step_issues: list[dict] | None = None,
+        previous_inspections: list[InspectionResult] | None = None,
     ) -> InspectionResult:
         """
         Inspect a step's output and produce a risk assessment.
@@ -221,13 +225,13 @@ class InspectorGuard:
 
         # Weighted composite risk score
         risk_score = (
-            0.25 * status_score +
-            0.20 * issue_score +
-            0.15 * hallucination_score +
-            0.15 * error_score +
-            0.10 * stagnation_score +
-            0.10 * cascade_score +
-            0.05 * length_score
+            0.25 * status_score
+            + 0.20 * issue_score
+            + 0.15 * hallucination_score
+            + 0.15 * error_score
+            + 0.10 * stagnation_score
+            + 0.10 * cascade_score
+            + 0.05 * length_score
         )
         risk_score = min(1.0, max(0.0, risk_score))
 
@@ -256,9 +260,7 @@ class InspectorGuard:
         suggestions = self._generate_suggestions(patterns, risk_score)
 
         # Issue summary
-        issue_summary = self._summarize_issues(
-            issues, hallucination_score, error_score, patterns
-        )
+        issue_summary = self._summarize_issues(issues, hallucination_score, error_score, patterns)
 
         result = InspectionResult(
             step_name=step_name,
@@ -320,7 +322,7 @@ class InspectorGuard:
         }
         return status_map.get(status.lower(), 0.5)
 
-    def _score_issues(self, issues: List[dict]) -> float:
+    def _score_issues(self, issues: list[dict]) -> float:
         """Score based on number and severity of issues."""
         if not issues:
             return 0.0
@@ -332,12 +334,7 @@ class InspectorGuard:
             "critical": 1.0,
         }
 
-        total_weight = sum(
-            severity_weights.get(
-                str(i.get("severity", "info")).lower(), 0.3
-            )
-            for i in issues
-        )
+        total_weight = sum(severity_weights.get(str(i.get("severity", "info")).lower(), 0.3) for i in issues)
 
         # Normalize: 3 critical issues = 1.0
         return min(1.0, total_weight / 3.0)
@@ -363,23 +360,18 @@ class InspectorGuard:
         matches = sum(1 for p in _STAGNATION_RE if p.search(output))
         return min(1.0, matches / 2.0)
 
-    def _score_cascade(
-        self, issues: List[dict], history: List[InspectionResult]
-    ) -> float:
+    def _score_cascade(self, issues: list[dict], history: list[InspectionResult]) -> float:
         """Score cascading failure probability from recent history."""
         if not history:
             return 0.0
 
-        recent = history[-self.CASCADE_WINDOW:]
+        recent = history[-self.CASCADE_WINDOW :]
 
         # Count recent high-risk results
-        high_risk_count = sum(
-            1 for r in recent
-            if r.risk_level in (RiskLevel.HIGH, RiskLevel.CRITICAL)
-        )
+        high_risk_count = sum(1 for r in recent if r.risk_level in (RiskLevel.HIGH, RiskLevel.CRITICAL))
 
         # Repeated issue types
-        current_types = {i.get("issue_type", "") for i in issues}
+        {i.get("issue_type", "") for i in issues}
         overlap = 0
         for prev in recent:
             if any(
@@ -393,9 +385,7 @@ class InspectorGuard:
 
         return min(1.0, cascade_signal)
 
-    def _score_output_length(
-        self, output: str, history: List[InspectionResult]
-    ) -> float:
+    def _score_output_length(self, output: str, history: list[InspectionResult]) -> float:
         """Score anomalous output length relative to history."""
         if not output or not history:
             return 0.0
@@ -413,23 +403,19 @@ class InspectorGuard:
 
     def _detect_patterns(
         self,
-        issues: List[dict],
+        issues: list[dict],
         output: str,
-        history: List[InspectionResult],
-    ) -> List[IssuePattern]:
+        history: list[InspectionResult],
+    ) -> list[IssuePattern]:
         """Detect cross-step patterns from issues and history."""
         patterns = []
-        recent = history[-self.CASCADE_WINDOW:] if history else []
+        recent = history[-self.CASCADE_WINDOW :] if history else []
 
         # 1. Repeated errors
         if issues:
             current_types = [i.get("issue_type", "unknown") for i in issues]
             for ctype in current_types:
-                past_count = sum(
-                    1 for r in recent
-                    for _ in range(1)
-                    if ctype in r.issue_summary
-                )
+                past_count = sum(1 for r in recent for _ in range(1) if ctype in r.issue_summary)
                 if past_count >= self.REPEAT_THRESHOLD - 1:
                     patterns.append(IssuePattern.REPEATED_ERROR)
                     break
@@ -437,31 +423,26 @@ class InspectorGuard:
         # 2. Escalating severity
         if len(recent) >= 2:
             recent_scores = [r.risk_score for r in recent]
-            if all(
-                recent_scores[i] < recent_scores[i + 1]
-                for i in range(len(recent_scores) - 1)
-            ) and len(recent_scores) >= 3:
+            if (
+                all(recent_scores[i] < recent_scores[i + 1] for i in range(len(recent_scores) - 1))
+                and len(recent_scores) >= 3
+            ):
                 patterns.append(IssuePattern.ESCALATING_SEVERITY)
 
         # 3. Cascading failure
         if len(recent) >= 3:
-            high_risk_streak = sum(
-                1 for r in recent[-3:]
-                if r.risk_level in (RiskLevel.HIGH, RiskLevel.CRITICAL)
-            )
+            high_risk_streak = sum(1 for r in recent[-3:] if r.risk_level in (RiskLevel.HIGH, RiskLevel.CRITICAL))
             if high_risk_streak >= 3:
                 patterns.append(IssuePattern.CASCADING_FAILURE)
 
         # 4. Hallucination cluster
-        hallucination_count = sum(
-            1 for p in _HALLUCINATION_RE if p.search(output)
-        )
+        hallucination_count = sum(1 for p in _HALLUCINATION_RE if p.search(output))
         if hallucination_count >= 2:
             patterns.append(IssuePattern.HALLUCINATION_CLUSTER)
 
         # 5. Output degradation
         if len(recent) >= 3:
-            recent_lengths = [len(r.step_name) for r in recent]  # proxy
+            [len(r.step_name) for r in recent]  # proxy
             if all(r.risk_score > 0.3 for r in recent[-3:]):
                 patterns.append(IssuePattern.OUTPUT_DEGRADATION)
 
@@ -476,67 +457,45 @@ class InspectorGuard:
     # Suggestions & Summary
     # -------------------------------------------------------------------------
 
-    def _generate_suggestions(
-        self, patterns: List[IssuePattern], risk_score: float
-    ) -> List[str]:
+    def _generate_suggestions(self, patterns: list[IssuePattern], risk_score: float) -> list[str]:
         """Generate actionable suggestions based on detected patterns."""
         suggestions = []
 
         if IssuePattern.CASCADING_FAILURE in patterns:
             suggestions.append(
-                "Cascading failures detected — consider resetting execution "
-                "context and retrying from a clean state"
+                "Cascading failures detected — consider resetting execution context and retrying from a clean state"
             )
         if IssuePattern.REPEATED_ERROR in patterns:
             suggestions.append(
-                "Repeated error type — check if the root cause was addressed "
-                "in previous correction attempts"
+                "Repeated error type — check if the root cause was addressed in previous correction attempts"
             )
         if IssuePattern.HALLUCINATION_CLUSTER in patterns:
-            suggestions.append(
-                "Multiple hallucination indicators — verify tool outputs "
-                "against actual system state"
-            )
+            suggestions.append("Multiple hallucination indicators — verify tool outputs against actual system state")
         if IssuePattern.ESCALATING_SEVERITY in patterns:
-            suggestions.append(
-                "Issue severity is escalating — early diagnosis recommended "
-                "before further degradation"
-            )
+            suggestions.append("Issue severity is escalating — early diagnosis recommended before further degradation")
         if IssuePattern.STAGNATION in patterns:
-            suggestions.append(
-                "No meaningful progress detected — consider alternative "
-                "approach or task decomposition"
-            )
+            suggestions.append("No meaningful progress detected — consider alternative approach or task decomposition")
         if IssuePattern.OUTPUT_DEGRADATION in patterns:
-            suggestions.append(
-                "Output quality declining — may indicate context pollution "
-                "or agent fatigue"
-            )
+            suggestions.append("Output quality declining — may indicate context pollution or agent fatigue")
 
         if risk_score >= 0.8 and not suggestions:
-            suggestions.append(
-                "High risk score without clear pattern — manual review "
-                "recommended"
-            )
+            suggestions.append("High risk score without clear pattern — manual review recommended")
 
         return suggestions
 
     def _summarize_issues(
         self,
-        issues: List[dict],
+        issues: list[dict],
         hallucination_score: float,
         error_score: float,
-        patterns: List[IssuePattern],
+        patterns: list[IssuePattern],
     ) -> str:
         """Generate a concise issue summary."""
         parts = []
 
         if issues:
             types = Counter(i.get("issue_type", "unknown") for i in issues)
-            parts.append(
-                f"{len(issues)} issue(s): "
-                + ", ".join(f"{t}({c})" for t, c in types.most_common(3))
-            )
+            parts.append(f"{len(issues)} issue(s): " + ", ".join(f"{t}({c})" for t, c in types.most_common(3)))
 
         if hallucination_score > 0.3:
             parts.append(f"hallucination signals ({hallucination_score:.1f})")
@@ -545,9 +504,7 @@ class InspectorGuard:
             parts.append(f"error signals ({error_score:.1f})")
 
         if patterns:
-            parts.append(
-                "patterns: " + ", ".join(p.value for p in patterns)
-            )
+            parts.append("patterns: " + ", ".join(p.value for p in patterns))
 
         return "; ".join(parts) if parts else "No issues detected"
 
@@ -556,7 +513,7 @@ class InspectorGuard:
 # Singleton
 # =============================================================================
 
-_instance: Optional[InspectorGuard] = None
+_instance: InspectorGuard | None = None
 _instance_lock = threading.Lock()
 
 

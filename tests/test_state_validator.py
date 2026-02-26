@@ -14,8 +14,6 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.fsm.state_validator import (
     StateValidator,
     ValidationResult,
@@ -24,10 +22,10 @@ from core.fsm.state_validator import (
     reset_state_validator,
 )
 
-
 # =============================================================================
 # ValidationResult Tests
 # =============================================================================
+
 
 class TestValidationResult:
     """Test ValidationResult dataclass."""
@@ -51,14 +49,18 @@ class TestValidationResult:
 # ValidatorStats Tests
 # =============================================================================
 
+
 class TestValidatorStats:
     """Test ValidatorStats dataclass."""
 
     def test_to_dict(self):
         s = ValidatorStats(
-            defined_states=5, total_transitions_defined=10,
-            total_invariants=2, total_validations=100,
-            total_valid=90, total_invalid=10,
+            defined_states=5,
+            total_transitions_defined=10,
+            total_invariants=2,
+            total_validations=100,
+            total_valid=90,
+            total_invalid=10,
         )
         d = s.to_dict()
         assert d["defined_states"] == 5
@@ -68,6 +70,7 @@ class TestValidatorStats:
 # =============================================================================
 # Transition Matrix Tests
 # =============================================================================
+
 
 class TestTransitionMatrix:
     """Test transition matrix management."""
@@ -79,10 +82,12 @@ class TestTransitionMatrix:
 
     def test_define_transitions_bulk(self):
         v = StateValidator()
-        v.define_transitions({
-            "idle": {"running"},
-            "running": {"idle", "error"},
-        })
+        v.define_transitions(
+            {
+                "idle": {"running"},
+                "running": {"idle", "error"},
+            }
+        )
         assert v.state_count == 2
 
     def test_add_transition(self):
@@ -112,10 +117,12 @@ class TestTransitionMatrix:
 
     def test_get_all_states(self):
         v = StateValidator()
-        v.define_transitions({
-            "idle": {"running"},
-            "running": {"done"},
-        })
+        v.define_transitions(
+            {
+                "idle": {"running"},
+                "running": {"done"},
+            }
+        )
         states = v.get_all_states()
         assert states == {"idle", "running", "done"}
 
@@ -124,13 +131,15 @@ class TestTransitionMatrix:
 # Invariant Tests
 # =============================================================================
 
+
 class TestInvariants:
     """Test invariant management."""
 
     def test_add_invariant(self):
         v = StateValidator()
         v.add_invariant(
-            "no_empty_tasks", "running",
+            "no_empty_tasks",
+            "running",
             lambda ctx: len(ctx.get("tasks", [])) > 0,
             description="Running state must have tasks",
         )
@@ -141,7 +150,8 @@ class TestInvariants:
     def test_invariant_passes(self):
         v = StateValidator()
         v.add_invariant(
-            "has_tasks", "running",
+            "has_tasks",
+            "running",
             lambda ctx: len(ctx.get("tasks", [])) > 0,
         )
         violations = v.check_invariants("running", {"tasks": ["t1"]})
@@ -150,7 +160,8 @@ class TestInvariants:
     def test_invariant_error_handled(self):
         v = StateValidator()
         v.add_invariant(
-            "bad_check", "running",
+            "bad_check",
+            "running",
             lambda ctx: ctx["missing_key"],  # Will raise KeyError
         )
         violations = v.check_invariants("running", {})
@@ -175,6 +186,7 @@ class TestInvariants:
 # =============================================================================
 # Validation Tests
 # =============================================================================
+
 
 class TestValidation:
     """Test transition validation."""
@@ -243,6 +255,7 @@ class TestValidation:
 # Quick Check Tests
 # =============================================================================
 
+
 class TestQuickChecks:
     """Test quick state checks."""
 
@@ -273,11 +286,13 @@ class TestQuickChecks:
 
     def test_get_reachable(self):
         v = StateValidator()
-        v.define_transitions({
-            "idle": {"running"},
-            "running": {"done", "error"},
-            "error": {"idle"},
-        })
+        v.define_transitions(
+            {
+                "idle": {"running"},
+                "running": {"done", "error"},
+                "error": {"idle"},
+            }
+        )
         reachable = v.get_reachable("idle")
         assert reachable == {"running", "done", "error", "idle"}
 
@@ -290,6 +305,7 @@ class TestQuickChecks:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test validator statistics."""
@@ -319,6 +335,7 @@ class TestStatistics:
 # =============================================================================
 # State Tests
 # =============================================================================
+
 
 class TestState:
     """Test state management."""
@@ -355,6 +372,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global state validator."""
 
@@ -381,21 +399,32 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_fsm_package(self):
         from core.fsm import (
-            StateValidator, StateValidationResult,
-            ValidatorStats, get_state_validator, reset_state_validator,
+            StateValidationResult,
+            StateValidator,
+            ValidatorStats,
+            get_state_validator,
+            reset_state_validator,
         )
-        assert all([
-            StateValidator, StateValidationResult,
-            ValidatorStats, get_state_validator, reset_state_validator,
-        ])
+
+        assert all(
+            [
+                StateValidator,
+                StateValidationResult,
+                ValidatorStats,
+                get_state_validator,
+                reset_state_validator,
+            ]
+        )
 
     def test_from_module(self):
         from core.fsm.state_validator import (
-            StateValidator, MAX_STATES, MAX_INVARIANTS,
+            MAX_STATES,
         )
+
         assert MAX_STATES == 500

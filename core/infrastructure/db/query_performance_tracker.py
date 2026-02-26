@@ -48,9 +48,9 @@ from __future__ import annotations
 import dataclasses
 import logging
 import threading
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -66,6 +66,7 @@ class QueryRecord:
     Captures all metadata for one query execution including type,
     target table, duration, and row count.
     """
+
     query_id: str = ""
     query_type: str = ""  # select, insert, update, delete
     table_name: str = ""
@@ -74,7 +75,7 @@ class QueryRecord:
     success: bool = True
     timestamp: str = ""  # ISO format
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return dataclasses.asdict(self)
 
@@ -86,6 +87,7 @@ class TableProfile:
 
     Computed from all queries targeting this table.
     """
+
     table_name: str = ""
     total_queries: int = 0
     success_count: int = 0
@@ -113,7 +115,7 @@ class TableProfile:
             return 0.0
         return self.total_rows / self.total_queries
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary with computed properties."""
         base = dataclasses.asdict(self)
         base["success_rate"] = round(self.success_rate, 4)
@@ -129,12 +131,13 @@ class QueryPerformanceStats:
 
     Provides high-level summary of all tracked queries.
     """
+
     total_queries: int = 0
     unique_tables: int = 0
     overall_success_rate: float = 0.0
     avg_duration_ms: float = 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return dataclasses.asdict(self)
 
@@ -169,8 +172,8 @@ class QueryPerformanceTracker:
                          Oldest queries are evicted when limit is reached.
         """
         self._max_queries = max_queries
-        self._queries: List[QueryRecord] = []
-        self._profiles: Dict[str, TableProfile] = {}
+        self._queries: list[QueryRecord] = []
+        self._profiles: dict[str, TableProfile] = {}
         self._counter: int = 1
         self._lock = threading.Lock()
 
@@ -211,7 +214,7 @@ class QueryPerformanceTracker:
                 duration_ms=duration_ms,
                 rows_affected=rows_affected,
                 success=success,
-                timestamp=datetime.now(timezone.utc).isoformat(),
+                timestamp=datetime.now(UTC).isoformat(),
             )
 
             # FIFO eviction if at capacity
@@ -235,7 +238,7 @@ class QueryPerformanceTracker:
 
             return record
 
-    def get_table_profile(self, table_name: str) -> Optional[TableProfile]:
+    def get_table_profile(self, table_name: str) -> TableProfile | None:
         """
         Get the aggregate profile for a specific table.
 
@@ -248,7 +251,7 @@ class QueryPerformanceTracker:
         with self._lock:
             return self._profiles.get(table_name)
 
-    def get_all_profiles(self) -> List[TableProfile]:
+    def get_all_profiles(self) -> list[TableProfile]:
         """
         Get profiles for all tracked tables.
 
@@ -259,7 +262,7 @@ class QueryPerformanceTracker:
             profiles = list(self._profiles.values())
             return sorted(profiles, key=lambda p: p.total_queries, reverse=True)
 
-    def get_slowest_tables(self, limit: int = 5) -> List[TableProfile]:
+    def get_slowest_tables(self, limit: int = 5) -> list[TableProfile]:
         """
         Get slowest tables by average query duration.
 
@@ -271,15 +274,13 @@ class QueryPerformanceTracker:
         """
         with self._lock:
             profiles = list(self._profiles.values())
-            return sorted(
-                profiles, key=lambda p: p.avg_duration_ms, reverse=True
-            )[:limit]
+            return sorted(profiles, key=lambda p: p.avg_duration_ms, reverse=True)[:limit]
 
     def get_recent_queries(
         self,
         limit: int = 10,
-        table_name: Optional[str] = None,
-    ) -> List[QueryRecord]:
+        table_name: str | None = None,
+    ) -> list[QueryRecord]:
         """
         Get recent queries, optionally filtered by table name.
 
@@ -300,7 +301,7 @@ class QueryPerformanceTracker:
             queries.reverse()
             return queries[:limit]
 
-    def list_tables(self) -> List[str]:
+    def list_tables(self) -> list[str]:
         """
         Get list of all tracked table names.
 
@@ -319,12 +320,8 @@ class QueryPerformanceTracker:
         """
         with self._lock:
             total_queries = sum(p.total_queries for p in self._profiles.values())
-            total_successes = sum(
-                p.success_count for p in self._profiles.values()
-            )
-            total_duration = sum(
-                p.total_duration_ms for p in self._profiles.values()
-            )
+            total_successes = sum(p.success_count for p in self._profiles.values())
+            total_duration = sum(p.total_duration_ms for p in self._profiles.values())
 
             overall_success_rate = 0.0
             if total_queries > 0:
@@ -358,7 +355,7 @@ class QueryPerformanceTracker:
             self._profiles.clear()
             self._counter = 1
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         Convert tracker to dictionary representation.
 
@@ -388,7 +385,7 @@ class QueryPerformanceTracker:
 # Global Singleton
 # =============================================================================
 
-_instance: Optional[QueryPerformanceTracker] = None
+_instance: QueryPerformanceTracker | None = None
 _lock = threading.Lock()
 
 

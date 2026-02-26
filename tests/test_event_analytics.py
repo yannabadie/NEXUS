@@ -15,22 +15,20 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.observability.events.event_analytics import (
     MAX_EVENTS,
     EventAnalytics,
+    EventAnalyticsStats,
     EventRecord,
     EventTypeMetrics,
-    EventAnalyticsStats,
     get_event_analytics,
     reset_event_analytics,
 )
 
-
 # =============================================================================
 # EventRecord Tests
 # =============================================================================
+
 
 class TestEventRecord:
     """Test EventRecord dataclass."""
@@ -46,6 +44,7 @@ class TestEventRecord:
 # EventTypeMetrics Tests
 # =============================================================================
 
+
 class TestEventTypeMetrics:
     """Test EventTypeMetrics dataclass."""
 
@@ -58,9 +57,7 @@ class TestEventTypeMetrics:
         assert m.success_rate == 0.0
 
     def test_avg_processing(self):
-        m = EventTypeMetrics(
-            event_type="test", total_events=4, total_processing_ms=400.0
-        )
+        m = EventTypeMetrics(event_type="test", total_events=4, total_processing_ms=400.0)
         assert abs(m.avg_processing_ms - 100.0) < 0.01
 
     def test_avg_processing_zero(self):
@@ -78,6 +75,7 @@ class TestEventTypeMetrics:
 # EventAnalyticsStats Tests
 # =============================================================================
 
+
 class TestEventAnalyticsStats:
     """Test EventAnalyticsStats dataclass."""
 
@@ -90,6 +88,7 @@ class TestEventAnalyticsStats:
 # =============================================================================
 # Recording Tests
 # =============================================================================
+
 
 class TestRecording:
     """Test event recording."""
@@ -122,6 +121,7 @@ class TestRecording:
 # Query Tests
 # =============================================================================
 
+
 class TestQueries:
     """Test query methods."""
 
@@ -147,7 +147,7 @@ class TestQueries:
 
     def test_recent_events(self):
         a = EventAnalytics()
-        for i in range(5):
+        for _i in range(5):
             a.record_event("test")
         recent = a.get_recent_events(limit=3)
         assert len(recent) == 3
@@ -179,12 +179,13 @@ class TestQueries:
 # Bounded History Tests
 # =============================================================================
 
+
 class TestBoundedHistory:
     """Test bounded event history."""
 
     def test_eviction(self):
         a = EventAnalytics(max_events=5)
-        for i in range(10):
+        for _i in range(10):
             a.record_event("test")
         assert a.event_count == 5
 
@@ -192,6 +193,7 @@ class TestBoundedHistory:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test analytics statistics."""
@@ -220,6 +222,7 @@ class TestStatistics:
 # State Tests
 # =============================================================================
 
+
 class TestState:
     """Test state management."""
 
@@ -245,6 +248,7 @@ class TestState:
 # =============================================================================
 # Global Singleton Tests
 # =============================================================================
+
 
 class TestGlobalSingleton:
     """Test global event analytics."""
@@ -272,21 +276,30 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_events_package(self):
         from core.observability.events import (
-            EventAnalytics, EventRecord,
-            EventTypeMetrics, EventAnalyticsStats,
-            get_event_analytics, reset_event_analytics,
+            EventAnalytics,
+            EventAnalyticsStats,
+            EventRecord,
+            EventTypeMetrics,
+            get_event_analytics,
+            reset_event_analytics,
         )
-        assert all([
-            EventAnalytics, EventRecord,
-            EventTypeMetrics, EventAnalyticsStats,
-            get_event_analytics, reset_event_analytics,
-        ])
+
+        assert all(
+            [
+                EventAnalytics,
+                EventRecord,
+                EventTypeMetrics,
+                EventAnalyticsStats,
+                get_event_analytics,
+                reset_event_analytics,
+            ]
+        )
 
     def test_constants(self):
-        from core.observability.events.event_analytics import MAX_EVENTS
         assert MAX_EVENTS == 50000

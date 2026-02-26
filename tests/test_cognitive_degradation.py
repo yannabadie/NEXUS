@@ -197,7 +197,7 @@ class TestCalibrationDrift:
                 depth_score=0.6,
                 coherence_score=0.6,
                 completeness_score=0.6,
-                confidence=0.95,       # Very confident
+                confidence=0.95,  # Very confident
                 actual_outcome_quality=0.3,  # But poor outcomes
             )
         detector = CognitiveDegradationDetector(
@@ -287,7 +287,7 @@ class TestComputeSlope:
         assert slope == 0.0
 
 
-class TestDetectorStats:
+class TestDetectorStatsTracking:
     """Tests for detector statistics tracking."""
 
     def test_stats_after_checks(self):

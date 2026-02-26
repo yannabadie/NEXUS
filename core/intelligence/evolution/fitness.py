@@ -25,36 +25,38 @@ import time
 from dataclasses import dataclass, field
 from enum import IntEnum
 from pathlib import Path
-from typing import Dict, List, Optional
 
 
 class FitnessCheck(IntEnum):
     """Deterministic fitness checks (in order of execution)"""
-    SYNTAX = 1      # py_compile + AST (existing Tier 1)
-    LINTER = 2      # ruff check (NEW - Epic 4.2)
+
+    SYNTAX = 1  # py_compile + AST (existing Tier 1)
+    LINTER = 2  # ruff check (NEW - Epic 4.2)
     TYPE_CHECK = 3  # mypy --strict (NEW - Epic 4.2)
-    SECURITY = 4    # bandit -r . (NEW - Epic 4.2)
-    TESTS = 5       # pytest tests/ (NEW - Epic 4.2)
+    SECURITY = 4  # bandit -r . (NEW - Epic 4.2)
+    TESTS = 5  # pytest tests/ (NEW - Epic 4.2)
 
 
 @dataclass
 class FitnessResult:
     """Result of a single fitness check"""
+
     check: FitnessCheck
     passed: bool
     message: str
     duration_seconds: float = 0.0
-    details: Dict = field(default_factory=dict)
+    details: dict = field(default_factory=dict)
     error_output: str = ""
 
 
 @dataclass
 class DeterministicFitnessResult:
     """Complete deterministic fitness evaluation result"""
+
     child_id: str
     passed: bool
-    failed_at_check: Optional[FitnessCheck] = None
-    check_results: List[FitnessResult] = field(default_factory=list)
+    failed_at_check: FitnessCheck | None = None
+    check_results: list[FitnessResult] = field(default_factory=list)
     total_duration: float = 0.0
     recommendation: str = ""
 
@@ -63,7 +65,7 @@ class DeterministicFitnessResult:
         """True if all checks passed"""
         return self.passed and self.failed_at_check is None
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "child_id": self.child_id,
             "passed": self.passed,
@@ -126,12 +128,12 @@ class DeterministicFitness:
             passed=True,
         )
 
-        print(f"\n{'='*70}")
-        print(f" DETERMINISTIC FITNESS EVALUATION (Epic 4.2)")
+        print(f"\n{'=' * 70}")
+        print(" DETERMINISTIC FITNESS EVALUATION (Epic 4.2)")
         print(f" Child: {self.child_id}")
         print(f" Strict Mode: {self.strict_mode}")
         print(f" Sandbox: {'Enabled' if self.run_in_sandbox else 'Disabled'}")
-        print(f"{'='*70}\n")
+        print(f"{'=' * 70}\n")
 
         # Check 1: Syntax (delegates to existing TieredValidator Tier 1)
         # Skipped here as TieredValidator already does this
@@ -379,6 +381,7 @@ class DeterministicFitness:
             else:
                 # Parse JSON output to count issues
                 import json
+
                 try:
                     data = json.loads(result.stdout)
                     issues = len(data.get("results", []))
@@ -528,17 +531,13 @@ class DeterministicFitness:
         if not check.passed and check.error_output:
             print(f"                           {check.error_output[:200]}...")
 
-    def _finalize(
-        self,
-        result: DeterministicFitnessResult,
-        start_time: float
-    ) -> DeterministicFitnessResult:
+    def _finalize(self, result: DeterministicFitnessResult, start_time: float) -> DeterministicFitnessResult:
         """Finalize result with total duration and summary."""
         result.total_duration = time.time() - start_time
 
-        print(f"\n{'='*70}")
+        print(f"\n{'=' * 70}")
         print(f" RESULT: {result.recommendation}")
         print(f" Duration: {result.total_duration:.2f}s")
-        print(f"{'='*70}\n")
+        print(f"{'=' * 70}\n")
 
         return result

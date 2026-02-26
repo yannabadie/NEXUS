@@ -30,10 +30,9 @@ import logging
 import time
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from enum import Enum
 from threading import Lock
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -42,8 +41,10 @@ _logger = logging.getLogger(__name__)
 # Types
 # =============================================================================
 
+
 class Priority(Enum):
     """Task priority levels."""
+
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
@@ -53,6 +54,7 @@ class Priority(Enum):
 
 class TaskStatus(Enum):
     """Task lifecycle status."""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -62,7 +64,7 @@ class TaskStatus(Enum):
 
 
 # Priority base scores
-PRIORITY_SCORES: Dict[Priority, float] = {
+PRIORITY_SCORES: dict[Priority, float] = {
     Priority.CRITICAL: 100.0,
     Priority.HIGH: 75.0,
     Priority.MEDIUM: 50.0,
@@ -78,17 +80,18 @@ AGE_WEIGHT = 0.1  # Score per second of waiting
 @dataclass
 class ScheduledTask:
     """A task in the scheduling queue."""
+
     task_id: str
     name: str
     priority: Priority = Priority.MEDIUM
     status: TaskStatus = TaskStatus.PENDING
     created_at: float = 0.0  # monotonic time
-    deadline_at: Optional[float] = None  # monotonic time
-    started_at: Optional[float] = None
-    completed_at: Optional[float] = None
-    depends_on: List[str] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    result: Optional[str] = None
+    deadline_at: float | None = None  # monotonic time
+    started_at: float | None = None
+    completed_at: float | None = None
+    depends_on: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
+    result: str | None = None
 
     def __post_init__(self):
         if self.created_at == 0.0:
@@ -115,7 +118,7 @@ class ScheduledTask:
             return False
         return time.monotonic() > self.deadline_at
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "task_id": self.task_id,
             "name": self.name,
@@ -131,6 +134,7 @@ class ScheduledTask:
 # =============================================================================
 # Task Scheduler
 # =============================================================================
+
 
 class TaskScheduler:
     """
@@ -164,17 +168,17 @@ class TaskScheduler:
         self._age_weight = age_weight
         self._max_queue_size = max_queue_size
         self._lock = Lock()
-        self._tasks: Dict[str, ScheduledTask] = {}
+        self._tasks: dict[str, ScheduledTask] = {}
 
     def submit(
         self,
         name: str,
         *,
         priority: Priority = Priority.MEDIUM,
-        deadline_seconds: Optional[float] = None,
-        depends_on: Optional[List[str]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
-        task_id: Optional[str] = None,
+        deadline_seconds: float | None = None,
+        depends_on: list[str] | None = None,
+        metadata: dict[str, Any] | None = None,
+        task_id: str | None = None,
     ) -> ScheduledTask:
         """
         Submit a task to the scheduler.
@@ -194,10 +198,7 @@ class TaskScheduler:
             ValueError: If queue is full or task_id already exists
         """
         with self._lock:
-            pending = sum(
-                1 for t in self._tasks.values()
-                if t.status == TaskStatus.PENDING
-            )
+            pending = sum(1 for t in self._tasks.values() if t.status == TaskStatus.PENDING)
             if pending >= self._max_queue_size:
                 raise ValueError(f"Queue full ({self._max_queue_size} pending tasks)")
 
@@ -232,7 +233,7 @@ class TaskScheduler:
             self._tasks[tid] = task
             return task
 
-    def next(self) -> Optional[ScheduledTask]:
+    def next(self) -> ScheduledTask | None:
         """
         Get the highest-priority pending task.
 
@@ -242,10 +243,7 @@ class TaskScheduler:
         with self._lock:
             self._update_blocked_states()
 
-            candidates = [
-                t for t in self._tasks.values()
-                if t.status == TaskStatus.PENDING
-            ]
+            candidates = [t for t in self._tasks.values() if t.status == TaskStatus.PENDING]
 
             if not candidates:
                 return None
@@ -272,7 +270,7 @@ class TaskScheduler:
             task.started_at = time.monotonic()
             return True
 
-    def complete(self, task_id: str, result: Optional[str] = None) -> bool:
+    def complete(self, task_id: str, result: str | None = None) -> bool:
         """
         Mark a task as completed.
 
@@ -293,7 +291,7 @@ class TaskScheduler:
             self._update_blocked_states()
             return True
 
-    def fail(self, task_id: str, error: Optional[str] = None) -> bool:
+    def fail(self, task_id: str, error: str | None = None) -> bool:
         """
         Mark a task as failed.
 
@@ -331,15 +329,15 @@ class TaskScheduler:
             task.completed_at = time.monotonic()
             return True
 
-    def get_task(self, task_id: str) -> Optional[ScheduledTask]:
+    def get_task(self, task_id: str) -> ScheduledTask | None:
         """Get a task by ID."""
         with self._lock:
             return self._tasks.get(task_id)
 
     def list_tasks(
         self,
-        status: Optional[TaskStatus] = None,
-    ) -> List[ScheduledTask]:
+        status: TaskStatus | None = None,
+    ) -> list[ScheduledTask]:
         """
         List tasks, optionally filtered by status.
 
@@ -360,26 +358,17 @@ class TaskScheduler:
     def pending_count(self) -> int:
         """Get number of pending tasks."""
         with self._lock:
-            return sum(
-                1 for t in self._tasks.values()
-                if t.status == TaskStatus.PENDING
-            )
+            return sum(1 for t in self._tasks.values() if t.status == TaskStatus.PENDING)
 
     def running_count(self) -> int:
         """Get number of running tasks."""
         with self._lock:
-            return sum(
-                1 for t in self._tasks.values()
-                if t.status == TaskStatus.RUNNING
-            )
+            return sum(1 for t in self._tasks.values() if t.status == TaskStatus.RUNNING)
 
-    def overdue_tasks(self) -> List[ScheduledTask]:
+    def overdue_tasks(self) -> list[ScheduledTask]:
         """Get tasks that have passed their deadline."""
         with self._lock:
-            return [
-                t for t in self._tasks.values()
-                if t.is_overdue and not t.is_terminal
-            ]
+            return [t for t in self._tasks.values() if t.is_overdue and not t.is_terminal]
 
     def clear_completed(self) -> int:
         """
@@ -389,15 +378,12 @@ class TaskScheduler:
             Number of tasks removed
         """
         with self._lock:
-            to_remove = [
-                tid for tid, t in self._tasks.items()
-                if t.is_terminal
-            ]
+            to_remove = [tid for tid, t in self._tasks.items() if t.is_terminal]
             for tid in to_remove:
                 del self._tasks[tid]
             return len(to_remove)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Export scheduler state."""
         with self._lock:
             by_status = {}
@@ -446,7 +432,7 @@ class TaskScheduler:
 
         return score
 
-    def _deps_satisfied(self, depends_on: List[str]) -> bool:
+    def _deps_satisfied(self, depends_on: list[str]) -> bool:
         """Check if all dependencies are completed."""
         for dep_id in depends_on:
             dep = self._tasks.get(dep_id)
@@ -460,6 +446,5 @@ class TaskScheduler:
             if task.status == TaskStatus.BLOCKED:
                 if self._deps_satisfied(task.depends_on):
                     task.status = TaskStatus.PENDING
-            elif task.status == TaskStatus.PENDING and task.depends_on:
-                if not self._deps_satisfied(task.depends_on):
-                    task.status = TaskStatus.BLOCKED
+            elif task.status == TaskStatus.PENDING and task.depends_on and not self._deps_satisfied(task.depends_on):
+                task.status = TaskStatus.BLOCKED

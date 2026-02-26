@@ -16,8 +16,6 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.security_pkg.governance.decision_logger import (
     DECISION_TYPES,
     MAX_ENTRIES,
@@ -29,10 +27,10 @@ from core.security_pkg.governance.decision_logger import (
     reset_decision_logger,
 )
 
-
 # =============================================================================
 # GovernanceDecision Tests
 # =============================================================================
+
 
 class TestGovernanceDecision:
     """Test GovernanceDecision dataclass."""
@@ -44,8 +42,10 @@ class TestGovernanceDecision:
 
     def test_to_dict(self):
         d = GovernanceDecision(
-            decision_id="gd_1", decision_type="spawn_decision",
-            agent_id="claude", reasoning="Expert needed",
+            decision_id="gd_1",
+            decision_type="spawn_decision",
+            agent_id="claude",
+            reasoning="Expert needed",
         )
         result = d.to_dict()
         assert result["decision_type"] == "spawn_decision"
@@ -55,6 +55,7 @@ class TestGovernanceDecision:
 # =============================================================================
 # DecisionPattern Tests
 # =============================================================================
+
 
 class TestDecisionPattern:
     """Test DecisionPattern dataclass."""
@@ -70,13 +71,18 @@ class TestDecisionPattern:
 # DecisionLogStats Tests
 # =============================================================================
 
+
 class TestDecisionLogStats:
     """Test DecisionLogStats dataclass."""
 
     def test_to_dict(self):
         s = DecisionLogStats(
-            total_decisions=20, mode_choices=10, spawn_decisions=5,
-            policy_violations=3, phase_routings=2, unique_sessions=4,
+            total_decisions=20,
+            mode_choices=10,
+            spawn_decisions=5,
+            policy_violations=3,
+            phase_routings=2,
+            unique_sessions=4,
         )
         d = s.to_dict()
         assert d["total_decisions"] == 20
@@ -86,14 +92,17 @@ class TestDecisionLogStats:
 # Recording Tests
 # =============================================================================
 
+
 class TestRecording:
     """Test decision recording methods."""
 
     def test_record_mode_choice(self):
         log = GovernanceDecisionLog()
         d = log.record_mode_choice(
-            session_id="s1", proposed_mode="PARALLEL",
-            accepted_mode="LEAD_SUPPORT", reasoning="Lead has context",
+            session_id="s1",
+            proposed_mode="PARALLEL",
+            accepted_mode="LEAD_SUPPORT",
+            reasoning="Lead has context",
             agents=["claude", "gemini"],
         )
         assert d.decision_type == "mode_choice"
@@ -104,8 +113,10 @@ class TestRecording:
     def test_record_spawn_decision(self):
         log = GovernanceDecisionLog()
         d = log.record_spawn_decision(
-            session_id="s1", agent_id="security_expert",
-            agent_spec="Security domain expert", approved=True,
+            session_id="s1",
+            agent_id="security_expert",
+            agent_spec="Security domain expert",
+            approved=True,
         )
         assert d.decision_type == "spawn_decision"
         assert d.outcome == "approved"
@@ -118,8 +129,10 @@ class TestRecording:
     def test_record_policy_violation(self):
         log = GovernanceDecisionLog()
         d = log.record_policy_violation(
-            session_id="s1", agent_id="rogue",
-            violation_type="Tool access denied", severity="high",
+            session_id="s1",
+            agent_id="rogue",
+            violation_type="Tool access denied",
+            severity="high",
             remediation="Blocked tool call",
         )
         assert d.decision_type == "policy_violation"
@@ -128,7 +141,9 @@ class TestRecording:
     def test_record_phase_routing(self):
         log = GovernanceDecisionLog()
         d = log.record_phase_routing(
-            session_id="s1", from_phase="ANALYSIS", to_phase="EXECUTION",
+            session_id="s1",
+            from_phase="ANALYSIS",
+            to_phase="EXECUTION",
             reasoning="Analysis complete",
         )
         assert d.decision_type == "phase_routing"
@@ -153,6 +168,7 @@ class TestRecording:
 # =============================================================================
 # Query Tests
 # =============================================================================
+
 
 class TestQueries:
     """Test query methods."""
@@ -215,6 +231,7 @@ class TestQueries:
 # Analytics Tests
 # =============================================================================
 
+
 class TestAnalytics:
     """Test pattern analysis and analytics."""
 
@@ -227,7 +244,7 @@ class TestAnalytics:
         assert len(patterns) == 2
         assert patterns[0].outcome == "PARALLEL"
         assert patterns[0].count == 2
-        assert abs(patterns[0].frequency - 2/3) < 0.01
+        assert abs(patterns[0].frequency - 2 / 3) < 0.01
 
     def test_analyze_empty(self):
         log = GovernanceDecisionLog()
@@ -248,6 +265,7 @@ class TestAnalytics:
 # Bounded History Tests
 # =============================================================================
 
+
 class TestBoundedHistory:
     """Test bounded history with auto-eviction."""
 
@@ -261,6 +279,7 @@ class TestBoundedHistory:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test decision log statistics."""
@@ -293,6 +312,7 @@ class TestStatistics:
 # =============================================================================
 # State Tests
 # =============================================================================
+
 
 class TestState:
     """Test state management."""
@@ -328,6 +348,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global decision logger."""
 
@@ -354,22 +375,31 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_governance_package(self):
         from core.security_pkg.governance import (
-            GovernanceDecisionLog, GovernanceDecision,
-            DecisionPattern, DecisionLogStats,
-            get_decision_logger, reset_decision_logger,
+            DecisionLogStats,
+            DecisionPattern,
+            GovernanceDecision,
+            GovernanceDecisionLog,
+            get_decision_logger,
+            reset_decision_logger,
         )
-        assert all([
-            GovernanceDecisionLog, GovernanceDecision,
-            DecisionPattern, DecisionLogStats,
-            get_decision_logger, reset_decision_logger,
-        ])
+
+        assert all(
+            [
+                GovernanceDecisionLog,
+                GovernanceDecision,
+                DecisionPattern,
+                DecisionLogStats,
+                get_decision_logger,
+                reset_decision_logger,
+            ]
+        )
 
     def test_constants(self):
-        from core.security_pkg.governance.decision_logger import MAX_ENTRIES, DECISION_TYPES
         assert MAX_ENTRIES == 50000
         assert "mode_choice" in DECISION_TYPES

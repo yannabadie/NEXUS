@@ -18,23 +18,19 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.intelligence.swarm.result_aggregator import (
     AgentResult,
-    AggregatorStats,
     Conflict,
-    MergeResult,
     MergeStrategy,
     ResultAggregator,
     get_aggregator,
     reset_aggregator,
 )
 
-
 # =============================================================================
 # MergeStrategy Tests
 # =============================================================================
+
 
 class TestMergeStrategy:
     """Test MergeStrategy enum."""
@@ -62,6 +58,7 @@ class TestMergeStrategy:
 # AgentResult Tests
 # =============================================================================
 
+
 class TestAgentResult:
     """Test AgentResult dataclass."""
 
@@ -84,6 +81,7 @@ class TestAgentResult:
 # Conflict Tests
 # =============================================================================
 
+
 class TestConflict:
     """Test Conflict dataclass."""
 
@@ -102,6 +100,7 @@ class TestConflict:
 # =============================================================================
 # Submit Tests
 # =============================================================================
+
 
 class TestSubmit:
     """Test result submission."""
@@ -135,6 +134,7 @@ class TestSubmit:
 # =============================================================================
 # Query Tests
 # =============================================================================
+
 
 class TestQuery:
     """Test result queries."""
@@ -177,6 +177,7 @@ class TestQuery:
 # Conflict Detection Tests
 # =============================================================================
 
+
 class TestConflictDetection:
     """Test conflict detection."""
 
@@ -217,6 +218,7 @@ class TestConflictDetection:
 # =============================================================================
 # Merge Tests
 # =============================================================================
+
 
 class TestMerge:
     """Test result merging."""
@@ -277,6 +279,7 @@ class TestMerge:
 # Completeness Tests
 # =============================================================================
 
+
 class TestCompleteness:
     """Test completeness validation."""
 
@@ -307,6 +310,7 @@ class TestCompleteness:
 # Cleanup Tests
 # =============================================================================
 
+
 class TestCleanup:
     """Test cleanup operations."""
 
@@ -330,6 +334,7 @@ class TestCleanup:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test aggregator statistics."""
@@ -361,6 +366,7 @@ class TestStatistics:
 # State Tests
 # =============================================================================
 
+
 class TestState:
     """Test state management."""
 
@@ -391,6 +397,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global aggregator."""
 
@@ -417,22 +424,34 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_swarm_package(self):
         from core.intelligence.swarm import (
-            ResultAggregator, MergeStrategy, MergeResult,
-            AggregatorStats, get_aggregator, reset_aggregator,
+            AggregatorStats,
+            MergeResult,
+            MergeStrategy,
+            ResultAggregator,
+            get_aggregator,
+            reset_aggregator,
         )
-        assert all([
-            ResultAggregator, MergeStrategy, MergeResult,
-            AggregatorStats, get_aggregator, reset_aggregator,
-        ])
+
+        assert all(
+            [
+                ResultAggregator,
+                MergeStrategy,
+                MergeResult,
+                AggregatorStats,
+                get_aggregator,
+                reset_aggregator,
+            ]
+        )
 
     def test_from_module(self):
         from core.intelligence.swarm.result_aggregator import (
-            ResultAggregator, AgentResult, Conflict,
-            MergeStrategy, MAX_TASKS,
+            MAX_TASKS,
         )
+
         assert MAX_TASKS == 5000

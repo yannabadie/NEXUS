@@ -13,16 +13,14 @@ Date: 2026-02-17
 
 from __future__ import annotations
 
-import asyncio
-import pytest
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
-from typing import AsyncIterator
 
-from core.orchestration_v7 import OrchestratorV7
-from core.fsm.states import OrchestratorState
-from core.drivers.protocol import DriverResponse, DriverResponseStatus, StreamChunk
+import pytest
+
 from core.drivers.async_factory import AsyncDriverFactory
+from core.drivers.protocol import DriverResponse, DriverResponseStatus, StreamChunk
+from core.fsm.states import OrchestratorState
+from core.orchestration_v7 import OrchestratorV7
 
 
 @pytest.fixture
@@ -62,6 +60,7 @@ def mock_sdk_response():
 @pytest.fixture
 def mock_sdk_stream():
     """Mock SDK streaming response."""
+
     async def stream_chunks():
         chunks = [
             StreamChunk(content="I'll ", is_final=False),
@@ -70,6 +69,7 @@ def mock_sdk_stream():
         ]
         for chunk in chunks:
             yield chunk
+
     return stream_chunks
 
 
@@ -83,9 +83,10 @@ async def test_sdk_driver_factory_creates_sdk_not_cli(mock_config, tmp_path):
     factory = AsyncDriverFactory(mock_config, tmp_path)
 
     # Mock the SDK driver imports
-    with patch("core.drivers.anthropic_sdk_driver.AnthropicSDKDriver") as MockAnthropicSDK, \
-         patch("core.drivers.google_genai_sdk_driver.GoogleGenAISDKDriver") as MockGoogleSDK:
-
+    with (
+        patch("core.drivers.anthropic_sdk_driver.AnthropicSDKDriver") as MockAnthropicSDK,
+        patch("core.drivers.google_genai_sdk_driver.GoogleGenAISDKDriver") as MockGoogleSDK,
+    ):
         # Configure mocks
         mock_claude_sdk = MagicMock()
         mock_gemini_sdk = MagicMock()
@@ -116,9 +117,10 @@ async def test_no_subprocess_popen_with_sdk_mode(mock_config, tmp_path):
         factory = AsyncDriverFactory(mock_config, tmp_path)
 
         # Mock SDK drivers
-        with patch("core.drivers.anthropic_sdk_driver.AnthropicSDKDriver") as MockAnthropicSDK, \
-             patch("core.drivers.google_genai_sdk_driver.GoogleGenAISDKDriver") as MockGoogleSDK:
-
+        with (
+            patch("core.drivers.anthropic_sdk_driver.AnthropicSDKDriver") as MockAnthropicSDK,
+            patch("core.drivers.google_genai_sdk_driver.GoogleGenAISDKDriver") as MockGoogleSDK,
+        ):
             mock_claude = MagicMock()
             mock_gemini = MagicMock()
             MockAnthropicSDK.return_value = mock_claude
@@ -144,9 +146,10 @@ async def test_fsm_state_transitions_with_sdk(mock_config, mock_sdk_response, tm
     claude_info = {"model": "claude-sonnet-4-5-20250929"}
 
     # Mock SDK drivers at the factory level
-    with patch("core.drivers.anthropic_sdk_driver.AnthropicSDKDriver") as MockAnthropicSDK, \
-         patch("core.drivers.google_genai_sdk_driver.GoogleGenAISDKDriver") as MockGoogleSDK:
-
+    with (
+        patch("core.drivers.anthropic_sdk_driver.AnthropicSDKDriver") as MockAnthropicSDK,
+        patch("core.drivers.google_genai_sdk_driver.GoogleGenAISDKDriver") as MockGoogleSDK,
+    ):
         # Create mock driver instances
         mock_claude_driver = AsyncMock()
         mock_gemini_driver = AsyncMock()
@@ -167,7 +170,7 @@ async def test_fsm_state_transitions_with_sdk(mock_config, mock_sdk_response, tm
 
         # Simulate a simple turn (will trigger FSM)
         # Note: This is a simplified test - full E2E would require more mocking
-        result = orch.process_turn("test task")
+        orch.process_turn("test task")
 
         # Verify final state is WAITING_USER (task complete)
         assert orch.state in [OrchestratorState.WAITING_USER, OrchestratorState.IDLE]

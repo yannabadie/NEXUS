@@ -20,13 +20,12 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import os
 import threading
 import time
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -35,24 +34,27 @@ logger = logging.getLogger(__name__)
 # Data types
 # ---------------------------------------------------------------------------
 
+
 class PrincipleCategory(str, Enum):
     """Category of distilled principle."""
-    STRATEGY = "strategy"          # High-level approach
-    TOOL_USE = "tool_use"          # Tool selection patterns
+
+    STRATEGY = "strategy"  # High-level approach
+    TOOL_USE = "tool_use"  # Tool selection patterns
     ERROR_RECOVERY = "error_recovery"  # How to handle specific errors
-    COLLABORATION = "collaboration"    # Agent coordination patterns
-    OPTIMIZATION = "optimization"      # Performance/token optimization
-    DOMAIN = "domain"                  # Domain-specific knowledge
+    COLLABORATION = "collaboration"  # Agent coordination patterns
+    OPTIMIZATION = "optimization"  # Performance/token optimization
+    DOMAIN = "domain"  # Domain-specific knowledge
 
 
 @dataclass
 class StrategicPrinciple:
     """A distilled strategic principle from past experience."""
+
     principle_id: str
     text: str
     category: PrincipleCategory
-    source_tasks: List[str] = field(default_factory=list)
-    keywords: Set[str] = field(default_factory=set)
+    source_tasks: list[str] = field(default_factory=list)
+    keywords: set[str] = field(default_factory=set)
     success_rate: float = 0.5
     usage_count: int = 0
     confidence: float = 0.5
@@ -63,7 +65,7 @@ class StrategicPrinciple:
         if self.created_at == 0.0:
             self.created_at = time.time()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "principle_id": self.principle_id,
             "text": self.text,
@@ -76,7 +78,7 @@ class StrategicPrinciple:
         }
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> StrategicPrinciple:
+    def from_dict(cls, d: dict[str, Any]) -> StrategicPrinciple:
         return cls(
             principle_id=d["principle_id"],
             text=d["text"],
@@ -94,11 +96,12 @@ class StrategicPrinciple:
 @dataclass
 class DistillationResult:
     """Result of distillation from a task outcome."""
-    new_principles: List[StrategicPrinciple]
-    updated_principles: List[str]  # IDs of updated principles
+
+    new_principles: list[StrategicPrinciple]
+    updated_principles: list[str]  # IDs of updated principles
     total_principles: int
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "new_count": len(self.new_principles),
             "updated_count": len(self.updated_principles),
@@ -109,11 +112,12 @@ class DistillationResult:
 @dataclass
 class RetrievalResult:
     """Result of principle retrieval for a task."""
-    principles: List[StrategicPrinciple]
+
+    principles: list[StrategicPrinciple]
     total_scored: int
     threshold_used: float
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "retrieved_count": len(self.principles),
             "total_scored": self.total_scored,
@@ -124,6 +128,7 @@ class RetrievalResult:
 @dataclass
 class DistillerStats:
     """Aggregate statistics."""
+
     total_distillations: int = 0
     total_retrievals: int = 0
     principles_created: int = 0
@@ -131,7 +136,7 @@ class DistillerStats:
     principles_retrieved: int = 0
     avg_retrieval_count: float = 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_distillations": self.total_distillations,
             "total_retrievals": self.total_retrievals,
@@ -168,41 +173,120 @@ MAX_PRINCIPLES: int = 200
 DEFAULT_STORE_PATH: str = "workspace/.nexus/strategic_principles.jsonl"
 
 # Category detection patterns
-CATEGORY_PATTERNS: Dict[PrincipleCategory, List[str]] = {
+CATEGORY_PATTERNS: dict[PrincipleCategory, list[str]] = {
     PrincipleCategory.STRATEGY: [
-        "approach", "plan", "strategy", "method", "architecture", "design",
+        "approach",
+        "plan",
+        "strategy",
+        "method",
+        "architecture",
+        "design",
     ],
     PrincipleCategory.TOOL_USE: [
-        "tool", "command", "function", "api", "call", "execute",
+        "tool",
+        "command",
+        "function",
+        "api",
+        "call",
+        "execute",
     ],
     PrincipleCategory.ERROR_RECOVERY: [
-        "error", "fix", "recover", "retry", "fallback", "handle",
+        "error",
+        "fix",
+        "recover",
+        "retry",
+        "fallback",
+        "handle",
     ],
     PrincipleCategory.COLLABORATION: [
-        "agent", "collaborate", "negotiate", "swarm", "lead", "support",
+        "agent",
+        "collaborate",
+        "negotiate",
+        "swarm",
+        "lead",
+        "support",
     ],
     PrincipleCategory.OPTIMIZATION: [
-        "optimize", "performance", "token", "speed", "efficient", "reduce",
+        "optimize",
+        "performance",
+        "token",
+        "speed",
+        "efficient",
+        "reduce",
     ],
     PrincipleCategory.DOMAIN: [
-        "domain", "specific", "expert", "specialized",
+        "domain",
+        "specific",
+        "expert",
+        "specialized",
     ],
 }
 
 # Stop words for keyword extraction
-STOP_WORDS: frozenset = frozenset({
-    "the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
-    "have", "has", "had", "do", "does", "did", "will", "would", "could",
-    "should", "may", "might", "to", "of", "in", "for", "on", "with",
-    "at", "by", "from", "as", "into", "through", "during", "before",
-    "after", "and", "or", "but", "not", "no", "so", "if", "then",
-    "that", "this", "it", "its", "i", "we", "you", "they", "them",
-})
+STOP_WORDS: frozenset = frozenset(
+    {
+        "the",
+        "a",
+        "an",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "being",
+        "have",
+        "has",
+        "had",
+        "do",
+        "does",
+        "did",
+        "will",
+        "would",
+        "could",
+        "should",
+        "may",
+        "might",
+        "to",
+        "of",
+        "in",
+        "for",
+        "on",
+        "with",
+        "at",
+        "by",
+        "from",
+        "as",
+        "into",
+        "through",
+        "during",
+        "before",
+        "after",
+        "and",
+        "or",
+        "but",
+        "not",
+        "no",
+        "so",
+        "if",
+        "then",
+        "that",
+        "this",
+        "it",
+        "its",
+        "i",
+        "we",
+        "you",
+        "they",
+        "them",
+    }
+)
 
 
 # ---------------------------------------------------------------------------
 # Core: ExperienceDistiller
 # ---------------------------------------------------------------------------
+
 
 class ExperienceDistiller:
     """
@@ -230,14 +314,14 @@ class ExperienceDistiller:
 
     def __init__(
         self,
-        store_path: Optional[str] = None,
+        store_path: str | None = None,
         max_principles: int = MAX_PRINCIPLES,
     ) -> None:
         self._store_path = Path(store_path or DEFAULT_STORE_PATH)
         self._max_principles = max_principles
         self._lock = threading.RLock()
         self._stats = DistillerStats()
-        self._principles: Dict[str, StrategicPrinciple] = {}
+        self._principles: dict[str, StrategicPrinciple] = {}
         self._load()
 
     # -- public API --
@@ -246,9 +330,9 @@ class ExperienceDistiller:
         self,
         task_description: str,
         outcome: str,
-        lessons: Optional[List[str]] = None,
-        tools_used: Optional[List[str]] = None,
-        error_messages: Optional[List[str]] = None,
+        lessons: list[str] | None = None,
+        tools_used: list[str] | None = None,
+        error_messages: list[str] | None = None,
     ) -> DistillationResult:
         """
         Distill experience from a completed task into principles.
@@ -264,12 +348,12 @@ class ExperienceDistiller:
             DistillationResult with new and updated principles.
         """
         success = "success" in outcome.lower()
-        task_fp = self._fingerprint(task_description)
-        new_principles: List[StrategicPrinciple] = []
-        updated_ids: List[str] = []
+        self._fingerprint(task_description)
+        new_principles: list[StrategicPrinciple] = []
+        updated_ids: list[str] = []
 
         # 1. Extract principles from explicit lessons
-        for lesson in (lessons or []):
+        for lesson in lessons or []:
             pid = self._fingerprint(lesson)
             existing = self._principles.get(pid)
 
@@ -350,7 +434,7 @@ class ExperienceDistiller:
         """
         task_words = self._extract_keywords(task_description)
 
-        scored: List[Tuple[float, StrategicPrinciple]] = []
+        scored: list[tuple[float, StrategicPrinciple]] = []
         with self._lock:
             for p in self._principles.values():
                 if p.confidence < min_confidence:
@@ -363,7 +447,7 @@ class ExperienceDistiller:
         scored.sort(key=lambda x: x[0], reverse=True)
 
         retrieved = []
-        for score, p in scored[:top_k]:
+        for _score, p in scored[:top_k]:
             # Mark as used
             with self._lock:
                 p.usage_count += 1
@@ -374,9 +458,7 @@ class ExperienceDistiller:
             self._stats.total_retrievals += 1
             self._stats.principles_retrieved += len(retrieved)
             n = self._stats.total_retrievals
-            self._stats.avg_retrieval_count = (
-                (self._stats.avg_retrieval_count * (n - 1) + len(retrieved)) / n
-            )
+            self._stats.avg_retrieval_count = (self._stats.avg_retrieval_count * (n - 1) + len(retrieved)) / n
 
         return RetrievalResult(
             principles=retrieved,
@@ -396,7 +478,7 @@ class ExperienceDistiller:
                 self._update_principle(p, success)
         self._save()
 
-    def get_all_principles(self) -> List[StrategicPrinciple]:
+    def get_all_principles(self) -> list[StrategicPrinciple]:
         """Return all stored principles."""
         with self._lock:
             return list(self._principles.values())
@@ -426,7 +508,7 @@ class ExperienceDistiller:
         text: str,
         task_description: str,
         success: bool,
-        category: Optional[PrincipleCategory] = None,
+        category: PrincipleCategory | None = None,
     ) -> StrategicPrinciple:
         """Create a new strategic principle."""
         pid = self._fingerprint(text)
@@ -458,10 +540,7 @@ class ExperienceDistiller:
 
         # EMA confidence update
         outcome_signal = 1.0 if success else 0.0
-        principle.confidence = (
-            CONFIDENCE_EMA * outcome_signal
-            + (1 - CONFIDENCE_EMA) * principle.confidence
-        )
+        principle.confidence = CONFIDENCE_EMA * outcome_signal + (1 - CONFIDENCE_EMA) * principle.confidence
 
         principle.usage_count = n
 
@@ -475,7 +554,7 @@ class ExperienceDistiller:
 
     def _relevance_score(
         self,
-        task_words: Set[str],
+        task_words: set[str],
         principle: StrategicPrinciple,
     ) -> float:
         """Compute relevance score between task and principle."""
@@ -495,7 +574,7 @@ class ExperienceDistiller:
     def _detect_category(self, text: str) -> PrincipleCategory:
         """Detect principle category from text."""
         text_lower = text.lower()
-        scores: Dict[PrincipleCategory, int] = {}
+        scores: dict[PrincipleCategory, int] = {}
 
         for cat, patterns in CATEGORY_PATTERNS.items():
             score = sum(1 for p in patterns if p in text_lower)
@@ -526,9 +605,10 @@ class ExperienceDistiller:
             del self._principles[pid]
 
     @staticmethod
-    def _extract_keywords(text: str) -> Set[str]:
+    def _extract_keywords(text: str) -> set[str]:
         """Extract meaningful keywords from text."""
         import re
+
         words = set(re.findall(r"[a-z][a-z0-9_]+", text.lower()))
         return words - STOP_WORDS
 
@@ -543,7 +623,7 @@ class ExperienceDistiller:
         if not self._store_path.exists():
             return
         try:
-            with open(self._store_path, "r", encoding="utf-8") as f:
+            with open(self._store_path, encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     if line:
@@ -571,7 +651,7 @@ class ExperienceDistiller:
 # Singleton
 # ---------------------------------------------------------------------------
 
-_instance: Optional[ExperienceDistiller] = None
+_instance: ExperienceDistiller | None = None
 _instance_lock = threading.Lock()
 
 

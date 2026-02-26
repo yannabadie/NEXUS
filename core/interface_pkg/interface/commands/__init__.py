@@ -17,6 +17,21 @@ Usage (Legacy):
 """
 
 # V9: Strategy Pattern command dispatch
+# Legacy: Re-export from slash_commands.py for backward compatibility
+from core.interface_pkg.interface.slash_commands import (
+    COMMAND_CATEGORIES,
+    SLASH_COMMANDS,
+    get_category_for_command,
+    get_help_message,
+    is_exit_command,
+    is_slash_command,
+    parse_command,
+)
+
+from .agents import register_agent_commands
+from .evolution import register_evolution_commands
+from .memory import register_memory_commands
+from .misc import register_misc_commands
 from .registry import (
     Command,
     CommandContext,
@@ -26,26 +41,11 @@ from .registry import (
     get_registry,
     reset_registry,
 )
+from .swarm import register_swarm_commands
 
 # V9: Command modules
 from .system import register_system_commands
-from .evolution import register_evolution_commands
-from .swarm import register_swarm_commands
-from .agents import register_agent_commands
 from .workspace import register_workspace_commands
-from .memory import register_memory_commands
-from .misc import register_misc_commands
-
-# Legacy: Re-export from slash_commands.py for backward compatibility
-from core.interface_pkg.interface.slash_commands import (
-    is_slash_command,
-    is_exit_command,
-    parse_command,
-    get_help_message,
-    get_category_for_command,
-    SLASH_COMMANDS,
-    COMMAND_CATEGORIES,
-)
 
 # Track if registry has been initialized
 _registry_initialized = False

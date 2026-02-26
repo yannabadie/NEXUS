@@ -15,22 +15,20 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.workflow.workflow_performance_analyzer import (
     MAX_WORKFLOW_RECORDS,
-    WorkflowPerformanceAnalyzer,
-    WorkflowRunRecord,
-    WorkflowProfile,
     PerformanceStats,
+    WorkflowPerformanceAnalyzer,
+    WorkflowProfile,
+    WorkflowRunRecord,
     get_workflow_analyzer,
     reset_workflow_analyzer,
 )
 
-
 # =============================================================================
 # WorkflowRunRecord Tests
 # =============================================================================
+
 
 class TestWorkflowRunRecord:
     """Test WorkflowRunRecord dataclass."""
@@ -54,13 +52,15 @@ class TestWorkflowRunRecord:
 # WorkflowProfile Tests
 # =============================================================================
 
+
 class TestWorkflowProfile:
     """Test WorkflowProfile dataclass."""
 
     def test_avg_completion_rate(self):
         p = WorkflowProfile(
             workflow_name="pipeline",
-            total_steps_completed=8, total_steps_attempted=10,
+            total_steps_completed=8,
+            total_steps_attempted=10,
         )
         assert abs(p.avg_completion_rate - 0.8) < 0.01
 
@@ -69,9 +69,7 @@ class TestWorkflowProfile:
         assert p.avg_completion_rate == 0.0
 
     def test_avg_duration(self):
-        p = WorkflowProfile(
-            workflow_name="pipeline", total_runs=4, total_duration_ms=4000.0
-        )
+        p = WorkflowProfile(workflow_name="pipeline", total_runs=4, total_duration_ms=4000.0)
         assert abs(p.avg_duration_ms - 1000.0) < 0.01
 
     def test_avg_duration_zero(self):
@@ -79,9 +77,7 @@ class TestWorkflowProfile:
         assert p.avg_duration_ms == 0.0
 
     def test_avg_parallel_efficiency(self):
-        p = WorkflowProfile(
-            workflow_name="pipeline", total_runs=4, total_parallel_efficiency=3.2
-        )
+        p = WorkflowProfile(workflow_name="pipeline", total_runs=4, total_parallel_efficiency=3.2)
         assert abs(p.avg_parallel_efficiency - 0.8) < 0.01
 
     def test_avg_parallel_efficiency_zero(self):
@@ -100,6 +96,7 @@ class TestWorkflowProfile:
 # PerformanceStats Tests
 # =============================================================================
 
+
 class TestPerformanceStats:
     """Test PerformanceStats dataclass."""
 
@@ -113,6 +110,7 @@ class TestPerformanceStats:
 # Recording Tests
 # =============================================================================
 
+
 class TestRecording:
     """Test run recording."""
 
@@ -124,10 +122,8 @@ class TestRecording:
 
     def test_profile_updates(self):
         a = WorkflowPerformanceAnalyzer()
-        a.record_run("pipeline", steps_total=10, steps_completed=8,
-                      total_duration_ms=1000, parallel_efficiency=0.8)
-        a.record_run("pipeline", steps_total=5, steps_completed=5,
-                      total_duration_ms=500, parallel_efficiency=0.9)
+        a.record_run("pipeline", steps_total=10, steps_completed=8, total_duration_ms=1000, parallel_efficiency=0.8)
+        a.record_run("pipeline", steps_total=5, steps_completed=5, total_duration_ms=500, parallel_efficiency=0.9)
         p = a.get_workflow_profile("pipeline")
         assert p is not None
         assert p.total_runs == 2
@@ -143,6 +139,7 @@ class TestRecording:
 # =============================================================================
 # Query Tests
 # =============================================================================
+
 
 class TestQueries:
     """Test query methods."""
@@ -171,7 +168,7 @@ class TestQueries:
 
     def test_recent_runs(self):
         a = WorkflowPerformanceAnalyzer()
-        for i in range(5):
+        for _i in range(5):
             a.record_run("pipeline")
         recent = a.get_recent_runs(limit=3)
         assert len(recent) == 3
@@ -195,12 +192,13 @@ class TestQueries:
 # Bounded History Tests
 # =============================================================================
 
+
 class TestBoundedHistory:
     """Test bounded run history."""
 
     def test_eviction(self):
         a = WorkflowPerformanceAnalyzer(max_records=5)
-        for i in range(10):
+        for _i in range(10):
             a.record_run("pipeline")
         assert a.run_count == 5
 
@@ -208,6 +206,7 @@ class TestBoundedHistory:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test analyzer statistics."""
@@ -235,6 +234,7 @@ class TestStatistics:
 # State Tests
 # =============================================================================
 
+
 class TestState:
     """Test state management."""
 
@@ -260,6 +260,7 @@ class TestState:
 # =============================================================================
 # Global Singleton Tests
 # =============================================================================
+
 
 class TestGlobalSingleton:
     """Test global workflow analyzer."""
@@ -287,21 +288,30 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_workflow_package(self):
         from core.workflow import (
-            WorkflowPerformanceAnalyzer, WorkflowRunRecord,
-            WorkflowProfile, WorkflowPerformanceStats,
-            get_workflow_analyzer, reset_workflow_analyzer,
+            WorkflowPerformanceAnalyzer,
+            WorkflowPerformanceStats,
+            WorkflowProfile,
+            WorkflowRunRecord,
+            get_workflow_analyzer,
+            reset_workflow_analyzer,
         )
-        assert all([
-            WorkflowPerformanceAnalyzer, WorkflowRunRecord,
-            WorkflowProfile, WorkflowPerformanceStats,
-            get_workflow_analyzer, reset_workflow_analyzer,
-        ])
+
+        assert all(
+            [
+                WorkflowPerformanceAnalyzer,
+                WorkflowRunRecord,
+                WorkflowProfile,
+                WorkflowPerformanceStats,
+                get_workflow_analyzer,
+                reset_workflow_analyzer,
+            ]
+        )
 
     def test_constants(self):
-        from core.workflow.workflow_performance_analyzer import MAX_WORKFLOW_RECORDS
         assert MAX_WORKFLOW_RECORDS == 50000

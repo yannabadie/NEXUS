@@ -33,9 +33,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import weakref
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable, List, Optional, Set
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -54,12 +53,13 @@ class CancellationToken:
         _cancel_reason: Optional reason for cancellation
         _cancelled_at: Timestamp when cancelled
     """
+
     _cancelled: bool = False
-    _parent: Optional[CancellationToken] = field(default=None, repr=False)
-    _children: List[CancellationToken] = field(default_factory=list, repr=False)
-    _callbacks: List[Callable] = field(default_factory=list, repr=False)
-    _cancel_reason: Optional[str] = None
-    _cancelled_at: Optional[datetime] = None
+    _parent: CancellationToken | None = field(default=None, repr=False)
+    _children: list[CancellationToken] = field(default_factory=list, repr=False)
+    _callbacks: list[Callable] = field(default_factory=list, repr=False)
+    _cancel_reason: str | None = None
+    _cancelled_at: datetime | None = None
 
     @property
     def is_cancelled(self) -> bool:
@@ -76,7 +76,7 @@ class CancellationToken:
         return False
 
     @property
-    def cancel_reason(self) -> Optional[str]:
+    def cancel_reason(self) -> str | None:
         """Get the cancellation reason, checking parent if needed."""
         if self._cancel_reason:
             return self._cancel_reason
@@ -84,7 +84,7 @@ class CancellationToken:
             return self._parent.cancel_reason
         return None
 
-    def cancel(self, reason: Optional[str] = None) -> None:
+    def cancel(self, reason: str | None = None) -> None:
         """
         Cancel this token and all children.
 
@@ -109,9 +109,10 @@ class CancellationToken:
                 # If callback returns a coroutine, schedule it
                 if asyncio.iscoroutine(result):
                     try:
-                        loop = asyncio.get_running_loop()
+                        asyncio.get_running_loop()
                         # V9.5: Use SafeTaskManager for error tracking
                         from .safe_task_manager import SafeTaskManager
+
                         SafeTaskManager.create_task(result, name="cancellation_callback")
                     except RuntimeError:
                         # No running loop, try to run synchronously
@@ -171,9 +172,10 @@ class CancellationToken:
                 result = callback()
                 if asyncio.iscoroutine(result):
                     try:
-                        loop = asyncio.get_running_loop()
+                        asyncio.get_running_loop()
                         # V9.5: Use SafeTaskManager for error tracking
                         from .safe_task_manager import SafeTaskManager
+
                         SafeTaskManager.create_task(result, name="on_cancel_immediate")
                     except RuntimeError:
                         pass
@@ -239,7 +241,7 @@ class CancellationTokenSource:
         """Create a new token linked to the root."""
         return self._root.create_child()
 
-    def cancel(self, reason: Optional[str] = None) -> None:
+    def cancel(self, reason: str | None = None) -> None:
         """Cancel the root token (and all linked tokens)."""
         self._root.cancel(reason)
 

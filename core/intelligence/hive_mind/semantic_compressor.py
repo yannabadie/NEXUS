@@ -46,7 +46,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from core.drivers.ollama_driver import OllamaDriver
@@ -57,13 +57,14 @@ logger = logging.getLogger(__name__)
 @dataclass
 class CompressionResult:
     """Result of semantic compression."""
+
     original_content: str
     compressed_content: str
     original_tokens: int
     compressed_tokens: int
     compression_ratio: float  # e.g., 0.85 = 85% reduction
     phase_name: str
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
 
 
 # =============================================================================
@@ -85,7 +86,6 @@ TASK: Extract and compress to essential facts only:
 
 OUTPUT: Dense summary in 2-4 sentences. NO fluff, NO repetition.
 Focus on DECISIONS and FACTS, not explanations.""",
-
     "debate": """You are a semantic compressor for debate discussions.
 
 INPUT DEBATE HISTORY (may be lengthy):
@@ -97,7 +97,6 @@ TASK: Extract consensus and key disagreements:
 3. Final consensus decision?
 
 OUTPUT: Dense summary in 2-3 sentences. ONLY consensus and unresolved points.""",
-
     "architecture": """You are a semantic compressor for architectural plans.
 
 INPUT PLAN (may be detailed):
@@ -109,7 +108,6 @@ TASK: Extract executable plan skeleton:
 3. Success criteria
 
 OUTPUT: Compressed plan. Keep step numbers, compress descriptions to 5-10 words each.""",
-
     "execution": """You are a semantic compressor for execution results.
 
 INPUT EXECUTION LOG (may be verbose):
@@ -121,7 +119,6 @@ TASK: Extract outcomes only:
 3. Final state/artifacts created?
 
 OUTPUT: Dense summary in 2-3 sentences. Focus on RESULTS, not process.""",
-
     "diagnosis": """You are a semantic compressor for error diagnosis.
 
 INPUT DIAGNOSIS (may be technical):
@@ -133,7 +130,6 @@ TASK: Extract root cause and fix:
 3. Confidence level?
 
 OUTPUT: Dense summary in 2-3 sentences. Technical precision required.""",
-
     "consolidation": """You are a semantic compressor for knowledge consolidation.
 
 INPUT REFLECTION (may be philosophical):
@@ -158,7 +154,7 @@ class SemanticCompressor:
 
     def __init__(
         self,
-        ollama_driver: Optional["OllamaDriver"] = None,
+        ollama_driver: OllamaDriver | None = None,
         default_model: str = "llama3.1",
         compression_target: float = 0.80,  # Target 80% compression
     ):
@@ -178,15 +174,16 @@ class SemanticCompressor:
         # Lazy initialization flag
         self._initialized = ollama_driver is not None
 
-    def _ensure_driver(self) -> "OllamaDriver":
+    def _ensure_driver(self) -> OllamaDriver:
         """Lazy-initialize Ollama driver if not provided."""
         if not self._initialized:
             try:
                 from core.drivers.ollama_driver import OllamaDriver
+
                 self._driver = OllamaDriver(
                     model=self._default_model,
                     temperature=0.3,  # Low temp for consistent compression
-                    num_ctx=8192,     # Larger context for compression
+                    num_ctx=8192,  # Larger context for compression
                 )
                 self._initialized = True
                 logger.info(f"Initialized SemanticCompressor with {self._default_model}")
@@ -196,15 +193,15 @@ class SemanticCompressor:
                 raise RuntimeError(
                     f"SemanticCompressor requires Ollama running locally. "
                     f"Install from https://ollama.com and run: ollama pull {self._default_model}"
-                )
+                ) from e
         return self._driver
 
     async def compress_phase_output(
         self,
         phase_name: str,
         content: str,
-        max_output_tokens: Optional[int] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        max_output_tokens: int | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> CompressionResult:
         """
         Compress phase output using semantic compression.
@@ -240,7 +237,7 @@ class SemanticCompressor:
         # Get compression prompt for this phase
         prompt_template = COMPRESSION_PROMPTS.get(
             phase_name,
-            COMPRESSION_PROMPTS["execution"]  # Default fallback
+            COMPRESSION_PROMPTS["execution"],  # Default fallback
         )
         prompt = prompt_template.format(content=content)
 
@@ -285,8 +282,8 @@ class SemanticCompressor:
         self,
         phase_name: str,
         content: str,
-        max_tokens: Optional[int],
-        metadata: Optional[Dict[str, Any]],
+        max_tokens: int | None,
+        metadata: dict[str, Any] | None,
     ) -> CompressionResult:
         """
         Fallback: Simple truncation when SLM compression fails.
@@ -307,10 +304,7 @@ class SemanticCompressor:
         compressed_tokens = len(compressed_content) // 4
         compression_ratio = 1.0 - (compressed_tokens / original_tokens) if original_tokens > 0 else 0.0
 
-        logger.warning(
-            f"Using truncation fallback for {phase_name}: "
-            f"{original_tokens} → {compressed_tokens} tokens"
-        )
+        logger.warning(f"Using truncation fallback for {phase_name}: {original_tokens} → {compressed_tokens} tokens")
 
         return CompressionResult(
             original_content=content,
@@ -349,11 +343,11 @@ class SemanticCompressor:
 # Module-level singleton
 # =============================================================================
 
-_global_compressor: Optional[SemanticCompressor] = None
+_global_compressor: SemanticCompressor | None = None
 
 
 def get_semantic_compressor(
-    ollama_driver: Optional["OllamaDriver"] = None,
+    ollama_driver: OllamaDriver | None = None,
     model: str = "llama3.1",
 ) -> SemanticCompressor:
     """Get or create the global semantic compressor."""

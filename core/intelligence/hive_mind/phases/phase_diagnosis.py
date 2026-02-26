@@ -24,34 +24,28 @@ Key Innovation:
 """
 
 import asyncio
-import json
 import logging
-import re
-from typing import List, Dict, Any, Optional, TYPE_CHECKING
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Optional
 
+from ..context_manager import HiveMindContextManager
+from ..cost_estimator import CostEstimator
+from ..prompts import DIAGNOSIS_SYSTEM_PROMPT  # V12.4.1: Static prompt for caching
+from ..session_integration import HiveMindSessionIntegration, generate_hivemind_task_id
 from ..types import (
-    FailureDiagnosis,
-    FailureType,
-    RecoveryStrategy,
     FAILURE_RECOVERY_MAP,
     ExecutionIssue,
-    IssueSeverity,
+    FailureDiagnosis,
+    FailureType,
     MonitoredStepResult,
-    UserBreakpoint,
-    BreakpointOption,
+    RecoveryStrategy,
 )
-from ..cost_estimator import CostEstimator
-from ..context_manager import HiveMindContextManager
-from ..context_scope import ContextScope
-from ..session_integration import HiveMindSessionIntegration, generate_hivemind_task_id
 from ..user_interaction import UserInteractionHandler
-from ..prompts import DIAGNOSIS_SYSTEM_PROMPT  # V12.4.1: Static prompt for caching
 
 if TYPE_CHECKING:
-    from core.intelligence.swarm.session_manager import SwarmSessionManager
     from core.drivers.protocol import BaseAsyncDriver
-    
+    from core.intelligence.swarm.session_manager import SwarmSessionManager
+
 
 logger = logging.getLogger(__name__)
 
@@ -122,11 +116,12 @@ Respond in JSON format:
 @dataclass
 class DiagnosisPhaseResult:
     """Result of Phase 5."""
+
     diagnosis: FailureDiagnosis
     gemini_diagnosis: str
     claude_diagnosis: str
     user_decision: str  # "retry", "modify_changes", "escalate", "abort"
-    user_modifications: Optional[str] = None
+    user_modifications: str | None = None
 
 
 class FailureDiagnosisPhase:
@@ -145,8 +140,8 @@ class FailureDiagnosisPhase:
         cost_estimator: CostEstimator,
         context_manager: HiveMindContextManager,
         user_handler: UserInteractionHandler,
-        task_id: Optional[str] = None,
-        session_manager: Optional["SwarmSessionManager"] = None
+        task_id: str | None = None,
+        session_manager: Optional["SwarmSessionManager"] = None,
     ):
         """
         Initialize Phase 5.
@@ -169,14 +164,10 @@ class FailureDiagnosisPhase:
         # V9.2: Session isolation
         self._task_id = task_id or generate_hivemind_task_id("diagnosis")
         self._session_manager = session_manager
-        self._session_integration: Optional[HiveMindSessionIntegration] = None
+        self._session_integration: HiveMindSessionIntegration | None = None
 
     async def execute(
-        self,
-        task: str,
-        step_results: List[MonitoredStepResult],
-        issues: List[ExecutionIssue],
-        failure_step: Optional[str]
+        self, task: str, step_results: list[MonitoredStepResult], issues: list[ExecutionIssue], failure_step: str | None
     ) -> DiagnosisPhaseResult:
         """
         Execute Phase 5: Failure Diagnosis.
@@ -198,22 +189,18 @@ class FailureDiagnosisPhase:
             phase_name="diagnosis",
             context_manager=self.context_manager,
             session_manager=self._session_manager,
-            complexity="COMPLEX"  # Diagnosis needs full context
+            complexity="COMPLEX",  # Diagnosis needs full context
         )
         self._session_integration.set_previous_phase("execution")
 
         # V9.2: Get isolated sessions for parallel diagnosis
-        parallel_sessions = self._session_integration.get_parallel_sessions(
-            agents=["gemini", "claude"]
-        )
+        parallel_sessions = self._session_integration.get_parallel_sessions(agents=["gemini", "claude"])
         logger.debug(f"Created isolated diagnosis sessions: {parallel_sessions}")
 
         # Check budget
-        if not self.cost_estimator.can_afford_multiple({
-            "failure_diagnosis_gemini": 1,
-            "failure_diagnosis_claude": 1,
-            "synthesize_diagnosis": 1
-        }):
+        if not self.cost_estimator.can_afford_multiple(
+            {"failure_diagnosis_gemini": 1, "failure_diagnosis_claude": 1, "synthesize_diagnosis": 1}
+        ):
             logger.warning("Limited budget for diagnosis")
 
         # Format context
@@ -222,20 +209,13 @@ class FailureDiagnosisPhase:
 
         # Get diagnoses in parallel
         prompt = DIAGNOSIS_PROMPT.format(
-            task=task,
-            execution_context=execution_context,
-            failure_step=failure_step or "Unknown",
-            issues=issues_text
+            task=task, execution_context=execution_context, failure_step=failure_step or "Unknown", issues=issues_text
         )
 
         gemini_task = self._diagnose_with_gemini(prompt, parallel_sessions.get("gemini"))
         claude_task = self._diagnose_with_claude(prompt, parallel_sessions.get("claude"))
 
-        gemini_result, claude_result = await asyncio.gather(
-            gemini_task,
-            claude_task,
-            return_exceptions=True
-        )
+        gemini_result, claude_result = await asyncio.gather(gemini_task, claude_task, return_exceptions=True)
 
         # Handle errors
         if isinstance(gemini_result, Exception):
@@ -245,20 +225,21 @@ class FailureDiagnosisPhase:
 
         # Synthesize diagnoses
         diagnosis = await self._synthesize_diagnoses(
-            task=task,
-            gemini_diagnosis=gemini_result,
-            claude_diagnosis=claude_result
+            task=task, gemini_diagnosis=gemini_result, claude_diagnosis=claude_result
         )
 
         # V12.4: Multi-persona analysis (MAR, arxiv:2512.20845)
         try:
             from ..persona_diagnosis import get_persona_diagnoser
+
             persona_diagnoser = get_persona_diagnoser()
             persona_result = persona_diagnoser.analyze(
                 failure_context=f"Task: {task[:100]}. Failure step: {failure_step}. Issues: {issues_text[:200]}",
                 gemini_diagnosis=str(gemini_result)[:500],
                 claude_diagnosis=str(claude_result)[:500],
-                failure_type=diagnosis.failure_type.value if hasattr(diagnosis.failure_type, 'value') else str(diagnosis.failure_type),
+                failure_type=diagnosis.failure_type.value
+                if hasattr(diagnosis.failure_type, "value")
+                else str(diagnosis.failure_type),
             )
             # Enrich diagnosis with persona insights
             unique_insights = persona_result.get_unique_insights()
@@ -274,7 +255,12 @@ class FailureDiagnosisPhase:
         # V12.4: MAST classification + MARS triple-pathway reflection (arxiv:2503.13657, arxiv:2601.11974)
         try:
             from ..failure_taxonomy import get_mast_classifier, get_triple_reflector
-            failure_type_str = diagnosis.failure_type.value if hasattr(diagnosis.failure_type, 'value') else str(diagnosis.failure_type)
+
+            failure_type_str = (
+                diagnosis.failure_type.value
+                if hasattr(diagnosis.failure_type, "value")
+                else str(diagnosis.failure_type)
+            )
 
             # MAST: Classify failure into 14-mode taxonomy
             mast_classifier = get_mast_classifier()
@@ -306,6 +292,7 @@ class FailureDiagnosisPhase:
             # V12.4: MetaPolicyMemory - consolidate MARS reflection into reusable rule (arxiv:2509.03990)
             try:
                 from core.intelligence.reasoning.meta_policy_memory import get_meta_policy_memory
+
                 mpm = get_meta_policy_memory()
                 mpm.consolidate(
                     mars_result=reflection,
@@ -321,8 +308,9 @@ class FailureDiagnosisPhase:
         # V12.4: FailureClassifier - 5-category root cause classification (arxiv:2509.25370)
         try:
             from core.intelligence.reasoning.failure_classifier import get_failure_classifier
+
             _fclassifier = get_failure_classifier()
-            _step_outputs = [r.output[:200] for r in results if r.output] if results else []
+            _step_outputs = [r.output[:200] for r in step_results if r.output] if step_results else []
             _issues = [
                 {"issue_type": i.issue_type, "severity": getattr(i.severity, "value", str(i.severity))}
                 for i in (issues or [])
@@ -343,8 +331,9 @@ class FailureDiagnosisPhase:
         # V12.4: FaultDetector - check if failure is due to Byzantine agent behavior (arxiv:2511.10400)
         try:
             from core.intelligence.reasoning.fault_detector import get_fault_detector
+
             _fdetector = get_fault_detector()
-            for agent_id in {r.agent_id for r in results if hasattr(r, 'agent_id')}:
+            for agent_id in {r.agent_id for r in step_results if hasattr(r, "agent_id")}:
                 _fstatus = _fdetector.check_agent(agent_id)
                 if _fstatus.is_faulty:
                     diagnosis.contributing_factors.append(
@@ -357,6 +346,7 @@ class FailureDiagnosisPhase:
         # V12.4: MultiAgentReflexion - cross-agent reflection to break degeneration loops (arxiv:2512.20845)
         try:
             from core.intelligence.hive_mind.multi_agent_reflexion import get_multi_agent_reflexion
+
             _mar = get_multi_agent_reflexion()
             _reflections = []
             if gemini_result:
@@ -367,7 +357,7 @@ class FailureDiagnosisPhase:
                 _synthesis = _mar.synthesize(
                     reflections=_reflections,
                     failure_context=task[:200],
-                    attempt_number=getattr(self, '_retry_count', 1),
+                    attempt_number=getattr(self, "_retry_count", 1),
                 )
                 if _synthesis.degeneration_detected:
                     diagnosis.contributing_factors.append(
@@ -384,6 +374,7 @@ class FailureDiagnosisPhase:
         # V12.4: SystemHealth check - enrich diagnosis with system-level context
         try:
             from core.infrastructure.resilience.system_health import get_system_health
+
             health = get_system_health()
             report = await health.check_all()
             if report.overall_status.value != "healthy":
@@ -403,7 +394,7 @@ class FailureDiagnosisPhase:
         user_response = self.user_handler.after_diagnosis(
             failure_type=diagnosis.failure_type.value,
             root_cause=diagnosis.root_cause,
-            recommended_changes=diagnosis.recommended_changes
+            recommended_changes=diagnosis.recommended_changes,
         )
 
         return DiagnosisPhaseResult(
@@ -411,10 +402,10 @@ class FailureDiagnosisPhase:
             gemini_diagnosis=gemini_result,
             claude_diagnosis=claude_result,
             user_decision=user_response.chosen_option,
-            user_modifications=user_response.custom_input
+            user_modifications=user_response.custom_input,
         )
 
-    def _format_execution_context(self, results: List[MonitoredStepResult]) -> str:
+    def _format_execution_context(self, results: list[MonitoredStepResult]) -> str:
         """Format execution results for context."""
         lines = []
         for r in results:
@@ -426,7 +417,7 @@ class FailureDiagnosisPhase:
                 lines.append(f"   Issues: {len(r.issues)}")
         return "\n".join(lines)
 
-    def _format_issues(self, issues: List[ExecutionIssue]) -> str:
+    def _format_issues(self, issues: list[ExecutionIssue]) -> str:
         """Format issues for diagnosis."""
         if not issues:
             return "No specific issues detected"
@@ -436,7 +427,7 @@ class FailureDiagnosisPhase:
             lines.append(f"- [{i.severity.value.upper()}] {i.issue_type}: {i.details}")
         return "\n".join(lines)
 
-    async def _diagnose_with_gemini(self, prompt: str, session_uuid: Optional[str] = None) -> str:
+    async def _diagnose_with_gemini(self, prompt: str, session_uuid: str | None = None) -> str:
         """Get diagnosis from Gemini with session isolation."""
         try:
             logger.debug(f"Gemini diagnosis using session {session_uuid[:8] if session_uuid else 'none'}")
@@ -453,7 +444,7 @@ class FailureDiagnosisPhase:
                 raise RuntimeError(f"Gemini diagnosis failed: {response.error_message}")
 
             # Record actual token usage
-            if hasattr(self.cost_estimator, 'record_tokens'):
+            if hasattr(self.cost_estimator, "record_tokens"):
                 self.cost_estimator.record_tokens(
                     "failure_diagnosis_gemini",
                     input_tokens=response.input_tokens,
@@ -468,7 +459,7 @@ class FailureDiagnosisPhase:
             logger.error(f"Gemini diagnosis failed: {e}")
             raise
 
-    async def _diagnose_with_claude(self, prompt: str, session_uuid: Optional[str] = None) -> str:
+    async def _diagnose_with_claude(self, prompt: str, session_uuid: str | None = None) -> str:
         """Get diagnosis from Claude with session isolation."""
         try:
             logger.debug(f"Claude diagnosis using session {session_uuid[:8] if session_uuid else 'none'}")
@@ -485,7 +476,7 @@ class FailureDiagnosisPhase:
                 raise RuntimeError(f"Claude diagnosis failed: {response.error_message}")
 
             # Record actual token usage
-            if hasattr(self.cost_estimator, 'record_tokens'):
+            if hasattr(self.cost_estimator, "record_tokens"):
                 self.cost_estimator.record_tokens(
                     "failure_diagnosis_claude",
                     input_tokens=response.input_tokens,
@@ -500,17 +491,10 @@ class FailureDiagnosisPhase:
             logger.error(f"Claude diagnosis failed: {e}")
             raise
 
-    async def _synthesize_diagnoses(
-        self,
-        task: str,
-        gemini_diagnosis: str,
-        claude_diagnosis: str
-    ) -> FailureDiagnosis:
+    async def _synthesize_diagnoses(self, task: str, gemini_diagnosis: str, claude_diagnosis: str) -> FailureDiagnosis:
         """Synthesize two diagnoses into one."""
         prompt = SYNTHESIS_PROMPT.format(
-            task=task,
-            gemini_diagnosis=gemini_diagnosis,
-            claude_diagnosis=claude_diagnosis
+            task=task, gemini_diagnosis=gemini_diagnosis, claude_diagnosis=claude_diagnosis
         )
 
         # V9.2: Use session for synthesis
@@ -534,7 +518,7 @@ class FailureDiagnosisPhase:
                 return self._create_fallback_diagnosis()
 
             # Record actual token usage
-            if hasattr(self.cost_estimator, 'record_tokens'):
+            if hasattr(self.cost_estimator, "record_tokens"):
                 self.cost_estimator.record_tokens(
                     "synthesize_diagnosis",
                     input_tokens=response.input_tokens,
@@ -545,25 +529,13 @@ class FailureDiagnosisPhase:
                 self.cost_estimator.record_cost("synthesize_diagnosis", total_tokens)
 
             # Parse response from DriverResponse.content
-            return self._parse_diagnosis_response(
-                response.content,
-                gemini_diagnosis,
-                claude_diagnosis
-            )
+            return self._parse_diagnosis_response(response.content, gemini_diagnosis, claude_diagnosis)
 
         except Exception as e:
             logger.error(f"Synthesis failed: {e}")
-            return self._create_fallback_diagnosis(
-                gemini_diagnosis,
-                claude_diagnosis
-            )
+            return self._create_fallback_diagnosis(gemini_diagnosis, claude_diagnosis)
 
-    def _parse_diagnosis_response(
-        self,
-        response,
-        gemini_diagnosis: str,
-        claude_diagnosis: str
-    ) -> FailureDiagnosis:
+    def _parse_diagnosis_response(self, response, gemini_diagnosis: str, claude_diagnosis: str) -> FailureDiagnosis:
         """Parse synthesis response into FailureDiagnosis."""
         from ..json_parser import parse_json_response
 
@@ -588,18 +560,14 @@ class FailureDiagnosisPhase:
                 confidence=float(data.get("confidence", 0.5)),
                 gemini_diagnosis=gemini_diagnosis,
                 claude_diagnosis=claude_diagnosis,
-                missing_capability=data.get("missing_capability")
+                missing_capability=data.get("missing_capability"),
             )
 
         except Exception as e:
             logger.warning(f"Diagnosis parse error: {e}")
             return self._create_fallback_diagnosis(gemini_diagnosis, claude_diagnosis)
 
-    def _create_fallback_diagnosis(
-        self,
-        gemini_diagnosis: str,
-        claude_diagnosis: str
-    ) -> FailureDiagnosis:
+    def _create_fallback_diagnosis(self, gemini_diagnosis: str, claude_diagnosis: str) -> FailureDiagnosis:
         """Create fallback diagnosis when parsing fails."""
         return FailureDiagnosis(
             failure_type=FailureType.UNKNOWN,
@@ -609,13 +577,10 @@ class FailureDiagnosisPhase:
             recommended_changes=["Review task and retry manually"],
             confidence=0.3,
             gemini_diagnosis=gemini_diagnosis,
-            claude_diagnosis=claude_diagnosis
+            claude_diagnosis=claude_diagnosis,
         )
 
-    def get_retry_recommendations(
-        self,
-        result: DiagnosisPhaseResult
-    ) -> Dict[str, Any]:
+    def get_retry_recommendations(self, result: DiagnosisPhaseResult) -> dict[str, Any]:
         """
         Get recommendations for retry phase.
 
@@ -631,9 +596,7 @@ class FailureDiagnosisPhase:
         diagnosis = result.diagnosis
 
         # V12.4: Look up recovery strategy from structured mapping
-        recovery = FAILURE_RECOVERY_MAP.get(
-            diagnosis.failure_type, RecoveryStrategy.ESCALATE_USER
-        )
+        recovery = FAILURE_RECOVERY_MAP.get(diagnosis.failure_type, RecoveryStrategy.ESCALATE_USER)
 
         # Build recommendations based on failure type
         recommendations = {
@@ -649,63 +612,63 @@ class FailureDiagnosisPhase:
             recommendations["architecture_changes"] = {
                 "increase_timeout": True,
                 "simplify_steps": True,
-                "parallelize": False
+                "parallelize": False,
             }
 
         elif diagnosis.failure_type == FailureType.CAPABILITY_MISSING:
             recommendations["architecture_changes"] = {
                 "spawn_specialist": True,
                 "capability_needed": diagnosis.missing_capability,
-                "fallback_agent": "claude"
+                "fallback_agent": "claude",
             }
 
         elif diagnosis.failure_type == FailureType.HALLUCINATION:
             recommendations["architecture_changes"] = {
                 "add_verification": True,
                 "use_tools": True,
-                "reduce_ambiguity": True
+                "reduce_ambiguity": True,
             }
 
         elif diagnosis.failure_type == FailureType.STRATEGY_WRONG:
             recommendations["architecture_changes"] = {
                 "rethink_approach": True,
                 "use_alternative": True,
-                "debate_again": diagnosis.confidence < 0.5
+                "debate_again": diagnosis.confidence < 0.5,
             }
 
         elif diagnosis.failure_type == FailureType.TOOL_ERROR:
             recommendations["architecture_changes"] = {
                 "check_prerequisites": True,
                 "use_alternative_tool": True,
-                "validate_paths": True
+                "validate_paths": True,
             }
 
         elif diagnosis.failure_type == FailureType.CONTEXT_LOST:
             recommendations["architecture_changes"] = {
                 "reduce_context": True,
                 "summarize_history": True,
-                "fresh_start": diagnosis.confidence > 0.7
+                "fresh_start": diagnosis.confidence > 0.7,
             }
 
         elif diagnosis.failure_type == FailureType.BUDGET_EXCEEDED:
             recommendations["architecture_changes"] = {
                 "increase_budget": True,
                 "simplify_task": True,
-                "skip_optional": True
+                "skip_optional": True,
             }
 
         elif diagnosis.failure_type == FailureType.MEMORY_ERROR:
             recommendations["architecture_changes"] = {
                 "compress_context": True,
                 "reload_key_facts": True,
-                "fresh_session": True
+                "fresh_session": True,
             }
 
         elif diagnosis.failure_type == FailureType.PLANNING_ERROR:
             recommendations["architecture_changes"] = {
                 "decompose_task": True,
                 "re_analyze": True,
-                "switch_lead_agent": diagnosis.confidence < 0.5
+                "switch_lead_agent": diagnosis.confidence < 0.5,
             }
 
         # Apply user modifications if any

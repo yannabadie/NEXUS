@@ -11,7 +11,8 @@ Validates:
 """
 
 import pytest
-from core.memory_pkg.memory.types import Chunk, ScoredChunk, IndexStats
+
+from core.memory_pkg.memory.types import Chunk, IndexStats, ScoredChunk
 
 
 class TestChunkImmutability:

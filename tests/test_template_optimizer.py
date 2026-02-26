@@ -18,23 +18,19 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.memory_pkg.prompts.template_optimizer import (
-    ConflictResult,
     PromptAnalysis,
     PromptIssue,
     PromptOptimizer,
-    PromptOutcome,
     PromptStats,
     get_optimizer,
     reset_optimizer,
 )
 
-
 # =============================================================================
 # Analysis Tests
 # =============================================================================
+
 
 class TestAnalysis:
     """Test prompt analysis."""
@@ -128,6 +124,7 @@ class TestAnalysis:
 # Section Detection Tests
 # =============================================================================
 
+
 class TestSectionDetection:
     """Test section detection."""
 
@@ -157,6 +154,7 @@ class TestSectionDetection:
 # Token Estimation Tests
 # =============================================================================
 
+
 class TestTokenEstimation:
     """Test token estimation."""
 
@@ -176,49 +174,60 @@ class TestTokenEstimation:
 # Conflict Detection Tests
 # =============================================================================
 
+
 class TestConflictDetection:
     """Test conflict detection."""
 
     def test_no_conflicts(self):
         opt = PromptOptimizer()
-        result = opt.detect_conflicts([
-            "Be helpful",
-            "Answer questions",
-        ])
+        result = opt.detect_conflicts(
+            [
+                "Be helpful",
+                "Answer questions",
+            ]
+        )
         assert result.has_conflicts is False
         assert result.conflicts == []
 
     def test_json_vs_natural_language(self):
         opt = PromptOptimizer()
-        result = opt.detect_conflicts([
-            "Always respond in JSON format",
-            "Use natural language in your responses",
-        ])
+        result = opt.detect_conflicts(
+            [
+                "Always respond in JSON format",
+                "Use natural language in your responses",
+            ]
+        )
         assert result.has_conflicts is True
         assert len(result.conflicts) >= 1
 
     def test_brief_vs_detailed(self):
         opt = PromptOptimizer()
-        result = opt.detect_conflicts([
-            "Be concise in your answers",
-            "Provide detailed explanations",
-        ])
+        result = opt.detect_conflicts(
+            [
+                "Be concise in your answers",
+                "Provide detailed explanations",
+            ]
+        )
         assert result.has_conflicts is True
 
     def test_always_vs_never(self):
         opt = PromptOptimizer()
-        result = opt.detect_conflicts([
-            "Always include examples",
-            "Never include examples",
-        ])
+        result = opt.detect_conflicts(
+            [
+                "Always include examples",
+                "Never include examples",
+            ]
+        )
         assert result.has_conflicts is True
 
     def test_conflict_to_dict(self):
         opt = PromptOptimizer()
-        result = opt.detect_conflicts([
-            "Be brief",
-            "Be detailed and comprehensive",
-        ])
+        result = opt.detect_conflicts(
+            [
+                "Be brief",
+                "Be detailed and comprehensive",
+            ]
+        )
         d = result.to_dict()
         assert "has_conflicts" in d
         assert "conflict_count" in d
@@ -228,6 +237,7 @@ class TestConflictDetection:
 # =============================================================================
 # Outcome Tracking Tests
 # =============================================================================
+
 
 class TestOutcomeTracking:
     """Test outcome recording."""
@@ -261,6 +271,7 @@ class TestOutcomeTracking:
 # Stats Tests
 # =============================================================================
 
+
 class TestStats:
     """Test performance statistics."""
 
@@ -285,7 +296,7 @@ class TestStats:
         opt.record_outcome("t1", success=True)
         opt.record_outcome("t1", success=False)
         stats = opt.get_stats("t1")
-        assert abs(stats.success_rate - 2/3) < 0.01
+        assert abs(stats.success_rate - 2 / 3) < 0.01
 
     def test_efficacy_ema(self):
         opt = PromptOptimizer()
@@ -353,6 +364,7 @@ class TestStats:
 # State Tests
 # =============================================================================
 
+
 class TestState:
     """Test state management."""
 
@@ -389,6 +401,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global optimizer."""
 
@@ -415,24 +428,39 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_prompts_package(self):
         from core.memory_pkg.prompts import (
-            PromptOptimizer, PromptAnalysis, PromptIssue,
-            PromptStats, PromptOutcome, ConflictResult,
-            get_optimizer, reset_optimizer,
+            ConflictResult,
+            PromptAnalysis,
+            PromptIssue,
+            PromptOptimizer,
+            PromptOutcome,
+            PromptStats,
+            get_optimizer,
+            reset_optimizer,
         )
-        assert all([
-            PromptOptimizer, PromptAnalysis, PromptIssue,
-            PromptStats, PromptOutcome, ConflictResult,
-            get_optimizer, reset_optimizer,
-        ])
+
+        assert all(
+            [
+                PromptOptimizer,
+                PromptAnalysis,
+                PromptIssue,
+                PromptStats,
+                PromptOutcome,
+                ConflictResult,
+                get_optimizer,
+                reset_optimizer,
+            ]
+        )
 
     def test_from_module(self):
         from core.memory_pkg.prompts.template_optimizer import (
-            PromptOptimizer, PromptAnalysis, PromptIssue,
-            PromptStats, ConflictResult,
+            PromptIssue,
+            PromptOptimizer,
         )
+
         assert all([PromptOptimizer, PromptAnalysis, PromptIssue, PromptStats])

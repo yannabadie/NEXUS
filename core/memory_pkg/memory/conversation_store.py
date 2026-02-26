@@ -28,15 +28,13 @@ Usage:
 
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
-import time
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -54,26 +52,28 @@ DEFAULT_STORAGE_DIR = "workspace/memory/conversations"
 # Types
 # =============================================================================
 
+
 @dataclass
 class ConversationTurn:
     """A single turn in a conversation."""
+
     turn_id: str
     role: str  # "user", "assistant", "system", "tool"
     content: str
     agent_id: str = ""  # "gemini", "claude", etc.
     timestamp: str = ""  # ISO format
     token_estimate: int = 0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         if not self.turn_id:
             self.turn_id = uuid.uuid4().hex[:12]
         if not self.timestamp:
-            self.timestamp = datetime.now(timezone.utc).isoformat()
+            self.timestamp = datetime.now(UTC).isoformat()
         if self.token_estimate == 0 and self.content:
             self.token_estimate = max(1, len(self.content) // 4)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "turn_id": self.turn_id,
             "role": self.role,
@@ -85,7 +85,7 @@ class ConversationTurn:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> ConversationTurn:
+    def from_dict(cls, data: dict[str, Any]) -> ConversationTurn:
         return cls(
             turn_id=data.get("turn_id", ""),
             role=data["role"],
@@ -100,25 +100,26 @@ class ConversationTurn:
 @dataclass
 class ConversationSession:
     """A conversation session containing multiple turns."""
+
     session_id: str
     title: str = ""
     created_at: str = ""
     updated_at: str = ""
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
     turn_count: int = 0
     total_tokens: int = 0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         if not self.session_id:
             self.session_id = uuid.uuid4().hex[:16]
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         if not self.created_at:
             self.created_at = now
         if not self.updated_at:
             self.updated_at = now
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "session_id": self.session_id,
             "title": self.title,
@@ -131,7 +132,7 @@ class ConversationSession:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> ConversationSession:
+    def from_dict(cls, data: dict[str, Any]) -> ConversationSession:
         return cls(
             session_id=data["session_id"],
             title=data.get("title", ""),
@@ -147,13 +148,14 @@ class ConversationSession:
 @dataclass
 class SearchResult:
     """A search result from conversation history."""
+
     session_id: str
     session_title: str
     turn: ConversationTurn
     score: float  # 0.0 to 1.0
-    context_before: List[ConversationTurn] = field(default_factory=list)
+    context_before: list[ConversationTurn] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "session_id": self.session_id,
             "session_title": self.session_title,
@@ -165,16 +167,17 @@ class SearchResult:
 @dataclass
 class ConversationSummary:
     """Summary metadata for a conversation session."""
+
     session_id: str
     title: str
     turn_count: int
     total_tokens: int
-    agents_involved: List[str]
+    agents_involved: list[str]
     duration_seconds: float
     first_message: str
     last_message: str
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "session_id": self.session_id,
             "title": self.title,
@@ -190,6 +193,7 @@ class ConversationSummary:
 # =============================================================================
 # Conversation Store
 # =============================================================================
+
 
 class ConversationStore:
     """
@@ -208,7 +212,7 @@ class ConversationStore:
 
     def __init__(
         self,
-        storage_dir: Optional[str] = None,
+        storage_dir: str | None = None,
         *,
         max_sessions: int = MAX_SESSIONS,
         max_turns_per_session: int = MAX_TURNS_PER_SESSION,
@@ -229,8 +233,8 @@ class ConversationStore:
         self._persist = persist
 
         # In-memory state
-        self._sessions: Dict[str, ConversationSession] = {}
-        self._turns: Dict[str, List[ConversationTurn]] = {}
+        self._sessions: dict[str, ConversationSession] = {}
+        self._turns: dict[str, list[ConversationTurn]] = {}
 
         if self._persist:
             self._ensure_dirs()
@@ -244,8 +248,8 @@ class ConversationStore:
         self,
         title: str = "",
         *,
-        tags: Optional[List[str]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        tags: list[str] | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> ConversationSession:
         """
         Create a new conversation session.
@@ -275,7 +279,7 @@ class ConversationStore:
 
         return session
 
-    def get_session(self, session_id: str) -> Optional[ConversationSession]:
+    def get_session(self, session_id: str) -> ConversationSession | None:
         """Get a session by ID."""
         return self._sessions.get(session_id)
 
@@ -283,8 +287,8 @@ class ConversationStore:
         self,
         *,
         limit: int = 50,
-        tag: Optional[str] = None,
-    ) -> List[ConversationSession]:
+        tag: str | None = None,
+    ) -> list[ConversationSession]:
         """
         List sessions, most recent first.
 
@@ -335,8 +339,8 @@ class ConversationStore:
         content: str,
         *,
         agent_id: str = "",
-        metadata: Optional[Dict[str, Any]] = None,
-    ) -> Optional[ConversationTurn]:
+        metadata: dict[str, Any] | None = None,
+    ) -> ConversationTurn | None:
         """
         Add a turn to a session.
 
@@ -372,7 +376,7 @@ class ConversationStore:
         # Update session metadata
         session.turn_count = len(turns)
         session.total_tokens += turn.token_estimate
-        session.updated_at = datetime.now(timezone.utc).isoformat()
+        session.updated_at = datetime.now(UTC).isoformat()
 
         if self._persist:
             self._append_turn(session_id, turn)
@@ -384,9 +388,9 @@ class ConversationStore:
         self,
         session_id: str,
         *,
-        limit: Optional[int] = None,
-        role: Optional[str] = None,
-    ) -> List[ConversationTurn]:
+        limit: int | None = None,
+        role: str | None = None,
+    ) -> list[ConversationTurn]:
         """
         Get turns for a session.
 
@@ -408,7 +412,7 @@ class ConversationStore:
 
         return list(turns)
 
-    def get_last_turn(self, session_id: str) -> Optional[ConversationTurn]:
+    def get_last_turn(self, session_id: str) -> ConversationTurn | None:
         """Get the most recent turn in a session."""
         turns = self._turns.get(session_id, [])
         return turns[-1] if turns else None
@@ -422,9 +426,9 @@ class ConversationStore:
         query: str,
         *,
         limit: int = 10,
-        session_id: Optional[str] = None,
-        role: Optional[str] = None,
-    ) -> List[SearchResult]:
+        session_id: str | None = None,
+        role: str | None = None,
+    ) -> list[SearchResult]:
         """
         Search conversation history using keyword matching.
 
@@ -469,12 +473,14 @@ class ConversationStore:
                 # Jaccard similarity
                 score = len(overlap) / len(query_words | content_words)
 
-                results.append(SearchResult(
-                    session_id=sid,
-                    session_title=session.title,
-                    turn=turn,
-                    score=score,
-                ))
+                results.append(
+                    SearchResult(
+                        session_id=sid,
+                        session_title=session.title,
+                        turn=turn,
+                        score=score,
+                    )
+                )
 
         results.sort(key=lambda r: r.score, reverse=True)
         return results[:limit]
@@ -483,7 +489,7 @@ class ConversationStore:
     # Summaries
     # =========================================================================
 
-    def get_summary(self, session_id: str) -> Optional[ConversationSummary]:
+    def get_summary(self, session_id: str) -> ConversationSummary | None:
         """
         Get a summary of a conversation session.
 
@@ -550,7 +556,7 @@ class ConversationStore:
 
         return count
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Export store state."""
         return {
             "session_count": self.session_count,
@@ -572,10 +578,7 @@ class ConversationStore:
         """Save session index to disk."""
         if not self._persist:
             return
-        data = {
-            sid: s.to_dict()
-            for sid, s in self._sessions.items()
-        }
+        data = {sid: s.to_dict() for sid, s in self._sessions.items()}
         path = self._storage_dir / "sessions.json"
         path.write_text(json.dumps(data, indent=2), encoding="utf-8")
 

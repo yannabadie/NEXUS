@@ -1,21 +1,17 @@
 """Tests for PhaseBudgetAllocator - dynamic token budget allocation."""
 
-import pytest
 from core.intelligence.hive_mind.budget_allocator import (
-    PhaseBudgetAllocator,
-    PhaseBudget,
-    BudgetReport,
     PHASE_PROPORTIONS,
-    COMPLEXITY_MULTIPLIERS,
-    PHASE_ORDER,
+    PhaseBudget,
+    PhaseBudgetAllocator,
     get_budget_allocator,
     reset_budget_allocator,
 )
 
-
 # =============================================================================
 # Allocation
 # =============================================================================
+
 
 class TestAllocation:
     def test_allocate_returns_all_phases(self):
@@ -71,6 +67,7 @@ class TestAllocation:
 # Redistribution
 # =============================================================================
 
+
 class TestRedistribution:
     def test_savings_redistributed(self):
         alloc = PhaseBudgetAllocator(total_budget=50000)
@@ -123,6 +120,7 @@ class TestRedistribution:
 # Budget Queries
 # =============================================================================
 
+
 class TestBudgetQueries:
     def test_get_budget_before_allocation(self):
         alloc = PhaseBudgetAllocator(total_budget=50000)
@@ -160,6 +158,7 @@ class TestBudgetQueries:
 # PhaseBudget dataclass
 # =============================================================================
 
+
 class TestPhaseBudget:
     def test_savings_positive(self):
         pb = PhaseBudget(phase="test", allocated=1000, adjusted=1000, actual=700, completed=True)
@@ -186,6 +185,7 @@ class TestPhaseBudget:
 # Report & Stats
 # =============================================================================
 
+
 class TestReportAndStats:
     def test_report_after_partial_execution(self):
         alloc = PhaseBudgetAllocator(total_budget=50000)
@@ -194,7 +194,7 @@ class TestReportAndStats:
         alloc.report_actual("debate", 2000)
         report = alloc.get_report()
         assert report.total_spent == 3000
-        assert report.phases_completed_count() if hasattr(report, 'phases_completed_count') else True
+        assert report.phases_completed_count() if hasattr(report, "phases_completed_count") else True
         assert report.redistributed >= 0
 
     def test_stats_format(self):
@@ -219,6 +219,7 @@ class TestReportAndStats:
 # =============================================================================
 # Full Pipeline Scenario
 # =============================================================================
+
 
 class TestFullPipeline:
     def test_realistic_pipeline(self):
@@ -253,6 +254,7 @@ class TestFullPipeline:
 # =============================================================================
 # Singleton
 # =============================================================================
+
 
 class TestSingleton:
     def test_get_returns_same_instance(self):

@@ -5,24 +5,20 @@ Sends review notifications via email.
 """
 
 import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 from datetime import datetime
-from typing import Optional, Dict, List
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from pathlib import Path
 
 
 class EmailNotificationError(Exception):
     """Custom exception for email sending failures"""
+
     pass
 
 
 def send_review_email(
-    config,
-    generation: int,
-    children: List[Dict],
-    hours_elapsed: int,
-    template_type: str = "review_ready"
+    config, generation: int, children: list[dict], hours_elapsed: int, template_type: str = "review_ready"
 ) -> bool:
     """
     Send review notification email via Outlook SMTP.
@@ -46,15 +42,12 @@ def send_review_email(
 
     # Check password configured
     if not config.email_password:
-        raise EmailNotificationError(
-            "Email password not configured. Set NEXUS_EMAIL_PASSWORD in .env"
-        )
+        raise EmailNotificationError("Email password not configured. Set NEXUS_EMAIL_PASSWORD in .env")
 
     # Prepare email content
-    children_summary = "\n".join([
-        f"  - {child['id']}: Score {child['score']:.2f} ({child['improvement']:+.1%} vs parent)"
-        for child in children
-    ])
+    children_summary = "\n".join(
+        [f"  - {child['id']}: Score {child['score']:.2f} ({child['improvement']:+.1%} vs parent)" for child in children]
+    )
 
     pending_file = Path(config.workspace_path) / ".nexus" / "PENDING_REVIEW.md"
     deadline = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -78,7 +71,7 @@ Use command: nexus (gen:{generation}) > /review
 ---
 NEXUS Evolution Engine
 Automated notification - Do not reply
-"""
+""",
         },
         "review_reminder": {
             "subject": f"[NEXUS] [WARN]️ Review Overdue - Generation {generation}",
@@ -97,10 +90,10 @@ Use command: nexus (gen:{generation}) > /review
 
 ---
 NEXUS Evolution Engine
-"""
+""",
         },
         "review_critical": {
-            "subject": f"[NEXUS] 🚨 CRITICAL - Review Required (72h+)",
+            "subject": "[NEXUS] 🚨 CRITICAL - Review Required (72h+)",
             "body": f"""
 🚨 CRITICAL ALERT
 
@@ -118,18 +111,18 @@ Use command: nexus (gen:{generation}) > /review
 
 ---
 NEXUS Evolution Engine
-"""
-        }
+""",
+        },
     }
 
     template = templates.get(template_type, templates["review_ready"])
 
     # Create message
     msg = MIMEMultipart()
-    msg['From'] = config.email_from
-    msg['To'] = config.email_to
-    msg['Subject'] = template["subject"]
-    msg.attach(MIMEText(template["body"], 'plain'))
+    msg["From"] = config.email_from
+    msg["To"] = config.email_to
+    msg["Subject"] = template["subject"]
+    msg.attach(MIMEText(template["body"], "plain"))
 
     try:
         # Connect to Outlook SMTP
@@ -142,13 +135,11 @@ NEXUS Evolution Engine
         return True
 
     except smtplib.SMTPAuthenticationError as e:
-        raise EmailNotificationError(
-            f"SMTP Authentication failed. Check email/password in .env. Error: {e}"
-        )
+        raise EmailNotificationError(f"SMTP Authentication failed. Check email/password in .env. Error: {e}") from e
     except smtplib.SMTPException as e:
-        raise EmailNotificationError(f"SMTP error: {e}")
+        raise EmailNotificationError(f"SMTP error: {e}") from e
     except Exception as e:
-        raise EmailNotificationError(f"Unexpected error sending email: {e}")
+        raise EmailNotificationError(f"Unexpected error sending email: {e}") from e
 
 
 def test_email_config(config) -> bool:
@@ -163,9 +154,9 @@ def test_email_config(config) -> bool:
     """
     try:
         msg = MIMEText("NEXUS email notification test - Configuration OK!")
-        msg['From'] = config.email_from
-        msg['To'] = config.email_to
-        msg['Subject'] = "[NEXUS] Email Test"
+        msg["From"] = config.email_from
+        msg["To"] = config.email_to
+        msg["Subject"] = "[NEXUS] Email Test"
 
         with smtplib.SMTP(config.smtp_server, config.smtp_port) as server:
             server.starttls()

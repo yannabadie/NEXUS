@@ -5,25 +5,20 @@ Tests for LanceDB + Sentence-Transformers semantic retrieval backend.
 Tests are skipped if dependencies (lancedb, sentence-transformers) are not installed.
 """
 
-import pytest
-import tempfile
 import shutil
+import tempfile
 from pathlib import Path
 
-# Import availability flags
-from core.memory_pkg.memory.backends import (
-    DenseBackend,
-    LANCEDB_AVAILABLE,
-    SENTENCE_TRANSFORMERS_AVAILABLE
-)
-from core.memory_pkg.memory.types import Chunk
+import pytest
 
+# Import availability flags
+from core.memory_pkg.memory.backends import LANCEDB_AVAILABLE, SENTENCE_TRANSFORMERS_AVAILABLE, DenseBackend
+from core.memory_pkg.memory.types import Chunk
 
 # Skip all tests if dependencies not available
 DENSE_AVAILABLE = LANCEDB_AVAILABLE and SENTENCE_TRANSFORMERS_AVAILABLE
 pytestmark = pytest.mark.skipif(
-    not DENSE_AVAILABLE,
-    reason="Dense backend dependencies not installed (lancedb, sentence-transformers)"
+    not DENSE_AVAILABLE, reason="Dense backend dependencies not installed (lancedb, sentence-transformers)"
 )
 
 
@@ -47,7 +42,7 @@ def sample_chunks():
             content="def authenticate_user(username, password):\n    '''Authenticate user credentials.'''\n    if not validate_credentials(username, password):\n        raise AuthenticationError('Invalid credentials')\n    return create_session(username)",
             terms={"authenticate", "user", "username", "password", "validate", "credentials"},
             chunk_type="function",
-            name="authenticate_user"
+            name="authenticate_user",
         ),
         Chunk(
             file_path="src/auth.py",
@@ -56,7 +51,7 @@ def sample_chunks():
             content="def create_session(username):\n    '''Create a new session for authenticated user.'''\n    session_id = generate_uuid()\n    store_session(session_id, username)\n    return session_id",
             terms={"create", "session", "username", "generate", "uuid", "store"},
             chunk_type="function",
-            name="create_session"
+            name="create_session",
         ),
         Chunk(
             file_path="src/database.py",
@@ -65,7 +60,7 @@ def sample_chunks():
             content="class DatabaseConnection:\n    '''Manage database connections.'''\n    def connect(self):\n        self.conn = psycopg2.connect(self.dsn)\n    def disconnect(self):\n        self.conn.close()",
             terms={"database", "connection", "connect", "disconnect", "psycopg2"},
             chunk_type="class",
-            name="DatabaseConnection"
+            name="DatabaseConnection",
         ),
         Chunk(
             file_path="src/utils.py",
@@ -74,7 +69,7 @@ def sample_chunks():
             content="def validate_email(email):\n    '''Validate email format.'''\n    import re\n    pattern = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+$'\n    return bool(re.match(pattern, email))",
             terms={"validate", "email", "format", "regex", "pattern"},
             chunk_type="function",
-            name="validate_email"
+            name="validate_email",
         ),
     ]
 
@@ -161,13 +156,7 @@ class TestDenseBackendRetrieval:
         backend.build_index(sample_chunks)
 
         # Without raw_query should return empty
-        results = backend.retrieve(
-            query_terms=["auth"],
-            chunks=sample_chunks,
-            limit=5,
-            min_score=0.0,
-            raw_query=None
-        )
+        results = backend.retrieve(query_terms=["auth"], chunks=sample_chunks, limit=5, min_score=0.0, raw_query=None)
         assert results == []
 
     def test_retrieve_semantic_match(self, temp_storage, sample_chunks):
@@ -177,11 +166,7 @@ class TestDenseBackendRetrieval:
 
         # Query about authentication
         results = backend.retrieve(
-            query_terms=[],
-            chunks=sample_chunks,
-            limit=2,
-            min_score=0.0,
-            raw_query="How do I authenticate a user?"
+            query_terms=[], chunks=sample_chunks, limit=2, min_score=0.0, raw_query="How do I authenticate a user?"
         )
 
         assert len(results) > 0
@@ -195,11 +180,7 @@ class TestDenseBackendRetrieval:
         backend.build_index(sample_chunks)
 
         results = backend.retrieve(
-            query_terms=[],
-            chunks=sample_chunks,
-            limit=1,
-            min_score=0.0,
-            raw_query="database connection"
+            query_terms=[], chunks=sample_chunks, limit=1, min_score=0.0, raw_query="database connection"
         )
 
         assert len(results) <= 1
@@ -209,13 +190,7 @@ class TestDenseBackendRetrieval:
         backend = DenseBackend(temp_storage / "lancedb")
         # Don't build index
 
-        results = backend.retrieve(
-            query_terms=[],
-            chunks=sample_chunks,
-            limit=5,
-            min_score=0.0,
-            raw_query="test query"
-        )
+        results = backend.retrieve(query_terms=[], chunks=sample_chunks, limit=5, min_score=0.0, raw_query="test query")
 
         assert results == []
 
@@ -264,11 +239,7 @@ class TestDenseBackendSemanticCapabilities:
         # Query using different words than in the content
         # "login" should match "authenticate"
         results = backend.retrieve(
-            query_terms=[],
-            chunks=sample_chunks,
-            limit=3,
-            min_score=0.0,
-            raw_query="user login process"
+            query_terms=[], chunks=sample_chunks, limit=3, min_score=0.0, raw_query="user login process"
         )
 
         # Should find authentication-related chunk
@@ -282,11 +253,7 @@ class TestDenseBackendSemanticCapabilities:
         backend.build_index(sample_chunks)
 
         results = backend.retrieve(
-            query_terms=[],
-            chunks=sample_chunks,
-            limit=2,
-            min_score=0.0,
-            raw_query="SQL database management"
+            query_terms=[], chunks=sample_chunks, limit=2, min_score=0.0, raw_query="SQL database management"
         )
 
         assert len(results) > 0
@@ -301,7 +268,6 @@ class TestDenseBackendIntegration:
 
     def test_backend_selection_with_env_var(self, temp_storage, monkeypatch):
         """Test backend selection via environment variable."""
-        import os
         from core.memory_pkg.memory import ProjectMemory
 
         # Force dense backend selection

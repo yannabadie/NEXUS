@@ -88,12 +88,7 @@ class AnalysisAdapter:
     }
 
     @classmethod
-    def to_task_analysis(
-        cls,
-        hive: IndependentAnalysis,
-        raw_input: str,
-        detect_domains: bool = True
-    ) -> TaskAnalysis:
+    def to_task_analysis(cls, hive: IndependentAnalysis, raw_input: str, detect_domains: bool = True) -> TaskAnalysis:
         """
         Convert HiveMind IndependentAnalysis to Swarm TaskAnalysis.
 
@@ -155,16 +150,11 @@ class AnalysisAdapter:
             claude_fit_score=min(1.0, claude_fit),
             raw_input=raw_input,
             confidence=hive.confidence,
-            detected_keywords=[]  # Would need NLP to populate
+            detected_keywords=[],  # Would need NLP to populate
         )
 
     @classmethod
-    def to_independent_analysis(
-        cls,
-        swarm: TaskAnalysis,
-        agent_id: str,
-        reasoning: str = ""
-    ) -> IndependentAnalysis:
+    def to_independent_analysis(cls, swarm: TaskAnalysis, agent_id: str, reasoning: str = "") -> IndependentAnalysis:
         """
         Convert Swarm TaskAnalysis to HiveMind IndependentAnalysis.
 
@@ -211,7 +201,7 @@ class AnalysisAdapter:
             potential_risks=[],  # Would need analysis to populate
             confidence=swarm.confidence,
             reasoning=reasoning or f"Converted from TaskAnalysis (complexity: {swarm.complexity.name})",
-            timestamp=datetime.now()
+            timestamp=datetime.now(),
         )
 
     @classmethod

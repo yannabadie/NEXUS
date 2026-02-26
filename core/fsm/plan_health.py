@@ -3,8 +3,6 @@ Plan Health Monitoring - Détecte les plans zombies et stagnants
 
 V7 Architecture: Proper implementation for zombie detection.
 """
-from typing import Dict, List, Optional
-from datetime import datetime
 
 
 class PlanHealthMonitor:
@@ -36,7 +34,7 @@ class PlanHealthMonitor:
         self.current_turn = 0
 
         # Previous plan state for comparison
-        self.previous_plan: Optional[List[Dict]] = None
+        self.previous_plan: list[dict] | None = None
 
     def reset(self):
         """Reset monitoring for new plan"""
@@ -45,7 +43,7 @@ class PlanHealthMonitor:
         self.plan_created_turn = self.current_turn
         self.previous_plan = None
 
-    def check_health(self, current_plan: Optional[List[Dict]], current_turn: int) -> Dict:
+    def check_health(self, current_plan: list[dict] | None, current_turn: int) -> dict:
         """
         Vérifie la santé du plan
 
@@ -73,7 +71,7 @@ class PlanHealthMonitor:
                 "turns_since_progress": 0,
                 "turns_since_completion": 0,
                 "turns_since_creation": 0,
-                "recommendation": None
+                "recommendation": None,
             }
 
         # Check if this is a new plan
@@ -100,10 +98,7 @@ class PlanHealthMonitor:
 
         # Determine health status
         status, message, recommendation = self._determine_status(
-            turns_since_progress,
-            turns_since_completion,
-            turns_since_creation,
-            current_plan
+            turns_since_progress, turns_since_completion, turns_since_creation, current_plan
         )
 
         return {
@@ -112,10 +107,10 @@ class PlanHealthMonitor:
             "turns_since_progress": turns_since_progress,
             "turns_since_completion": turns_since_completion,
             "turns_since_creation": turns_since_creation,
-            "recommendation": recommendation
+            "recommendation": recommendation,
         }
 
-    def _has_progress(self, prev_plan: Optional[List[Dict]], curr_plan: List[Dict]) -> bool:
+    def _has_progress(self, prev_plan: list[dict] | None, curr_plan: list[dict]) -> bool:
         """Détecte si au moins une étape a changé de statut"""
         if not prev_plan:
             return False
@@ -130,7 +125,7 @@ class PlanHealthMonitor:
 
         return False
 
-    def _has_completion(self, prev_plan: Optional[List[Dict]], curr_plan: List[Dict]) -> bool:
+    def _has_completion(self, prev_plan: list[dict] | None, curr_plan: list[dict]) -> bool:
         """Détecte si au moins une étape est passée à COMPLETED"""
         if not prev_plan:
             return False
@@ -145,8 +140,13 @@ class PlanHealthMonitor:
 
         return False
 
-    def _determine_status(self, turns_since_progress: int, turns_since_completion: int,
-                         turns_since_creation: int, current_plan: List[Dict]) -> tuple:
+    def _determine_status(
+        self,
+        turns_since_progress: int,
+        turns_since_completion: int,
+        turns_since_creation: int,
+        current_plan: list[dict],
+    ) -> tuple:
         """Détermine le statut de santé"""
 
         # Check for ZOMBIE (most severe)
@@ -155,7 +155,7 @@ class PlanHealthMonitor:
             return (
                 "ZOMBIE",
                 f"Plan zombie détecté: toutes les étapes PENDING depuis {turns_since_creation} tours",
-                "CRITICAL: Réinitialiser le plan ou forcer une décision immédiate"
+                "CRITICAL: Réinitialiser le plan ou forcer une décision immédiate",
             )
 
         # Check for STAGNANT
@@ -163,7 +163,7 @@ class PlanHealthMonitor:
             return (
                 "STAGNANT",
                 f"Plan stagnant: aucune étape complétée depuis {turns_since_completion} tours",
-                "WARNING: Forcer une étape à complétion ou ajuster la stratégie"
+                "WARNING: Forcer une étape à complétion ou ajuster la stratégie",
             )
 
         # Check for WARNING
@@ -171,24 +171,20 @@ class PlanHealthMonitor:
             return (
                 "WARNING",
                 f"Plan n'a pas progressé depuis {turns_since_progress} tours",
-                "Vérifier si les agents sont bloqués ou si le plan doit être ajusté"
+                "Vérifier si les agents sont bloqués ou si le plan doit être ajusté",
             )
 
         # HEALTHY
-        return (
-            "HEALTHY",
-            "Plan progresse normalement",
-            None
-        )
+        return ("HEALTHY", "Plan progresse normalement", None)
 
-    def _copy_plan(self, plan: List[Dict]) -> List[Dict]:
+    def _copy_plan(self, plan: list[dict]) -> list[dict]:
         """Copie profonde du plan pour comparaison"""
         return [
             {
                 "id": step.get("id"),
                 "description": step.get("description"),
                 "status": step.get("status"),
-                "assigned_agent": step.get("assigned_agent")
+                "assigned_agent": step.get("assigned_agent"),
             }
             for step in plan
         ]

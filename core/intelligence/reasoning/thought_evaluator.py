@@ -30,7 +30,7 @@ import logging
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -50,19 +50,21 @@ REDUNDANCY_THRESHOLD = 0.4  # Below this novelty = redundant
 # Types
 # =============================================================================
 
+
 @dataclass
 class ThoughtScore:
     """Score for an individual thought."""
+
     thought_id: str
     content: str = ""
-    novelty: float = 0.0       # 0.0 = completely redundant, 1.0 = completely new
-    relevance: float = 0.0     # 0.0 = off-topic, 1.0 = directly relevant
-    confidence: float = 0.0    # 0.0 = uncertain, 1.0 = certain
+    novelty: float = 0.0  # 0.0 = completely redundant, 1.0 = completely new
+    relevance: float = 0.0  # 0.0 = off-topic, 1.0 = directly relevant
+    confidence: float = 0.0  # 0.0 = uncertain, 1.0 = certain
     composite_score: float = 0.0
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
     timestamp: float = field(default_factory=time.monotonic)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "thought_id": self.thought_id,
             "content": self.content[:100] if self.content else "",
@@ -77,14 +79,15 @@ class ThoughtScore:
 @dataclass
 class EvaluationResult:
     """Result of evaluating a set of thoughts."""
+
     total_thoughts: int
     average_score: float
     best_thought_id: str = ""
     worst_thought_id: str = ""
     redundant_count: int = 0
-    redundant_ids: List[str] = field(default_factory=list)
+    redundant_ids: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_thoughts": self.total_thoughts,
             "average_score": round(self.average_score, 4),
@@ -98,13 +101,14 @@ class EvaluationResult:
 @dataclass
 class EvaluatorStats:
     """Evaluator statistics."""
+
     total_scored: int
     total_pruned: int
     average_novelty: float
     average_relevance: float
     average_confidence: float
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_scored": self.total_scored,
             "total_pruned": self.total_pruned,
@@ -117,6 +121,7 @@ class EvaluatorStats:
 # =============================================================================
 # Thought Evaluator
 # =============================================================================
+
 
 class ThoughtEvaluator:
     """
@@ -138,10 +143,10 @@ class ThoughtEvaluator:
         confidence_weight: float = DEFAULT_CONFIDENCE_WEIGHT,
     ):
         total = novelty_weight + relevance_weight + confidence_weight
-        self._novelty_weight = novelty_weight / total if total > 0 else 1/3
-        self._relevance_weight = relevance_weight / total if total > 0 else 1/3
-        self._confidence_weight = confidence_weight / total if total > 0 else 1/3
-        self._thoughts: Dict[str, ThoughtScore] = {}
+        self._novelty_weight = novelty_weight / total if total > 0 else 1 / 3
+        self._relevance_weight = relevance_weight / total if total > 0 else 1 / 3
+        self._confidence_weight = confidence_weight / total if total > 0 else 1 / 3
+        self._thoughts: dict[str, ThoughtScore] = {}
         self._total_pruned = 0
         self._lock = threading.Lock()
 
@@ -157,7 +162,7 @@ class ThoughtEvaluator:
         novelty: float = 0.5,
         relevance: float = 0.5,
         confidence: float = 0.5,
-        tags: Optional[List[str]] = None,
+        tags: list[str] | None = None,
     ) -> ThoughtScore:
         """
         Score a thought and store it.
@@ -177,11 +182,7 @@ class ThoughtEvaluator:
         r = max(0.0, min(1.0, relevance))
         c = max(0.0, min(1.0, confidence))
 
-        composite = (
-            self._novelty_weight * n +
-            self._relevance_weight * r +
-            self._confidence_weight * c
-        )
+        composite = self._novelty_weight * n + self._relevance_weight * r + self._confidence_weight * c
 
         thought = ThoughtScore(
             thought_id=thought_id,
@@ -202,7 +203,7 @@ class ThoughtEvaluator:
 
         return thought
 
-    def get_score(self, thought_id: str) -> Optional[ThoughtScore]:
+    def get_score(self, thought_id: str) -> ThoughtScore | None:
         """Get a scored thought."""
         return self._thoughts.get(thought_id)
 
@@ -218,20 +219,14 @@ class ThoughtEvaluator:
     # Redundancy Detection
     # =========================================================================
 
-    def find_redundant(self, *, threshold: float = REDUNDANCY_THRESHOLD) -> List[str]:
+    def find_redundant(self, *, threshold: float = REDUNDANCY_THRESHOLD) -> list[str]:
         """Find thought IDs with novelty below threshold."""
-        return sorted(
-            tid for tid, t in self._thoughts.items()
-            if t.novelty < threshold
-        )
+        return sorted(tid for tid, t in self._thoughts.items() if t.novelty < threshold)
 
     def prune_redundant(self, *, threshold: float = REDUNDANCY_THRESHOLD) -> int:
         """Remove thoughts below novelty threshold. Returns count removed."""
         with self._lock:
-            to_remove = [
-                tid for tid, t in self._thoughts.items()
-                if t.novelty < threshold
-            ]
+            to_remove = [tid for tid, t in self._thoughts.items() if t.novelty < threshold]
             for tid in to_remove:
                 del self._thoughts[tid]
             self._total_pruned += len(to_remove)
@@ -241,7 +236,7 @@ class ThoughtEvaluator:
     # Ranking
     # =========================================================================
 
-    def rank_thoughts(self, *, limit: int = 10) -> List[ThoughtScore]:
+    def rank_thoughts(self, *, limit: int = 10) -> list[ThoughtScore]:
         """Get thoughts ranked by composite score (highest first)."""
         ranked = sorted(
             self._thoughts.values(),
@@ -250,17 +245,17 @@ class ThoughtEvaluator:
         )
         return ranked[:limit]
 
-    def get_by_tag(self, tag: str) -> List[ThoughtScore]:
+    def get_by_tag(self, tag: str) -> list[ThoughtScore]:
         """Get thoughts with a specific tag."""
         return [t for t in self._thoughts.values() if tag in t.tags]
 
-    def best_thought(self) -> Optional[ThoughtScore]:
+    def best_thought(self) -> ThoughtScore | None:
         """Get the highest-scoring thought."""
         if not self._thoughts:
             return None
         return max(self._thoughts.values(), key=lambda t: t.composite_score)
 
-    def worst_thought(self) -> Optional[ThoughtScore]:
+    def worst_thought(self) -> ThoughtScore | None:
         """Get the lowest-scoring thought."""
         if not self._thoughts:
             return None
@@ -298,8 +293,11 @@ class ThoughtEvaluator:
         thoughts = list(self._thoughts.values())
         if not thoughts:
             return EvaluatorStats(
-                total_scored=0, total_pruned=self._total_pruned,
-                average_novelty=0.0, average_relevance=0.0, average_confidence=0.0,
+                total_scored=0,
+                total_pruned=self._total_pruned,
+                average_novelty=0.0,
+                average_relevance=0.0,
+                average_confidence=0.0,
             )
         return EvaluatorStats(
             total_scored=len(thoughts),
@@ -323,7 +321,7 @@ class ThoughtEvaluator:
             self._thoughts.clear()
             self._total_pruned = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "thought_count": self.thought_count,
             "weights": {
@@ -339,7 +337,7 @@ class ThoughtEvaluator:
 # Global Instance
 # =============================================================================
 
-_evaluator: Optional[ThoughtEvaluator] = None
+_evaluator: ThoughtEvaluator | None = None
 _evaluator_lock = threading.Lock()
 
 

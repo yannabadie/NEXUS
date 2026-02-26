@@ -30,7 +30,6 @@ import re
 import threading
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -39,16 +38,18 @@ logger = logging.getLogger(__name__)
 # Evaluation Dimensions
 # =============================================================================
 
+
 class EvalDimension(str, Enum):
     """Evaluation quality dimensions."""
-    FACTUAL = "factual"         # Factual correctness
-    REASONING = "reasoning"     # Logical validity
-    HELPFULNESS = "helpfulness" # Task relevance
-    COHERENCE = "coherence"     # Structural clarity
+
+    FACTUAL = "factual"  # Factual correctness
+    REASONING = "reasoning"  # Logical validity
+    HELPFULNESS = "helpfulness"  # Task relevance
+    COHERENCE = "coherence"  # Structural clarity
 
 
 # Default weights per dimension (sum = 1.0)
-DEFAULT_WEIGHTS: Dict[EvalDimension, float] = {
+DEFAULT_WEIGHTS: dict[EvalDimension, float] = {
     EvalDimension.FACTUAL: 0.30,
     EvalDimension.REASONING: 0.30,
     EvalDimension.HELPFULNESS: 0.25,
@@ -60,15 +61,17 @@ DEFAULT_WEIGHTS: Dict[EvalDimension, float] = {
 # Data Types
 # =============================================================================
 
+
 @dataclass
 class DimensionScore:
     """Score for a single evaluation dimension."""
-    dimension: EvalDimension
-    score: float          # 0.0 to 1.0
-    evidence: List[str] = field(default_factory=list)
-    penalty_reasons: List[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict:
+    dimension: EvalDimension
+    score: float  # 0.0 to 1.0
+    evidence: list[str] = field(default_factory=list)
+    penalty_reasons: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict:
         return {
             "dimension": self.dimension.value,
             "score": round(self.score, 3),
@@ -80,33 +83,32 @@ class DimensionScore:
 @dataclass
 class PanelResult:
     """Aggregated evaluation result from all dimensions."""
-    dimension_scores: Dict[EvalDimension, DimensionScore]
+
+    dimension_scores: dict[EvalDimension, DimensionScore]
     composite_score: float
-    agreement_level: float      # Cross-evaluator agreement (0-1)
+    agreement_level: float  # Cross-evaluator agreement (0-1)
     weakest_dimension: EvalDimension
     strongest_dimension: EvalDimension
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "composite_score": round(self.composite_score, 3),
             "agreement_level": round(self.agreement_level, 3),
             "weakest": self.weakest_dimension.value,
             "strongest": self.strongest_dimension.value,
-            "dimensions": {
-                dim.value: ds.to_dict()
-                for dim, ds in self.dimension_scores.items()
-            },
+            "dimensions": {dim.value: ds.to_dict() for dim, ds in self.dimension_scores.items()},
         }
 
 
 @dataclass
 class PanelStats:
     """Panel statistics."""
+
     evaluations_run: int = 0
     avg_composite: float = 0.0
-    dimension_averages: Dict[str, float] = field(default_factory=dict)
+    dimension_averages: dict[str, float] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "evaluations_run": self.evaluations_run,
             "avg_composite": round(self.avg_composite, 3),
@@ -118,17 +120,18 @@ class PanelStats:
 # Specialist Evaluators
 # =============================================================================
 
+
 class FactualEvaluator:
     """Evaluates factual correctness signals."""
 
     EVIDENCE_PATTERNS = [
-        r"\bline\s+\d+\b",           # Line references
-        r"\bfile\s+\S+\.\w+\b",      # File references
-        r"\b\d+\.\d+\%",             # Percentages
-        r"\berror\s*:\s*\S+",        # Error messages
-        r"\baccording\s+to\b",       # Attribution
-        r"\bversion\s+\d",           # Version refs
-        r"\bdocumentation\b",        # Documentation refs
+        r"\bline\s+\d+\b",  # Line references
+        r"\bfile\s+\S+\.\w+\b",  # File references
+        r"\b\d+\.\d+\%",  # Percentages
+        r"\berror\s*:\s*\S+",  # Error messages
+        r"\baccording\s+to\b",  # Attribution
+        r"\bversion\s+\d",  # Version refs
+        r"\bdocumentation\b",  # Documentation refs
     ]
 
     HALLUCINATION_SIGNALS = [
@@ -301,7 +304,7 @@ class CoherenceEvaluator:
         penalties = []
 
         # Sentence count and quality
-        sentences = re.split(r'[.!?]+', output.strip())
+        sentences = re.split(r"[.!?]+", output.strip())
         sentences = [s.strip() for s in sentences if s.strip()]
         sentence_count = len(sentences)
 
@@ -349,6 +352,7 @@ class CoherenceEvaluator:
 # Evaluation Panel
 # =============================================================================
 
+
 class EvaluationPanel:
     """
     Multi-dimensional evaluation panel (CRM-inspired).
@@ -358,7 +362,7 @@ class EvaluationPanel:
 
     def __init__(
         self,
-        weights: Optional[Dict[EvalDimension, float]] = None,
+        weights: dict[EvalDimension, float] | None = None,
     ):
         self._weights = weights or dict(DEFAULT_WEIGHTS)
         self._evaluators = {
@@ -367,8 +371,8 @@ class EvaluationPanel:
             EvalDimension.HELPFULNESS: HelpfulnessEvaluator(),
             EvalDimension.COHERENCE: CoherenceEvaluator(),
         }
-        self._history: List[float] = []
-        self._dimension_history: Dict[EvalDimension, List[float]] = {d: [] for d in EvalDimension}
+        self._history: list[float] = []
+        self._dimension_history: dict[EvalDimension, list[float]] = {d: [] for d in EvalDimension}
         self._lock = threading.Lock()
 
     def evaluate(self, output: str, context: str = "") -> PanelResult:
@@ -383,7 +387,7 @@ class EvaluationPanel:
             PanelResult with dimension scores and composite
         """
         # Run all specialist evaluators
-        dimension_scores: Dict[EvalDimension, DimensionScore] = {}
+        dimension_scores: dict[EvalDimension, DimensionScore] = {}
         for dim, evaluator in self._evaluators.items():
             dimension_scores[dim] = evaluator.evaluate(output, context)
 
@@ -396,7 +400,7 @@ class EvaluationPanel:
         scores = [ds.score for ds in dimension_scores.values()]
         mean = sum(scores) / len(scores)
         variance = sum((s - mean) ** 2 for s in scores) / len(scores)
-        std_dev = variance ** 0.5
+        std_dev = variance**0.5
         agreement = 1.0 - min(1.0, std_dev * 2)  # Scale: 0 std = 1.0 agreement
 
         # Find strongest/weakest
@@ -448,7 +452,7 @@ class EvaluationPanel:
 # Singleton
 # =============================================================================
 
-_panel: Optional[EvaluationPanel] = None
+_panel: EvaluationPanel | None = None
 _panel_lock = threading.Lock()
 
 

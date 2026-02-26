@@ -24,8 +24,9 @@ Outils disponibles (TOUS accessibles par Gemini ET Claude):
 """
 
 import logging
+from collections.abc import Callable
 from pathlib import Path
-from typing import Dict, Any, List, Tuple, Optional, Callable
+from typing import Any
 
 # Security imports
 from core.security_pkg.security import PathGuardian
@@ -38,6 +39,7 @@ from .handlers import ToolResult, create_all_handlers
 try:
     from core.interface_pkg.interface_pkg.mcp import MCPRegistry
     from core.interface_pkg.interface_pkg.mcp.client import MCPClientError, MCPServerError
+
     _MCP_AVAILABLE = True
 except ImportError:
     _MCP_AVAILABLE = False
@@ -48,6 +50,7 @@ except ImportError:
 # V7.8 Phase 12.5: Dynamic Tool Generation imports
 try:
     from core.execution_pkg.execution.dynamic_tools import DynamicToolManager
+
     _DYNAMIC_TOOLS_AVAILABLE = True
 except ImportError:
     _DYNAMIC_TOOLS_AVAILABLE = False
@@ -64,13 +67,13 @@ class ToolManager:
 
     # Tool name aliases (Gemini CLI names -> NEXUS names)
     TOOL_ALIASES = {
-        'read_file': 'read',
-        'write_file': 'write',
-        'edit_file': 'edit',
-        'list_directory': 'list_dir',
-        'run_shell_command': 'bash',
-        'google_web_search': 'web_search',
-        'read_many_files': 'read',
+        "read_file": "read",
+        "write_file": "write",
+        "edit_file": "edit",
+        "list_directory": "list_dir",
+        "run_shell_command": "bash",
+        "google_web_search": "web_search",
+        "read_many_files": "read",
     }
 
     def __init__(self, workspace_path: Path):
@@ -86,24 +89,22 @@ class ToolManager:
 
         # Initialize PathGuardian (security layer 2)
         self.path_guardian = PathGuardian(
-            workspace_path=workspace_path,
-            parent_path=self.parent_path,
-            generation_active=self.generation_active
+            workspace_path=workspace_path, parent_path=self.parent_path, generation_active=self.generation_active
         )
 
         # Initialize ExecutionPolicy (security layer 1)
         self.execution_policy = ExecutionPolicy(workspace_path)
 
         # V8.3.1: SwarmBridge for swarm_delegate tool (set externally)
-        self._swarm_bridge: Optional[Any] = None
+        self._swarm_bridge: Any | None = None
 
         # MCP Registry and tools
-        self._mcp_registry: Optional["MCPRegistry"] = None
-        self._mcp_tools: Dict[str, Tuple[str, str]] = {}
+        self._mcp_registry: MCPRegistry | None = None
+        self._mcp_tools: dict[str, tuple[str, str]] = {}
         self._logger = logging.getLogger("nexus.tools")
 
         # Dynamic Tool Manager
-        self._dynamic_tool_manager: Optional["DynamicToolManager"] = None
+        self._dynamic_tool_manager: DynamicToolManager | None = None
 
         # Initialize subsystems BEFORE creating handlers
         if _MCP_AVAILABLE:
@@ -116,22 +117,20 @@ class ToolManager:
             workspace_path=self.workspace_path,
             validation_service=self.path_guardian,
             dynamic_tool_manager=self._dynamic_tool_manager,
-            swarm_bridge=self._swarm_bridge
+            swarm_bridge=self._swarm_bridge,
         )
 
         # Build dispatch table from handlers
-        self.tools: Dict[str, Any] = {}
+        self.tools: dict[str, Any] = {}
         for name, handler in self._handlers.items():
             self.tools[name] = handler
 
         # Add MCP tools to dispatch table (dynamically registered)
         for mcp_tool_name, (server_name, tool_name) in self._mcp_tools.items():
-            self.tools[mcp_tool_name] = self._create_mcp_tool_handler(
-                server_name, tool_name
-            )
+            self.tools[mcp_tool_name] = self._create_mcp_tool_handler(server_name, tool_name)
 
     @property
-    def swarm_bridge(self) -> Optional[Any]:
+    def swarm_bridge(self) -> Any | None:
         """Get the SwarmBridge instance."""
         return self._swarm_bridge
 
@@ -140,8 +139,8 @@ class ToolManager:
         """Set SwarmBridge and propagate to handler."""
         self._swarm_bridge = bridge
         # Update swarm_delegate handler if it exists
-        if 'swarm_delegate' in self._handlers:
-            self._handlers['swarm_delegate'].swarm_bridge = bridge
+        if "swarm_delegate" in self._handlers:
+            self._handlers["swarm_delegate"].swarm_bridge = bridge
 
     def execute(self, tool_request) -> ToolResult:
         """
@@ -160,12 +159,7 @@ class ToolManager:
         tool_name = self.TOOL_ALIASES.get(tool_name, tool_name)
 
         if tool_name not in self.tools:
-            return ToolResult(
-                tool_name=tool_name,
-                status="ERROR",
-                output="",
-                error=f"Unknown tool: {tool_name}"
-            )
+            return ToolResult(tool_name=tool_name, status="ERROR", output="", error=f"Unknown tool: {tool_name}")
 
         # Evolution mode pre-validation for search tools accessing parent
         if tool_name in ("glob", "grep"):
@@ -178,23 +172,18 @@ class ToolManager:
                         tool_name=tool_name,
                         status="FAILURE",
                         output="",
-                        error=f"Path '{search_path}' is not allowed in evolution mode"
+                        error=f"Path '{search_path}' is not allowed in evolution mode",
                     )
 
         try:
             handler = self.tools[tool_name]
             # Handler is a BaseHandler instance - call execute()
-            if hasattr(handler, 'execute'):
+            if hasattr(handler, "execute"):
                 return handler.execute(arguments)
             # Fallback for callable (MCP handlers)
             return handler(arguments)
         except Exception as e:
-            return ToolResult(
-                tool_name=tool_name,
-                status="ERROR",
-                output="",
-                error=f"Tool execution error: {str(e)}"
-            )
+            return ToolResult(tool_name=tool_name, status="ERROR", output="", error=f"Tool execution error: {str(e)}")
 
     # =========================================================================
     # Evolution Mode Security Helpers
@@ -231,9 +220,7 @@ class ToolManager:
                 return False
             if any(path_str.startswith(prefix) for prefix in allowed_prefixes):
                 return True
-            if path_str in allowed_root_files:
-                return True
-            return False
+            return path_str in allowed_root_files
         except (ValueError, OSError):
             return False
 
@@ -261,10 +248,7 @@ class ToolManager:
 
             if any(forb in path_str for forb in forbidden):
                 return False
-            if any(path_str.startswith(prefix) or path_str == prefix
-                   for prefix in allowed_prefixes):
-                return True
-            return False
+            return bool(any(path_str.startswith(prefix) or path_str == prefix for prefix in allowed_prefixes))
         except (ValueError, OSError):
             return False
 
@@ -311,9 +295,7 @@ class ToolManager:
                 try:
                     self._register_mcp_server_tools(server_config.name)
                 except Exception as e:
-                    self._logger.warning(
-                        f"Failed to load tools from MCP server '{server_config.name}': {e}"
-                    )
+                    self._logger.warning(f"Failed to load tools from MCP server '{server_config.name}': {e}")
         except Exception as e:
             self._logger.error(f"Failed to initialize MCP registry: {e}")
 
@@ -340,26 +322,21 @@ class ToolManager:
             self._logger.error(f"Error registering tools from {server_name}: {e}")
             raise
 
-    def _create_mcp_tool_handler(
-        self, server_name: str, tool_name: str
-    ) -> Callable[[Dict], ToolResult]:
+    def _create_mcp_tool_handler(self, server_name: str, tool_name: str) -> Callable[[dict], ToolResult]:
         """Create a handler function for an MCP tool."""
-        def handler(args: Dict) -> ToolResult:
+
+        def handler(args: dict) -> ToolResult:
             return self._execute_mcp_tool(server_name, tool_name, args)
+
         return handler
 
-    def _execute_mcp_tool(
-        self, server_name: str, tool_name: str, args: Dict
-    ) -> ToolResult:
+    def _execute_mcp_tool(self, server_name: str, tool_name: str, args: dict) -> ToolResult:
         """Execute an MCP tool."""
         nexus_tool_name = f"mcp_{server_name}_{tool_name}"
 
         if self._mcp_registry is None:
             return ToolResult(
-                tool_name=nexus_tool_name,
-                status="ERROR",
-                output="",
-                error="MCP registry not initialized"
+                tool_name=nexus_tool_name, status="ERROR", output="", error="MCP registry not initialized"
             )
 
         try:
@@ -369,48 +346,26 @@ class ToolManager:
                     tool_name=nexus_tool_name,
                     status="ERROR",
                     output="",
-                    error=f"Failed to connect to MCP server: {server_name}"
+                    error=f"Failed to connect to MCP server: {server_name}",
                 )
 
             result = client.call_tool(tool_name, args)
 
             if result.isError:
-                return ToolResult(
-                    tool_name=nexus_tool_name,
-                    status="FAILURE",
-                    output="",
-                    error=result.text
-                )
+                return ToolResult(tool_name=nexus_tool_name, status="FAILURE", output="", error=result.text)
 
-            return ToolResult(
-                tool_name=nexus_tool_name,
-                status="SUCCESS",
-                output=result.text
-            )
+            return ToolResult(tool_name=nexus_tool_name, status="SUCCESS", output=result.text)
 
         except MCPServerError as e:
             return ToolResult(
-                tool_name=nexus_tool_name,
-                status="FAILURE",
-                output="",
-                error=f"MCP server error: {e.error.message}"
+                tool_name=nexus_tool_name, status="FAILURE", output="", error=f"MCP server error: {e.error.message}"
             )
         except MCPClientError as e:
-            return ToolResult(
-                tool_name=nexus_tool_name,
-                status="ERROR",
-                output="",
-                error=f"MCP client error: {str(e)}"
-            )
+            return ToolResult(tool_name=nexus_tool_name, status="ERROR", output="", error=f"MCP client error: {str(e)}")
         except Exception as e:
-            return ToolResult(
-                tool_name=nexus_tool_name,
-                status="ERROR",
-                output="",
-                error=f"Unexpected error: {str(e)}"
-            )
+            return ToolResult(tool_name=nexus_tool_name, status="ERROR", output="", error=f"Unexpected error: {str(e)}")
 
-    def get_mcp_tools(self) -> List[str]:
+    def get_mcp_tools(self) -> list[str]:
         """Get list of available MCP tools."""
         return list(self._mcp_tools.keys())
 
@@ -432,9 +387,7 @@ class ToolManager:
             self._init_mcp_tools()
             # Re-register handlers
             for mcp_tool_name, (server_name, tool_name) in self._mcp_tools.items():
-                self.tools[mcp_tool_name] = self._create_mcp_tool_handler(
-                    server_name, tool_name
-                )
+                self.tools[mcp_tool_name] = self._create_mcp_tool_handler(server_name, tool_name)
 
         return len(self._mcp_tools)
 
@@ -458,7 +411,7 @@ class ToolManager:
             self._logger.error(f"Failed to initialize Dynamic Tool Manager: {e}")
             self._dynamic_tool_manager = None
 
-    def get_dynamic_tools(self) -> List[str]:
+    def get_dynamic_tools(self) -> list[str]:
         """Get list of available dynamic tools."""
         if self._dynamic_tool_manager is None:
             return []
@@ -466,4 +419,4 @@ class ToolManager:
 
 
 # Re-export for backward compatibility
-__all__ = ['ToolManager', 'ToolResult']
+__all__ = ["ToolManager", "ToolResult"]

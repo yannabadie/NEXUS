@@ -20,22 +20,21 @@ Usage:
         # Safe to promote
 """
 
-import ast
-import sys
-import subprocess
+import contextlib
 import json
-import time
 import py_compile
-from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+import subprocess
+import sys
+import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import IntEnum
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 
 # V12.4 Epic 4.2: Deterministic Fitness Function integration
 try:
-    from core.intelligence.evolution.fitness import DeterministicFitness, FitnessCheck
+    from core.intelligence.evolution.fitness import DeterministicFitness
+
     DETERMINISTIC_FITNESS_AVAILABLE = True
 except ImportError:
     DETERMINISTIC_FITNESS_AVAILABLE = False
@@ -43,36 +42,39 @@ except ImportError:
 
 class ValidationTier(IntEnum):
     """Validation tiers with increasing depth/cost"""
-    SYNTAX = 1      # <1s - py_compile + AST
-    SMOKE = 2       # <30s - System initialization
-    BENCHMARK = 3   # <5min - Fitness benchmarks (parallel)
-    REDTEAM = 4     # Sequential - Alignment testing (OPTIONAL in V7.5)
+
+    SYNTAX = 1  # <1s - py_compile + AST
+    SMOKE = 2  # <30s - System initialization
+    BENCHMARK = 3  # <5min - Fitness benchmarks (parallel)
+    REDTEAM = 4  # Sequential - Alignment testing (OPTIONAL in V7.5)
 
 
 @dataclass
 class TierResult:
     """Result of a single tier validation"""
+
     tier: ValidationTier
     passed: bool
     message: str
     duration_seconds: float = 0.0
-    details: Dict = field(default_factory=dict)
+    details: dict = field(default_factory=dict)
 
 
 @dataclass
 class TieredValidationResult:
     """Result of full tiered validation"""
+
     child_id: str
     passed: bool
-    failed_at_tier: Optional[ValidationTier] = None
-    tier_results: List[TierResult] = field(default_factory=list)
-    fitness_score: Optional[float] = None
-    red_team_score: Optional[float] = None
+    failed_at_tier: ValidationTier | None = None
+    tier_results: list[TierResult] = field(default_factory=list)
+    fitness_score: float | None = None
+    red_team_score: float | None = None
     total_duration: float = 0.0
     timestamp: str = ""
     recommendation: str = ""
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "child_id": self.child_id,
             "passed": self.passed,
@@ -83,7 +85,7 @@ class TieredValidationResult:
                     "passed": t.passed,
                     "message": t.message,
                     "duration_seconds": t.duration_seconds,
-                    "details": t.details
+                    "details": t.details,
                 }
                 for t in self.tier_results
             ],
@@ -91,7 +93,7 @@ class TieredValidationResult:
             "red_team_score": self.red_team_score,
             "total_duration": self.total_duration,
             "timestamp": self.timestamp,
-            "recommendation": self.recommendation
+            "recommendation": self.recommendation,
         }
 
 
@@ -113,7 +115,7 @@ class TieredValidator:
         "core/execution/tool_manager.py",
         "core/synapse/memory_v7.py",
         "core/fsm/states.py",
-        "nexus7.py"
+        "nexus7.py",
     ]
 
     # Modules that must import successfully
@@ -123,7 +125,7 @@ class TieredValidator:
         "core.drivers.gemini_driver_v7",
         "core.drivers.claude_driver_hybrid",
         "core.execution.tool_manager",
-        "core.synapse.memory_v7"
+        "core.synapse.memory_v7",
     ]
 
     def __init__(self, child_path: Path, config=None):
@@ -134,12 +136,9 @@ class TieredValidator:
         # Get config values or defaults
         self.parallel_workers = 4
         if config:
-            self.parallel_workers = getattr(config, 'parallel_benchmark_workers', 4)
+            self.parallel_workers = getattr(config, "parallel_benchmark_workers", 4)
 
-    def run_tiered(
-        self,
-        max_tier: ValidationTier = ValidationTier.REDTEAM
-    ) -> TieredValidationResult:
+    def run_tiered(self, max_tier: ValidationTier = ValidationTier.REDTEAM) -> TieredValidationResult:
         """
         Run tiered validation with early exit on failure.
 
@@ -150,16 +149,12 @@ class TieredValidator:
             TieredValidationResult with all tier results
         """
         start_time = time.time()
-        result = TieredValidationResult(
-            child_id=self.child_id,
-            passed=True,
-            timestamp=datetime.now().isoformat()
-        )
+        result = TieredValidationResult(child_id=self.child_id, passed=True, timestamp=datetime.now().isoformat())
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f" TIERED VALIDATION: {self.child_id}")
         print(f" Max Tier: {max_tier.name}")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
 
         # TIER 1: Syntax + Import (<1s)
         tier1 = self._run_tier1_syntax_import()
@@ -218,7 +213,7 @@ class TieredValidator:
         # Check config to see if Red Team is mandatory
         red_team_mandatory = True  # Default to mandatory for safety
         if self.config:
-            red_team_mandatory = getattr(self.config, 'red_team_mandatory', False)
+            red_team_mandatory = getattr(self.config, "red_team_mandatory", False)
 
         if red_team_mandatory:
             tier4 = self._run_tier4_redteam()
@@ -268,7 +263,7 @@ class TieredValidator:
                 passed=False,
                 message=f"Syntax errors in {len(errors)} file(s)",
                 duration_seconds=time.time() - start,
-                details={"errors": errors[:5]}  # First 5 errors
+                details={"errors": errors[:5]},  # First 5 errors
             )
 
         # Phase 2: Import check (subprocess for isolation)
@@ -279,7 +274,7 @@ class TieredValidator:
                 passed=False,
                 message=import_result["message"],
                 duration_seconds=time.time() - start,
-                details=import_result
+                details=import_result,
             )
 
         return TierResult(
@@ -287,10 +282,10 @@ class TieredValidator:
             passed=True,
             message=f"Syntax OK ({len(self.CRITICAL_FILES)} files)",
             duration_seconds=time.time() - start,
-            details={"files_checked": len(self.CRITICAL_FILES)}
+            details={"files_checked": len(self.CRITICAL_FILES)},
         )
 
-    def _check_imports(self) -> Dict:
+    def _check_imports(self) -> dict:
         """Check if critical modules can be imported"""
         import_script = f"""
 import sys
@@ -312,7 +307,7 @@ else:
                 capture_output=True,
                 text=True,
                 timeout=30,
-                cwd=str(self.child_path)
+                cwd=str(self.child_path),
             )
 
             output = result.stdout.strip()
@@ -321,17 +316,9 @@ else:
 
             if "IMPORT_ERRORS:" in output:
                 errors = output.split("IMPORT_ERRORS:")[1].split("|")
-                return {
-                    "passed": False,
-                    "message": f"Import failed: {len(errors)} module(s)",
-                    "errors": errors
-                }
+                return {"passed": False, "message": f"Import failed: {len(errors)} module(s)", "errors": errors}
 
-            return {
-                "passed": False,
-                "message": f"Unexpected import output",
-                "stderr": result.stderr[:500]
-            }
+            return {"passed": False, "message": "Unexpected import output", "stderr": result.stderr[:500]}
 
         except subprocess.TimeoutExpired:
             return {"passed": False, "message": "Import check timeout"}
@@ -379,7 +366,7 @@ except Exception as e:
                 capture_output=True,
                 text=True,
                 timeout=30,
-                cwd=str(self.child_path)
+                cwd=str(self.child_path),
             )
 
             output = result.stdout.strip()
@@ -389,7 +376,7 @@ except Exception as e:
                     passed=True,
                     message="Smoke test passed",
                     duration_seconds=time.time() - start,
-                    details={"checks": ["config", "orchestrator"]}
+                    details={"checks": ["config", "orchestrator"]},
                 )
 
             error_msg = "Unknown smoke failure"
@@ -401,22 +388,16 @@ except Exception as e:
                 passed=False,
                 message=f"Smoke failed: {error_msg[:100]}",
                 duration_seconds=time.time() - start,
-                details={"stderr": result.stderr[:500]}
+                details={"stderr": result.stderr[:500]},
             )
 
         except subprocess.TimeoutExpired:
             return TierResult(
-                tier=ValidationTier.SMOKE,
-                passed=False,
-                message="Smoke test timeout (30s)",
-                duration_seconds=30.0
+                tier=ValidationTier.SMOKE, passed=False, message="Smoke test timeout (30s)", duration_seconds=30.0
             )
         except Exception as e:
             return TierResult(
-                tier=ValidationTier.SMOKE,
-                passed=False,
-                message=str(e),
-                duration_seconds=time.time() - start
+                tier=ValidationTier.SMOKE, passed=False, message=str(e), duration_seconds=time.time() - start
             )
 
     def _run_tier3_parallel_benchmark(self) -> TierResult:
@@ -460,8 +441,7 @@ except Exception as e:
             test_dir = self.child_path / "tests"
             if test_dir.exists():
                 pytest_result = subprocess.run(
-                    [sys.executable, "-m", "pytest", str(test_dir), "-q",
-                     "--tb=no", "-x", "--timeout=120"],
+                    [sys.executable, "-m", "pytest", str(test_dir), "-q", "--tb=no", "-x", "--timeout=120"],
                     capture_output=True,
                     text=True,
                     timeout=300,
@@ -486,13 +466,12 @@ except Exception as e:
 
         # Gate 3: Content hash for integrity tracking
         import hashlib
+
         content_hash = hashlib.sha256()
         py_files = sorted(self.child_path.rglob("*.py"))
         for py_file in py_files[:100]:  # Cap to prevent huge scans
-            try:
+            with contextlib.suppress(OSError):
                 content_hash.update(py_file.read_bytes())
-            except OSError:
-                pass
         gate_results["content_hash"] = content_hash.hexdigest()[:16]
 
         # Compute fitness score from gates
@@ -510,7 +489,7 @@ except Exception as e:
                 "fitness_score": fitness_score,
                 "method": "deterministic_v12.4",
                 "gates": gate_results,
-            }
+            },
         )
 
     def _run_tier4_redteam(self) -> TierResult:
@@ -532,14 +511,11 @@ except Exception as e:
                     passed=False,
                     message=f"CRITICAL: Red Team import failed - {e}",
                     duration_seconds=time.time() - start,
-                    details={"blocked": True, "error": str(e)}
+                    details={"blocked": True, "error": str(e)},
                 )
 
             # Run Red Team validation
-            rt_validator = RedTeamValidator(
-                nexus_path=self.child_path,
-                nexus_id=self.child_id
-            )
+            rt_validator = RedTeamValidator(nexus_path=self.child_path, nexus_id=self.child_id)
 
             alignment_score, results = rt_validator.run_full_validation()
 
@@ -557,8 +533,8 @@ except Exception as e:
                     "alignment_score": alignment_score,
                     "critical_pass": critical_pass,
                     "critical_total": critical_total,
-                    "results": results
-                }
+                    "results": results,
+                },
             )
 
         except Exception as e:
@@ -568,10 +544,10 @@ except Exception as e:
                 passed=False,
                 message=f"CRITICAL: Red Team error - {e}",
                 duration_seconds=time.time() - start,
-                details={"blocked": True, "error": str(e)}
+                details={"blocked": True, "error": str(e)},
             )
 
-    def _run_deterministic_quality_checks(self) -> Optional[TierResult]:
+    def _run_deterministic_quality_checks(self) -> TierResult | None:
         """
         V12.4 Epic 4.2: Run deterministic code quality checks.
 
@@ -594,7 +570,7 @@ except Exception as e:
             fitness = DeterministicFitness(
                 child_path=self.child_path,
                 strict_mode=False,  # Run all checks even if some fail
-                timeout_seconds=300  # 5 min timeout for quality checks
+                timeout_seconds=300,  # 5 min timeout for quality checks
             )
 
             result = fitness.evaluate()
@@ -607,10 +583,7 @@ except Exception as e:
             # Build detailed message
             failed_checks = [r for r in result.results if not r.passed]
             if failed_checks:
-                failure_summary = ", ".join([
-                    f"{r.check.name} ({r.message})"
-                    for r in failed_checks[:3]
-                ])
+                failure_summary = ", ".join([f"{r.check.name} ({r.message})" for r in failed_checks[:3]])
                 message = f"Quality checks: {passed_checks}/{total_checks} passed. Failures: {failure_summary}"
             else:
                 message = f"All quality checks passed ({total_checks}/{total_checks})"
@@ -629,11 +602,11 @@ except Exception as e:
                             "check": r.check.name,
                             "passed": r.passed,
                             "message": r.message,
-                            "duration": r.duration_seconds
+                            "duration": r.duration_seconds,
                         }
                         for r in result.results
-                    ]
-                }
+                    ],
+                },
             )
 
         except Exception as e:
@@ -644,48 +617,42 @@ except Exception as e:
                 passed=True,  # Don't fail validation on tool errors
                 message=f"Quality checks skipped (error: {str(e)[:50]})",
                 duration_seconds=time.time() - start,
-                details={"error": str(e), "skipped": True}
+                details={"error": str(e), "skipped": True},
             )
 
     def _print_tier_result(self, result: TierResult):
         """Print tier result to console"""
         icon = "[OK]" if result.passed else "[FAIL]"
-        print(f"  {icon} TIER {result.tier.value} ({result.tier.name}): {result.message} ({result.duration_seconds:.1f}s)")
+        print(
+            f"  {icon} TIER {result.tier.value} ({result.tier.name}): {result.message} ({result.duration_seconds:.1f}s)"
+        )
 
         if not result.passed and result.details.get("errors"):
             for error in result.details["errors"][:3]:
                 print(f"      - {error}")
 
-    def _finalize(
-        self,
-        result: TieredValidationResult,
-        start_time: float
-    ) -> TieredValidationResult:
+    def _finalize(self, result: TieredValidationResult, start_time: float) -> TieredValidationResult:
         """Finalize validation result"""
         result.total_duration = time.time() - start_time
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f" TIERED VALIDATION: {'PASSED' if result.passed else 'FAILED'}")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         print(f"  Child: {result.child_id}")
         print(f"  Duration: {result.total_duration:.1f}s")
         if result.failed_at_tier:
             print(f"  Failed at: TIER {result.failed_at_tier.value} ({result.failed_at_tier.name})")
         print(f"  Recommendation: {result.recommendation}")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
 
         return result
 
-    def save_report(
-        self,
-        result: TieredValidationResult,
-        output_path: Optional[Path] = None
-    ) -> Path:
+    def save_report(self, result: TieredValidationResult, output_path: Path | None = None) -> Path:
         """Save validation report to JSON file"""
         if output_path is None:
             output_path = self.child_path / "TIERED_VALIDATION_REPORT.json"
 
-        with open(output_path, 'w', encoding='utf-8') as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(result.to_dict(), f, indent=2)
 
         print(f"[TIERED_VALIDATOR] Report saved: {output_path}")
@@ -698,8 +665,13 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="NEXUS V7 Tiered Validator")
     parser.add_argument("child_path", help="Path to child NEXUS instance")
-    parser.add_argument("--max-tier", type=int, default=4, choices=[1, 2, 3, 4],
-                        help="Maximum tier to run (1=syntax, 2=smoke, 3=benchmark, 4=redteam)")
+    parser.add_argument(
+        "--max-tier",
+        type=int,
+        default=4,
+        choices=[1, 2, 3, 4],
+        help="Maximum tier to run (1=syntax, 2=smoke, 3=benchmark, 4=redteam)",
+    )
     args = parser.parse_args()
 
     validator = TieredValidator(Path(args.child_path))

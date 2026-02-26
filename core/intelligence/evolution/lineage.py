@@ -11,18 +11,17 @@ Manages the evolutionary tree of NEXUS instances:
 
 import json
 import subprocess
-from pathlib import Path
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
-import shutil
+from pathlib import Path
 
 
 class LineageError(Exception):
     """Custom exception for lineage operations"""
+
     pass
 
 
-def load_lineage(workspace_path: Path = None) -> Dict:
+def load_lineage(workspace_path: Path = None) -> dict:
     """
     Load LINEAGE.json from project root.
 
@@ -47,13 +46,13 @@ def load_lineage(workspace_path: Path = None) -> Dict:
         raise LineageError(f"LINEAGE.json not found at {lineage_path}")
 
     try:
-        with open(lineage_path, 'r', encoding='utf-8') as f:
+        with open(lineage_path, encoding="utf-8") as f:
             return json.load(f)
     except json.JSONDecodeError as e:
-        raise LineageError(f"Invalid LINEAGE.json: {e}")
+        raise LineageError(f"Invalid LINEAGE.json: {e}") from e
 
 
-def save_lineage(lineage: Dict, workspace_path: Path = None) -> None:
+def save_lineage(lineage: dict, workspace_path: Path = None) -> None:
     """
     Save LINEAGE.json to project root.
 
@@ -74,15 +73,15 @@ def save_lineage(lineage: Dict, workspace_path: Path = None) -> None:
         lineage["last_updated"] = datetime.now().isoformat()
 
         # Save with pretty formatting
-        with open(lineage_path, 'w', encoding='utf-8') as f:
+        with open(lineage_path, "w", encoding="utf-8") as f:
             json.dump(lineage, f, indent=2, ensure_ascii=False)
 
         print(f"[LINEAGE]  Saved to {lineage_path}")
     except Exception as e:
-        raise LineageError(f"Failed to save LINEAGE.json: {e}")
+        raise LineageError(f"Failed to save LINEAGE.json: {e}") from e
 
 
-def get_current_parent(lineage: Dict = None) -> Dict:
+def get_current_parent(lineage: dict = None) -> dict:
     """
     Get current active parent NEXUS instance.
 
@@ -106,9 +105,9 @@ def create_child_entry(
     improvements_summary: str,
     birth_cert_path: str,
     eval_results_path: str,
-    files_modified: List[str],
-    lines_changed: int
-) -> Dict:
+    files_modified: list[str],
+    lines_changed: int,
+) -> dict:
     """
     Create a child entry for pending review.
 
@@ -146,20 +145,20 @@ def create_child_entry(
         "files_modified_count": len(files_modified),
         "lines_changed": lines_changed,
         "created_at": datetime.now().isoformat(),
-        "status": "pending_review"
+        "status": "pending_review",
     }
 
     return child_entry
 
 
 def promote_child_to_parent(
-    lineage: Dict,
+    lineage: dict,
     child_id: str,
     child_path: Path,
     fitness_score: float,
     birth_cert_path: str,
-    notable_features: List[str]
-) -> Dict:
+    notable_features: list[str],
+) -> dict:
     """
     Promote a child to become the new active parent.
 
@@ -191,6 +190,7 @@ def promote_child_to_parent(
 
     # V12.4: Compute SHA-256 content hash for integrity tracking
     import hashlib
+
     content_hash = hashlib.sha256()
     try:
         for py_file in sorted(child_path.rglob("*.py")):
@@ -211,9 +211,7 @@ def promote_child_to_parent(
         "birth_certificate": birth_cert_path,
         "stagnation_counter": 0,
         "content_hash_sha256": child_content_hash,
-        "parent_content_hash": lineage["lineage_tree"].get(
-            old_parent_id, {}
-        ).get("content_hash_sha256"),
+        "parent_content_hash": lineage["lineage_tree"].get(old_parent_id, {}).get("content_hash_sha256"),
     }
 
     # Update current_parent
@@ -223,7 +221,7 @@ def promote_child_to_parent(
         "generation": generation,
         "fitness_score": fitness_score,
         "activated_at": datetime.now().isoformat(),
-        "status": "active_parent"
+        "status": "active_parent",
     }
 
     # Update evolution stats
@@ -237,11 +235,8 @@ def promote_child_to_parent(
 
 
 def archive_generation(
-    lineage: Dict,
-    nexus_id: str,
-    archive_path: Path,
-    reason: str = "Superseded by superior child"
-) -> Dict:
+    lineage: dict, nexus_id: str, archive_path: Path, reason: str = "Superseded by superior child"
+) -> dict:
     """
     Archive a NEXUS generation.
 
@@ -260,7 +255,7 @@ def archive_generation(
         "path": str(archive_path),
         "parent": nexus_id,
         "archived_at": datetime.now().isoformat(),
-        "reason": reason
+        "reason": reason,
     }
 
     print(f"[LINEAGE]  Archived {nexus_id} to {archive_path}")
@@ -268,7 +263,7 @@ def archive_generation(
     return lineage
 
 
-def update_stagnation_counter(lineage: Dict, increment: bool = True) -> Tuple[Dict, int]:
+def update_stagnation_counter(lineage: dict, increment: bool = True) -> tuple[dict, int]:
     """
     Update stagnation counter (no superior child produced).
 
@@ -286,12 +281,12 @@ def update_stagnation_counter(lineage: Dict, increment: bool = True) -> Tuple[Di
     else:
         lineage["evolution_stats"]["stagnation_counter"] = 0
         counter = 0
-        print(f"[LINEAGE]  Stagnation counter reset")
+        print("[LINEAGE]  Stagnation counter reset")
 
     return lineage, counter
 
 
-def get_evolution_stats(lineage: Dict = None) -> Dict:
+def get_evolution_stats(lineage: dict = None) -> dict:
     """
     Get evolution statistics summary.
 
@@ -323,19 +318,26 @@ def sign_birth_certificate(birth_cert_path: Path, ssh_key_path: Path = None) -> 
 
     if not ssh_key_path.exists():
         print(f"[LINEAGE] -  SSH key not found: {ssh_key_path}")
-        print(f"[LINEAGE] -  Birth certificate will be unsigned")
+        print("[LINEAGE] -  Birth certificate will be unsigned")
         return False
 
     try:
         # Sign with ssh-keygen
-        sig_path = birth_cert_path.with_suffix('.sig')
-        subprocess.run([
-            "ssh-keygen",
-            "-Y", "sign",
-            "-f", str(ssh_key_path),
-            "-n", "nexus_birth_certificate",
-            str(birth_cert_path)
-        ], check=True, capture_output=True)
+        sig_path = birth_cert_path.with_suffix(".sig")
+        subprocess.run(
+            [
+                "ssh-keygen",
+                "-Y",
+                "sign",
+                "-f",
+                str(ssh_key_path),
+                "-n",
+                "nexus_birth_certificate",
+                str(birth_cert_path),
+            ],
+            check=True,
+            capture_output=True,
+        )
 
         print(f"[LINEAGE]  Birth certificate signed: {sig_path}")
         return True
@@ -344,7 +346,7 @@ def sign_birth_certificate(birth_cert_path: Path, ssh_key_path: Path = None) -> 
         print(f"[LINEAGE]  Failed to sign birth certificate: {e}")
         return False
     except FileNotFoundError:
-        print(f"[LINEAGE]  ssh-keygen not found (install OpenSSH)")
+        print("[LINEAGE]  ssh-keygen not found (install OpenSSH)")
         return False
 
 
@@ -352,11 +354,11 @@ def create_birth_certificate(
     child_id: str,
     parent_id: str,
     generation: int,
-    mutations_applied: List[str],
-    files_modified: List[str],
+    mutations_applied: list[str],
+    files_modified: list[str],
     fitness_score: float,
-    benchmarks: Dict,
-    workspace_path: Path
+    benchmarks: dict,
+    workspace_path: Path,
 ) -> Path:
     """
     Create birth certificate JSON for child NEXUS.
@@ -385,6 +387,7 @@ def create_birth_certificate(
     # V8.8 (GROK-003): Get heredity stamp from KERNEL
     try:
         from KERNEL import get_heredity_stamp
+
         heredity = get_heredity_stamp()
     except ImportError:
         # Fallback if KERNEL not available
@@ -392,7 +395,7 @@ def create_birth_certificate(
             "kernel_rules_hash": None,
             "kernel_version": "unknown",
             "human_authority": "Yann Abadie",
-            "stamped_at": datetime.now().isoformat()
+            "stamped_at": datetime.now().isoformat(),
         }
 
     certificate = {
@@ -408,10 +411,10 @@ def create_birth_certificate(
         "human_authority": heredity["human_authority"],  # V8.8: From KERNEL
         "kernel_rules_hash": heredity["kernel_rules_hash"],  # V8.8: GROK-003
         "kernel_version": heredity["kernel_version"],  # V8.8: For audit trail
-        "signature": None  # Will be filled by sign_birth_certificate()
+        "signature": None,  # Will be filled by sign_birth_certificate()
     }
 
-    with open(cert_path, 'w', encoding='utf-8') as f:
+    with open(cert_path, "w", encoding="utf-8") as f:
         json.dump(certificate, f, indent=2)
 
     print(f"[LINEAGE]  Birth certificate created: {cert_path}")
@@ -422,7 +425,7 @@ def create_birth_certificate(
     return cert_path
 
 
-def get_ancestry(nexus_id: str, lineage: Dict = None) -> List[str]:
+def get_ancestry(nexus_id: str, lineage: dict = None) -> list[str]:
     """
     Get ancestry chain from NEXUS_V1.0 to specified instance.
 
@@ -452,7 +455,7 @@ def get_ancestry(nexus_id: str, lineage: Dict = None) -> List[str]:
     return ancestry
 
 
-def add_child(lineage: Dict, parent_id: str, child_id: str) -> Dict:
+def add_child(lineage: dict, parent_id: str, child_id: str) -> dict:
     """
     Add child to parent's children list in lineage_tree.
 

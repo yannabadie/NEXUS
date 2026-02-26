@@ -19,22 +19,19 @@ Validates:
 
 import tempfile
 
-import pytest
-
 from core.infrastructure.resilience.checkpoint_manager import (
+    MAX_CHECKPOINTS_PER_SESSION,
     Checkpoint,
     CheckpointInfo,
     CheckpointManager,
-    RestoreResult,
     get_checkpoint_manager,
     reset_checkpoint_manager,
-    MAX_CHECKPOINTS_PER_SESSION,
 )
-
 
 # =============================================================================
 # Checkpoint Dataclass Tests
 # =============================================================================
+
 
 class TestCheckpoint:
     """Test Checkpoint dataclass."""
@@ -57,8 +54,10 @@ class TestCheckpoint:
 
     def test_to_dict(self):
         cp = Checkpoint(
-            checkpoint_id="cp1", session_id="s1",
-            label="test", state={"a": 1},
+            checkpoint_id="cp1",
+            session_id="s1",
+            label="test",
+            state={"a": 1},
             metadata={"phase": "analysis"},
             sequence=3,
         )
@@ -87,6 +86,7 @@ class TestCheckpoint:
 # =============================================================================
 # Create Tests
 # =============================================================================
+
 
 class TestCreate:
     """Test checkpoint creation."""
@@ -141,6 +141,7 @@ class TestCreate:
 # =============================================================================
 # Query Tests
 # =============================================================================
+
 
 class TestQuery:
     """Test checkpoint querying."""
@@ -213,6 +214,7 @@ class TestQuery:
 # Restore Tests
 # =============================================================================
 
+
 class TestRestore:
     """Test checkpoint restoration."""
 
@@ -252,6 +254,7 @@ class TestRestore:
 # =============================================================================
 # Rewind Tests
 # =============================================================================
+
 
 class TestRewind:
     """Test checkpoint rewind."""
@@ -303,6 +306,7 @@ class TestRewind:
 # Delete Tests
 # =============================================================================
 
+
 class TestDelete:
     """Test checkpoint deletion."""
 
@@ -345,6 +349,7 @@ class TestDelete:
 # Max Checkpoints Tests
 # =============================================================================
 
+
 class TestMaxCheckpoints:
     """Test max checkpoints per session."""
 
@@ -374,6 +379,7 @@ class TestMaxCheckpoints:
 # Cleanup Tests
 # =============================================================================
 
+
 class TestCleanup:
     """Test checkpoint cleanup."""
 
@@ -396,6 +402,7 @@ class TestCleanup:
 # Persistence Tests
 # =============================================================================
 
+
 class TestPersistence:
     """Test checkpoint persistence."""
 
@@ -406,7 +413,7 @@ class TestPersistence:
             # Create and save
             mgr1 = CheckpointManager(checkpoint_dir=cp_dir)
             id1 = mgr1.create("s1", "phase_1", state={"findings": [1, 2]})
-            id2 = mgr1.create("s1", "phase_2", state={"result": "ok"})
+            mgr1.create("s1", "phase_2", state={"result": "ok"})
 
             # Load in new instance
             mgr2 = CheckpointManager(checkpoint_dir=cp_dir)
@@ -422,12 +429,14 @@ class TestPersistence:
             mgr = CheckpointManager(checkpoint_dir=cp_dir, persist=False)
             mgr.create("s1", "test")
             from pathlib import Path
+
             assert not (Path(cp_dir) / "index.json").exists()
 
 
 # =============================================================================
 # State Tests
 # =============================================================================
+
 
 class TestState:
     """Test state management."""
@@ -474,6 +483,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global checkpoint manager."""
 
@@ -500,23 +510,30 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_resilience_package(self):
         from core.infrastructure.resilience import (
-            CheckpointManager, Checkpoint, CheckpointInfo, RestoreResult,
-            get_checkpoint_manager, reset_checkpoint_manager,
+            Checkpoint,
+            CheckpointInfo,
+            CheckpointManager,
+            RestoreResult,
+            get_checkpoint_manager,
+            reset_checkpoint_manager,
         )
-        assert all([
-            CheckpointManager, Checkpoint, CheckpointInfo, RestoreResult,
-            get_checkpoint_manager, reset_checkpoint_manager,
-        ])
+
+        assert all(
+            [
+                CheckpointManager,
+                Checkpoint,
+                CheckpointInfo,
+                RestoreResult,
+                get_checkpoint_manager,
+                reset_checkpoint_manager,
+            ]
+        )
 
     def test_from_module(self):
-        from core.infrastructure.resilience.checkpoint_manager import (
-            CheckpointManager, Checkpoint, CheckpointInfo, RestoreResult,
-            get_checkpoint_manager, reset_checkpoint_manager,
-            MAX_CHECKPOINTS_PER_SESSION,
-        )
         assert MAX_CHECKPOINTS_PER_SESSION == 50

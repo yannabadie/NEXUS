@@ -15,30 +15,26 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.security_pkg.interaction.interaction_quality_tracker import (
     MAX_INTERACTIONS,
+    InteractionQualityStats,
     InteractionQualityTracker,
     InteractionRecord,
     InteractionTypeProfile,
-    InteractionQualityStats,
     get_interaction_tracker,
     reset_interaction_tracker,
 )
-
 
 # =============================================================================
 # InteractionRecord Tests
 # =============================================================================
 
+
 class TestInteractionRecord:
     """Test InteractionRecord dataclass."""
 
     def test_to_dict(self):
-        r = InteractionRecord(
-            interaction_id="ix_000001", interaction_type="ask", context="name"
-        )
+        r = InteractionRecord(interaction_id="ix_000001", interaction_type="ask", context="name")
         d = r.to_dict()
         assert d["interaction_type"] == "ask"
         assert d["context"] == "name"
@@ -48,13 +44,12 @@ class TestInteractionRecord:
 # InteractionTypeProfile Tests
 # =============================================================================
 
+
 class TestInteractionTypeProfile:
     """Test InteractionTypeProfile dataclass."""
 
     def test_satisfaction_rate(self):
-        p = InteractionTypeProfile(
-            interaction_type="ask", total_interactions=10, satisfied_count=8
-        )
+        p = InteractionTypeProfile(interaction_type="ask", total_interactions=10, satisfied_count=8)
         assert abs(p.satisfaction_rate - 0.8) < 0.01
 
     def test_satisfaction_rate_zero(self):
@@ -62,9 +57,7 @@ class TestInteractionTypeProfile:
         assert p.satisfaction_rate == 0.0
 
     def test_avg_response(self):
-        p = InteractionTypeProfile(
-            interaction_type="ask", total_interactions=4, total_response_ms=4000.0
-        )
+        p = InteractionTypeProfile(interaction_type="ask", total_interactions=4, total_response_ms=4000.0)
         assert abs(p.avg_response_ms - 1000.0) < 0.01
 
     def test_avg_response_zero(self):
@@ -82,6 +75,7 @@ class TestInteractionTypeProfile:
 # InteractionQualityStats Tests
 # =============================================================================
 
+
 class TestInteractionQualityStats:
     """Test InteractionQualityStats dataclass."""
 
@@ -94,6 +88,7 @@ class TestInteractionQualityStats:
 # =============================================================================
 # Recording Tests
 # =============================================================================
+
 
 class TestRecording:
     """Test interaction recording."""
@@ -126,6 +121,7 @@ class TestRecording:
 # Query Tests
 # =============================================================================
 
+
 class TestQueries:
     """Test query methods."""
 
@@ -143,7 +139,7 @@ class TestQueries:
 
     def test_recent_interactions(self):
         t = InteractionQualityTracker()
-        for i in range(5):
+        for _i in range(5):
             t.record_interaction("ask")
         recent = t.get_recent_interactions(limit=3)
         assert len(recent) == 3
@@ -167,12 +163,13 @@ class TestQueries:
 # Bounded History Tests
 # =============================================================================
 
+
 class TestBoundedHistory:
     """Test bounded interaction history."""
 
     def test_eviction(self):
         t = InteractionQualityTracker(max_interactions=5)
-        for i in range(10):
+        for _i in range(10):
             t.record_interaction("ask")
         assert t.interaction_count == 5
 
@@ -180,6 +177,7 @@ class TestBoundedHistory:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test tracker statistics."""
@@ -207,6 +205,7 @@ class TestStatistics:
 # State Tests
 # =============================================================================
 
+
 class TestState:
     """Test state management."""
 
@@ -232,6 +231,7 @@ class TestState:
 # =============================================================================
 # Global Singleton Tests
 # =============================================================================
+
 
 class TestGlobalSingleton:
     """Test global interaction tracker."""
@@ -259,21 +259,30 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_interaction_package(self):
         from core.security_pkg.interaction import (
-            InteractionQualityTracker, InteractionRecord,
-            InteractionTypeProfile, InteractionQualityStats,
-            get_interaction_tracker, reset_interaction_tracker,
+            InteractionQualityStats,
+            InteractionQualityTracker,
+            InteractionRecord,
+            InteractionTypeProfile,
+            get_interaction_tracker,
+            reset_interaction_tracker,
         )
-        assert all([
-            InteractionQualityTracker, InteractionRecord,
-            InteractionTypeProfile, InteractionQualityStats,
-            get_interaction_tracker, reset_interaction_tracker,
-        ])
+
+        assert all(
+            [
+                InteractionQualityTracker,
+                InteractionRecord,
+                InteractionTypeProfile,
+                InteractionQualityStats,
+                get_interaction_tracker,
+                reset_interaction_tracker,
+            ]
+        )
 
     def test_constants(self):
-        from core.security_pkg.interaction.interaction_quality_tracker import MAX_INTERACTIONS
         assert MAX_INTERACTIONS == 50000

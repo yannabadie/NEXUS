@@ -9,11 +9,7 @@ Categories:
 - hive_integration: HiveMind integration tests (30)
 """
 
-from . import saga_crash
-from . import saga_concurrency
-from . import context_edge
-from . import compensation
-from . import hive_integration
+from . import compensation, context_edge, hive_integration, saga_concurrency, saga_crash
 
 __all__ = [
     "saga_crash",

@@ -13,13 +13,14 @@ Provides:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any
 
 from .base import BaseHandler, ToolResult
 
 # Optional import - DynamicToolManager may not be available
 try:
     from core.execution_pkg.execution.dynamic_tools import DynamicToolManager
+
     DYNAMIC_TOOLS_AVAILABLE = True
 except ImportError:
     DynamicToolManager = None  # type: ignore
@@ -33,16 +34,11 @@ class DynamicToolsHandlerBase(BaseHandler):
     Manages lazy initialization of DynamicToolManager.
     """
 
-    def __init__(
-        self,
-        workspace_path: Path,
-        validation_service: Any = None,
-        dynamic_tool_manager: Optional[Any] = None
-    ):
+    def __init__(self, workspace_path: Path, validation_service: Any = None, dynamic_tool_manager: Any | None = None):
         super().__init__(workspace_path, validation_service)
         self._dynamic_tool_manager = dynamic_tool_manager
 
-    def _get_manager(self) -> Optional[Any]:
+    def _get_manager(self) -> Any | None:
         """Get or create DynamicToolManager."""
         if self._dynamic_tool_manager is not None:
             return self._dynamic_tool_manager
@@ -59,10 +55,7 @@ class DynamicToolsHandlerBase(BaseHandler):
     def _manager_not_available(self) -> ToolResult:
         """Return error when manager is not available."""
         return ToolResult(
-            tool_name=self.tool_name,
-            status="ERROR",
-            output="",
-            error="Dynamic Tool Manager not available"
+            tool_name=self.tool_name, status="ERROR", output="", error="Dynamic Tool Manager not available"
         )
 
 
@@ -77,7 +70,7 @@ class CreateToolHandler(DynamicToolsHandlerBase):
     def tool_name(self) -> str:
         return "create_tool"
 
-    def execute(self, args: Dict[str, Any]) -> ToolResult:
+    def execute(self, args: dict[str, Any]) -> ToolResult:
         """
         Create a new dynamic Python tool.
 
@@ -121,7 +114,7 @@ class CreateToolHandler(DynamicToolsHandlerBase):
                 output=(
                     f"Tool '{name}' created successfully at {result.tool_path}\n\n"
                     f"Use 'run_dynamic_tool' with name='{name}' to execute it."
-                )
+                ),
             )
         else:
             error_msg = result.error or "Unknown error"
@@ -139,7 +132,7 @@ class DeleteToolHandler(DynamicToolsHandlerBase):
     def tool_name(self) -> str:
         return "delete_tool"
 
-    def execute(self, args: Dict[str, Any]) -> ToolResult:
+    def execute(self, args: dict[str, Any]) -> ToolResult:
         """
         Delete a dynamic tool.
 
@@ -166,7 +159,7 @@ class DeleteToolHandler(DynamicToolsHandlerBase):
             tool_name=self.tool_name,
             status="SUCCESS" if success else "FAILURE",
             output=message if success else "",
-            error="" if success else message
+            error="" if success else message,
         )
 
 
@@ -177,7 +170,7 @@ class ListDynamicToolsHandler(DynamicToolsHandlerBase):
     def tool_name(self) -> str:
         return "list_dynamic_tools"
 
-    def execute(self, args: Dict[str, Any]) -> ToolResult:
+    def execute(self, args: dict[str, Any]) -> ToolResult:
         """
         List all available dynamic tools.
 
@@ -197,10 +190,7 @@ class ListDynamicToolsHandler(DynamicToolsHandlerBase):
             return ToolResult(
                 tool_name=self.tool_name,
                 status="SUCCESS",
-                output=(
-                    "No dynamic tools found.\n\n"
-                    "Use 'create_tool' to create a new tool."
-                )
+                output=("No dynamic tools found.\n\nUse 'create_tool' to create a new tool."),
             )
 
         output = f"Found {len(tools)} dynamic tool(s):\n\n"
@@ -208,11 +198,7 @@ class ListDynamicToolsHandler(DynamicToolsHandlerBase):
             output += f"  - {tool.name}: {tool.description}\n"
             output += f"    Created: {tool.created_at}\n"
 
-        return ToolResult(
-            tool_name=self.tool_name,
-            status="SUCCESS",
-            output=output
-        )
+        return ToolResult(tool_name=self.tool_name, status="SUCCESS", output=output)
 
 
 class RunDynamicToolHandler(DynamicToolsHandlerBase):
@@ -222,7 +208,7 @@ class RunDynamicToolHandler(DynamicToolsHandlerBase):
     def tool_name(self) -> str:
         return "run_dynamic_tool"
 
-    def execute(self, args: Dict[str, Any]) -> ToolResult:
+    def execute(self, args: dict[str, Any]) -> ToolResult:
         """
         Execute a dynamic tool.
 
@@ -254,26 +240,19 @@ class RunDynamicToolHandler(DynamicToolsHandlerBase):
         result = manager.execute_tool(name, tool_args)
 
         if result.timed_out:
-            return ToolResult(
-                tool_name=self.tool_name,
-                status="TIMEOUT",
-                output="",
-                error=result.error
-            )
+            return ToolResult(tool_name=self.tool_name, status="TIMEOUT", output="", error=result.error)
 
         return ToolResult(
             tool_name=self.tool_name,
             status="SUCCESS" if result.success else "FAILURE",
             output=result.output,
-            error=result.error
+            error=result.error,
         )
 
 
 def create_dynamic_tool_handlers(
-    workspace_path: Path,
-    validation_service: Any = None,
-    dynamic_tool_manager: Any = None
-) -> Dict[str, BaseHandler]:
+    workspace_path: Path, validation_service: Any = None, dynamic_tool_manager: Any = None
+) -> dict[str, BaseHandler]:
     """
     Factory function to create all dynamic tool handlers.
 
@@ -286,16 +265,8 @@ def create_dynamic_tool_handlers(
         Dict mapping tool names to handlers
     """
     return {
-        "create_tool": CreateToolHandler(
-            workspace_path, validation_service, dynamic_tool_manager
-        ),
-        "delete_tool": DeleteToolHandler(
-            workspace_path, validation_service, dynamic_tool_manager
-        ),
-        "list_dynamic_tools": ListDynamicToolsHandler(
-            workspace_path, validation_service, dynamic_tool_manager
-        ),
-        "run_dynamic_tool": RunDynamicToolHandler(
-            workspace_path, validation_service, dynamic_tool_manager
-        ),
+        "create_tool": CreateToolHandler(workspace_path, validation_service, dynamic_tool_manager),
+        "delete_tool": DeleteToolHandler(workspace_path, validation_service, dynamic_tool_manager),
+        "list_dynamic_tools": ListDynamicToolsHandler(workspace_path, validation_service, dynamic_tool_manager),
+        "run_dynamic_tool": RunDynamicToolHandler(workspace_path, validation_service, dynamic_tool_manager),
     }

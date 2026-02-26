@@ -11,56 +11,55 @@ P5.6 Phase 3: Package consolidation for reduced cognitive load.
 """
 
 # Workspace exports
-from core.interface_pkg.workspace import (
-    WorkspaceManager,
-    WorkspaceInfo,
-    WorkspaceMetrics,
-    WorkspaceError,
-    WorkspaceNotFoundError,
-    WorkspaceExistsError,
-)
-
-# Notifications exports
-from core.interface_pkg.notifications import (
-    send_review_email,
-    EmailNotificationError,
-    create_pending_review,
-    check_pending_review,
-    get_repl_alert_message,
+# Interface exports
+from core.interface_pkg.interface import (
+    AnalyticsStats,
+    Arg,
+    ArgType,
+    CommandAnalytics,
+    CommandDef,
+    CommandInvocation,
+    CommandMetrics,
+    CommandParser,
+    ParsedCommand,
+    Suggestion,
+    UsagePattern,
+    get_command_analytics,
+    reset_command_analytics,
 )
 
 # MCP exports
 from core.interface_pkg.mcp import (
+    MCP_SERVER_AVAILABLE,
+    DiscoveredTool,
+    MCPCapabilities,
+    MCPClient,
+    MCPError,
+    MCPRegistry,
     MCPRequest,
     MCPResponse,
     MCPTool,
-    MCPToolResult,
-    MCPError,
-    MCPCapabilities,
-    MCPClient,
-    MCPRegistry,
     MCPToolDiscovery,
-    DiscoveredTool,
+    MCPToolResult,
     ToolDiscoveryResult,
     validate_input_schema,
-    MCP_SERVER_AVAILABLE,
 )
 
-# Interface exports
-from core.interface_pkg.interface import (
-    Arg,
-    ArgType,
-    CommandDef,
-    CommandParser,
-    ParsedCommand,
-    Suggestion,
-    CommandAnalytics,
-    CommandInvocation,
-    CommandMetrics,
-    UsagePattern,
-    AnalyticsStats,
-    get_command_analytics,
-    reset_command_analytics,
+# Notifications exports
+from core.interface_pkg.notifications import (
+    EmailNotificationError,
+    check_pending_review,
+    create_pending_review,
+    get_repl_alert_message,
+    send_review_email,
+)
+from core.interface_pkg.workspace import (
+    WorkspaceError,
+    WorkspaceExistsError,
+    WorkspaceInfo,
+    WorkspaceManager,
+    WorkspaceMetrics,
+    WorkspaceNotFoundError,
 )
 
 __all__ = [

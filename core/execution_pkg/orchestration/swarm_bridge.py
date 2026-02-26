@@ -13,7 +13,8 @@ Usage:
 """
 
 import logging
-from typing import TYPE_CHECKING, Dict, Optional, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from core.fsm.states import OrchestratorState
 from core.intelligence.swarm import CollaborationMode, SwarmPhase
@@ -34,7 +35,7 @@ class SwarmBridge:
     Phase 14c: Extracted from OrchestratorV7 for better maintainability.
     """
 
-    def __init__(self, orchestrator: 'OrchestratorV7'):
+    def __init__(self, orchestrator: "OrchestratorV7"):
         """
         Initialize swarm bridge with orchestrator reference.
 
@@ -52,11 +53,7 @@ class SwarmBridge:
         """Check if swarm engine is enabled."""
         return self._orch.swarm_engine is not None
 
-    def start_swarm_mode(
-        self,
-        objective: str,
-        force_mode: Optional[CollaborationMode] = None
-    ) -> Dict:
+    def start_swarm_mode(self, objective: str, force_mode: CollaborationMode | None = None) -> dict:
         """
         Start Hybrid Swarm mode for a task (V7 Sprint 9).
 
@@ -84,17 +81,17 @@ class SwarmBridge:
             "SWARM_ANALYZING",
             f"[Swarm Mode Started]\nObjective: {objective}\nForce mode: {force_mode.value if force_mode else 'auto'}",
             None,
-            False
+            False,
         )
 
     def process_with_swarm(
         self,
         task_input: str,
-        force_mode: Optional[CollaborationMode] = None,
+        force_mode: CollaborationMode | None = None,
         skip_negotiation: bool = False,
-        on_negotiation_turn: Optional[Callable] = None,
-        on_execution_round: Optional[Callable] = None
-    ) -> Dict:
+        on_negotiation_turn: Callable | None = None,
+        on_execution_round: Callable | None = None,
+    ) -> dict:
         """
         Process a task using HybridSwarmEngine directly (V7 Sprint 9).
 
@@ -122,15 +119,13 @@ class SwarmBridge:
                 force_mode=force_mode,
                 skip_negotiation=skip_negotiation,
                 on_negotiation_turn=on_negotiation_turn,
-                on_execution_round=on_execution_round
+                on_execution_round=on_execution_round,
             )
 
             # Update history with swarm result
-            self._orch.memory.add_to_history({
-                "sender": "Swarm",
-                "action_type": "SWARM_RESULT",
-                "content": result.final_output[:2000]
-            })
+            self._orch.memory.add_to_history(
+                {"sender": "Swarm", "action_type": "SWARM_RESULT", "content": result.final_output[:2000]}
+            )
 
             return {
                 "state": result.status.value,
@@ -139,14 +134,14 @@ class SwarmBridge:
                 "mode": result.selected_mode.value,
                 "finished": result.status == SwarmPhase.COMPLETED,
                 "analysis": result.task_analysis.to_dict(),
-                "execution": result.execution_result.to_dict()
+                "execution": result.execution_result.to_dict(),
             }
 
         except Exception as e:
             self._logger.error(f"Swarm processing failed: {e}")
             return self._make_result("ERROR", f"Swarm failed: {e}", None, False, error=str(e))
 
-    def get_swarm_stats(self) -> Optional[Dict]:
+    def get_swarm_stats(self) -> dict | None:
         """
         Get current swarm engine statistics.
 
@@ -157,14 +152,7 @@ class SwarmBridge:
             return None
         return self._orch.swarm_engine.get_stats()
 
-    def _make_result(
-        self,
-        state: str,
-        output: Optional[str],
-        agent: Optional[str],
-        finished: bool,
-        **kwargs
-    ) -> Dict:
+    def _make_result(self, state: str, output: str | None, agent: str | None, finished: bool, **kwargs) -> dict:
         """
         Create standardized result dictionary.
 
@@ -180,11 +168,6 @@ class SwarmBridge:
         Returns:
             Result dict
         """
-        result = {
-            "state": state,
-            "output": output,
-            "agent": agent,
-            "finished": finished
-        }
+        result = {"state": state, "output": output, "agent": agent, "finished": finished}
         result.update(kwargs)
         return result

@@ -7,13 +7,13 @@ Use case: Exclusive expertise, highly specialized tasks.
 V7 Enhancement: Failover to backup agent if specialist fails.
 """
 
+from ..collaboration_modes import CollaborationMode
 from .base import (
-    ModeExecutor,
-    ExecutionStatus,
     ExecutionContext,
     ExecutionResult,
+    ExecutionStatus,
+    ModeExecutor,
 )
-from ..collaboration_modes import CollaborationMode
 
 
 class SpecialistExecutor(ModeExecutor):
@@ -44,10 +44,12 @@ class SpecialistExecutor(ModeExecutor):
                 agent_outputs=[],
                 total_rounds=0,
                 total_tokens=0,
-                total_time_seconds=0.0
+                total_time_seconds=0.0,
             )
 
-        task_context = f"SPECIALIST MODE - You are the sole expert:\n{context.task_input}\n\nHandle this task completely."
+        task_context = (
+            f"SPECIALIST MODE - You are the sole expert:\n{context.task_input}\n\nHandle this task completely."
+        )
 
         # V7 Enhancement: Use failover for resilience
         # V7.5 Phase 7: Role-based session isolation
@@ -58,7 +60,7 @@ class SpecialistExecutor(ModeExecutor):
             backup_agent,
             task_context,
             primary_role="specialist",
-            backup_role="specialist_backup"
+            backup_role="specialist_backup",
         )
 
         # V7 Enhancement: Verify artifacts in output
@@ -78,6 +80,6 @@ class SpecialistExecutor(ModeExecutor):
                 "used_failover": "Failover" in response.content,
                 "artifacts_verified": artifact_result["verified"],
                 "artifact_successes": artifact_result["successes"],
-                "artifact_failures": artifact_result["failures"]
-            }
+                "artifact_failures": artifact_result["failures"],
+            },
         )

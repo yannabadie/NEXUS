@@ -1,21 +1,19 @@
 """Tests for Spotlighter - RAG content protection via spotlighting techniques."""
 
-import base64
-import pytest
 from core.memory_pkg.memory.spotlighting import (
+    DELIMITER_TEMPLATES,
+    SpotlightedContent,
     Spotlighter,
     SpotlightTechnique,
-    SpotlightedContent,
-    DELIMITER_TEMPLATES,
     get_spotlighter,
     reset_spotlighter,
     spotlight_content,
 )
 
-
 # =============================================================================
 # SpotlightTechnique Enum
 # =============================================================================
+
 
 class TestSpotlightTechnique:
     def test_four_techniques(self):
@@ -35,6 +33,7 @@ class TestSpotlightTechnique:
 # =============================================================================
 # SpotlightedContent
 # =============================================================================
+
 
 class TestSpotlightedContent:
     def test_creation(self):
@@ -56,14 +55,16 @@ class TestSpotlightedContent:
 
     def test_metadata_default_empty(self):
         sc = SpotlightedContent(
-            original="x", spotlighted="y",
+            original="x",
+            spotlighted="y",
             technique=SpotlightTechnique.DELIMITER,
         )
         assert sc.metadata == {}
 
     def test_with_source_and_metadata(self):
         sc = SpotlightedContent(
-            original="x", spotlighted="y",
+            original="x",
+            spotlighted="y",
             technique=SpotlightTechnique.DELIMITER,
             source="wikipedia",
             metadata={"score": 0.9},
@@ -75,6 +76,7 @@ class TestSpotlightedContent:
 # =============================================================================
 # Delimiter Technique
 # =============================================================================
+
 
 class TestDelimiterTechnique:
     def setup_method(self):
@@ -114,6 +116,7 @@ class TestDelimiterTechnique:
 # XML Tag Technique
 # =============================================================================
 
+
 class TestXmlTagTechnique:
     def setup_method(self):
         self.spotlighter = Spotlighter(
@@ -135,6 +138,7 @@ class TestXmlTagTechnique:
 # =============================================================================
 # Datamark Technique
 # =============================================================================
+
 
 class TestDatamarkTechnique:
     def setup_method(self):
@@ -162,6 +166,7 @@ class TestDatamarkTechnique:
 # =============================================================================
 # Base64 Technique
 # =============================================================================
+
 
 class TestBase64Technique:
     def setup_method(self):
@@ -196,6 +201,7 @@ class TestBase64Technique:
 # Disabled Mode
 # =============================================================================
 
+
 class TestDisabledMode:
     def test_disabled_passthrough(self):
         s = Spotlighter(enabled=False)
@@ -211,6 +217,7 @@ class TestDisabledMode:
 # =============================================================================
 # Batch Processing
 # =============================================================================
+
 
 class TestBatchProcessing:
     def test_batch_spotlight(self):
@@ -238,6 +245,7 @@ class TestBatchProcessing:
 # =============================================================================
 # RAG Results
 # =============================================================================
+
 
 class TestRagResults:
     def test_spotlight_rag_results(self):
@@ -275,6 +283,7 @@ class TestRagResults:
 # Structured Result
 # =============================================================================
 
+
 class TestSpotlightResult:
     def test_spotlight_result(self):
         s = Spotlighter(technique=SpotlightTechnique.XML_TAG)
@@ -290,6 +299,7 @@ class TestSpotlightResult:
 # =============================================================================
 # Convenience Function
 # =============================================================================
+
 
 class TestConvenienceFunction:
     def test_spotlight_content_delimiter(self):
@@ -308,6 +318,7 @@ class TestConvenienceFunction:
 # =============================================================================
 # Singleton
 # =============================================================================
+
 
 class TestSingleton:
     def test_get_returns_same(self):

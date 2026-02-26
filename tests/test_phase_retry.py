@@ -18,20 +18,23 @@ Validates:
 - Edge cases: first attempt, exact max retry boundary, empty recommendations
 """
 
-import pytest
-from dataclasses import dataclass, field
-from datetime import datetime
-from typing import List, Optional, Dict, Any
+from typing import Any
 from unittest.mock import (
     MagicMock,
     patch,
-    PropertyMock,
-    call,
 )
 
+import pytest
+
+from core.intelligence.hive_mind.context_manager import HiveMindContextManager
+from core.intelligence.hive_mind.cost_estimator import CostEstimator
 from core.intelligence.hive_mind.phases.phase_retry import (
     AdaptiveRetryPhase,
     RetryPhaseResult,
+)
+from core.intelligence.hive_mind.strategy_blacklist import (
+    FailureCategory,
+    StrategyBlacklist,
 )
 from core.intelligence.hive_mind.types import (
     AgentArchitecture,
@@ -43,27 +46,20 @@ from core.intelligence.hive_mind.types import (
     RAGConfig,
     RetryDecision,
 )
-from core.intelligence.hive_mind.strategy_blacklist import (
-    BlacklistedStrategy,
-    FailureCategory,
-    StrategyBlacklist,
-)
-from core.intelligence.hive_mind.cost_estimator import CostEstimator
-from core.intelligence.hive_mind.context_manager import HiveMindContextManager
-
 
 # =============================================================================
 # Helpers
 # =============================================================================
 
+
 def _make_diagnosis(
     failure_type: FailureType = FailureType.TOOL_ERROR,
     root_cause: str = "Tool crashed unexpectedly",
-    contributing_factors: Optional[List[str]] = None,
-    evidence: Optional[List[str]] = None,
-    recommended_changes: Optional[List[str]] = None,
+    contributing_factors: list[str] | None = None,
+    evidence: list[str] | None = None,
+    recommended_changes: list[str] | None = None,
     confidence: float = 0.7,
-    missing_capability: Optional[str] = None,
+    missing_capability: str | None = None,
 ) -> FailureDiagnosis:
     """Create a FailureDiagnosis for testing."""
     return FailureDiagnosis(
@@ -71,7 +67,9 @@ def _make_diagnosis(
         root_cause=root_cause,
         contributing_factors=contributing_factors if contributing_factors is not None else ["factor1"],
         evidence=evidence if evidence is not None else ["error log entry"],
-        recommended_changes=recommended_changes if recommended_changes is not None else ["change tool config", "add retry"],
+        recommended_changes=recommended_changes
+        if recommended_changes is not None
+        else ["change tool config", "add retry"],
         confidence=confidence,
         missing_capability=missing_capability,
     )
@@ -80,10 +78,10 @@ def _make_diagnosis(
 def _make_architecture(
     status: str = "READY",
     collaboration_mode: str = "sequential",
-    agents_to_use: Optional[List[str]] = None,
-    agents_to_spawn: Optional[List[AgentSpec]] = None,
+    agents_to_use: list[str] | None = None,
+    agents_to_spawn: list[AgentSpec] | None = None,
     reasoning: str = "Initial approach",
-    steps: Optional[List[ExecutionStep]] = None,
+    steps: list[ExecutionStep] | None = None,
     rag_depth: str = "standard",
 ) -> AgentArchitecture:
     """Create an AgentArchitecture for testing."""
@@ -117,9 +115,9 @@ def _make_architecture(
 
 def _make_phase(
     budget_limit: int = 50000,
-    cost_estimator: Optional[CostEstimator] = None,
-    context_manager: Optional[HiveMindContextManager] = None,
-    blacklist: Optional[StrategyBlacklist] = None,
+    cost_estimator: CostEstimator | None = None,
+    context_manager: HiveMindContextManager | None = None,
+    blacklist: StrategyBlacklist | None = None,
 ) -> AdaptiveRetryPhase:
     """Create an AdaptiveRetryPhase with mocked dependencies."""
     ce = cost_estimator or CostEstimator(budget_limit=budget_limit)
@@ -132,9 +130,9 @@ def _make_phase(
     )
 
 
-def _default_recommendations(**overrides: Any) -> Dict[str, Any]:
+def _default_recommendations(**overrides: Any) -> dict[str, Any]:
     """Create default recommendations dict for retry."""
-    recs: Dict[str, Any] = {"architecture_changes": {}}
+    recs: dict[str, Any] = {"architecture_changes": {}}
     recs.update(overrides)
     return recs
 
@@ -142,6 +140,7 @@ def _default_recommendations(**overrides: Any) -> Dict[str, Any]:
 # =============================================================================
 # 1. RetryPhaseResult dataclass
 # =============================================================================
+
 
 class TestRetryPhaseResult:
     """Tests for the RetryPhaseResult dataclass."""
@@ -194,6 +193,7 @@ class TestRetryPhaseResult:
 # =============================================================================
 # 2. User decision handling (abort, escalate)
 # =============================================================================
+
 
 class TestUserDecisions:
     """Tests for user decision override paths."""
@@ -259,6 +259,7 @@ class TestUserDecisions:
 # 3. Retry budget limits (MAX_RETRIES)
 # =============================================================================
 
+
 class TestRetryBudgetLimits:
     """Tests for retry count enforcement."""
 
@@ -280,7 +281,7 @@ class TestRetryBudgetLimits:
         """Retry at attempt count == MAX_RETRIES should still succeed."""
         phase = _make_phase()
         # Execute MAX_RETRIES times; each increments counter before checking > MAX_RETRIES
-        for i in range(AdaptiveRetryPhase.MAX_RETRIES):
+        for _i in range(AdaptiveRetryPhase.MAX_RETRIES):
             result = phase.execute(
                 diagnosis=_make_diagnosis(),
                 current_architecture=_make_architecture(),
@@ -342,6 +343,7 @@ class TestRetryBudgetLimits:
 # 4. CostEstimator budget exhaustion
 # =============================================================================
 
+
 class TestCostBudgetExhaustion:
     """Tests for cost estimator budget checks."""
 
@@ -397,6 +399,7 @@ class TestCostBudgetExhaustion:
 # =============================================================================
 # 5. StrategyBlacklist integration
 # =============================================================================
+
 
 class TestBlacklistIntegration:
     """Tests for strategy blacklist interaction."""
@@ -503,6 +506,7 @@ class TestBlacklistIntegration:
 # 6. _describe_strategy()
 # =============================================================================
 
+
 class TestDescribeStrategy:
     """Tests for strategy description generation."""
 
@@ -557,6 +561,7 @@ class TestDescribeStrategy:
 # 7. _apply_changes() architecture modification
 # =============================================================================
 
+
 class TestApplyChanges:
     """Tests for architecture modification logic."""
 
@@ -565,9 +570,7 @@ class TestApplyChanges:
         arch = _make_architecture()
         original_durations = [s.expected_duration for s in arch.execution_plan.steps]
         diag = _make_diagnosis()
-        recs = _default_recommendations(
-            architecture_changes={"increase_timeout": True}
-        )
+        recs = _default_recommendations(architecture_changes={"increase_timeout": True})
 
         modified = phase._apply_changes(arch, diag, recs)
         for i, step in enumerate(modified.execution_plan.steps):
@@ -594,9 +597,7 @@ class TestApplyChanges:
         phase = _make_phase()
         arch = _make_architecture()
         diag = _make_diagnosis()
-        recs = _default_recommendations(
-            architecture_changes={"spawn_specialist": True}
-        )
+        recs = _default_recommendations(architecture_changes={"spawn_specialist": True})
 
         modified = phase._apply_changes(arch, diag, recs)
         assert modified.agents_to_spawn[0].role == "specialist_specialist"
@@ -605,25 +606,18 @@ class TestApplyChanges:
         phase = _make_phase()
         arch = _make_architecture()
         diag = _make_diagnosis()
-        recs = _default_recommendations(
-            architecture_changes={"add_verification": True}
-        )
+        recs = _default_recommendations(architecture_changes={"add_verification": True})
 
         modified = phase._apply_changes(arch, diag, recs)
         for step in modified.execution_plan.steps:
             assert step.verification_required is True
 
     def test_simplify_steps_reduces_to_two(self):
-        steps = [
-            ExecutionStep(name=f"step{i}", agent_id="gemini", action=f"action{i}")
-            for i in range(5)
-        ]
+        steps = [ExecutionStep(name=f"step{i}", agent_id="gemini", action=f"action{i}") for i in range(5)]
         phase = _make_phase()
         arch = _make_architecture(steps=steps)
         diag = _make_diagnosis()
-        recs = _default_recommendations(
-            architecture_changes={"simplify_steps": True}
-        )
+        recs = _default_recommendations(architecture_changes={"simplify_steps": True})
 
         modified = phase._apply_changes(arch, diag, recs)
         assert len(modified.execution_plan.steps) == 2
@@ -638,9 +632,7 @@ class TestApplyChanges:
         phase = _make_phase()
         arch = _make_architecture(steps=steps)
         diag = _make_diagnosis()
-        recs = _default_recommendations(
-            architecture_changes={"simplify_steps": True}
-        )
+        recs = _default_recommendations(architecture_changes={"simplify_steps": True})
 
         modified = phase._apply_changes(arch, diag, recs)
         assert len(modified.execution_plan.steps) == 2
@@ -649,9 +641,7 @@ class TestApplyChanges:
         phase = _make_phase()
         arch = _make_architecture(collaboration_mode="sequential")
         diag = _make_diagnosis()
-        recs = _default_recommendations(
-            architecture_changes={"rethink_approach": True}
-        )
+        recs = _default_recommendations(architecture_changes={"rethink_approach": True})
 
         modified = phase._apply_changes(arch, diag, recs)
         assert modified.collaboration_mode == "parallel"
@@ -660,9 +650,7 @@ class TestApplyChanges:
         phase = _make_phase()
         arch = _make_architecture(collaboration_mode="parallel")
         diag = _make_diagnosis()
-        recs = _default_recommendations(
-            architecture_changes={"rethink_approach": True}
-        )
+        recs = _default_recommendations(architecture_changes={"rethink_approach": True})
 
         modified = phase._apply_changes(arch, diag, recs)
         assert modified.collaboration_mode == "pipeline"
@@ -671,9 +659,7 @@ class TestApplyChanges:
         phase = _make_phase()
         arch = _make_architecture(collaboration_mode="pipeline")
         diag = _make_diagnosis()
-        recs = _default_recommendations(
-            architecture_changes={"rethink_approach": True}
-        )
+        recs = _default_recommendations(architecture_changes={"rethink_approach": True})
 
         modified = phase._apply_changes(arch, diag, recs)
         assert modified.collaboration_mode == "sequential"
@@ -682,9 +668,7 @@ class TestApplyChanges:
         phase = _make_phase()
         arch = _make_architecture(collaboration_mode="lead_support")
         diag = _make_diagnosis()
-        recs = _default_recommendations(
-            architecture_changes={"rethink_approach": True}
-        )
+        recs = _default_recommendations(architecture_changes={"rethink_approach": True})
 
         modified = phase._apply_changes(arch, diag, recs)
         # Unknown mode defaults to index 0 -> next is index 1 -> "parallel"
@@ -694,9 +678,7 @@ class TestApplyChanges:
         phase = _make_phase()
         arch = _make_architecture(rag_depth="deep")
         diag = _make_diagnosis()
-        recs = _default_recommendations(
-            architecture_changes={"reduce_context": True}
-        )
+        recs = _default_recommendations(architecture_changes={"reduce_context": True})
 
         modified = phase._apply_changes(arch, diag, recs)
         assert modified.rag_config.depth == "standard"
@@ -705,9 +687,7 @@ class TestApplyChanges:
         phase = _make_phase()
         arch = _make_architecture(rag_depth="standard")
         diag = _make_diagnosis()
-        recs = _default_recommendations(
-            architecture_changes={"reduce_context": True}
-        )
+        recs = _default_recommendations(architecture_changes={"reduce_context": True})
 
         modified = phase._apply_changes(arch, diag, recs)
         assert modified.rag_config.depth == "shallow"
@@ -716,9 +696,7 @@ class TestApplyChanges:
         phase = _make_phase()
         arch = _make_architecture(rag_depth="shallow")
         diag = _make_diagnosis()
-        recs = _default_recommendations(
-            architecture_changes={"reduce_context": True}
-        )
+        recs = _default_recommendations(architecture_changes={"reduce_context": True})
 
         modified = phase._apply_changes(arch, diag, recs)
         assert modified.rag_config.depth == "shallow"
@@ -745,10 +723,7 @@ class TestApplyChanges:
 
     def test_multiple_changes_applied_together(self):
         phase = _make_phase()
-        steps = [
-            ExecutionStep(name=f"s{i}", agent_id="gemini", action=f"a{i}")
-            for i in range(4)
-        ]
+        steps = [ExecutionStep(name=f"s{i}", agent_id="gemini", action=f"a{i}") for i in range(4)]
         arch = _make_architecture(
             steps=steps,
             collaboration_mode="sequential",
@@ -786,6 +761,7 @@ class TestApplyChanges:
 # 8. V12.4 context compression integration
 # =============================================================================
 
+
 class TestV124ContextCompression:
     """Tests for V12.4 compress_context and fresh_session changes."""
 
@@ -793,12 +769,10 @@ class TestV124ContextCompression:
     def test_compress_context_called(self, mock_apply):
         """Verify compress_context triggers ContextCompressor."""
         mock_apply.return_value = _make_architecture()
-        phase = _make_phase()
+        _make_phase()
         arch = _make_architecture()
         diag = _make_diagnosis()
-        recs = _default_recommendations(
-            architecture_changes={"compress_context": True}
-        )
+        recs = _default_recommendations(architecture_changes={"compress_context": True})
 
         # Call _apply_changes directly (not mocked) to test real logic
         mock_apply.reset_mock()
@@ -817,9 +791,7 @@ class TestV124ContextCompression:
         phase = _make_phase()
         arch = _make_architecture()
         diag = _make_diagnosis()
-        recs = _default_recommendations(
-            architecture_changes={"compress_context": True}
-        )
+        recs = _default_recommendations(architecture_changes={"compress_context": True})
 
         # Even if get_compressor fails, _apply_changes should succeed
         with patch(
@@ -835,9 +807,7 @@ class TestV124ContextCompression:
         phase = _make_phase()
         arch = _make_architecture()
         diag = _make_diagnosis()
-        recs = _default_recommendations(
-            architecture_changes={"fresh_session": True}
-        )
+        recs = _default_recommendations(architecture_changes={"fresh_session": True})
 
         modified = phase._apply_changes(arch, diag, recs)
         assert modified is not None
@@ -847,6 +817,7 @@ class TestV124ContextCompression:
 # =============================================================================
 # 9. _estimate_improvement()
 # =============================================================================
+
 
 class TestEstimateImprovement:
     """Tests for improvement estimation logic."""
@@ -916,6 +887,7 @@ class TestEstimateImprovement:
 # =============================================================================
 # 10. _add_to_blacklist()
 # =============================================================================
+
 
 class TestAddToBlacklist:
     """Tests for blacklist addition with failure category mapping."""
@@ -1032,6 +1004,7 @@ class TestAddToBlacklist:
 # 11. mark_success() and reset_retry_count()
 # =============================================================================
 
+
 class TestMarkSuccessAndReset:
     """Tests for helper methods."""
 
@@ -1091,6 +1064,7 @@ class TestMarkSuccessAndReset:
 # 12. get_retry_stats()
 # =============================================================================
 
+
 class TestGetRetryStats:
     """Tests for retry statistics reporting."""
 
@@ -1125,6 +1099,7 @@ class TestGetRetryStats:
 # 13. Full execute() flow
 # =============================================================================
 
+
 class TestFullExecuteFlow:
     """Integration-style tests for the complete execute() path."""
 
@@ -1132,9 +1107,7 @@ class TestFullExecuteFlow:
         phase = _make_phase()
         arch = _make_architecture()
         diag = _make_diagnosis(recommended_changes=["fix1", "fix2"])
-        recs = _default_recommendations(
-            architecture_changes={"add_verification": True}
-        )
+        recs = _default_recommendations(architecture_changes={"add_verification": True})
 
         result = phase.execute(
             diagnosis=diag,
@@ -1150,9 +1123,7 @@ class TestFullExecuteFlow:
 
     def test_retry_decision_contains_changes_made(self):
         phase = _make_phase()
-        diag = _make_diagnosis(
-            recommended_changes=["fix1", "fix2", "fix3", "fix4", "fix5", "fix6"]
-        )
+        diag = _make_diagnosis(recommended_changes=["fix1", "fix2", "fix3", "fix4", "fix5", "fix6"])
         result = phase.execute(
             diagnosis=diag,
             current_architecture=_make_architecture(),
@@ -1182,9 +1153,7 @@ class TestFullExecuteFlow:
         diag = _make_diagnosis()
 
         # Make _apply_changes raise
-        with patch.object(
-            phase, "_apply_changes", side_effect=RuntimeError("clone failed")
-        ):
+        with patch.object(phase, "_apply_changes", side_effect=RuntimeError("clone failed")):
             result = phase.execute(
                 diagnosis=diag,
                 current_architecture=arch,
@@ -1203,9 +1172,7 @@ class TestFullExecuteFlow:
         arch = _make_architecture()
         diag = _make_diagnosis()
 
-        with patch.object(
-            phase, "_apply_changes", side_effect=ValueError("bad data")
-        ):
+        with patch.object(phase, "_apply_changes", side_effect=ValueError("bad data")):
             phase.execute(
                 diagnosis=diag,
                 current_architecture=arch,
@@ -1246,6 +1213,7 @@ class TestFullExecuteFlow:
 # 14. Edge cases
 # =============================================================================
 
+
 class TestEdgeCases:
     """Edge case and boundary tests."""
 
@@ -1285,9 +1253,7 @@ class TestEdgeCases:
         phase = _make_phase()
         arch = _make_architecture(steps=[])
         diag = _make_diagnosis()
-        recs = _default_recommendations(
-            architecture_changes={"simplify_steps": True}
-        )
+        recs = _default_recommendations(architecture_changes={"simplify_steps": True})
         result = phase.execute(
             diagnosis=diag,
             current_architecture=arch,
@@ -1301,9 +1267,7 @@ class TestEdgeCases:
         phase = _make_phase()
         arch = _make_architecture(steps=steps)
         diag = _make_diagnosis()
-        recs = _default_recommendations(
-            architecture_changes={"simplify_steps": True}
-        )
+        recs = _default_recommendations(architecture_changes={"simplify_steps": True})
         modified = phase._apply_changes(arch, diag, recs)
         # Single step <= 2, should not simplify
         assert len(modified.execution_plan.steps) == 1
@@ -1378,6 +1342,7 @@ class TestEdgeCases:
 # 15. FAILURE_TO_BLACKLIST mapping completeness
 # =============================================================================
 
+
 class TestFailureToBlacklistMapping:
     """Verify all FailureType -> FailureCategory mappings are valid."""
 
@@ -1408,6 +1373,7 @@ class TestFailureToBlacklistMapping:
 # =============================================================================
 # 16. Priority ordering of checks in execute()
 # =============================================================================
+
 
 class TestExecuteCheckOrdering:
     """Tests that verify the priority ordering of checks within execute()."""

@@ -1,8 +1,8 @@
 """Tests for AutoMemory - Pattern learning from successes and failures."""
 
 import json
-import pytest
 from pathlib import Path
+
 from core.memory_pkg.memory.auto_memory import (
     AutoMemory,
     MemoryEntry,
@@ -10,10 +10,10 @@ from core.memory_pkg.memory.auto_memory import (
     reset_auto_memory,
 )
 
-
 # =============================================================================
 # MemoryEntry
 # =============================================================================
+
 
 class TestMemoryEntry:
     def test_creation(self):
@@ -51,6 +51,7 @@ class TestMemoryEntry:
 # AutoMemory - Recording
 # =============================================================================
 
+
 class TestRecording:
     def setup_method(self, tmp_path_factory=None):
         self.tmp = Path("workspace_test_auto_memory")
@@ -59,6 +60,7 @@ class TestRecording:
 
     def teardown_method(self):
         import shutil
+
         if self.tmp.exists():
             shutil.rmtree(self.tmp, ignore_errors=True)
 
@@ -85,8 +87,10 @@ class TestRecording:
 
     def test_success_persists_to_file(self):
         self.memory.record_success(
-            task_type="test", task_description="test",
-            swarm_mode="PARALLEL", lead_agent="claude",
+            task_type="test",
+            task_description="test",
+            swarm_mode="PARALLEL",
+            lead_agent="claude",
             duration_seconds=10.0,
         )
         assert self.memory.successes_file.exists()
@@ -97,17 +101,23 @@ class TestRecording:
 
     def test_failure_persists_to_file(self):
         self.memory.record_failure(
-            task_type="test", task_description="test",
-            swarm_mode="PARALLEL", lead_agent="gemini",
-            duration_seconds=10.0, reason="error",
+            task_type="test",
+            task_description="test",
+            swarm_mode="PARALLEL",
+            lead_agent="gemini",
+            duration_seconds=10.0,
+            reason="error",
         )
         assert self.memory.failures_file.exists()
 
     def test_fitness_updated(self):
         self.memory.record_success(
-            task_type="coding", task_description="write code",
-            swarm_mode="SPECIALIST", lead_agent="claude",
-            duration_seconds=30.0, score=0.9,
+            task_type="coding",
+            task_description="write code",
+            swarm_mode="SPECIALIST",
+            lead_agent="claude",
+            duration_seconds=30.0,
+            score=0.9,
         )
         assert self.memory.fitness_file.exists()
         with open(self.memory.fitness_file) as f:
@@ -118,9 +128,12 @@ class TestRecording:
     def test_multiple_records(self):
         for i in range(5):
             self.memory.record_success(
-                task_type="coding", task_description=f"task {i}",
-                swarm_mode="PING_PONG", lead_agent="claude",
-                duration_seconds=10.0, score=0.8 + i * 0.02,
+                task_type="coding",
+                task_description=f"task {i}",
+                swarm_mode="PING_PONG",
+                lead_agent="claude",
+                duration_seconds=10.0,
+                score=0.8 + i * 0.02,
             )
         assert len(self.memory._success_cache["coding"]) == 5
 
@@ -128,6 +141,7 @@ class TestRecording:
 # =============================================================================
 # AutoMemory - Suggestions
 # =============================================================================
+
 
 class TestSuggestions:
     def setup_method(self):
@@ -137,6 +151,7 @@ class TestSuggestions:
 
     def teardown_method(self):
         import shutil
+
         if self.tmp.exists():
             shutil.rmtree(self.tmp, ignore_errors=True)
 
@@ -146,14 +161,20 @@ class TestSuggestions:
     def test_suggest_mode_with_data(self):
         for _ in range(3):
             self.memory.record_success(
-                task_type="review", task_description="review",
-                swarm_mode="PING_PONG", lead_agent="claude",
-                duration_seconds=10.0, score=0.9,
+                task_type="review",
+                task_description="review",
+                swarm_mode="PING_PONG",
+                lead_agent="claude",
+                duration_seconds=10.0,
+                score=0.9,
             )
         self.memory.record_success(
-            task_type="review", task_description="review",
-            swarm_mode="PARALLEL", lead_agent="gemini",
-            duration_seconds=10.0, score=0.5,
+            task_type="review",
+            task_description="review",
+            swarm_mode="PARALLEL",
+            lead_agent="gemini",
+            duration_seconds=10.0,
+            score=0.5,
         )
         best = self.memory.suggest_mode("review")
         assert best == "PING_PONG"
@@ -164,23 +185,32 @@ class TestSuggestions:
     def test_suggest_lead_with_data(self):
         for _ in range(3):
             self.memory.record_success(
-                task_type="coding", task_description="code",
-                swarm_mode="SPECIALIST", lead_agent="claude",
-                duration_seconds=10.0, score=0.95,
+                task_type="coding",
+                task_description="code",
+                swarm_mode="SPECIALIST",
+                lead_agent="claude",
+                duration_seconds=10.0,
+                score=0.95,
             )
         self.memory.record_success(
-            task_type="coding", task_description="code",
-            swarm_mode="SPECIALIST", lead_agent="gemini",
-            duration_seconds=10.0, score=0.6,
+            task_type="coding",
+            task_description="code",
+            swarm_mode="SPECIALIST",
+            lead_agent="gemini",
+            duration_seconds=10.0,
+            score=0.6,
         )
         best = self.memory.suggest_lead("coding")
         assert best == "claude"
 
     def test_suggest_mode_without_decay(self):
         self.memory.record_success(
-            task_type="test", task_description="t",
-            swarm_mode="RED_BLUE", lead_agent="claude",
-            duration_seconds=10.0, score=0.9,
+            task_type="test",
+            task_description="t",
+            swarm_mode="RED_BLUE",
+            lead_agent="claude",
+            duration_seconds=10.0,
+            score=0.9,
         )
         best = self.memory.suggest_mode("test", apply_decay=False)
         assert best == "RED_BLUE"
@@ -190,6 +220,7 @@ class TestSuggestions:
 # AutoMemory - Avoidance
 # =============================================================================
 
+
 class TestAvoidance:
     def setup_method(self):
         self.tmp = Path("workspace_test_auto_mem_avoid")
@@ -198,6 +229,7 @@ class TestAvoidance:
 
     def teardown_method(self):
         import shutil
+
         if self.tmp.exists():
             shutil.rmtree(self.tmp, ignore_errors=True)
 
@@ -206,9 +238,12 @@ class TestAvoidance:
 
     def test_should_avoid_few_samples(self):
         self.memory.record_failure(
-            task_type="test", task_description="t",
-            swarm_mode="PARALLEL", lead_agent="gemini",
-            duration_seconds=10.0, reason="fail",
+            task_type="test",
+            task_description="t",
+            swarm_mode="PARALLEL",
+            lead_agent="gemini",
+            duration_seconds=10.0,
+            reason="fail",
         )
         # Only 1 sample, threshold is 3
         assert self.memory.should_avoid("test", "PARALLEL") is False
@@ -216,13 +251,18 @@ class TestAvoidance:
     def test_should_avoid_high_failure(self):
         for _ in range(3):
             self.memory.record_failure(
-                task_type="security", task_description="audit",
-                swarm_mode="PARALLEL", lead_agent="gemini",
-                duration_seconds=10.0, reason="fail",
+                task_type="security",
+                task_description="audit",
+                swarm_mode="PARALLEL",
+                lead_agent="gemini",
+                duration_seconds=10.0,
+                reason="fail",
             )
         self.memory.record_success(
-            task_type="security", task_description="audit",
-            swarm_mode="PARALLEL", lead_agent="gemini",
+            task_type="security",
+            task_description="audit",
+            swarm_mode="PARALLEL",
+            lead_agent="gemini",
             duration_seconds=10.0,
         )
         # 3 failures + 1 success = 75% failure rate > 50%
@@ -231,14 +271,19 @@ class TestAvoidance:
     def test_should_not_avoid_low_failure(self):
         for _ in range(3):
             self.memory.record_success(
-                task_type="coding", task_description="code",
-                swarm_mode="PING_PONG", lead_agent="claude",
+                task_type="coding",
+                task_description="code",
+                swarm_mode="PING_PONG",
+                lead_agent="claude",
                 duration_seconds=10.0,
             )
         self.memory.record_failure(
-            task_type="coding", task_description="code",
-            swarm_mode="PING_PONG", lead_agent="claude",
-            duration_seconds=10.0, reason="minor",
+            task_type="coding",
+            task_description="code",
+            swarm_mode="PING_PONG",
+            lead_agent="claude",
+            duration_seconds=10.0,
+            reason="minor",
         )
         # 1 failure + 3 success = 25% failure rate < 50%
         assert self.memory.should_avoid("coding", "PING_PONG") is False
@@ -248,6 +293,7 @@ class TestAvoidance:
 # AutoMemory - Stats
 # =============================================================================
 
+
 class TestStats:
     def setup_method(self):
         self.tmp = Path("workspace_test_auto_mem_stats")
@@ -256,6 +302,7 @@ class TestStats:
 
     def teardown_method(self):
         import shutil
+
         if self.tmp.exists():
             shutil.rmtree(self.tmp, ignore_errors=True)
 
@@ -267,14 +314,19 @@ class TestStats:
 
     def test_stats_with_data(self):
         self.memory.record_success(
-            task_type="test", task_description="t",
-            swarm_mode="PARALLEL", lead_agent="claude",
+            task_type="test",
+            task_description="t",
+            swarm_mode="PARALLEL",
+            lead_agent="claude",
             duration_seconds=10.0,
         )
         self.memory.record_failure(
-            task_type="test", task_description="t",
-            swarm_mode="PARALLEL", lead_agent="gemini",
-            duration_seconds=10.0, reason="err",
+            task_type="test",
+            task_description="t",
+            swarm_mode="PARALLEL",
+            lead_agent="gemini",
+            duration_seconds=10.0,
+            reason="err",
         )
         stats = self.memory.get_stats()
         assert stats["total_successes"] == 1
@@ -287,6 +339,7 @@ class TestStats:
 # AutoMemory - Recommendations
 # =============================================================================
 
+
 class TestRecommendation:
     def setup_method(self):
         self.tmp = Path("workspace_test_auto_mem_reco")
@@ -295,6 +348,7 @@ class TestRecommendation:
 
     def teardown_method(self):
         import shutil
+
         if self.tmp.exists():
             shutil.rmtree(self.tmp, ignore_errors=True)
 
@@ -307,9 +361,12 @@ class TestRecommendation:
     def test_recommendation_with_data(self):
         for _ in range(5):
             self.memory.record_success(
-                task_type="coding", task_description="code",
-                swarm_mode="SPECIALIST", lead_agent="claude",
-                duration_seconds=10.0, score=0.9,
+                task_type="coding",
+                task_description="code",
+                swarm_mode="SPECIALIST",
+                lead_agent="claude",
+                duration_seconds=10.0,
+                score=0.9,
             )
         rec = self.memory.get_recommendation("coding")
         assert rec["suggested_mode"] == "SPECIALIST"
@@ -320,9 +377,12 @@ class TestRecommendation:
     def test_recommendation_has_avoid_modes(self):
         for _ in range(4):
             self.memory.record_failure(
-                task_type="security", task_description="audit",
-                swarm_mode="PARALLEL", lead_agent="gemini",
-                duration_seconds=10.0, reason="fail",
+                task_type="security",
+                task_description="audit",
+                swarm_mode="PARALLEL",
+                lead_agent="gemini",
+                duration_seconds=10.0,
+                reason="fail",
             )
         rec = self.memory.get_recommendation("security")
         assert "PARALLEL" in rec["modes_to_avoid"]
@@ -332,6 +392,7 @@ class TestRecommendation:
 # AutoMemory - Time Decay
 # =============================================================================
 
+
 class TestTimeDecay:
     def setup_method(self):
         self.tmp = Path("workspace_test_auto_mem_decay")
@@ -340,17 +401,20 @@ class TestTimeDecay:
 
     def teardown_method(self):
         import shutil
+
         if self.tmp.exists():
             shutil.rmtree(self.tmp, ignore_errors=True)
 
     def test_recent_no_decay(self):
         from datetime import datetime
+
         now = datetime.now().isoformat()
         decayed = self.memory._apply_time_decay(1.0, now)
         assert decayed >= 0.99
 
     def test_old_decays(self):
         from datetime import datetime, timedelta
+
         old = (datetime.now() - timedelta(days=90)).isoformat()
         decayed = self.memory._apply_time_decay(1.0, old)
         assert decayed < 1.0
@@ -364,6 +428,7 @@ class TestTimeDecay:
 # AutoMemory - Persistence Reload
 # =============================================================================
 
+
 class TestPersistence:
     def setup_method(self):
         self.tmp = Path("workspace_test_auto_mem_persist")
@@ -371,6 +436,7 @@ class TestPersistence:
 
     def teardown_method(self):
         import shutil
+
         if self.tmp.exists():
             shutil.rmtree(self.tmp, ignore_errors=True)
 
@@ -378,9 +444,12 @@ class TestPersistence:
         # Write to files with first instance
         mem1 = AutoMemory(workspace_path=self.tmp)
         mem1.record_success(
-            task_type="coding", task_description="code",
-            swarm_mode="SPECIALIST", lead_agent="claude",
-            duration_seconds=10.0, score=0.9,
+            task_type="coding",
+            task_description="code",
+            swarm_mode="SPECIALIST",
+            lead_agent="claude",
+            duration_seconds=10.0,
+            score=0.9,
         )
 
         # Create new instance — should reload from files
@@ -392,6 +461,7 @@ class TestPersistence:
 # =============================================================================
 # Singleton
 # =============================================================================
+
 
 class TestSingleton:
     def test_get_returns_same(self):

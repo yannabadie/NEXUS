@@ -28,6 +28,7 @@ router = APIRouter()
 
 class InteractionResponse(BaseModel):
     """Request body for replying to an interaction."""
+
     response: Any
 
 
@@ -59,27 +60,25 @@ async def reply_to_interaction(
     """
     try:
         from core.security_pkg.interaction import get_interaction_provider
+
         provider = get_interaction_provider()
     except Exception as e:
         logger.error(f"Failed to get interaction provider: {e}")
-        raise HTTPException(500, "Interaction provider unavailable")
+        raise HTTPException(500, "Interaction provider unavailable") from e
 
     # Check if provider supports interactive mode
-    if not hasattr(provider, 'resolve_interaction'):
+    if not hasattr(provider, "resolve_interaction"):
         raise HTTPException(
             400,
             "Provider does not support interaction resolution. "
-            "Ensure HeadlessProvider was created with interactive=True"
+            "Ensure HeadlessProvider was created with interactive=True",
         )
 
     # Resolve the pending interaction
     resolved = provider.resolve_interaction(request_id, body.response)
 
     if not resolved:
-        raise HTTPException(
-            404,
-            f"Request {request_id} not found or already expired/resolved"
-        )
+        raise HTTPException(404, f"Request {request_id} not found or already expired/resolved")
 
     logger.info(f"[CORTEX] Interaction {request_id} resolved via API")
     return {"status": "resolved", "request_id": request_id}
@@ -107,12 +106,13 @@ async def list_pending_interactions(
     """
     try:
         from core.security_pkg.interaction import get_interaction_provider
+
         provider = get_interaction_provider()
     except Exception as e:
         logger.warning(f"Failed to get interaction provider: {e}")
         return {"pending": []}
 
-    if hasattr(provider, 'get_pending_requests'):
+    if hasattr(provider, "get_pending_requests"):
         pending = provider.get_pending_requests()
         return {"pending": pending}
 

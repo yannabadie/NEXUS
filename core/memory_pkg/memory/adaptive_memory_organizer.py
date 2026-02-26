@@ -34,12 +34,11 @@ from __future__ import annotations
 import json
 import logging
 import re
-import time
 import threading
+import time
 from collections import Counter, defaultdict
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -60,19 +59,61 @@ MAX_NOTES = 500
 MIN_TAG_WORD_LENGTH = 3
 
 # Stop words to exclude from tags
-STOP_WORDS: Set[str] = {
-    "the", "and", "for", "that", "this", "with", "from", "are", "was",
-    "were", "been", "have", "has", "had", "but", "not", "can", "will",
-    "all", "each", "which", "when", "what", "how", "its", "they",
-    "their", "also", "into", "only", "more", "than", "very", "just",
-    "about", "over", "such", "some", "any", "then", "our", "your",
-    "them", "these", "those", "being", "other",
+STOP_WORDS: set[str] = {
+    "the",
+    "and",
+    "for",
+    "that",
+    "this",
+    "with",
+    "from",
+    "are",
+    "was",
+    "were",
+    "been",
+    "have",
+    "has",
+    "had",
+    "but",
+    "not",
+    "can",
+    "will",
+    "all",
+    "each",
+    "which",
+    "when",
+    "what",
+    "how",
+    "its",
+    "they",
+    "their",
+    "also",
+    "into",
+    "only",
+    "more",
+    "than",
+    "very",
+    "just",
+    "about",
+    "over",
+    "such",
+    "some",
+    "any",
+    "then",
+    "our",
+    "your",
+    "them",
+    "these",
+    "those",
+    "being",
+    "other",
 }
 
 
 # =============================================================================
 # Data Structures
 # =============================================================================
+
 
 @dataclass
 class MemoryNote:
@@ -86,18 +127,19 @@ class MemoryNote:
     - links: IDs of related notes
     - metadata: Creation time, source, access count
     """
+
     note_id: str
     content: str
-    keywords: List[str] = field(default_factory=list)
-    tags: List[str] = field(default_factory=list)
-    links: List[str] = field(default_factory=list)
+    keywords: list[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
+    links: list[str] = field(default_factory=list)
     source: str = "unknown"  # e.g., "task_outcome", "user_feedback", "consolidation"
     created_at: float = field(default_factory=time.time)
     last_accessed: float = field(default_factory=time.time)
     access_count: int = 0
     importance: float = 0.5  # 0.0 = trivial, 1.0 = critical
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Serialize to dict."""
         return {
             "note_id": self.note_id,
@@ -113,7 +155,7 @@ class MemoryNote:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "MemoryNote":
+    def from_dict(cls, data: dict) -> MemoryNote:
         """Deserialize from dict."""
         return cls(
             note_id=data["note_id"],
@@ -132,15 +174,17 @@ class MemoryNote:
 @dataclass
 class RetrievalResult:
     """Result of a memory retrieval query."""
-    notes: List[MemoryNote]
-    scores: List[float]  # Relevance scores for each note
-    query_keywords: List[str]
+
+    notes: list[MemoryNote]
+    scores: list[float]  # Relevance scores for each note
+    query_keywords: list[str]
     total_scanned: int
 
 
 @dataclass
 class OrganizerStats:
     """Statistics about the memory organizer."""
+
     total_notes: int
     total_links: int
     total_tags: int
@@ -148,19 +192,20 @@ class OrganizerStats:
     avg_links_per_note: float
     avg_keywords_per_note: float
     oldest_note_age_hours: float
-    most_accessed_note_id: Optional[str]
+    most_accessed_note_id: str | None
 
 
 # =============================================================================
 # Trigram Utilities (shared concept with TrajectoryPruner)
 # =============================================================================
 
-def _extract_trigrams(text: str) -> Set[str]:
+
+def _extract_trigrams(text: str) -> set[str]:
     """Extract character trigrams from text."""
     text = text.lower().strip()
     if len(text) < 3:
         return {text} if text else set()
-    return {text[i:i + 3] for i in range(len(text) - 2)}
+    return {text[i : i + 3] for i in range(len(text) - 2)}
 
 
 def _trigram_similarity(text_a: str, text_b: str) -> float:
@@ -186,7 +231,8 @@ def _trigram_similarity(text_a: str, text_b: str) -> float:
 # Tag & Keyword Extraction
 # =============================================================================
 
-def _extract_keywords(text: str, max_keywords: int = 10) -> List[str]:
+
+def _extract_keywords(text: str, max_keywords: int = 10) -> list[str]:
     """
     Extract significant keywords from text.
 
@@ -200,20 +246,17 @@ def _extract_keywords(text: str, max_keywords: int = 10) -> List[str]:
         List of keywords sorted by frequency
     """
     # Tokenize: split on non-alphanumeric
-    words = re.findall(r'[a-zA-Z_][a-zA-Z0-9_]*', text.lower())
+    words = re.findall(r"[a-zA-Z_][a-zA-Z0-9_]*", text.lower())
 
     # Filter
-    filtered = [
-        w for w in words
-        if len(w) >= MIN_TAG_WORD_LENGTH and w not in STOP_WORDS
-    ]
+    filtered = [w for w in words if len(w) >= MIN_TAG_WORD_LENGTH and w not in STOP_WORDS]
 
     # Count and sort by frequency
     counts = Counter(filtered)
     return [word for word, _ in counts.most_common(max_keywords)]
 
 
-def _infer_tags(content: str, keywords: List[str]) -> List[str]:
+def _infer_tags(content: str, keywords: list[str]) -> list[str]:
     """
     Infer higher-level tags from content and keywords.
 
@@ -226,24 +269,69 @@ def _infer_tags(content: str, keywords: List[str]) -> List[str]:
     Returns:
         List of inferred tags
     """
-    tags: List[str] = []
+    tags: list[str] = []
     content_lower = content.lower()
     keyword_set = set(keywords)
 
     # Domain tags
     domain_indicators = {
-        "coding": {"code", "function", "class", "method", "variable", "bug", "error",
-                   "syntax", "implement", "refactor", "test", "debug"},
-        "research": {"paper", "study", "finding", "evidence", "hypothesis", "result",
-                     "analysis", "conclusion", "experiment"},
-        "architecture": {"design", "pattern", "structure", "module", "component",
-                        "interface", "abstraction", "layer", "pipeline"},
-        "security": {"vulnerability", "attack", "defense", "injection", "authentication",
-                    "authorization", "encryption", "kernel"},
-        "performance": {"latency", "throughput", "optimization", "cache", "memory",
-                       "bottleneck", "profile", "benchmark"},
-        "collaboration": {"agent", "swarm", "negotiate", "consensus", "debate",
-                         "delegate", "parallel", "sequential"},
+        "coding": {
+            "code",
+            "function",
+            "class",
+            "method",
+            "variable",
+            "bug",
+            "error",
+            "syntax",
+            "implement",
+            "refactor",
+            "test",
+            "debug",
+        },
+        "research": {
+            "paper",
+            "study",
+            "finding",
+            "evidence",
+            "hypothesis",
+            "result",
+            "analysis",
+            "conclusion",
+            "experiment",
+        },
+        "architecture": {
+            "design",
+            "pattern",
+            "structure",
+            "module",
+            "component",
+            "interface",
+            "abstraction",
+            "layer",
+            "pipeline",
+        },
+        "security": {
+            "vulnerability",
+            "attack",
+            "defense",
+            "injection",
+            "authentication",
+            "authorization",
+            "encryption",
+            "kernel",
+        },
+        "performance": {
+            "latency",
+            "throughput",
+            "optimization",
+            "cache",
+            "memory",
+            "bottleneck",
+            "profile",
+            "benchmark",
+        },
+        "collaboration": {"agent", "swarm", "negotiate", "consensus", "debate", "delegate", "parallel", "sequential"},
     }
 
     for tag, indicators in domain_indicators.items():
@@ -265,6 +353,7 @@ def _infer_tags(content: str, keywords: List[str]) -> List[str]:
 # AdaptiveMemoryOrganizer
 # =============================================================================
 
+
 class AdaptiveMemoryOrganizer:
     """
     Zettelkasten-inspired adaptive memory organization.
@@ -281,7 +370,7 @@ class AdaptiveMemoryOrganizer:
 
     def __init__(
         self,
-        persistence_path: Optional[Path] = None,
+        persistence_path: Path | None = None,
         link_threshold: float = LINK_THRESHOLD,
         max_notes: int = MAX_NOTES,
     ):
@@ -293,9 +382,9 @@ class AdaptiveMemoryOrganizer:
             link_threshold: Trigram overlap threshold for auto-linking
             max_notes: Maximum notes before compaction triggers
         """
-        self._notes: Dict[str, MemoryNote] = {}
-        self._tag_index: Dict[str, Set[str]] = defaultdict(set)  # tag → note_ids
-        self._keyword_index: Dict[str, Set[str]] = defaultdict(set)  # keyword → note_ids
+        self._notes: dict[str, MemoryNote] = {}
+        self._tag_index: dict[str, set[str]] = defaultdict(set)  # tag → note_ids
+        self._keyword_index: dict[str, set[str]] = defaultdict(set)  # keyword → note_ids
         self._persistence_path = persistence_path
         self._link_threshold = link_threshold
         self._max_notes = max_notes
@@ -316,7 +405,7 @@ class AdaptiveMemoryOrganizer:
         self,
         content: str,
         source: str = "unknown",
-        tags: Optional[List[str]] = None,
+        tags: list[str] | None = None,
         importance: float = 0.5,
     ) -> MemoryNote:
         """
@@ -367,9 +456,8 @@ class AdaptiveMemoryOrganizer:
             for linked_id in note.links:
                 if linked_id in self._notes:
                     linked_note = self._notes[linked_id]
-                    if note_id not in linked_note.links:
-                        if len(linked_note.links) < MAX_LINKS_PER_NOTE:
-                            linked_note.links.append(note_id)
+                    if note_id not in linked_note.links and len(linked_note.links) < MAX_LINKS_PER_NOTE:
+                        linked_note.links.append(note_id)
 
             # Compact if over capacity
             if len(self._notes) > self._max_notes:
@@ -379,8 +467,7 @@ class AdaptiveMemoryOrganizer:
             self._save()
 
             logger.debug(
-                f"[A-MEM] Added note {note_id}: {len(keywords)} keywords, "
-                f"{len(tags)} tags, {len(note.links)} links"
+                f"[A-MEM] Added note {note_id}: {len(keywords)} keywords, {len(tags)} tags, {len(note.links)} links"
             )
             return note
 
@@ -388,7 +475,7 @@ class AdaptiveMemoryOrganizer:
         self,
         query: str,
         top_k: int = 5,
-        tags_filter: Optional[List[str]] = None,
+        tags_filter: list[str] | None = None,
         min_score: float = 0.1,
     ) -> RetrievalResult:
         """
@@ -411,11 +498,11 @@ class AdaptiveMemoryOrganizer:
         with self._lock:
             query_keywords = _extract_keywords(query)
 
-            candidates: List[Tuple[str, float]] = []
+            candidates: list[tuple[str, float]] = []
 
             # Pre-filter by tags if specified
             if tags_filter:
-                candidate_ids: Set[str] = set()
+                candidate_ids: set[str] = set()
                 for tag in tags_filter:
                     candidate_ids |= self._tag_index.get(tag, set())
             else:
@@ -448,14 +535,10 @@ class AdaptiveMemoryOrganizer:
                         tag_score = 0.0
 
                 # Combined score
-                score = (
-                    keyword_score * 0.4 +
-                    trigram_score * 0.4 +
-                    tag_score * 0.2
-                )
+                score = keyword_score * 0.4 + trigram_score * 0.4 + tag_score * 0.2
 
                 # Importance boost
-                score *= (0.5 + 0.5 * note.importance)
+                score *= 0.5 + 0.5 * note.importance
 
                 if score >= min_score:
                     candidates.append((note_id, score))
@@ -486,7 +569,7 @@ class AdaptiveMemoryOrganizer:
         note_id: str,
         additional_content: str,
         boost_importance: float = 0.1,
-    ) -> Optional[MemoryNote]:
+    ) -> MemoryNote | None:
         """
         Evolve an existing note with new information.
 
@@ -540,7 +623,7 @@ class AdaptiveMemoryOrganizer:
         self,
         note_id: str,
         max_depth: int = 2,
-    ) -> List[MemoryNote]:
+    ) -> list[MemoryNote]:
         """
         Get notes connected to a given note via links (BFS).
 
@@ -555,9 +638,9 @@ class AdaptiveMemoryOrganizer:
             if note_id not in self._notes:
                 return []
 
-            visited: Set[str] = {note_id}
-            queue: List[Tuple[str, int]] = [(note_id, 0)]
-            connected: List[MemoryNote] = []
+            visited: set[str] = {note_id}
+            queue: list[tuple[str, int]] = [(note_id, 0)]
+            connected: list[MemoryNote] = []
 
             while queue:
                 current_id, depth = queue.pop(0)
@@ -576,12 +659,12 @@ class AdaptiveMemoryOrganizer:
 
             return connected
 
-    def get_note(self, note_id: str) -> Optional[MemoryNote]:
+    def get_note(self, note_id: str) -> MemoryNote | None:
         """Get a single note by ID."""
         with self._lock:
             return self._notes.get(note_id)
 
-    def get_notes_by_tag(self, tag: str) -> List[MemoryNote]:
+    def get_notes_by_tag(self, tag: str) -> list[MemoryNote]:
         """Get all notes with a given tag."""
         with self._lock:
             note_ids = self._tag_index.get(tag, set())
@@ -632,14 +715,9 @@ class AdaptiveMemoryOrganizer:
             total_keywords = sum(len(n.keywords) for n in self._notes.values())
 
             now = time.time()
-            oldest_age = max(
-                (now - n.created_at) for n in self._notes.values()
-            ) / 3600.0
+            oldest_age = max((now - n.created_at) for n in self._notes.values()) / 3600.0
 
-            most_accessed = max(
-                self._notes.values(),
-                key=lambda n: n.access_count
-            )
+            most_accessed = max(self._notes.values(), key=lambda n: n.access_count)
 
             return OrganizerStats(
                 total_notes=len(self._notes),
@@ -656,7 +734,7 @@ class AdaptiveMemoryOrganizer:
     # Internal Methods
     # =========================================================================
 
-    def _find_links(self, note: MemoryNote) -> List[str]:
+    def _find_links(self, note: MemoryNote) -> list[str]:
         """
         Find related notes using trigram similarity.
 
@@ -666,7 +744,7 @@ class AdaptiveMemoryOrganizer:
         Returns:
             List of related note IDs
         """
-        candidates: List[Tuple[str, float]] = []
+        candidates: list[tuple[str, float]] = []
 
         for other_id, other in self._notes.items():
             if other_id == note.note_id:
@@ -696,7 +774,7 @@ class AdaptiveMemoryOrganizer:
             return 0
 
         now = time.time()
-        scored: List[Tuple[str, float]] = []
+        scored: list[tuple[str, float]] = []
 
         for note_id, note in self._notes.items():
             # Recency factor (exponential decay, half-life = 24h)
@@ -731,7 +809,7 @@ class AdaptiveMemoryOrganizer:
 
         try:
             self._persistence_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(self._persistence_path, 'w', encoding='utf-8') as f:
+            with open(self._persistence_path, "w", encoding="utf-8") as f:
                 for note in self._notes.values():
                     f.write(json.dumps(note.to_dict()) + "\n")
         except Exception as e:
@@ -744,7 +822,7 @@ class AdaptiveMemoryOrganizer:
 
         try:
             max_id = 0
-            with open(self._persistence_path, 'r', encoding='utf-8') as f:
+            with open(self._persistence_path, encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     if not line:
@@ -777,12 +855,12 @@ class AdaptiveMemoryOrganizer:
 # Singleton
 # =============================================================================
 
-_organizer: Optional[AdaptiveMemoryOrganizer] = None
+_organizer: AdaptiveMemoryOrganizer | None = None
 _organizer_lock = threading.Lock()
 
 
 def get_adaptive_memory_organizer(
-    persistence_path: Optional[Path] = None,
+    persistence_path: Path | None = None,
 ) -> AdaptiveMemoryOrganizer:
     """Get or create the global AdaptiveMemoryOrganizer instance."""
     global _organizer

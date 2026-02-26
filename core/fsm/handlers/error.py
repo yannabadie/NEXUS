@@ -4,18 +4,17 @@ NEXUS V12.4 - Error State Handlers
 Handles ERROR and PANIC states.
 """
 
-from typing import Dict
 from core.fsm.handlers.base import BaseHandler
 
 
 class ErrorHandler(BaseHandler):
     """Handler for ERROR and PANIC states."""
 
-    def handle_error(self) -> Dict:
+    def handle_error(self) -> dict:
         """Handle ERROR state."""
         return self._make_result("ERROR", "System in error state. Use /reset", None, False, error="ERROR")
 
-    def handle_panic(self) -> Dict:
+    def handle_panic(self) -> dict:
         """
         Handle PANIC state.
 
@@ -28,5 +27,5 @@ class ErrorHandler(BaseHandler):
             None,
             False,  # V9.3: finished=False allows /reset to work
             error="PANIC",
-            recoverable=True  # V9.3: Signal to UI that recovery is possible
+            recoverable=True,  # V9.3: Signal to UI that recovery is possible
         )

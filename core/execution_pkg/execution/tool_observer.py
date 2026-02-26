@@ -29,7 +29,7 @@ import logging
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -46,9 +46,11 @@ SLOW_THRESHOLD_MS = 5000.0
 # Types
 # =============================================================================
 
+
 @dataclass
 class ToolSpan:
     """A single tool execution span with timing and status."""
+
     tool_name: str
     session_id: str = ""
     agent_id: str = ""
@@ -58,9 +60,9 @@ class ToolSpan:
     duration_ms: float = 0.0
     error_type: str = ""  # empty, "timeout", "validation", "permission", "runtime", "unknown"
     error_message: str = ""
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "tool_name": self.tool_name,
             "session_id": self.session_id,
@@ -76,6 +78,7 @@ class ToolSpan:
 @dataclass
 class ToolMetric:
     """Aggregated metrics for a single tool."""
+
     tool_name: str
     total_calls: int = 0
     successes: int = 0
@@ -84,7 +87,7 @@ class ToolMetric:
     avg_duration_ms: float = 0.0
     max_duration_ms: float = 0.0
     min_duration_ms: float = float("inf")
-    error_categories: Dict[str, int] = field(default_factory=dict)  # error_type -> count
+    error_categories: dict[str, int] = field(default_factory=dict)  # error_type -> count
 
     @property
     def success_rate(self) -> float:
@@ -100,7 +103,7 @@ class ToolMetric:
             return 0.0
         return (self.errors + self.timeouts) / self.total_calls
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "tool_name": self.tool_name,
             "total_calls": self.total_calls,
@@ -119,14 +122,15 @@ class ToolMetric:
 @dataclass
 class ObservationReport:
     """Summary report across all tracked tools."""
+
     total_spans: int
     total_tools: int
     overall_success_rate: float
     overall_avg_duration_ms: float
-    slowest_tools: List[str]  # top 5 by avg duration
-    most_failing_tools: List[str]  # top 5 by error rate
+    slowest_tools: list[str]  # top 5 by avg duration
+    most_failing_tools: list[str]  # top 5 by error rate
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_spans": self.total_spans,
             "total_tools": self.total_tools,
@@ -140,12 +144,13 @@ class ObservationReport:
 @dataclass
 class ToolObserverStats:
     """Lightweight statistics snapshot."""
+
     total_spans: int
     total_tools: int
     total_errors: int
     total_timeouts: int
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_spans": self.total_spans,
             "total_tools": self.total_tools,
@@ -157,6 +162,7 @@ class ToolObserverStats:
 # =============================================================================
 # Tool Observer
 # =============================================================================
+
 
 class ToolObserver:
     """
@@ -174,8 +180,8 @@ class ToolObserver:
 
     def __init__(self, *, max_spans: int = MAX_SPANS):
         self._max_spans = max_spans
-        self._spans: List[ToolSpan] = []
-        self._metrics: Dict[str, ToolMetric] = {}
+        self._spans: list[ToolSpan] = []
+        self._metrics: dict[str, ToolMetric] = {}
         self._lock = threading.Lock()
 
     # =========================================================================
@@ -188,7 +194,7 @@ class ToolObserver:
         *,
         session_id: str = "",
         agent_id: str = "",
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> ToolSpan:
         """
         Create and register a new execution span.
@@ -277,20 +283,18 @@ class ToolObserver:
 
         # Error categories
         if span.error_type:
-            metric.error_categories[span.error_type] = (
-                metric.error_categories.get(span.error_type, 0) + 1
-            )
+            metric.error_categories[span.error_type] = metric.error_categories.get(span.error_type, 0) + 1
 
     # =========================================================================
     # Metric Queries
     # =========================================================================
 
-    def get_metric(self, tool_name: str) -> Optional[ToolMetric]:
+    def get_metric(self, tool_name: str) -> ToolMetric | None:
         """Get aggregated metric for a tool."""
         with self._lock:
             return self._metrics.get(tool_name)
 
-    def get_all_metrics(self) -> List[ToolMetric]:
+    def get_all_metrics(self) -> list[ToolMetric]:
         """Get all tool metrics sorted by total_calls descending."""
         with self._lock:
             metrics = list(self._metrics.values())
@@ -304,11 +308,11 @@ class ToolObserver:
     def get_spans(
         self,
         *,
-        tool_name: Optional[str] = None,
-        session_id: Optional[str] = None,
-        status: Optional[str] = None,
+        tool_name: str | None = None,
+        session_id: str | None = None,
+        status: str | None = None,
         limit: int = 100,
-    ) -> List[ToolSpan]:
+    ) -> list[ToolSpan]:
         """
         Query spans with optional filters, most recent first.
 
@@ -324,7 +328,7 @@ class ToolObserver:
         with self._lock:
             candidates = list(reversed(self._spans))
 
-        results: List[ToolSpan] = []
+        results: list[ToolSpan] = []
         for span in candidates:
             if tool_name is not None and span.tool_name != tool_name:
                 continue
@@ -342,7 +346,7 @@ class ToolObserver:
         *,
         threshold_ms: float = SLOW_THRESHOLD_MS,
         limit: int = 20,
-    ) -> List[ToolSpan]:
+    ) -> list[ToolSpan]:
         """
         Return spans where duration_ms exceeds the threshold.
 
@@ -361,9 +365,9 @@ class ToolObserver:
     def get_error_spans(
         self,
         *,
-        tool_name: Optional[str] = None,
+        tool_name: str | None = None,
         limit: int = 50,
-    ) -> List[ToolSpan]:
+    ) -> list[ToolSpan]:
         """
         Return spans with status "error" or "timeout".
 
@@ -377,7 +381,7 @@ class ToolObserver:
         with self._lock:
             candidates = list(reversed(self._spans))
 
-        results: List[ToolSpan] = []
+        results: list[ToolSpan] = []
         for span in candidates:
             if span.status not in ("error", "timeout"):
                 continue
@@ -409,9 +413,7 @@ class ToolObserver:
         # Overall success rate
         total_calls = sum(m.total_calls for m in metrics)
         total_successes = sum(m.successes for m in metrics)
-        overall_success_rate = (
-            total_successes / total_calls if total_calls > 0 else 0.0
-        )
+        overall_success_rate = total_successes / total_calls if total_calls > 0 else 0.0
 
         # Overall average duration
         if total_calls > 0:
@@ -478,7 +480,7 @@ class ToolObserver:
             self._spans.clear()
             self._metrics.clear()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "span_count": self.span_count,
             "stats": self.get_stats().to_dict(),
@@ -489,7 +491,7 @@ class ToolObserver:
 # Global Instance
 # =============================================================================
 
-_observer: Optional[ToolObserver] = None
+_observer: ToolObserver | None = None
 _observer_lock = threading.Lock()
 
 

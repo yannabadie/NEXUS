@@ -17,18 +17,19 @@ Phase 2 extraction (low-medium risk, pure logic).
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
+
 from core.fsm.states import OrchestratorState
 
 
 class RouteType(Enum):
     """Types of routing decisions."""
-    FAST_PATH = "fast_path"        # Direct response, no agent invocation
-    SIMPLE = "simple"              # Single agent, direct execution
-    MODERATE = "moderate"          # Swarm or Brainstorming
-    COMPLEX = "complex"            # HiveMind multi-phase processing
-    SWARM = "swarm"                # Explicit swarm mode
-    ERROR = "error"                # Error handling
+
+    FAST_PATH = "fast_path"  # Direct response, no agent invocation
+    SIMPLE = "simple"  # Single agent, direct execution
+    MODERATE = "moderate"  # Swarm or Brainstorming
+    COMPLEX = "complex"  # HiveMind multi-phase processing
+    SWARM = "swarm"  # Explicit swarm mode
+    ERROR = "error"  # Error handling
 
 
 @dataclass
@@ -41,6 +42,7 @@ class RouteDecision:
         reason: Human-readable explanation
         metadata: Additional routing information
     """
+
     route_type: RouteType
     reason: str = ""
     metadata: dict = None
@@ -72,20 +74,30 @@ class TaskRouter:
     def __init__(self):
         """Initialize task router."""
         # Fast path patterns (instant commands)
-        self._instant_patterns = [
-            "/help", "/status", "/exit", "/quit",
-            "help", "status", "quit", "exit"
-        ]
+        self._instant_patterns = ["/help", "/status", "/exit", "/quit", "help", "status", "quit", "exit"]
 
         # Fast path patterns (conversational trivial)
         self._trivial_patterns = [
-            "hello", "hi", "hey", "bonjour", "salut",
-            "bye", "goodbye", "au revoir", "ciao",
-            "ok", "okay", "thanks", "merci", "thank you",
-            "test", "ping", "pong"
+            "hello",
+            "hi",
+            "hey",
+            "bonjour",
+            "salut",
+            "bye",
+            "goodbye",
+            "au revoir",
+            "ciao",
+            "ok",
+            "okay",
+            "thanks",
+            "merci",
+            "thank you",
+            "test",
+            "ping",
+            "pong",
         ]
 
-    def is_fast_path(self, user_input: Optional[str]) -> bool:
+    def is_fast_path(self, user_input: str | None) -> bool:
         """
         Check if input should use fast path.
 
@@ -115,12 +127,8 @@ class TaskRouter:
             return True
 
         # Check conversational trivial (simple greetings/acknowledgments)
-        if any(pattern in input_lower for pattern in self._trivial_patterns):
-            # Only fast path if input is ONLY the trivial pattern (no complex query)
-            if len(input_lower) < 50:  # Simple heuristic: short inputs
-                return True
-
-        return False
+        # Only fast path if input is ONLY the trivial pattern (no complex query)
+        return any(pattern in input_lower for pattern in self._trivial_patterns) and len(input_lower) < 50
 
     def handle_fast_path(self, user_input: str) -> str:
         """
@@ -160,11 +168,7 @@ class TaskRouter:
         # Default for other fast path inputs
         return "I'm here and ready to assist. What would you like to work on?"
 
-    def determine_route(
-        self,
-        user_input: Optional[str],
-        state: OrchestratorState
-    ) -> RouteDecision:
+    def determine_route(self, user_input: str | None, state: OrchestratorState) -> RouteDecision:
         """
         Determine routing decision for a task.
 
@@ -179,24 +183,21 @@ class TaskRouter:
         """
         # No input -> no routing
         if not user_input:
-            return RouteDecision(
-                route_type=RouteType.ERROR,
-                reason="No user input provided"
-            )
+            return RouteDecision(route_type=RouteType.ERROR, reason="No user input provided")
 
         # Fast path check
         if self.is_fast_path(user_input):
             return RouteDecision(
                 route_type=RouteType.FAST_PATH,
                 reason="Trivial input detected (greeting/command)",
-                metadata={"input_length": len(user_input)}
+                metadata={"input_length": len(user_input)},
             )
 
         # Default: delegate to complexity analysis in handlers
         return RouteDecision(
             route_type=RouteType.MODERATE,
             reason="Requires complexity analysis",
-            metadata={"input_length": len(user_input)}
+            metadata={"input_length": len(user_input)},
         )
 
 

@@ -19,17 +19,15 @@ Test Coverage:
 Target: 140+ tests
 """
 
-import pytest
 from core.security_pkg.security.output_guard import (
-    OutputGuard,
-    LeakType,
-    LeakSeverity,
     DialogueAct,
+    LeakSeverity,
+    LeakType,
+    OutputGuard,
     OutputValidationResult,
     classify_dialogue_act,
     get_output_guard,
 )
-
 
 # =============================================================================
 # 1. Enum Tests (~10)

@@ -38,20 +38,21 @@ Usage:
         print(f"Replace: {mutation.replace}")
 """
 
+import contextlib
 import re
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
 from pathlib import Path
 
 
 @dataclass
 class Mutation:
     """Represents a single file mutation."""
+
     file: str
     operation: str  # "REPLACE" or "APPEND"
-    search: Optional[str]  # Content to find (None for APPEND)
+    search: str | None  # Content to find (None for APPEND)
     replace: str  # New content
-    reason: Optional[str] = None
+    reason: str | None = None
     expected_asi_impact: float = 0.02
 
     def to_dict(self) -> dict:
@@ -67,7 +68,7 @@ class Mutation:
             # Include full search content for reliable matching
             result["search_block"] = self.search
             # Also include first line as target for legacy fallback
-            first_line = self.search.split('\n')[0].strip()
+            first_line = self.search.split("\n")[0].strip()
             result["target"] = first_line
         return result
 
@@ -83,9 +84,9 @@ class MutationParser:
     """
 
     # Regex patterns
-    FILE_PATTERN = re.compile(r'^FILE:\s*(.+?)\s*$', re.MULTILINE)
-    REASON_PATTERN = re.compile(r'^REASON:\s*(.+?)$', re.MULTILINE)
-    IMPACT_PATTERN = re.compile(r'^IMPACT:\s*([\d.]+)\s*$', re.MULTILINE)
+    FILE_PATTERN = re.compile(r"^FILE:\s*(.+?)\s*$", re.MULTILINE)
+    REASON_PATTERN = re.compile(r"^REASON:\s*(.+?)$", re.MULTILINE)
+    IMPACT_PATTERN = re.compile(r"^IMPACT:\s*([\d.]+)\s*$", re.MULTILINE)
 
     # Block markers
     SEARCH_START = "<<<<<<< SEARCH"
@@ -97,7 +98,7 @@ class MutationParser:
     def __init__(self):
         pass
 
-    def parse(self, text: str) -> List[Mutation]:
+    def parse(self, text: str) -> list[Mutation]:
         """
         Parse mutation text into list of Mutation objects.
 
@@ -135,6 +136,7 @@ class MutationParser:
         The inner JSON often has malformed escaping, so we use regex extraction.
         """
         import json
+
         # V7.5 HIVE MIND: Use robust extractor
         from core.utils.json_extractor import extract_json_safe as robust_extract_json
 
@@ -142,20 +144,20 @@ class MutationParser:
 
         # LAYER 1: Extract from outer {"response": "..."} wrapper
         outer, _ = robust_extract_json(working_text)
-        if outer and isinstance(outer, dict) and 'response' in outer:
-            working_text = outer['response']
+        if outer and isinstance(outer, dict) and "response" in outer:
+            working_text = outer["response"]
 
         # LAYER 2: Extract from markdown code blocks
-        code_block_pattern = re.compile(r'```(?:json)?\s*\n(.*?)\n```', re.DOTALL)
+        code_block_pattern = re.compile(r"```(?:json)?\s*\n(.*?)\n```", re.DOTALL)
         code_matches = code_block_pattern.findall(working_text)
         if code_matches:
-            working_text = '\n\n'.join(code_matches)
+            working_text = "\n\n".join(code_matches)
 
         # LAYER 3: Try JSON parsing first (clean case)
         inner, _ = robust_extract_json(working_text)
-        if inner and isinstance(inner, dict) and 'content' in inner:
-            content = inner['content']
-            if 'FILE:' in content or '<<<<<<< SEARCH' in content:
+        if inner and isinstance(inner, dict) and "content" in inner:
+            content = inner["content"]
+            if "FILE:" in content or "<<<<<<< SEARCH" in content:
                 return content
 
         # LAYER 3 FALLBACK: Regex extraction for malformed JSON
@@ -179,7 +181,7 @@ class MutationParser:
             ]
 
             end_pos = len(remaining)
-            for pattern, offset in end_patterns:
+            for pattern, _offset in end_patterns:
                 idx = remaining.find(pattern)
                 if idx != -1 and idx < end_pos:
                     end_pos = idx
@@ -189,22 +191,22 @@ class MutationParser:
                 # Decode JSON escape sequences
                 try:
                     decoded = json.loads(f'"{raw_content}"')
-                    if 'FILE:' in decoded or '<<<<<<< SEARCH' in decoded:
+                    if "FILE:" in decoded or "<<<<<<< SEARCH" in decoded:
                         return decoded
                 except json.JSONDecodeError:
                     # If JSON decode fails, try manual unescape
-                    decoded = raw_content.replace('\\n', '\n').replace('\\"', '"').replace('\\\\', '\\')
-                    if 'FILE:' in decoded or '<<<<<<< SEARCH' in decoded:
+                    decoded = raw_content.replace("\\n", "\n").replace('\\"', '"').replace("\\\\", "\\")
+                    if "FILE:" in decoded or "<<<<<<< SEARCH" in decoded:
                         return decoded
 
         # If FILE: or SEARCH markers are directly in text, return as-is
-        if 'FILE:' in working_text or '<<<<<<< SEARCH' in working_text:
+        if "FILE:" in working_text or "<<<<<<< SEARCH" in working_text:
             return working_text
 
         # Last resort: return original
         return text
 
-    def _split_by_file(self, text: str) -> List[Tuple[str, str]]:
+    def _split_by_file(self, text: str) -> list[tuple[str, str]]:
         """Split text into (file_path, block_content) tuples."""
         results = []
 
@@ -231,7 +233,7 @@ class MutationParser:
 
         return results
 
-    def _parse_block(self, file_path: str, content: str) -> Optional[Mutation]:
+    def _parse_block(self, file_path: str, content: str) -> Mutation | None:
         """Parse a single mutation block."""
 
         # Extract optional metadata
@@ -243,10 +245,8 @@ class MutationParser:
         impact = 0.02
         impact_match = self.IMPACT_PATTERN.search(content)
         if impact_match:
-            try:
+            with contextlib.suppress(ValueError):
                 impact = float(impact_match.group(1))
-            except ValueError:
-                pass
 
         # Determine operation type and parse accordingly
         if self.SEARCH_START in content:
@@ -261,16 +261,10 @@ class MutationParser:
                 search=None,
                 replace=content.strip(),
                 reason=reason,
-                expected_asi_impact=impact
+                expected_asi_impact=impact,
             )
 
-    def _parse_replace_block(
-        self,
-        file_path: str,
-        content: str,
-        reason: Optional[str],
-        impact: float
-    ) -> Optional[Mutation]:
+    def _parse_replace_block(self, file_path: str, content: str, reason: str | None, impact: float) -> Mutation | None:
         """Parse a SEARCH/REPLACE block."""
 
         # Find markers
@@ -282,11 +276,11 @@ class MutationParser:
             return None
 
         # Extract search content (between SEARCH_START and SEPARATOR)
-        search_content = content[search_start + len(self.SEARCH_START):separator]
+        search_content = content[search_start + len(self.SEARCH_START) : separator]
         search_content = self._clean_block_content(search_content)
 
         # Extract replace content (between SEPARATOR and REPLACE_END)
-        replace_content = content[separator + len(self.SEPARATOR):replace_end]
+        replace_content = content[separator + len(self.SEPARATOR) : replace_end]
         replace_content = self._clean_block_content(replace_content)
 
         if not search_content or not replace_content:
@@ -298,16 +292,10 @@ class MutationParser:
             search=search_content,
             replace=replace_content,
             reason=reason,
-            expected_asi_impact=impact
+            expected_asi_impact=impact,
         )
 
-    def _parse_append_block(
-        self,
-        file_path: str,
-        content: str,
-        reason: Optional[str],
-        impact: float
-    ) -> Optional[Mutation]:
+    def _parse_append_block(self, file_path: str, content: str, reason: str | None, impact: float) -> Mutation | None:
         """Parse an APPEND block."""
 
         # Find markers
@@ -318,7 +306,7 @@ class MutationParser:
             return None
 
         # Extract append content
-        append_content = content[append_start + len(self.APPEND_START):append_end]
+        append_content = content[append_start + len(self.APPEND_START) : append_end]
         append_content = self._clean_block_content(append_content)
 
         if not append_content:
@@ -330,12 +318,12 @@ class MutationParser:
             search=None,
             replace=append_content,
             reason=reason,
-            expected_asi_impact=impact
+            expected_asi_impact=impact,
         )
 
     def _clean_block_content(self, content: str) -> str:
         """Clean block content by removing leading/trailing empty lines."""
-        lines = content.split('\n')
+        lines = content.split("\n")
 
         # Remove leading empty lines
         while lines and not lines[0].strip():
@@ -345,7 +333,7 @@ class MutationParser:
         while lines and not lines[-1].strip():
             lines.pop()
 
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
     def format_mutation(self, mutation: Mutation) -> str:
         """
@@ -371,10 +359,10 @@ class MutationParser:
             lines.append(mutation.replace)
             lines.append(self.APPEND_END)
 
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
 
-def apply_mutation(file_path: Path, mutation: Mutation) -> Tuple[bool, str]:
+def apply_mutation(file_path: Path, mutation: Mutation) -> tuple[bool, str]:
     """
     Apply a mutation to a file.
 
@@ -388,7 +376,7 @@ def apply_mutation(file_path: Path, mutation: Mutation) -> Tuple[bool, str]:
     if not file_path.exists():
         return False, f"File not found: {file_path}"
 
-    original_content = file_path.read_text(encoding='utf-8')
+    original_content = file_path.read_text(encoding="utf-8")
 
     if mutation.operation == "REPLACE":
         if not mutation.search:
@@ -397,8 +385,8 @@ def apply_mutation(file_path: Path, mutation: Mutation) -> Tuple[bool, str]:
         # Find the search content in the file
         if mutation.search not in original_content:
             # Try with normalized whitespace
-            search_normalized = ' '.join(mutation.search.split())
-            content_normalized = ' '.join(original_content.split())
+            search_normalized = " ".join(mutation.search.split())
+            content_normalized = " ".join(original_content.split())
             if search_normalized not in content_normalized:
                 return False, f"Search content not found in {file_path}"
 
@@ -409,15 +397,16 @@ def apply_mutation(file_path: Path, mutation: Mutation) -> Tuple[bool, str]:
         new_content = original_content.rstrip() + "\n\n" + mutation.replace + "\n"
 
     # Validate Python syntax if applicable
-    if file_path.suffix == '.py':
+    if file_path.suffix == ".py":
         import ast
+
         try:
             ast.parse(new_content)
         except SyntaxError as e:
             return False, f"Mutation would create invalid Python: {e}"
 
     # Write
-    file_path.write_text(new_content, encoding='utf-8')
+    file_path.write_text(new_content, encoding="utf-8")
     return True, f"Successfully applied {mutation.operation} to {file_path}"
 
 

@@ -21,17 +21,17 @@ import time
 import pytest
 
 from core.execution_pkg.execution.task_scheduler import (
-    TaskScheduler,
-    ScheduledTask,
-    Priority,
-    TaskStatus,
     PRIORITY_SCORES,
+    Priority,
+    ScheduledTask,
+    TaskScheduler,
+    TaskStatus,
 )
-
 
 # =============================================================================
 # ScheduledTask Tests
 # =============================================================================
+
 
 class TestScheduledTask:
     """Test ScheduledTask dataclass."""
@@ -67,14 +67,16 @@ class TestScheduledTask:
 
     def test_is_overdue_past_deadline(self):
         task = ScheduledTask(
-            task_id="t1", name="test",
+            task_id="t1",
+            name="test",
             deadline_at=time.monotonic() - 10.0,
         )
         assert task.is_overdue is True
 
     def test_is_overdue_future_deadline(self):
         task = ScheduledTask(
-            task_id="t1", name="test",
+            task_id="t1",
+            name="test",
             deadline_at=time.monotonic() + 1000.0,
         )
         assert task.is_overdue is False
@@ -92,6 +94,7 @@ class TestScheduledTask:
 # =============================================================================
 # TaskScheduler - Submit Tests
 # =============================================================================
+
 
 class TestSubmit:
     """Test task submission."""
@@ -139,7 +142,7 @@ class TestSubmit:
 
     def test_submit_with_dependency(self):
         scheduler = TaskScheduler()
-        t1 = scheduler.submit("First", task_id="t1")
+        scheduler.submit("First", task_id="t1")
         t2 = scheduler.submit("Second", depends_on=["t1"])
         assert t2.depends_on == ["t1"]
         assert t2.status == TaskStatus.BLOCKED
@@ -153,6 +156,7 @@ class TestSubmit:
 # =============================================================================
 # TaskScheduler - Next Tests
 # =============================================================================
+
 
 class TestNext:
     """Test getting next task."""
@@ -171,7 +175,7 @@ class TestNext:
 
     def test_next_skips_blocked(self):
         scheduler = TaskScheduler()
-        t1 = scheduler.submit("First", task_id="t1")
+        scheduler.submit("First", task_id="t1")
         scheduler.submit("Second", priority=Priority.HIGH, depends_on=["t1"])
         scheduler.submit("Third", priority=Priority.LOW, task_id="t3")
         task = scheduler.next()
@@ -190,12 +194,13 @@ class TestNext:
 # TaskScheduler - Lifecycle Tests
 # =============================================================================
 
+
 class TestLifecycle:
     """Test task lifecycle transitions."""
 
     def test_start_task(self):
         scheduler = TaskScheduler()
-        task = scheduler.submit("Test", task_id="t1")
+        scheduler.submit("Test", task_id="t1")
         assert scheduler.start("t1") is True
         t = scheduler.get_task("t1")
         assert t.status == TaskStatus.RUNNING
@@ -248,6 +253,7 @@ class TestLifecycle:
 # TaskScheduler - Dependency Tests
 # =============================================================================
 
+
 class TestDependencies:
     """Test dependency tracking."""
 
@@ -265,7 +271,7 @@ class TestDependencies:
         scheduler.start("a")
         scheduler.complete("a")
         # next() triggers _update_blocked_states
-        task = scheduler.next()
+        scheduler.next()
         b = scheduler.get_task("b")
         assert b.status == TaskStatus.PENDING
 
@@ -306,14 +312,16 @@ class TestDependencies:
 # TaskScheduler - Deadline Urgency Tests
 # =============================================================================
 
+
 class TestDeadlineUrgency:
     """Test deadline-based priority boost."""
 
     def test_deadline_boosts_priority(self):
         scheduler = TaskScheduler()
         scheduler.submit("No deadline", priority=Priority.HIGH, task_id="no_dl")
-        scheduler.submit("Urgent", priority=Priority.MEDIUM, task_id="urgent",
-                         deadline_seconds=0.001)  # Almost immediate deadline
+        scheduler.submit(
+            "Urgent", priority=Priority.MEDIUM, task_id="urgent", deadline_seconds=0.001
+        )  # Almost immediate deadline
         time.sleep(0.01)  # Let deadline pass
         task = scheduler.next()
         # Overdue medium + deadline bonus should beat high
@@ -331,6 +339,7 @@ class TestDeadlineUrgency:
 # =============================================================================
 # TaskScheduler - Listing Tests
 # =============================================================================
+
 
 class TestListing:
     """Test task listing and filtering."""
@@ -380,6 +389,7 @@ class TestListing:
 # TaskScheduler - Cleanup Tests
 # =============================================================================
 
+
 class TestCleanup:
     """Test task cleanup."""
 
@@ -405,6 +415,7 @@ class TestCleanup:
 # TaskScheduler - Priority Scoring Tests
 # =============================================================================
 
+
 class TestScoring:
     """Test priority scoring."""
 
@@ -428,7 +439,7 @@ class TestScoring:
 
     def test_terminal_scores_negative(self):
         scheduler = TaskScheduler()
-        task = scheduler.submit("A", task_id="a")
+        scheduler.submit("A", task_id="a")
         scheduler.complete("a")
         t = scheduler.get_task("a")
         assert scheduler._score_task(t) < 0
@@ -437,6 +448,7 @@ class TestScoring:
 # =============================================================================
 # TaskScheduler - State Export Tests
 # =============================================================================
+
 
 class TestStateExport:
     """Test scheduler state export."""
@@ -461,6 +473,7 @@ class TestStateExport:
 # =============================================================================
 # Priority/TaskStatus Enum Tests
 # =============================================================================
+
 
 class TestEnums:
     """Test enum values."""
@@ -489,20 +502,23 @@ class TestEnums:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_execution_package(self):
-        from core.execution_pkg.execution import TaskScheduler, ScheduledTask, Priority, TaskStatus
+        from core.execution_pkg.execution import Priority, ScheduledTask, TaskScheduler, TaskStatus
+
         assert all([TaskScheduler, ScheduledTask, Priority, TaskStatus])
 
     def test_from_module(self):
         from core.execution_pkg.execution.task_scheduler import (
-            TaskScheduler,
-            ScheduledTask,
-            Priority,
-            TaskStatus,
             PRIORITY_SCORES,
+            Priority,
+            ScheduledTask,
+            TaskScheduler,
+            TaskStatus,
         )
+
         assert all([TaskScheduler, ScheduledTask, Priority, TaskStatus])
         assert len(PRIORITY_SCORES) == 5

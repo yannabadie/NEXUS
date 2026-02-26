@@ -19,13 +19,13 @@ Storage: .nexus/lancedb/ (embedded, serverless, per-tenant)
 import json
 import logging
 from pathlib import Path
-from typing import List, Dict, Any, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Optional
 
 from .base import MemoryBackend
 
 if TYPE_CHECKING:
-    from ..types import Chunk
     from ..embedding_engine import EmbeddingEngine
+    from ..types import Chunk
 
 # =============================================================================
 # Optional Dependencies (lazy import for startup performance)
@@ -36,6 +36,7 @@ SENTENCE_TRANSFORMERS_AVAILABLE = False
 
 try:
     import lancedb
+
     LANCEDB_AVAILABLE = True
 except ImportError:
     lancedb = None  # type: ignore
@@ -43,6 +44,7 @@ except ImportError:
 try:
     # Check if sentence_transformers can be imported (don't import yet - slow)
     import importlib.util
+
     SENTENCE_TRANSFORMERS_AVAILABLE = importlib.util.find_spec("sentence_transformers") is not None
 except Exception:
     pass
@@ -85,11 +87,7 @@ class DenseBackend(MemoryBackend):
     - metadata: JSON-serialized Chunk data
     """
 
-    def __init__(
-        self,
-        storage_path: Path,
-        embedding_engine: Optional['EmbeddingEngine'] = None
-    ):
+    def __init__(self, storage_path: Path, embedding_engine: Optional["EmbeddingEngine"] = None):
         """
         Initialize the Dense backend.
 
@@ -102,11 +100,11 @@ class DenseBackend(MemoryBackend):
         self._storage_path = Path(storage_path)
 
         # V10 MEMORY FORGE: Use injected engine or get global singleton
-        self._engine: Optional['EmbeddingEngine'] = embedding_engine
+        self._engine: EmbeddingEngine | None = embedding_engine
 
         # Lazy-loaded components (storage only - model is in engine)
-        self._db: Optional[Any] = None
-        self._table: Optional[Any] = None
+        self._db: Any | None = None
+        self._table: Any | None = None
 
         self._index_built = False
         self._chunk_count = 0
@@ -145,6 +143,7 @@ class DenseBackend(MemoryBackend):
 
             try:
                 from ..embedding_engine import get_embedding_engine
+
                 self._engine = get_embedding_engine()
             except ImportError as e:
                 self._logger.error(f"Failed to import EmbeddingEngine: {e}")
@@ -162,7 +161,7 @@ class DenseBackend(MemoryBackend):
         result = self._db.list_tables()
         if isinstance(result, list):
             return result
-        return getattr(result, 'tables', [])
+        return getattr(result, "tables", [])
 
     def _ensure_db(self) -> bool:
         """
@@ -199,21 +198,22 @@ class DenseBackend(MemoryBackend):
             self._logger.error(f"Failed to connect to LanceDB: {e}")
             return False
 
-    def _chunk_to_id(self, chunk: 'Chunk') -> str:
+    def _chunk_to_id(self, chunk: "Chunk") -> str:
         """Generate unique ID for a chunk."""
         return f"{chunk.file_path}:{chunk.start_line}-{chunk.end_line}"
 
-    def _chunk_to_metadata(self, chunk: 'Chunk') -> str:
+    def _chunk_to_metadata(self, chunk: "Chunk") -> str:
         """Serialize chunk to JSON metadata."""
         return json.dumps(chunk.to_dict())
 
-    def _metadata_to_chunk(self, metadata: str) -> 'Chunk':
+    def _metadata_to_chunk(self, metadata: str) -> "Chunk":
         """Deserialize chunk from JSON metadata."""
         from ..types import Chunk
+
         data = json.loads(metadata)
         return Chunk.from_dict(data)
 
-    def build_index(self, chunks: List['Chunk']) -> None:
+    def build_index(self, chunks: list["Chunk"]) -> None:
         """
         Build the dense index from chunks.
 
@@ -244,11 +244,7 @@ class DenseBackend(MemoryBackend):
 
             # V10 MEMORY FORGE: Delegate encoding to shared engine
             self._logger.debug(f"Encoding {len(texts)} chunks (batch_size={BATCH_SIZE})...")
-            embeddings = self._engine.encode(
-                texts,
-                batch_size=BATCH_SIZE,
-                show_progress=False
-            )
+            embeddings = self._engine.encode(texts, batch_size=BATCH_SIZE, show_progress=False)
 
             # Prepare data for LanceDB
             # V11.2 MEMORIA FIX: encode() returns List[List[float]], not numpy array
@@ -257,11 +253,9 @@ class DenseBackend(MemoryBackend):
             for i, chunk in enumerate(chunks):
                 # Handle both list (from EmbeddingEngine) and numpy array (legacy)
                 vector = embeddings[i] if isinstance(embeddings[i], list) else embeddings[i].tolist()
-                data.append({
-                    "id": self._chunk_to_id(chunk),
-                    "vector": vector,
-                    "metadata": self._chunk_to_metadata(chunk)
-                })
+                data.append(
+                    {"id": self._chunk_to_id(chunk), "vector": vector, "metadata": self._chunk_to_metadata(chunk)}
+                )
 
             # Drop existing table and create new
             if TABLE_NAME in self._get_table_names():
@@ -280,13 +274,8 @@ class DenseBackend(MemoryBackend):
             self._chunk_count = 0
 
     def retrieve(
-        self,
-        query_terms: List[str],
-        chunks: List['Chunk'],
-        limit: int,
-        min_score: float,
-        raw_query: Optional[str] = None
-    ) -> List['Chunk']:
+        self, query_terms: list[str], chunks: list["Chunk"], limit: int, min_score: float, raw_query: str | None = None
+    ) -> list["Chunk"]:
         """
         Retrieve chunks using dense embeddings.
 
@@ -352,7 +341,7 @@ class DenseBackend(MemoryBackend):
         self._index_built = False
         self._chunk_count = 0
 
-    def get_info(self) -> Dict[str, Any]:
+    def get_info(self) -> dict[str, Any]:
         """Get Dense backend information."""
         # Ensure storage is loaded so on-disk indexes are reflected in info.
         self._ensure_db()

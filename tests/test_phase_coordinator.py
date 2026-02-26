@@ -18,24 +18,21 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.intelligence.hive_mind.phase_coordinator import (
-    CoordinatorStats,
     PHASE_ORDER,
+    VALID_TRANSITIONS,
     PhaseCoordinator,
     PhaseState,
     PhaseTransition,
     TransitionResult,
-    VALID_TRANSITIONS,
     get_phase_coordinator,
     reset_phase_coordinator,
 )
 
-
 # =============================================================================
 # PhaseTransition Tests
 # =============================================================================
+
 
 class TestPhaseTransition:
     """Test PhaseTransition dataclass."""
@@ -61,6 +58,7 @@ class TestPhaseTransition:
 # PhaseState Tests
 # =============================================================================
 
+
 class TestPhaseState:
     """Test PhaseState dataclass."""
 
@@ -79,6 +77,7 @@ class TestPhaseState:
 # =============================================================================
 # TransitionResult Tests
 # =============================================================================
+
 
 class TestTransitionResult:
     """Test TransitionResult dataclass."""
@@ -100,6 +99,7 @@ class TestTransitionResult:
 # =============================================================================
 # Session Lifecycle Tests
 # =============================================================================
+
 
 class TestSessionLifecycle:
     """Test session management."""
@@ -124,6 +124,7 @@ class TestSessionLifecycle:
 # =============================================================================
 # Transition Tests
 # =============================================================================
+
 
 class TestTransitions:
     """Test phase transitions."""
@@ -193,6 +194,7 @@ class TestTransitions:
 # =============================================================================
 # Query Tests
 # =============================================================================
+
 
 class TestQueries:
     """Test phase queries."""
@@ -266,6 +268,7 @@ class TestQueries:
 # Statistics Tests
 # =============================================================================
 
+
 class TestStatistics:
     """Test coordinator statistics."""
 
@@ -295,6 +298,7 @@ class TestStatistics:
 # Constants Tests
 # =============================================================================
 
+
 class TestConstants:
     """Test constants."""
 
@@ -311,6 +315,7 @@ class TestConstants:
 # =============================================================================
 # State Tests
 # =============================================================================
+
 
 class TestState:
     """Test state management."""
@@ -339,6 +344,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global phase coordinator."""
 
@@ -365,22 +371,34 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_hive_mind_package(self):
         from core.intelligence.hive_mind import (
-            PhaseCoordinator, PhaseState, PhaseTransition,
-            TransitionResult, get_phase_coordinator, reset_phase_coordinator,
+            PhaseCoordinator,
+            PhaseState,
+            PhaseTransition,
+            TransitionResult,
+            get_phase_coordinator,
+            reset_phase_coordinator,
         )
-        assert all([
-            PhaseCoordinator, PhaseState, PhaseTransition,
-            TransitionResult, get_phase_coordinator, reset_phase_coordinator,
-        ])
+
+        assert all(
+            [
+                PhaseCoordinator,
+                PhaseState,
+                PhaseTransition,
+                TransitionResult,
+                get_phase_coordinator,
+                reset_phase_coordinator,
+            ]
+        )
 
     def test_from_module(self):
         from core.intelligence.hive_mind.phase_coordinator import (
-            PhaseCoordinator, PHASE_ORDER, VALID_TRANSITIONS,
-            SKIPPABLE_PHASES,
+            PHASE_ORDER,
         )
+
         assert len(PHASE_ORDER) == 7

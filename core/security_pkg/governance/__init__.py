@@ -38,34 +38,33 @@ results = validator.run_alignment_tests()
 """
 
 # V12.4: Ethics & Alignment Verification
-from .ethics import (
-    AlignmentVerifier,
-    AlignmentConfig,
-    AlignmentResult,
-    AlignmentViolation,
-    AlignmentPrinciple,
-    ViolationSeverity,
+# V12.4 COGNITIVE BOOST: Alignment Journal
+from .alignment_journal import (
+    AlignmentJournal,
+    JournalStats,
+    TrustScore,
+    VerificationEntry,
+    ViolationEntry,
+    get_alignment_journal,
+    reset_alignment_journal,
 )
 
 # V12.4 COGNITIVE BOOST: Decision Logger
 from .decision_logger import (
-    GovernanceDecisionLog,
-    GovernanceDecision,
-    DecisionPattern,
     DecisionLogStats,
+    DecisionPattern,
+    GovernanceDecision,
+    GovernanceDecisionLog,
     get_decision_logger,
     reset_decision_logger,
 )
-
-# V12.4 COGNITIVE BOOST: Alignment Journal
-from .alignment_journal import (
-    AlignmentJournal,
-    VerificationEntry,
-    ViolationEntry,
-    TrustScore,
-    JournalStats,
-    get_alignment_journal,
-    reset_alignment_journal,
+from .ethics import (
+    AlignmentConfig,
+    AlignmentPrinciple,
+    AlignmentResult,
+    AlignmentVerifier,
+    AlignmentViolation,
+    ViolationSeverity,
 )
 
 __all__ = [

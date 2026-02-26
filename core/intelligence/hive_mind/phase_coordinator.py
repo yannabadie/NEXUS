@@ -32,7 +32,7 @@ import threading
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -52,7 +52,7 @@ PHASE_ORDER = [
 ]
 
 # Valid transitions (from -> set of allowed targets)
-VALID_TRANSITIONS: Dict[str, Set[str]] = {
+VALID_TRANSITIONS: dict[str, set[str]] = {
     "idle": {"analysis"},
     "analysis": {"debate", "architecture", "execution"},  # Can skip debate
     "debate": {"architecture", "execution"},  # Can skip architecture
@@ -70,9 +70,11 @@ SKIPPABLE_PHASES = {"debate", "architecture", "diagnosis", "retry"}
 # Types
 # =============================================================================
 
+
 @dataclass
 class PhaseTransition:
     """A recorded phase transition."""
+
     from_phase: str
     to_phase: str
     session_id: str
@@ -83,7 +85,7 @@ class PhaseTransition:
         if self.timestamp == 0.0:
             self.timestamp = time.monotonic()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "from": self.from_phase,
             "to": self.to_phase,
@@ -94,12 +96,13 @@ class PhaseTransition:
 @dataclass
 class PhaseState:
     """Current state of a session's phase progression."""
+
     session_id: str
     current_phase: str = "idle"
     started_at: float = 0.0
     phase_entered_at: float = 0.0
-    transitions: List[PhaseTransition] = field(default_factory=list)
-    completed_phases: List[str] = field(default_factory=list)
+    transitions: list[PhaseTransition] = field(default_factory=list)
+    completed_phases: list[str] = field(default_factory=list)
 
     @property
     def phase_duration(self) -> float:
@@ -113,7 +116,7 @@ class PhaseState:
             return 0.0
         return time.monotonic() - self.started_at
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "session_id": self.session_id,
             "current_phase": self.current_phase,
@@ -127,12 +130,13 @@ class PhaseState:
 @dataclass
 class TransitionResult:
     """Result of a phase transition attempt."""
+
     success: bool
     from_phase: str = ""
     to_phase: str = ""
     error: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "success": self.success,
             "from": self.from_phase,
@@ -144,11 +148,12 @@ class TransitionResult:
 @dataclass
 class CoordinatorStats:
     """Phase coordinator statistics."""
+
     active_sessions: int
     total_transitions: int
-    phase_distribution: Dict[str, int]
+    phase_distribution: dict[str, int]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "active_sessions": self.active_sessions,
             "total_transitions": self.total_transitions,
@@ -159,6 +164,7 @@ class CoordinatorStats:
 # =============================================================================
 # Phase Coordinator
 # =============================================================================
+
 
 class PhaseCoordinator:
     """
@@ -174,7 +180,7 @@ class PhaseCoordinator:
     """
 
     def __init__(self):
-        self._sessions: Dict[str, PhaseState] = {}
+        self._sessions: dict[str, PhaseState] = {}
         self._lock = threading.Lock()
 
     # =========================================================================
@@ -266,21 +272,21 @@ class PhaseCoordinator:
     # Queries
     # =========================================================================
 
-    def current_phase(self, session_id: str) -> Optional[str]:
+    def current_phase(self, session_id: str) -> str | None:
         """Get current phase for a session."""
         state = self._sessions.get(session_id)
         return state.current_phase if state else None
 
-    def get_state(self, session_id: str) -> Optional[PhaseState]:
+    def get_state(self, session_id: str) -> PhaseState | None:
         """Get full phase state for a session."""
         return self._sessions.get(session_id)
 
-    def get_transitions(self, session_id: str) -> List[PhaseTransition]:
+    def get_transitions(self, session_id: str) -> list[PhaseTransition]:
         """Get transition history for a session."""
         state = self._sessions.get(session_id)
         return list(state.transitions) if state else []
 
-    def next_phases(self, session_id: str) -> List[str]:
+    def next_phases(self, session_id: str) -> list[str]:
         """Get valid next phases for a session."""
         state = self._sessions.get(session_id)
         if state is None:
@@ -324,7 +330,7 @@ class PhaseCoordinator:
 
     def get_stats(self) -> CoordinatorStats:
         """Get coordinator statistics."""
-        phase_dist: Dict[str, int] = defaultdict(int)
+        phase_dist: dict[str, int] = defaultdict(int)
         total_transitions = 0
         with self._lock:
             for state in self._sessions.values():
@@ -349,7 +355,7 @@ class PhaseCoordinator:
         with self._lock:
             self._sessions.clear()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "session_count": self.session_count,
             "stats": self.get_stats().to_dict(),
@@ -360,7 +366,7 @@ class PhaseCoordinator:
 # Global Instance
 # =============================================================================
 
-_coordinator: Optional[PhaseCoordinator] = None
+_coordinator: PhaseCoordinator | None = None
 _coordinator_lock = threading.Lock()
 
 

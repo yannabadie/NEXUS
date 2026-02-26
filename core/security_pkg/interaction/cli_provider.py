@@ -15,14 +15,8 @@ Date: 2025-12-13
 
 import asyncio
 import sys
-from typing import Optional, List
 
-from .base import (
-    InteractionProvider,
-    InteractionLevel,
-    InteractionRequiredError,
-    Choice
-)
+from .base import Choice, InteractionLevel, InteractionProvider
 
 
 class CLIProvider(InteractionProvider):
@@ -49,11 +43,7 @@ class CLIProvider(InteractionProvider):
         self.prefix = prefix
 
     async def ask(
-        self,
-        prompt: str,
-        default: Optional[str] = None,
-        timeout: Optional[float] = None,
-        required: bool = False
+        self, prompt: str, default: str | None = None, timeout: float | None = None, required: bool = False
     ) -> str:
         """Ask user for input via terminal."""
         # V12.4 FIX F19: Use get_running_loop() instead of deprecated get_event_loop()
@@ -67,10 +57,7 @@ class CLIProvider(InteractionProvider):
 
         try:
             if timeout:
-                result = await asyncio.wait_for(
-                    loop.run_in_executor(None, input, display),
-                    timeout=timeout
-                )
+                result = await asyncio.wait_for(loop.run_in_executor(None, input, display), timeout=timeout)
             else:
                 result = await loop.run_in_executor(None, input, display)
 
@@ -88,7 +75,7 @@ class CLIProvider(InteractionProvider):
             else:
                 return ""
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             if default is not None:
                 print(f"\n  [Timeout, using default: {default}]")
                 return default
@@ -100,12 +87,7 @@ class CLIProvider(InteractionProvider):
                 return default
             return ""
 
-    async def confirm(
-        self,
-        prompt: str,
-        default: bool = False,
-        timeout: Optional[float] = None
-    ) -> bool:
+    async def confirm(self, prompt: str, default: bool = False, timeout: float | None = None) -> bool:
         """Ask for yes/no confirmation."""
         hint = "[Y/n]" if default else "[y/N]"
         response = await self.ask(f"{prompt} {hint}", timeout=timeout)
@@ -113,14 +95,10 @@ class CLIProvider(InteractionProvider):
         if not response:
             return default
 
-        return response.lower() in ('y', 'yes', 'oui', 'o', '1', 'true')
+        return response.lower() in ("y", "yes", "oui", "o", "1", "true")
 
     async def choose(
-        self,
-        prompt: str,
-        choices: List[Choice],
-        default: Optional[str] = None,
-        timeout: Optional[float] = None
+        self, prompt: str, choices: list[Choice], default: str | None = None, timeout: float | None = None
     ) -> str:
         """Present numbered choices to user."""
         # Display choices
@@ -135,11 +113,7 @@ class CLIProvider(InteractionProvider):
         valid_keys.update({c.key.lower(): c.key for c in choices})
 
         while True:
-            response = await self.ask(
-                "Enter choice (number or key)",
-                default=default,
-                timeout=timeout
-            )
+            response = await self.ask("Enter choice (number or key)", default=default, timeout=timeout)
 
             key = valid_keys.get(response.lower())
             if key:
@@ -150,18 +124,14 @@ class CLIProvider(InteractionProvider):
 
             print(f"  [Invalid choice. Options: {', '.join(valid_keys.keys())}]")
 
-    async def announce(
-        self,
-        message: str,
-        level: InteractionLevel = InteractionLevel.INFO
-    ) -> None:
+    async def announce(self, message: str, level: InteractionLevel = InteractionLevel.INFO) -> None:
         """Print message to console with level prefix."""
         prefix_map = {
             InteractionLevel.DEBUG: "[DEBUG]",
             InteractionLevel.INFO: "[INFO]",
             InteractionLevel.WARNING: "[WARN]",
             InteractionLevel.ERROR: "[ERROR]",
-            InteractionLevel.CRITICAL: "[CRITICAL]"
+            InteractionLevel.CRITICAL: "[CRITICAL]",
         }
 
         prefix = prefix_map.get(level, "")
@@ -169,12 +139,7 @@ class CLIProvider(InteractionProvider):
 
         print(f"{prefix} {message}" if prefix else message, file=output)
 
-    async def progress(
-        self,
-        message: str,
-        current: int,
-        total: int
-    ) -> None:
+    async def progress(self, message: str, current: int, total: int) -> None:
         """Display progress bar."""
         if total <= 0:
             return

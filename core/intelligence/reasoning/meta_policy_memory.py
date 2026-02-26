@@ -34,10 +34,13 @@ import logging
 import threading
 import time
 import uuid
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from core.intelligence.hive_mind.failure_taxonomy import TriplePathwayResult
 
 logger = logging.getLogger(__name__)
 
@@ -46,8 +49,10 @@ logger = logging.getLogger(__name__)
 # Data Structures
 # =============================================================================
 
+
 class RuleCategory(str, Enum):
     """Categories for policy rules."""
+
     TIMEOUT = "timeout"
     VALIDATION = "validation"
     COMMUNICATION = "communication"
@@ -60,18 +65,19 @@ class RuleCategory(str, Enum):
 @dataclass
 class PolicyRule:
     """A single reusable policy rule derived from a MARS reflection."""
+
     id: str
-    predicate: str          # When condition: "external_api_call AND no_timeout"
-    action: str             # Then action: "set timeout=10s with backoff"
-    category: str           # RuleCategory value
-    source_task: str        # Origin task description (truncated)
-    failure_type: str       # MAST failure type that spawned this rule
-    mast_codes: List[str]   # MAST codes associated
-    tags: List[str]
+    predicate: str  # When condition: "external_api_call AND no_timeout"
+    action: str  # Then action: "set timeout=10s with backoff"
+    category: str  # RuleCategory value
+    source_task: str  # Origin task description (truncated)
+    failure_type: str  # MAST failure type that spawned this rule
+    mast_codes: list[str]  # MAST codes associated
+    tags: list[str]
     created_at: float
     usage_count: int = 0
     success_count: int = 0
-    last_used: Optional[float] = None
+    last_used: float | None = None
     confidence: float = 0.5  # Initial confidence
 
     @property
@@ -89,15 +95,16 @@ class PolicyRule:
         outcome = 1.0 if success else 0.0
         self.confidence = 0.8 * self.confidence + 0.2 * outcome
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return asdict(self)
 
 
 @dataclass
 class AdmissibilityResult:
     """Result of a hard admissibility check."""
+
     is_blocked: bool
-    blocking_rules: List[PolicyRule] = field(default_factory=list)
+    blocking_rules: list[PolicyRule] = field(default_factory=list)
     suggested_alternative: str = ""
     reason: str = ""
 
@@ -105,16 +112,18 @@ class AdmissibilityResult:
 @dataclass
 class RetrievalResult:
     """Result of soft memory-guided retrieval."""
-    rules: List[PolicyRule]
+
+    rules: list[PolicyRule]
     prompt_injection: str  # Formatted text to inject into agent prompt
 
 
 @dataclass
 class MPMStats:
     """Statistics for the meta-policy memory."""
+
     total_rules: int
     active_rules: int  # score > threshold
-    categories: Dict[str, int]
+    categories: dict[str, int]
     avg_score: float
     total_activations: int
 
@@ -124,7 +133,7 @@ class MPMStats:
 # =============================================================================
 
 # Keywords that map to rule categories
-_CATEGORY_KEYWORDS: Dict[str, List[str]] = {
+_CATEGORY_KEYWORDS: dict[str, list[str]] = {
     RuleCategory.TIMEOUT.value: ["timeout", "deadline", "latency", "slow", "hang", "unresponsive"],
     RuleCategory.VALIDATION.value: ["validate", "check", "verify", "assertion", "type", "schema", "format"],
     RuleCategory.COMMUNICATION.value: ["message", "protocol", "parse", "json", "response", "request"],
@@ -134,7 +143,7 @@ _CATEGORY_KEYWORDS: Dict[str, List[str]] = {
 }
 
 # Hard admissibility patterns: (pattern_keywords, blocked_reason)
-_DEFAULT_HAC_PATTERNS: List[Tuple[List[str], str]] = [
+_DEFAULT_HAC_PATTERNS: list[tuple[list[str], str]] = [
     (["no timeout", "without timeout"], "External calls must have timeout set"),
     (["retry without backoff", "immediate retry"], "Retries must use exponential backoff"),
     (["ignore error", "suppress exception"], "Errors must be logged, not suppressed"),
@@ -151,13 +160,13 @@ class MetaPolicyMemory:
     2. Hard admissibility checks: block actions violating accumulated rules
     """
 
-    SCORE_THRESHOLD = 0.3       # Rules below this are considered inactive
-    MAX_RULES = 500             # Cap to prevent unbounded growth
-    DECAY_HALFLIFE_DAYS = 30    # Rules decay if unused
+    SCORE_THRESHOLD = 0.3  # Rules below this are considered inactive
+    MAX_RULES = 500  # Cap to prevent unbounded growth
+    DECAY_HALFLIFE_DAYS = 30  # Rules decay if unused
 
-    def __init__(self, storage_path: Optional[Path] = None):
+    def __init__(self, storage_path: Path | None = None):
         self._storage_path = storage_path or Path("workspace/.nexus/meta_policy_rules.jsonl")
-        self._rules: Dict[str, PolicyRule] = {}
+        self._rules: dict[str, PolicyRule] = {}
         self._lock = threading.Lock()
         self._load()
 
@@ -168,7 +177,7 @@ class MetaPolicyMemory:
     def consolidate(
         self,
         mars_result: "TriplePathwayResult",
-        mast_codes: Optional[List[str]] = None,
+        mast_codes: list[str] | None = None,
         source_task: str = "",
     ) -> PolicyRule:
         """
@@ -183,15 +192,15 @@ class MetaPolicyMemory:
             The new PolicyRule (also persisted to storage)
         """
         # Extract predicate from principle (the "when" condition)
-        predicate = mars_result.principle if hasattr(mars_result, 'principle') else str(mars_result)
+        predicate = mars_result.principle if hasattr(mars_result, "principle") else str(mars_result)
 
         # Extract action from procedure + synthesis (the "then" action)
-        procedure = mars_result.procedure if hasattr(mars_result, 'procedure') else ""
-        synthesis = mars_result.synthesis if hasattr(mars_result, 'synthesis') else ""
+        procedure = mars_result.procedure if hasattr(mars_result, "procedure") else ""
+        synthesis = mars_result.synthesis if hasattr(mars_result, "synthesis") else ""
         action = synthesis or procedure
 
         # Determine category
-        failure_type = mars_result.failure_type if hasattr(mars_result, 'failure_type') else "unknown"
+        failure_type = mars_result.failure_type if hasattr(mars_result, "failure_type") else "unknown"
         category = self._categorize(predicate, action, failure_type)
 
         # Build tags from mast codes + failure type
@@ -234,7 +243,7 @@ class MetaPolicyMemory:
         self,
         task_type: str = "",
         context: str = "",
-        tags: Optional[List[str]] = None,
+        tags: list[str] | None = None,
         top_k: int = 5,
     ) -> RetrievalResult:
         """
@@ -249,7 +258,7 @@ class MetaPolicyMemory:
         Returns:
             RetrievalResult with ranked rules and formatted prompt injection
         """
-        scored: List[Tuple[float, PolicyRule]] = []
+        scored: list[tuple[float, PolicyRule]] = []
         context_lower = context.lower()
         task_lower = task_type.lower()
 
@@ -278,10 +287,9 @@ class MetaPolicyMemory:
 
             # Category match with context
             for cat, keywords in _CATEGORY_KEYWORDS.items():
-                if cat == rule.category:
-                    if any(kw in context_lower for kw in keywords):
-                        relevance += 0.2
-                        break
+                if cat == rule.category and any(kw in context_lower for kw in keywords):
+                    relevance += 0.2
+                    break
 
             # Bayesian score boost
             relevance += rule.score * 0.3
@@ -370,7 +378,7 @@ class MetaPolicyMemory:
 
     def get_stats(self) -> MPMStats:
         """Get memory statistics."""
-        categories: Dict[str, int] = {}
+        categories: dict[str, int] = {}
         total_activations = 0
         total_score = 0.0
         active = 0
@@ -413,7 +421,7 @@ class MetaPolicyMemory:
 
         return best_category
 
-    def _find_duplicate(self, predicate: str) -> Optional[PolicyRule]:
+    def _find_duplicate(self, predicate: str) -> PolicyRule | None:
         """Find existing rule with similar predicate (prefix match)."""
         prefix = predicate[:80].lower()
         for rule in self._rules.values():
@@ -434,7 +442,7 @@ class MetaPolicyMemory:
 
         logger.debug(f"MPM: Pruned {to_remove} low-scoring rules")
 
-    def _format_for_prompt(self, rules: List[PolicyRule]) -> str:
+    def _format_for_prompt(self, rules: list[PolicyRule]) -> str:
         """Format rules for injection into an agent prompt."""
         if not rules:
             return ""
@@ -486,7 +494,7 @@ class MetaPolicyMemory:
 # Singleton
 # =============================================================================
 
-_instance: Optional[MetaPolicyMemory] = None
+_instance: MetaPolicyMemory | None = None
 _instance_lock = threading.Lock()
 
 

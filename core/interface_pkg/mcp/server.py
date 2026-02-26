@@ -23,12 +23,12 @@ Usage:
 Reference: https://modelcontextprotocol.io/quickstart/server
 """
 
-import sys
-import os
 import logging
-from datetime import datetime, timezone
+import os
+import sys
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional, Dict, Any, List
+from typing import Any
 
 try:
     from core.memory_pkg.memory.project_memory import ProjectMemory as _ProjectMemory
@@ -36,16 +36,13 @@ except Exception:
     _ProjectMemory = None
 
 # Configure logging to stderr (stdout is reserved for MCP JSON-RPC)
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    stream=sys.stderr
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s", stream=sys.stderr)
 logger = logging.getLogger("nexus.mcp.server")
 
 # Check for MCP SDK availability
 try:
     from mcp.server.fastmcp import FastMCP
+
     MCP_AVAILABLE = True
 except ImportError:
     MCP_AVAILABLE = False
@@ -65,8 +62,9 @@ def get_tool_manager():
     global _TOOL_MANAGER
     if _TOOL_MANAGER is not None:
         return _TOOL_MANAGER
-    from core.execution_pkg.execution.tool_manager import ToolManager
     from core.config import Config
+    from core.execution_pkg.execution.tool_manager import ToolManager
+
     config = Config()
     # V8.5.0: ToolManager expects workspace_path, not config
     _TOOL_MANAGER = ToolManager(config.workspace_path)
@@ -80,6 +78,7 @@ def execute_tool(tool_name: str, params: dict):
     V8.5.0: Wraps ToolManager.execute() with ToolUse object creation.
     """
     from core.synapse.protocol_v7 import ToolUse
+
     tm = get_tool_manager()
     tool_request = ToolUse(tool_name=tool_name, arguments=params)
     return tm.execute(tool_request)
@@ -90,8 +89,9 @@ def get_orchestrator():
     global _ORCHESTRATOR
     if _ORCHESTRATOR is not None:
         return _ORCHESTRATOR
-    from core.orchestration_v7 import OrchestratorV7
     from core.config import Config
+    from core.orchestration_v7 import OrchestratorV7
+
     config = Config()
     # V8.5.0: OrchestratorV7 requires workspace_path, config, and model info
     gemini_info = {"model": config.gemini_pro_model, "provider": "gemini"}
@@ -101,28 +101,30 @@ def get_orchestrator():
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _iso_now() -> str:
     return _utc_now().isoformat()
 
 
-def _resolve_root(root_path: Optional[Path]) -> Path:
+def _resolve_root(root_path: Path | None) -> Path:
     from core.config import Config
+
     config = Config()
     root = Path(root_path) if root_path else config.nexus_root
     return root.resolve()
 
 
-def _resolve_workspace(workspace_path: Optional[Path]) -> Path:
+def _resolve_workspace(workspace_path: Path | None) -> Path:
     from core.config import Config
+
     config = Config()
     workspace = Path(workspace_path) if workspace_path else config.workspace_path
     return workspace.resolve()
 
 
-def _default_index_paths(root: Path) -> List[Path]:
+def _default_index_paths(root: Path) -> list[Path]:
     candidates = []
     for name in ("core", "docs"):
         candidate = root / name
@@ -131,7 +133,7 @@ def _default_index_paths(root: Path) -> List[Path]:
     return candidates or [root]
 
 
-def _resolve_index_paths(root: Path, paths: Optional[List[str]]) -> List[Path]:
+def _resolve_index_paths(root: Path, paths: list[str] | None) -> list[Path]:
     if not paths:
         return _default_index_paths(root)
 
@@ -147,7 +149,7 @@ def _resolve_index_paths(root: Path, paths: Optional[List[str]]) -> List[Path]:
     return resolved
 
 
-def _resolve_output_dir(workspace: Path, output_dir: Optional[str]) -> Optional[Path]:
+def _resolve_output_dir(workspace: Path, output_dir: str | None) -> Path | None:
     if output_dir is None:
         return None
     candidate = Path(output_dir)
@@ -175,21 +177,23 @@ def _init_memory(root: Path, backend: str):
 
 async def _run_blocking(func, *args, **kwargs):
     import anyio
+
     if kwargs:
         import functools
+
         func = functools.partial(func, **kwargs)
     return await anyio.to_thread.run_sync(func, *args)
 
 
 def build_memory_search(
     query: str,
-    root_path: Optional[Path] = None,
+    root_path: Path | None = None,
     mode: str = "mock",
-    backend: Optional[str] = None,
+    backend: str | None = None,
     limit: int = 5,
     min_score: float = 0.2,
-    paths: Optional[List[str]] = None,
-) -> Dict[str, Any]:
+    paths: list[str] | None = None,
+) -> dict[str, Any]:
     if not query or not query.strip():
         raise ValueError("Query cannot be empty.")
 
@@ -215,15 +219,17 @@ def build_memory_search(
     logger.info("build_memory_search results=%s", len(results))
     sources = []
     for chunk in results:
-        sources.append({
-            "file_path": chunk.file_path,
-            "start_line": chunk.start_line,
-            "end_line": chunk.end_line,
-            "chunk_type": chunk.chunk_type,
-            "name": chunk.name,
-            "terms": sorted(chunk.terms),
-            "excerpt": chunk.content.strip()[:400],
-        })
+        sources.append(
+            {
+                "file_path": chunk.file_path,
+                "start_line": chunk.start_line,
+                "end_line": chunk.end_line,
+                "chunk_type": chunk.chunk_type,
+                "name": chunk.name,
+                "terms": sorted(chunk.terms),
+                "excerpt": chunk.content.strip()[:400],
+            }
+        )
 
     backend_info = memory.get_backend_info()
     backend_name = backend_info.get("backend", backend)
@@ -242,15 +248,15 @@ def build_memory_search(
 
 def build_evidence_pack(
     question: str,
-    root_path: Optional[Path] = None,
-    workspace_path: Optional[Path] = None,
-    output_dir: Optional[str] = None,
+    root_path: Path | None = None,
+    workspace_path: Path | None = None,
+    output_dir: str | None = None,
     mode: str = "mock",
-    backend: Optional[str] = None,
+    backend: str | None = None,
     limit: int = 5,
     min_score: float = 0.2,
-    paths: Optional[List[str]] = None,
-) -> Dict[str, str]:
+    paths: list[str] | None = None,
+) -> dict[str, str]:
     if not question or not question.strip():
         raise ValueError("Question cannot be empty.")
 
@@ -350,12 +356,7 @@ if MCP_AVAILABLE:
             return f"Error searching files: {e}"
 
     @mcp.tool()
-    async def nexus_grep(
-        pattern: str,
-        path: str = ".",
-        file_type: Optional[str] = None,
-        context_lines: int = 0
-    ) -> str:
+    async def nexus_grep(pattern: str, path: str = ".", file_type: str | None = None, context_lines: int = 0) -> str:
         """
         Search for patterns in files using ripgrep-style regex.
 
@@ -369,10 +370,7 @@ if MCP_AVAILABLE:
             Matching lines with file paths and line numbers
         """
         try:
-            params = {
-                "pattern": pattern,
-                "path": path
-            }
+            params = {"pattern": pattern, "path": path}
             if file_type:
                 params["type"] = file_type
             if context_lines > 0:
@@ -421,6 +419,7 @@ if MCP_AVAILABLE:
             orch = get_orchestrator()
             status = await _run_blocking(orch.get_system_status)
             import json
+
             return json.dumps(status, indent=2, default=str)
         except Exception as e:
             logger.error(f"nexus_status error: {e}")
@@ -434,10 +433,10 @@ if MCP_AVAILABLE:
     async def nexus_research(
         question: str,
         mode: str = "mock",
-        backend: Optional[str] = None,
+        backend: str | None = None,
         limit: int = 5,
         min_score: float = 0.2,
-        paths: Optional[List[str]] = None,
+        paths: list[str] | None = None,
     ) -> str:
         """
         Run a local-first research lookup over project memory.
@@ -468,9 +467,7 @@ if MCP_AVAILABLE:
             ]
             if sources:
                 for source in sources:
-                    lines.append(
-                        f"- {source.get('file_path')} (L{source.get('start_line')}-{source.get('end_line')})"
-                    )
+                    lines.append(f"- {source.get('file_path')} (L{source.get('start_line')}-{source.get('end_line')})")
             else:
                 lines.append("- No sources matched the query at the current threshold.")
             return "\n".join(lines) + "\n"
@@ -482,10 +479,10 @@ if MCP_AVAILABLE:
     async def nexus_memory_search(
         query: str,
         mode: str = "mock",
-        backend: Optional[str] = None,
+        backend: str | None = None,
         limit: int = 5,
         min_score: float = 0.2,
-        paths: Optional[List[str]] = None,
+        paths: list[str] | None = None,
     ) -> str:
         """
         Search indexed project memory and return structured results.
@@ -502,6 +499,7 @@ if MCP_AVAILABLE:
                 paths=paths,
             )
             import json
+
             logger.info("nexus_memory_search done sources=%s", len(payload.get("sources", [])))
             return json.dumps(payload, indent=2, ensure_ascii=True)
         except Exception as e:
@@ -512,11 +510,11 @@ if MCP_AVAILABLE:
     async def nexus_export_evidence_pack(
         question: str,
         mode: str = "mock",
-        backend: Optional[str] = None,
+        backend: str | None = None,
         limit: int = 5,
         min_score: float = 0.2,
-        output_dir: Optional[str] = None,
-        paths: Optional[List[str]] = None,
+        output_dir: str | None = None,
+        paths: list[str] | None = None,
     ) -> str:
         """
         Generate a full evidence pack (report, sources, trace, graph, manifest).
@@ -534,6 +532,7 @@ if MCP_AVAILABLE:
                 paths=paths,
             )
             import json
+
             logger.info("nexus_export_evidence_pack done output_dir=%s", outputs.get("output_dir"))
             return json.dumps(outputs, indent=2, ensure_ascii=True)
         except Exception as e:
@@ -560,10 +559,13 @@ if MCP_AVAILABLE:
             Command output (stdout + stderr)
         """
         try:
-            result = execute_tool("bash", {
-                "command": command,
-                "timeout": min(timeout, 120) * 1000  # Convert to ms, cap at 120s
-            })
+            result = execute_tool(
+                "bash",
+                {
+                    "command": command,
+                    "timeout": min(timeout, 120) * 1000,  # Convert to ms, cap at 120s
+                },
+            )
             return result.output if result.status == "SUCCESS" else f"Error: {result.error}"
         except Exception as e:
             logger.error(f"nexus_bash error: {e}")
@@ -578,6 +580,7 @@ if MCP_AVAILABLE:
         """Get NEXUS configuration summary."""
         try:
             from core.config import Config
+
             config = Config()
             return config.to_string()
         except Exception as e:
@@ -588,9 +591,11 @@ if MCP_AVAILABLE:
         """Get registered agent information."""
         try:
             from core.foundation.agents.unified_registry import get_registry
+
             registry = get_registry()
             agents = registry.list_agents()
             import json
+
             return json.dumps(agents, indent=2, default=str)
         except Exception as e:
             return f"Error loading agents: {e}"
@@ -600,8 +605,10 @@ if MCP_AVAILABLE:
 # Server Entry Point
 # =============================================================================
 
+
 class MCPNotAvailableError(RuntimeError):
     """Raised when MCP SDK is not installed."""
+
     pass
 
 
@@ -613,9 +620,7 @@ def main():
     for proper exception handling when imported as a module.
     """
     if not MCP_AVAILABLE:
-        raise MCPNotAvailableError(
-            "MCP SDK not installed. Install with: pip install mcp"
-        )
+        raise MCPNotAvailableError("MCP SDK not installed. Install with: pip install mcp")
 
     logger.info("Starting NEXUS MCP Server...")
     logger.info(
@@ -625,7 +630,7 @@ def main():
     logger.info("Resources: nexus://config, nexus://agents")
 
     # Run server with stdio transport
-    mcp.run(transport='stdio')
+    mcp.run(transport="stdio")
 
 
 if __name__ == "__main__":

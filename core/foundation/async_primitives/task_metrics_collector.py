@@ -34,8 +34,8 @@ from __future__ import annotations
 import logging
 import threading
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -52,9 +52,11 @@ SLOW_TASK_THRESHOLD_MS = 5000.0
 # Dataclasses
 # =============================================================================
 
+
 @dataclass
 class TaskRecord:
     """Record of a single async task execution."""
+
     task_id: str = ""
     task_type: str = ""
     status: str = "pending"
@@ -64,18 +66,18 @@ class TaskRecord:
     duration_ms: float = 0.0
     error: str = ""
     parent_task_id: str = ""
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if not self.created_at:
-            self.created_at = datetime.now(timezone.utc).isoformat()
+            self.created_at = datetime.now(UTC).isoformat()
 
     @property
     def is_slow(self) -> bool:
         """Whether this task exceeded the slow-task threshold."""
         return self.duration_ms > SLOW_TASK_THRESHOLD_MS
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "task_id": self.task_id,
             "task_type": self.task_type,
@@ -94,6 +96,7 @@ class TaskRecord:
 @dataclass
 class TaskTypeMetrics:
     """Aggregated metrics for a single task type."""
+
     task_type: str = ""
     total_count: int = 0
     completed_count: int = 0
@@ -117,7 +120,7 @@ class TaskTypeMetrics:
             return self.completed_count / self.total_count
         return 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "task_type": self.task_type,
             "total_count": self.total_count,
@@ -135,6 +138,7 @@ class TaskTypeMetrics:
 @dataclass
 class CollectorStats:
     """Overall collector statistics."""
+
     total_tasks: int = 0
     active_tasks: int = 0
     completed_tasks: int = 0
@@ -144,7 +148,7 @@ class CollectorStats:
     avg_duration_ms: float = 0.0
     slow_task_count: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_tasks": self.total_tasks,
             "active_tasks": self.active_tasks,
@@ -161,6 +165,7 @@ class CollectorStats:
 # Task Metrics Collector
 # =============================================================================
 
+
 class TaskMetricsCollector:
     """
     Collects and aggregates async task execution metrics.
@@ -176,9 +181,9 @@ class TaskMetricsCollector:
     """
 
     def __init__(self, max_records: int = MAX_TASK_RECORDS):
-        self._records: List[TaskRecord] = []
-        self._type_metrics: Dict[str, TaskTypeMetrics] = {}
-        self._active_tasks: Dict[str, TaskRecord] = {}
+        self._records: list[TaskRecord] = []
+        self._type_metrics: dict[str, TaskTypeMetrics] = {}
+        self._active_tasks: dict[str, TaskRecord] = {}
         self._max_records = max_records
         self._lock = threading.Lock()
         self._counter = 0
@@ -199,7 +204,7 @@ class TaskMetricsCollector:
         Generates a ``task_NNNNNN`` identifier when *task_id* is empty.
         Initialises per-type metrics on first encounter.
         """
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         with self._lock:
             if not task_id:
                 self._counter += 1
@@ -226,7 +231,7 @@ class TaskMetricsCollector:
 
     def complete_task(self, task_id: str, **metadata: Any) -> TaskRecord | None:
         """Mark a running task as completed and record its duration."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         now_iso = now.isoformat()
         with self._lock:
             record = self._active_tasks.pop(task_id, None)
@@ -269,7 +274,7 @@ class TaskMetricsCollector:
         **metadata: Any,
     ) -> TaskRecord | None:
         """Mark a running task as failed and record its duration."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         now_iso = now.isoformat()
         with self._lock:
             record = self._active_tasks.pop(task_id, None)
@@ -299,7 +304,7 @@ class TaskMetricsCollector:
 
     def cancel_task(self, task_id: str) -> TaskRecord | None:
         """Mark a running task as cancelled."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         now_iso = now.isoformat()
         with self._lock:
             record = self._active_tasks.pop(task_id, None)
@@ -344,31 +349,28 @@ class TaskMetricsCollector:
         with self._lock:
             return self._type_metrics.get(task_type)
 
-    def get_all_metrics(self) -> List[TaskTypeMetrics]:
+    def get_all_metrics(self) -> list[TaskTypeMetrics]:
         """Return all per-type metrics sorted by total_count descending."""
         with self._lock:
             metrics = list(self._type_metrics.values())
         return sorted(metrics, key=lambda m: m.total_count, reverse=True)
 
-    def get_slow_tasks(self, limit: int = 20) -> List[TaskRecord]:
+    def get_slow_tasks(self, limit: int = 20) -> list[TaskRecord]:
         """Return completed tasks whose duration exceeded the slow threshold."""
         with self._lock:
             slow = [r for r in self._records if r.is_slow]
         slow.sort(key=lambda r: r.duration_ms, reverse=True)
         return slow[:limit]
 
-    def get_recent_tasks(self, limit: int = 20) -> List[TaskRecord]:
+    def get_recent_tasks(self, limit: int = 20) -> list[TaskRecord]:
         """Return the most recent completed/failed/cancelled records."""
         with self._lock:
             return list(self._records[-limit:])
 
-    def get_subtasks(self, parent_task_id: str) -> List[TaskRecord]:
+    def get_subtasks(self, parent_task_id: str) -> list[TaskRecord]:
         """Return all records that belong to a given parent task."""
         with self._lock:
-            return [
-                r for r in self._records
-                if r.parent_task_id == parent_task_id
-            ]
+            return [r for r in self._records if r.parent_task_id == parent_task_id]
 
     # =========================================================================
     # Statistics
@@ -425,7 +427,7 @@ class TaskMetricsCollector:
             self._active_tasks.clear()
             self._counter = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialise collector state as a dict.
 
         Computes stats before acquiring the lock to avoid re-entrant

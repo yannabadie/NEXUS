@@ -10,8 +10,9 @@ Provides:
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Dict, Any, Optional, Callable
+from typing import Any
 
 from .base import BaseHandler, ToolResult
 
@@ -19,6 +20,7 @@ from .base import BaseHandler, ToolResult
 try:
     from core.interface_pkg.interface_pkg.mcp import MCPRegistry
     from core.interface_pkg.interface_pkg.mcp.client import MCPClientError, MCPServerError
+
     MCP_AVAILABLE = True
 except ImportError:
     MCPRegistry = None  # type: ignore
@@ -38,9 +40,9 @@ class MCPToolHandler(BaseHandler):
         self,
         workspace_path: Path,
         validation_service: Any = None,
-        mcp_registry: Optional[Any] = None,
+        mcp_registry: Any | None = None,
         server_name: str = "",
-        mcp_tool_name: str = ""
+        mcp_tool_name: str = "",
     ):
         super().__init__(workspace_path, validation_service)
         self._mcp_registry = mcp_registry
@@ -54,7 +56,7 @@ class MCPToolHandler(BaseHandler):
             return f"mcp_{self._server_name}_{self._mcp_tool_name}"
         return "mcp_tool"
 
-    def execute(self, args: Dict[str, Any]) -> ToolResult:
+    def execute(self, args: dict[str, Any]) -> ToolResult:
         """
         Execute an MCP tool.
 
@@ -68,10 +70,7 @@ class MCPToolHandler(BaseHandler):
 
         if self._mcp_registry is None:
             return ToolResult(
-                tool_name=nexus_tool_name,
-                status="ERROR",
-                output="",
-                error="MCP registry not initialized"
+                tool_name=nexus_tool_name, status="ERROR", output="", error="MCP registry not initialized"
             )
 
         try:
@@ -81,55 +80,29 @@ class MCPToolHandler(BaseHandler):
                     tool_name=nexus_tool_name,
                     status="ERROR",
                     output="",
-                    error=f"Failed to connect to MCP server: {self._server_name}"
+                    error=f"Failed to connect to MCP server: {self._server_name}",
                 )
 
             # Call the tool
             result = client.call_tool(self._mcp_tool_name, args)
 
             if result.isError:
-                return ToolResult(
-                    tool_name=nexus_tool_name,
-                    status="FAILURE",
-                    output="",
-                    error=result.text
-                )
+                return ToolResult(tool_name=nexus_tool_name, status="FAILURE", output="", error=result.text)
 
-            return ToolResult(
-                tool_name=nexus_tool_name,
-                status="SUCCESS",
-                output=result.text
-            )
+            return ToolResult(tool_name=nexus_tool_name, status="SUCCESS", output=result.text)
 
         except MCPServerError as e:
             return ToolResult(
-                tool_name=nexus_tool_name,
-                status="FAILURE",
-                output="",
-                error=f"MCP server error: {e.error.message}"
+                tool_name=nexus_tool_name, status="FAILURE", output="", error=f"MCP server error: {e.error.message}"
             )
         except MCPClientError as e:
-            return ToolResult(
-                tool_name=nexus_tool_name,
-                status="ERROR",
-                output="",
-                error=f"MCP client error: {str(e)}"
-            )
+            return ToolResult(tool_name=nexus_tool_name, status="ERROR", output="", error=f"MCP client error: {str(e)}")
         except Exception as e:
-            return ToolResult(
-                tool_name=nexus_tool_name,
-                status="ERROR",
-                output="",
-                error=f"Unexpected error: {str(e)}"
-            )
+            return ToolResult(tool_name=nexus_tool_name, status="ERROR", output="", error=f"Unexpected error: {str(e)}")
 
 
 def create_mcp_tool_handler(
-    workspace_path: Path,
-    mcp_registry: Any,
-    server_name: str,
-    tool_name: str,
-    validation_service: Any = None
+    workspace_path: Path, mcp_registry: Any, server_name: str, tool_name: str, validation_service: Any = None
 ) -> MCPToolHandler:
     """
     Factory function to create an MCP tool handler.
@@ -149,13 +122,11 @@ def create_mcp_tool_handler(
         validation_service=validation_service,
         mcp_registry=mcp_registry,
         server_name=server_name,
-        mcp_tool_name=tool_name
+        mcp_tool_name=tool_name,
     )
 
 
-def create_mcp_tool_executor(
-    handler: MCPToolHandler
-) -> Callable[[Dict], ToolResult]:
+def create_mcp_tool_executor(handler: MCPToolHandler) -> Callable[[dict], ToolResult]:
     """
     Create a callable executor for legacy ToolManager integration.
 
@@ -168,6 +139,8 @@ def create_mcp_tool_executor(
     Returns:
         Callable that executes the handler
     """
-    def executor(args: Dict) -> ToolResult:
+
+    def executor(args: dict) -> ToolResult:
         return handler.execute(args)
+
     return executor

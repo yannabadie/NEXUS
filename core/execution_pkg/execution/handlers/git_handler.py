@@ -12,7 +12,7 @@ from __future__ import annotations
 import shlex
 import subprocess
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any
 
 from .base import BaseHandler, ToolResult
 
@@ -34,7 +34,7 @@ class GitHandler(BaseHandler):
     def tool_name(self) -> str:
         return "git"
 
-    def execute(self, args: Dict[str, Any]) -> ToolResult:
+    def execute(self, args: dict[str, Any]) -> ToolResult:
         """
         Execute git operations.
 
@@ -61,15 +61,13 @@ class GitHandler(BaseHandler):
                 tool_name=self.tool_name,
                 status="BLOCKED",
                 output="",
-                error=f"[SECURITY] Git '{operation}' BLOCKED. Parent repo is READ-ONLY."
+                error=f"[SECURITY] Git '{operation}' BLOCKED. Parent repo is READ-ONLY.",
             )
 
         # Validate operation
         allowed_ops = list(self.SAFE_OPS) + ["pull"]
         if operation.lower() not in allowed_ops:
-            return self._error(
-                f"Invalid git operation: {operation}. Allowed: {', '.join(allowed_ops)}"
-            )
+            return self._error(f"Invalid git operation: {operation}. Allowed: {', '.join(allowed_ops)}")
 
         try:
             # Build git command
@@ -85,7 +83,7 @@ class GitHandler(BaseHandler):
                 text=True,
                 timeout=60,
                 encoding="utf-8",
-                errors="replace"
+                errors="replace",
             )
 
             if result.returncode == 0:
@@ -93,28 +91,23 @@ class GitHandler(BaseHandler):
                     tool_name=self.tool_name,
                     status="SUCCESS",
                     output=result.stdout or "(no output)",
-                    error=result.stderr
+                    error=result.stderr,
                 )
             else:
                 return ToolResult(
                     tool_name=self.tool_name,
                     status="FAILURE",
                     output=result.stdout,
-                    error=result.stderr or f"Git command failed with return code {result.returncode}"
+                    error=result.stderr or f"Git command failed with return code {result.returncode}",
                 )
 
         except subprocess.TimeoutExpired:
-            return self._error(
-                f"Git command timed out after 60s: git {operation} {additional_args}"
-            )
+            return self._error(f"Git command timed out after 60s: git {operation} {additional_args}")
         except Exception as e:
             return self._error(f"Git execution error: {str(e)}")
 
 
-def create_git_handler(
-    workspace_path: Path,
-    validation_service: Any = None
-) -> GitHandler:
+def create_git_handler(workspace_path: Path, validation_service: Any = None) -> GitHandler:
     """
     Factory function to create GitHandler.
 

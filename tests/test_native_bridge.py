@@ -6,8 +6,7 @@ They validate correctness of RRF scoring, SHA-256 hashing,
 and batch TF-IDF scoring.
 """
 
-import pytest
-from core.native import compute_rrf, sha256_hex, verify_kernel_hash, batch_tfidf_score, get_backend_info
+from core.native import batch_tfidf_score, compute_rrf, get_backend_info, sha256_hex, verify_kernel_hash
 
 
 class TestBackendInfo:
@@ -127,8 +126,8 @@ class TestBatchTfidfScore:
         query = ["python", "class"]
         chunks = [
             ["python", "function", "class"],  # matches both
-            ["javascript", "module"],          # no match
-            ["python", "import"],              # partial match
+            ["javascript", "module"],  # no match
+            ["python", "import"],  # partial match
         ]
         idf = {"python": 1.5, "class": 2.0, "function": 1.0, "javascript": 1.2, "module": 0.8, "import": 1.1}
 
@@ -151,6 +150,6 @@ class TestBatchTfidfScore:
         scores = batch_tfidf_score(
             ["unknown_term"],
             [["unknown_term"]],
-            {}  # empty IDF
+            {},  # empty IDF
         )
         assert scores == [0.0]

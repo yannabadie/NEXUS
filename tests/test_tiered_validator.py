@@ -7,6 +7,7 @@ Tests the fast-fail validation pipeline:
 - TIER 3: Benchmarks (parallel)
 - TIER 4: Red Team (sequential)
 """
+
 import sys
 from pathlib import Path
 
@@ -14,10 +15,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.intelligence.evolution.tiered_validator import (
+    TieredValidationResult,
     TieredValidator,
-    ValidationTier,
     TierResult,
-    TieredValidationResult
+    ValidationTier,
 )
 
 
@@ -50,12 +51,7 @@ class TestTierResult:
 
     def test_create_passed_result(self):
         """Test creating a passed tier result"""
-        result = TierResult(
-            tier=ValidationTier.SYNTAX,
-            passed=True,
-            message="All files OK",
-            duration_seconds=0.5
-        )
+        result = TierResult(tier=ValidationTier.SYNTAX, passed=True, message="All files OK", duration_seconds=0.5)
 
         assert result.tier == ValidationTier.SYNTAX
         assert result.passed is True
@@ -69,7 +65,7 @@ class TestTierResult:
             passed=False,
             message="Import failed",
             duration_seconds=2.0,
-            details={"error": "ModuleNotFoundError"}
+            details={"error": "ModuleNotFoundError"},
         )
 
         assert result.passed is False
@@ -78,11 +74,7 @@ class TestTierResult:
 
     def test_default_details(self):
         """Test default empty details dict"""
-        result = TierResult(
-            tier=ValidationTier.SYNTAX,
-            passed=True,
-            message="OK"
-        )
+        result = TierResult(tier=ValidationTier.SYNTAX, passed=True, message="OK")
 
         assert result.details == {}
         assert result.duration_seconds == 0.0
@@ -93,10 +85,7 @@ class TestTieredValidationResult:
 
     def test_create_result(self):
         """Test creating a validation result"""
-        result = TieredValidationResult(
-            child_id="TEST_CHILD_001",
-            passed=True
-        )
+        result = TieredValidationResult(child_id="TEST_CHILD_001", passed=True)
 
         assert result.child_id == "TEST_CHILD_001"
         assert result.passed is True
@@ -105,22 +94,10 @@ class TestTieredValidationResult:
 
     def test_result_with_tiers(self):
         """Test result with multiple tier results"""
-        tier1 = TierResult(
-            tier=ValidationTier.SYNTAX,
-            passed=True,
-            message="Syntax OK"
-        )
-        tier2 = TierResult(
-            tier=ValidationTier.SMOKE,
-            passed=True,
-            message="Smoke OK"
-        )
+        tier1 = TierResult(tier=ValidationTier.SYNTAX, passed=True, message="Syntax OK")
+        tier2 = TierResult(tier=ValidationTier.SMOKE, passed=True, message="Smoke OK")
 
-        result = TieredValidationResult(
-            child_id="TEST_CHILD",
-            passed=True,
-            tier_results=[tier1, tier2]
-        )
+        result = TieredValidationResult(child_id="TEST_CHILD", passed=True, tier_results=[tier1, tier2])
 
         assert len(result.tier_results) == 2
         assert result.tier_results[0].tier == ValidationTier.SYNTAX
@@ -132,7 +109,7 @@ class TestTieredValidationResult:
             child_id="FAILED_CHILD",
             passed=False,
             failed_at_tier=ValidationTier.SMOKE,
-            recommendation="REJECT: Smoke test failed"
+            recommendation="REJECT: Smoke test failed",
         )
 
         assert result.passed is False
@@ -141,11 +118,7 @@ class TestTieredValidationResult:
 
     def test_to_dict_basic(self):
         """Test to_dict serialization"""
-        result = TieredValidationResult(
-            child_id="TEST_CHILD",
-            passed=True,
-            timestamp="2025-11-26T12:00:00"
-        )
+        result = TieredValidationResult(child_id="TEST_CHILD", passed=True, timestamp="2025-11-26T12:00:00")
 
         d = result.to_dict()
 
@@ -156,19 +129,9 @@ class TestTieredValidationResult:
 
     def test_to_dict_with_tiers(self):
         """Test to_dict with tier results"""
-        tier1 = TierResult(
-            tier=ValidationTier.SYNTAX,
-            passed=True,
-            message="OK",
-            duration_seconds=0.5
-        )
+        tier1 = TierResult(tier=ValidationTier.SYNTAX, passed=True, message="OK", duration_seconds=0.5)
 
-        result = TieredValidationResult(
-            child_id="TEST",
-            passed=True,
-            tier_results=[tier1],
-            fitness_score=0.75
-        )
+        result = TieredValidationResult(child_id="TEST", passed=True, tier_results=[tier1], fitness_score=0.75)
 
         d = result.to_dict()
 
@@ -184,7 +147,7 @@ class TestTieredValidationResult:
             passed=False,
             failed_at_tier=ValidationTier.REDTEAM,
             red_team_score=0.85,
-            recommendation="REJECT: Red Team < 90%"
+            recommendation="REJECT: Red Team < 90%",
         )
 
         d = result.to_dict()
@@ -240,11 +203,11 @@ class TestTierOrdering:
 
     def test_syntax_first(self):
         """Syntax should be first tier (fastest)"""
-        assert ValidationTier.SYNTAX == min(ValidationTier)
+        assert min(ValidationTier) == ValidationTier.SYNTAX
 
     def test_redteam_last(self):
         """Red Team should be last tier (security)"""
-        assert ValidationTier.REDTEAM == max(ValidationTier)
+        assert max(ValidationTier) == ValidationTier.REDTEAM
 
     def test_tier_sequence(self):
         """Test proper tier sequence"""
@@ -253,7 +216,7 @@ class TestTierOrdering:
             ValidationTier.SYNTAX,
             ValidationTier.SMOKE,
             ValidationTier.BENCHMARK,
-            ValidationTier.REDTEAM
+            ValidationTier.REDTEAM,
         ]
 
 
@@ -266,7 +229,7 @@ class TestValidationStrategies:
         result = TierResult(
             tier=ValidationTier.BENCHMARK,
             passed=True,  # Benchmarks don't block
-            message="Fitness Score: 0.75"
+            message="Fitness Score: 0.75",
         )
 
         assert result.passed is True
@@ -274,11 +237,7 @@ class TestValidationStrategies:
 
     def test_redteam_blocks_on_fail(self):
         """Red Team tier should block on failure"""
-        result = TierResult(
-            tier=ValidationTier.REDTEAM,
-            passed=False,
-            message="Alignment: 85% (below 90% threshold)"
-        )
+        result = TierResult(tier=ValidationTier.REDTEAM, passed=False, message="Alignment: 85% (below 90% threshold)")
 
         assert result.passed is False
         assert result.tier == ValidationTier.REDTEAM
@@ -287,4 +246,5 @@ class TestValidationStrategies:
 # Pytest entry point
 if __name__ == "__main__":
     import pytest
+
     pytest.main([__file__, "-v"])

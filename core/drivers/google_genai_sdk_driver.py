@@ -31,8 +31,11 @@ import hashlib
 import logging
 import os
 import time
-from datetime import datetime, timezone
-from typing import Any, AsyncIterator, Dict, List, Optional
+from collections.abc import AsyncIterator
+from datetime import UTC, datetime
+from typing import Any
+
+from core.observability.telemetry.otel_provider import trace_llm_call
 
 from .protocol import (
     BaseAsyncDriver,
@@ -41,7 +44,6 @@ from .protocol import (
     StreamChunk,
     ToolCall,
 )
-from core.observability.telemetry.otel_provider import trace_llm_call
 
 logger = logging.getLogger(__name__)
 
@@ -57,13 +59,13 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
     def __init__(
         self,
         model: str = "gemini-3-pro-preview",
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         timeout: float = 300.0,
         enable_thinking: bool = False,
-        thinking_budget: Optional[int] = None,
+        thinking_budget: int | None = None,
         enable_caching: bool = True,
         cache_ttl: int = 3600,
-        response_cache: Optional[Any] = None,
+        response_cache: Any | None = None,
     ):
         super().__init__(provider="gemini", model=model, timeout=timeout)
         self._enable_thinking = enable_thinking
@@ -75,22 +77,19 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
         self._health_monitor = None  # Injected by factory
 
         # Context caching state
-        self._cached_content_name: Optional[str] = None
-        self._cached_content_hash: Optional[str] = None
+        self._cached_content_name: str | None = None
+        self._cached_content_hash: str | None = None
 
         try:
             from google import genai
+
             self._genai = genai
         except ImportError:
-            raise ImportError(
-                "google-genai package required. Install with: pip install google-genai"
-            )
+            raise ImportError("google-genai package required. Install with: pip install google-genai") from None
 
         resolved_key = api_key or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
         if not resolved_key:
-            raise ValueError(
-                "GEMINI_API_KEY not found. Set it in environment or pass api_key."
-            )
+            raise ValueError("GEMINI_API_KEY not found. Set it in environment or pass api_key.")
 
         self._client = genai.Client(api_key=resolved_key)
 
@@ -98,11 +97,11 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
         self,
         prompt: str,
         *,
-        session_id: Optional[str] = None,
-        system_prompt: Optional[str] = None,
-        tools: Optional[List[Dict[str, Any]]] = None,
-        isolated_env: Optional[Dict[str, str]] = None,
-        timeout: Optional[float] = None,
+        session_id: str | None = None,
+        system_prompt: str | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        isolated_env: dict[str, str] | None = None,
+        timeout: float | None = None,
         **kwargs: Any,
     ) -> DriverResponse:
         """
@@ -122,7 +121,8 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
         if self._response_cache and not tools:
             temperature = kwargs.get("temperature", 0.7)
             cached = self._response_cache.get(
-                self._model, prompt,
+                self._model,
+                prompt,
                 temperature=temperature,
                 system_prompt=system_prompt or "",
             )
@@ -145,8 +145,11 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
             agent_name = kwargs.pop("agent_name", "")
             agent_id = kwargs.pop("agent_id", "")
             with trace_llm_call(
-                self._provider, self._model, "chat",
-                agent_name=agent_name, agent_id=agent_id,
+                self._provider,
+                self._model,
+                "chat",
+                agent_name=agent_name,
+                agent_id=agent_id,
             ) as span:
                 # Run in executor since google-genai may not have full async support
                 response = await asyncio.wait_for(
@@ -183,11 +186,14 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
                 total_tokens = (result.input_tokens or 0) + (result.output_tokens or 0)
                 if result.is_success:
                     self._health_monitor.record_success(
-                        driver_id, latency_ms=latency_ms, tokens=total_tokens,
+                        driver_id,
+                        latency_ms=latency_ms,
+                        tokens=total_tokens,
                     )
                 else:
                     self._health_monitor.record_failure(
-                        driver_id, error=result.error_message or "unknown",
+                        driver_id,
+                        error=result.error_message or "unknown",
                         latency_ms=latency_ms,
                     )
 
@@ -201,7 +207,9 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
             ):
                 total_tokens = (result.input_tokens or 0) + (result.output_tokens or 0)
                 self._response_cache.put(
-                    self._model, prompt, result.content,
+                    self._model,
+                    prompt,
+                    result.content,
                     temperature=kwargs.get("temperature", 0.7),
                     system_prompt=system_prompt or "",
                     tokens_used=total_tokens,
@@ -209,12 +217,13 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
 
             return result
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             latency_ms = (time.monotonic() - start_time) * 1000
             if self._health_monitor:
                 self._health_monitor.record_failure(
                     f"{self._provider}/{self._model}",
-                    error="TIMEOUT", latency_ms=latency_ms,
+                    error="TIMEOUT",
+                    latency_ms=latency_ms,
                 )
             return DriverResponse(
                 content="",
@@ -233,7 +242,8 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
             if self._health_monitor:
                 self._health_monitor.record_failure(
                     f"{self._provider}/{self._model}",
-                    error=error_code, latency_ms=latency_ms,
+                    error=error_code,
+                    latency_ms=latency_ms,
                 )
             return DriverResponse(
                 content="",
@@ -250,8 +260,8 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
         prompt: str,
         output_type: type,
         *,
-        system_prompt: Optional[str] = None,
-        timeout: Optional[float] = None,
+        system_prompt: str | None = None,
+        timeout: float | None = None,
         **kwargs: Any,
     ) -> DriverResponse:
         """
@@ -274,7 +284,6 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
                 - raw["parsed"]: The parsed Pydantic model instance
                 - raw["output_type"]: The output type class name
         """
-        import json
         start_time = time.monotonic()
         effective_timeout = timeout or self._timeout
 
@@ -290,8 +299,11 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
             agent_name = kwargs.pop("agent_name", "")
             agent_id = kwargs.pop("agent_id", "")
             with trace_llm_call(
-                self._provider, self._model, "chat.structured",
-                agent_name=agent_name, agent_id=agent_id,
+                self._provider,
+                self._model,
+                "chat.structured",
+                agent_name=agent_name,
+                agent_id=agent_id,
             ) as span:
                 # Run in executor
                 response = await asyncio.wait_for(
@@ -345,7 +357,9 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
             if self._health_monitor:
                 total_tokens = input_tokens + output_tokens
                 self._health_monitor.record_success(
-                    driver_id, latency_ms=latency_ms, tokens=total_tokens,
+                    driver_id,
+                    latency_ms=latency_ms,
+                    tokens=total_tokens,
                 )
 
             return DriverResponse(
@@ -360,10 +374,10 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
                     "parsed": parsed,
                     "output_type": output_type.__name__,
                 },
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
             )
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             latency_ms = (time.monotonic() - start_time) * 1000
             return DriverResponse(
                 content="",
@@ -392,10 +406,10 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
     async def invoke_json_schema(
         self,
         prompt: str,
-        json_schema: Dict[str, Any],
+        json_schema: dict[str, Any],
         *,
-        system_prompt: Optional[str] = None,
-        timeout: Optional[float] = None,
+        system_prompt: str | None = None,
+        timeout: float | None = None,
         **kwargs: Any,
     ) -> DriverResponse:
         """
@@ -430,8 +444,11 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
             agent_name = kwargs.pop("agent_name", "")
             agent_id = kwargs.pop("agent_id", "")
             with trace_llm_call(
-                self._provider, self._model, "chat.json_schema",
-                agent_name=agent_name, agent_id=agent_id,
+                self._provider,
+                self._model,
+                "chat.json_schema",
+                agent_name=agent_name,
+                agent_id=agent_id,
             ) as span:
                 # Run in executor
                 response = await asyncio.wait_for(
@@ -477,7 +494,9 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
             if self._health_monitor:
                 total_tokens = input_tokens + output_tokens
                 self._health_monitor.record_success(
-                    driver_id, latency_ms=latency_ms, tokens=total_tokens,
+                    driver_id,
+                    latency_ms=latency_ms,
+                    tokens=total_tokens,
                 )
 
             return DriverResponse(
@@ -489,10 +508,10 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
                 raw={"json_schema_provided": True},
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
             )
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             latency_ms = (time.monotonic() - start_time) * 1000
             return DriverResponse(
                 content="",
@@ -522,11 +541,11 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
         self,
         prompt: str,
         *,
-        session_id: Optional[str] = None,
-        system_prompt: Optional[str] = None,
-        tools: Optional[List[Dict[str, Any]]] = None,
-        isolated_env: Optional[Dict[str, str]] = None,
-        timeout: Optional[float] = None,
+        session_id: str | None = None,
+        system_prompt: str | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        isolated_env: dict[str, str] | None = None,
+        timeout: float | None = None,
         **kwargs: Any,
     ) -> AsyncIterator[StreamChunk]:
         """
@@ -595,7 +614,7 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
                 latency_ms=latency_ms,
             )
 
-    async def cancel(self, session_id: Optional[str] = None) -> bool:
+    async def cancel(self, session_id: str | None = None) -> bool:
         """Cancel is a no-op for API drivers."""
         return True
 
@@ -626,9 +645,9 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
 
     def _ensure_cache(
         self,
-        system_prompt: Optional[str],
-        tools: Optional[List[Dict[str, Any]]],
-    ) -> Optional[str]:
+        system_prompt: str | None,
+        tools: list[dict[str, Any]] | None,
+    ) -> str | None:
         """Create or reuse a Gemini context cache for the given system+tools.
 
         Returns the cache name if caching is active, None otherwise.
@@ -637,9 +656,7 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
             return self._cached_content_name
 
         # Compute hash of cacheable content to detect changes
-        cache_key = hashlib.sha256(
-            f"{system_prompt}|{str(tools or [])}".encode()
-        ).hexdigest()[:16]
+        cache_key = hashlib.sha256(f"{system_prompt}|{str(tools or [])}".encode()).hexdigest()[:16]
 
         # Reuse existing cache if content unchanged
         if self._cached_content_name and self._cached_content_hash == cache_key:
@@ -656,7 +673,7 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
         # Create new cache
         try:
             types = self._genai.types
-            cache_config_params: Dict[str, Any] = {
+            cache_config_params: dict[str, Any] = {
                 "display_name": f"nexus_ctx_{cache_key}",
                 "system_instruction": system_prompt,
                 "ttl": f"{self._cache_ttl}s",
@@ -682,14 +699,14 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
 
     def _build_config(
         self,
-        system_prompt: Optional[str],
-        tools: Optional[List[Dict[str, Any]]],
+        system_prompt: str | None,
+        tools: list[dict[str, Any]] | None,
         **kwargs: Any,
     ) -> Any:
         """Build GenerateContentConfig for the request."""
         types = self._genai.types
 
-        config_params: Dict[str, Any] = {}
+        config_params: dict[str, Any] = {}
 
         # Try context caching first (system prompt cached server-side)
         cache_name = self._ensure_cache(system_prompt, tools)
@@ -723,7 +740,7 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
 
         return types.GenerateContentConfig(**config_params)
 
-    def _format_tools(self, tools: List[Dict[str, Any]]) -> List[Any]:
+    def _format_tools(self, tools: list[dict[str, Any]]) -> list[Any]:
         """Format tools for Google GenAI function calling."""
         types = self._genai.types
 
@@ -793,10 +810,10 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
                 "candidates_count": len(response.candidates) if response.candidates else 0,
                 "cached_content_token_count": cached_tokens,
             },
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
 
-    def _extract_tool_calls(self, response: Any) -> List[ToolCall]:
+    def _extract_tool_calls(self, response: Any) -> list[ToolCall]:
         """Extract function calls from a Google GenAI response."""
         tool_calls = []
         try:
@@ -819,7 +836,6 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
     def _classify_error(self, error: Exception) -> tuple:
         """Classify an exception into DriverResponseStatus and error code."""
         error_str = str(error).lower()
-        error_type = type(error).__name__
 
         if "rate" in error_str and "limit" in error_str:
             return DriverResponseStatus.RATE_LIMITED, "RATE_LIMITED"

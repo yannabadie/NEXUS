@@ -34,7 +34,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -50,14 +50,16 @@ DEFAULT_FLAGS_FILE = "workspace/.nexus/feature_flags.json"
 # Types
 # =============================================================================
 
+
 @dataclass
 class FlagDefinition:
     """Definition of a feature flag."""
+
     name: str
     default: bool = False
     description: str = ""
     rollout_pct: int = 100  # 0-100, percentage of contexts that get True
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
     created_at: float = 0.0
 
     def __post_init__(self):
@@ -65,7 +67,7 @@ class FlagDefinition:
             self.created_at = time.monotonic()
         self.rollout_pct = max(0, min(100, self.rollout_pct))
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "default": self.default,
@@ -75,7 +77,7 @@ class FlagDefinition:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> FlagDefinition:
+    def from_dict(cls, data: dict[str, Any]) -> FlagDefinition:
         return cls(
             name=data["name"],
             default=data.get("default", False),
@@ -88,6 +90,7 @@ class FlagDefinition:
 @dataclass
 class FlagOverride:
     """A runtime override for a flag."""
+
     name: str
     value: bool
     reason: str = ""
@@ -101,13 +104,14 @@ class FlagOverride:
 @dataclass
 class FlagStatus:
     """Current status of a flag."""
+
     name: str
     enabled: bool
     source: str  # "default", "override", "rollout"
     definition: FlagDefinition
-    override: Optional[FlagOverride] = None
+    override: FlagOverride | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "enabled": self.enabled,
@@ -122,6 +126,7 @@ class FlagStatus:
 # =============================================================================
 # Feature Flags
 # =============================================================================
+
 
 class FeatureFlags:
     """
@@ -138,11 +143,11 @@ class FeatureFlags:
     def __init__(
         self,
         *,
-        flags_file: Optional[str] = None,
+        flags_file: str | None = None,
         persist: bool = True,
     ):
-        self._definitions: Dict[str, FlagDefinition] = {}
-        self._overrides: Dict[str, FlagOverride] = {}
+        self._definitions: dict[str, FlagDefinition] = {}
+        self._overrides: dict[str, FlagOverride] = {}
         self._flags_file = Path(flags_file) if flags_file else Path(DEFAULT_FLAGS_FILE)
         self._persist = persist
         self._lock = threading.Lock()
@@ -161,7 +166,7 @@ class FeatureFlags:
         default: bool = False,
         description: str = "",
         rollout_pct: int = 100,
-        tags: Optional[List[str]] = None,
+        tags: list[str] | None = None,
     ) -> FlagDefinition:
         """
         Define a feature flag.
@@ -226,7 +231,7 @@ class FeatureFlags:
 
             return defn.default
 
-    def get_status(self, name: str) -> Optional[FlagStatus]:
+    def get_status(self, name: str) -> FlagStatus | None:
         """Get detailed status of a flag."""
         with self._lock:
             defn = self._definitions.get(name)
@@ -313,9 +318,9 @@ class FeatureFlags:
     def list_flags(
         self,
         *,
-        tag: Optional[str] = None,
+        tag: str | None = None,
         enabled_only: bool = False,
-    ) -> List[FlagStatus]:
+    ) -> list[FlagStatus]:
         """
         List all defined flags.
 
@@ -335,13 +340,13 @@ class FeatureFlags:
             results.append(status)
         return results
 
-    def list_names(self) -> List[str]:
+    def list_names(self) -> list[str]:
         """List all flag names."""
         return sorted(self._definitions.keys())
 
-    def list_tags(self) -> List[str]:
+    def list_tags(self) -> list[str]:
         """List all unique tags."""
-        tags: Set[str] = set()
+        tags: set[str] = set()
         for defn in self._definitions.values():
             tags.update(defn.tags)
         return sorted(tags)
@@ -375,17 +380,12 @@ class FeatureFlags:
         try:
             self._flags_file.parent.mkdir(parents=True, exist_ok=True)
             data = {
-                "definitions": {
-                    name: defn.to_dict()
-                    for name, defn in self._definitions.items()
-                },
-                "overrides": {
-                    name: {"value": ov.value, "reason": ov.reason}
-                    for name, ov in self._overrides.items()
-                },
+                "definitions": {name: defn.to_dict() for name, defn in self._definitions.items()},
+                "overrides": {name: {"value": ov.value, "reason": ov.reason} for name, ov in self._overrides.items()},
             }
             self._flags_file.write_text(
-                json.dumps(data, indent=2), encoding="utf-8",
+                json.dumps(data, indent=2),
+                encoding="utf-8",
             )
         except Exception as e:
             _logger.warning("Failed to save flags: %s", e)
@@ -416,7 +416,7 @@ class FeatureFlags:
             self._definitions.clear()
             self._overrides.clear()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "flag_count": self.flag_count,
             "override_count": self.override_count,
@@ -432,7 +432,7 @@ class FeatureFlags:
 # Global Instance
 # =============================================================================
 
-_flags: Optional[FeatureFlags] = None
+_flags: FeatureFlags | None = None
 _flags_lock = threading.Lock()
 
 

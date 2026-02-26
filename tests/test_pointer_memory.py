@@ -11,7 +11,6 @@ Target: ~70 tests across 13 test classes.
 import hashlib
 import threading
 import time
-from unittest.mock import patch
 
 import pytest
 
@@ -25,10 +24,10 @@ from core.memory_pkg.memory.pointer_memory import (
     reset_pointer_memory,
 )
 
-
 # =============================================================================
 # Helpers
 # =============================================================================
+
 
 def _make_content(length: int, char: str = "x") -> str:
     """Create a string of exactly `length` characters."""
@@ -48,6 +47,7 @@ def _content_hash(content: str) -> str:
 # =============================================================================
 # 1. Pointer Dataclass
 # =============================================================================
+
 
 class TestPointerDataclass:
     """Tests for the Pointer dataclass fields and properties."""
@@ -130,6 +130,7 @@ class TestPointerDataclass:
 # 2. PointerStats Dataclass
 # =============================================================================
 
+
 class TestPointerStatsDataclass:
     """Tests for the PointerStats dataclass."""
 
@@ -170,6 +171,7 @@ class TestPointerStatsDataclass:
 # =============================================================================
 # 3. _generate_summary
 # =============================================================================
+
 
 class TestGenerateSummary:
     """Tests for the _generate_summary heuristic function."""
@@ -285,6 +287,7 @@ class TestGenerateSummary:
 # 4. _estimate_tokens
 # =============================================================================
 
+
 class TestEstimateTokens:
     """Tests for the _estimate_tokens heuristic."""
 
@@ -318,6 +321,7 @@ class TestEstimateTokens:
 # =============================================================================
 # 5. store()
 # =============================================================================
+
 
 class TestStore:
     """Tests for PointerMemory.store()."""
@@ -393,6 +397,7 @@ class TestStore:
 # 6. retrieve()
 # =============================================================================
 
+
 class TestRetrieve:
     """Tests for PointerMemory.retrieve()."""
 
@@ -440,7 +445,7 @@ class TestRetrieve:
         c3 = _make_content(600, "c")
         p1 = self.pm.store(c1, source="tool")
         p2 = self.pm.store(c2, source="tool")
-        p3 = self.pm.store(c3, source="tool")
+        self.pm.store(c3, source="tool")
 
         # Access p1 (moves it to end)
         self.pm.retrieve(p1.pointer_id)
@@ -461,6 +466,7 @@ class TestRetrieve:
 # =============================================================================
 # 7. should_store()
 # =============================================================================
+
 
 class TestShouldStore:
     """Tests for PointerMemory.should_store()."""
@@ -491,6 +497,7 @@ class TestShouldStore:
 # =============================================================================
 # 8. Eviction
 # =============================================================================
+
 
 class TestEviction:
     """Tests for eviction by count and total size limits."""
@@ -557,7 +564,7 @@ class TestEviction:
         c3 = _make_content(600, "c")
         p1 = pm.store(c1, source="tool")
         p2 = pm.store(c2, source="tool")
-        p3 = pm.store(c3, source="tool")
+        pm.store(c3, source="tool")
 
         # Access p1 to make it recently used
         pm.retrieve(p1.pointer_id)
@@ -567,12 +574,13 @@ class TestEviction:
         pm.store(c4, source="tool")
 
         assert pm.retrieve(p1.pointer_id) is not None  # Survived (recently accessed)
-        assert pm.retrieve(p2.pointer_id) is None       # Evicted (oldest)
+        assert pm.retrieve(p2.pointer_id) is None  # Evicted (oldest)
 
 
 # =============================================================================
 # 9. get_stats()
 # =============================================================================
+
 
 class TestGetStats:
     """Tests for PointerMemory.get_stats()."""
@@ -640,6 +648,7 @@ class TestGetStats:
 # 10. clear()
 # =============================================================================
 
+
 class TestClear:
     """Tests for PointerMemory.clear()."""
 
@@ -692,6 +701,7 @@ class TestClear:
 # 11. Singleton Pattern
 # =============================================================================
 
+
 class TestSingleton:
     """Tests for get_pointer_memory() and reset_pointer_memory()."""
 
@@ -734,6 +744,7 @@ class TestSingleton:
 # =============================================================================
 # 12. Thread Safety Basics
 # =============================================================================
+
 
 class TestThreadSafety:
     """Basic thread safety tests for concurrent store/retrieve operations."""
@@ -849,6 +860,7 @@ class TestThreadSafety:
 # 13. Different Source Types Behavior
 # =============================================================================
 
+
 class TestSourceTypeBehavior:
     """Tests that different source prefixes produce appropriate summaries."""
 
@@ -856,10 +868,7 @@ class TestSourceTypeBehavior:
         self.pm = PointerMemory()
 
     def _make_multiline(self, lines=20):
-        return "\n".join(
-            f"line {i}: some content here with extra padding to ensure length"
-            for i in range(lines)
-        )
+        return "\n".join(f"line {i}: some content here with extra padding to ensure length" for i in range(lines))
 
     def test_read_source_uses_file_summary(self):
         """'read:' source produces file-style summary."""
@@ -918,6 +927,7 @@ class TestSourceTypeBehavior:
 # =============================================================================
 # Additional edge cases
 # =============================================================================
+
 
 class TestEdgeCases:
     """Edge case and boundary tests."""

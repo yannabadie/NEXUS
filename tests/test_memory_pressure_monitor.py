@@ -19,12 +19,8 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.memory_pkg.memory.memory_pressure_monitor import (
     MAX_SNAPSHOTS,
-    MAX_EVICTIONS,
-    PRESSURE_THRESHOLD_CRITICAL,
     PRESSURE_THRESHOLD_WARNING,
     EvictionEvent,
     MemoryPressureMonitor,
@@ -35,10 +31,10 @@ from core.memory_pkg.memory.memory_pressure_monitor import (
     reset_pressure_monitor,
 )
 
-
 # =============================================================================
 # MemorySnapshot Tests
 # =============================================================================
+
 
 class TestMemorySnapshot:
     """Test MemorySnapshot dataclass."""
@@ -66,6 +62,7 @@ class TestMemorySnapshot:
 # EvictionEvent Tests
 # =============================================================================
 
+
 class TestEvictionEvent:
     """Test EvictionEvent dataclass."""
 
@@ -80,6 +77,7 @@ class TestEvictionEvent:
 # PressureLevel Tests
 # =============================================================================
 
+
 class TestPressureLevel:
     """Test PressureLevel dataclass."""
 
@@ -93,12 +91,19 @@ class TestPressureLevel:
 # PressureStats Tests
 # =============================================================================
 
+
 class TestPressureStats:
     """Test PressureStats dataclass."""
 
     def test_to_dict(self):
-        s = PressureStats(total_snapshots=10, total_evictions=5, total_bytes_freed=5000,
-                          current_level="normal", avg_utilization=0.5, peak_utilization=0.8)
+        s = PressureStats(
+            total_snapshots=10,
+            total_evictions=5,
+            total_bytes_freed=5000,
+            current_level="normal",
+            avg_utilization=0.5,
+            peak_utilization=0.8,
+        )
         d = s.to_dict()
         assert d["total_snapshots"] == 10
 
@@ -106,6 +111,7 @@ class TestPressureStats:
 # =============================================================================
 # Snapshot Recording Tests
 # =============================================================================
+
 
 class TestSnapshotRecording:
     """Test snapshot recording."""
@@ -135,6 +141,7 @@ class TestSnapshotRecording:
 # Eviction Recording Tests
 # =============================================================================
 
+
 class TestEvictionRecording:
     """Test eviction recording."""
 
@@ -154,6 +161,7 @@ class TestEvictionRecording:
 # =============================================================================
 # Pressure Level Tests
 # =============================================================================
+
 
 class TestPressureLevelDetection:
     """Test pressure level detection."""
@@ -186,6 +194,7 @@ class TestPressureLevelDetection:
 # Trend Analysis Tests
 # =============================================================================
 
+
 class TestTrendAnalysis:
     """Test trend analysis."""
 
@@ -205,6 +214,7 @@ class TestTrendAnalysis:
 # =============================================================================
 # Eviction Summary Tests
 # =============================================================================
+
 
 class TestEvictionSummary:
     """Test eviction summary."""
@@ -226,6 +236,7 @@ class TestEvictionSummary:
 # =============================================================================
 # Query Tests
 # =============================================================================
+
 
 class TestQueries:
     """Test query methods."""
@@ -257,6 +268,7 @@ class TestQueries:
 # Bounded History Tests
 # =============================================================================
 
+
 class TestBoundedHistory:
     """Test bounded history."""
 
@@ -276,6 +288,7 @@ class TestBoundedHistory:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test statistics."""
@@ -303,6 +316,7 @@ class TestStatistics:
 # =============================================================================
 # State Tests
 # =============================================================================
+
 
 class TestState:
     """Test state management."""
@@ -340,6 +354,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global pressure monitor."""
 
@@ -366,25 +381,33 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_memory_package(self):
         from core.memory_pkg.memory import (
-            MemoryPressureMonitor, MemorySnapshot, EvictionEvent,
-            PressureLevel, PressureStats,
-            get_pressure_monitor, reset_pressure_monitor,
+            EvictionEvent,
+            MemoryPressureMonitor,
+            MemorySnapshot,
+            PressureLevel,
+            PressureStats,
+            get_pressure_monitor,
+            reset_pressure_monitor,
         )
-        assert all([
-            MemoryPressureMonitor, MemorySnapshot, EvictionEvent,
-            PressureLevel, PressureStats,
-            get_pressure_monitor, reset_pressure_monitor,
-        ])
+
+        assert all(
+            [
+                MemoryPressureMonitor,
+                MemorySnapshot,
+                EvictionEvent,
+                PressureLevel,
+                PressureStats,
+                get_pressure_monitor,
+                reset_pressure_monitor,
+            ]
+        )
 
     def test_constants(self):
-        from core.memory_pkg.memory.memory_pressure_monitor import (
-            MAX_SNAPSHOTS, MAX_EVICTIONS,
-            PRESSURE_THRESHOLD_WARNING, PRESSURE_THRESHOLD_CRITICAL,
-        )
         assert MAX_SNAPSHOTS == 10000
         assert PRESSURE_THRESHOLD_WARNING == 0.7

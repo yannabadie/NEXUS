@@ -44,7 +44,7 @@ import logging
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -63,9 +63,11 @@ MAX_DECISIONS = 50000
 # Types
 # =============================================================================
 
+
 @dataclass
 class FailoverState:
     """Runtime state for a single driver in the failover pool."""
+
     driver_id: str
     status: str = "healthy"  # healthy, degraded, failing, circuit_open, recovering
     consecutive_failures: int = 0
@@ -92,7 +94,7 @@ class FailoverState:
         """Whether the driver can accept requests."""
         return self.status not in ("circuit_open", "failing")
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "driver_id": self.driver_id,
             "status": self.status,
@@ -111,12 +113,13 @@ class FailoverState:
 @dataclass
 class FailoverConfig:
     """Configuration for a registered driver."""
+
     driver_id: str
     priority: int = 0  # Lower = higher priority (0 = primary)
     failure_threshold: int = DEFAULT_FAILURE_THRESHOLD
     recovery_timeout: float = DEFAULT_RECOVERY_TIMEOUT
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "driver_id": self.driver_id,
             "priority": self.priority,
@@ -128,13 +131,14 @@ class FailoverConfig:
 @dataclass
 class FailoverDecision:
     """Record of a driver selection decision."""
+
     selected_driver: str
     reason: str  # e.g. "primary_healthy", "failover_from_X", "circuit_half_open"
     primary_driver: str = ""
     fallback_used: bool = False
     timestamp: float = field(default_factory=time.monotonic)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "selected_driver": self.selected_driver,
             "reason": self.reason,
@@ -147,6 +151,7 @@ class FailoverDecision:
 @dataclass
 class FailoverStats:
     """Aggregate statistics for the failover manager."""
+
     total_drivers: int
     healthy_drivers: int
     degraded_drivers: int
@@ -155,7 +160,7 @@ class FailoverStats:
     total_failovers: int
     total_decisions: int
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_drivers": self.total_drivers,
             "healthy_drivers": self.healthy_drivers,
@@ -170,6 +175,7 @@ class FailoverStats:
 # =============================================================================
 # Failover Manager
 # =============================================================================
+
 
 class FailoverManager:
     """
@@ -187,9 +193,9 @@ class FailoverManager:
     """
 
     def __init__(self, *, max_decisions: int = MAX_DECISIONS):
-        self._configs: Dict[str, FailoverConfig] = {}
-        self._states: Dict[str, FailoverState] = {}
-        self._decisions: List[FailoverDecision] = []
+        self._configs: dict[str, FailoverConfig] = {}
+        self._states: dict[str, FailoverState] = {}
+        self._decisions: list[FailoverDecision] = []
         self._max_decisions = max_decisions
         self._lock = threading.Lock()
 
@@ -222,8 +228,7 @@ class FailoverManager:
                 _logger.warning("Driver already registered: %s", driver_id)
                 return False
             if len(self._configs) >= MAX_DRIVERS:
-                _logger.warning("Driver pool full (%d), cannot register: %s",
-                                MAX_DRIVERS, driver_id)
+                _logger.warning("Driver pool full (%d), cannot register: %s", MAX_DRIVERS, driver_id)
                 return False
 
             self._configs[driver_id] = FailoverConfig(
@@ -323,8 +328,7 @@ class FailoverManager:
 
             if state.status == "recovering":
                 # Failed during half-open probe: reopen circuit
-                _logger.warning("Recovery probe failed for %s, reopening circuit",
-                                driver_id)
+                _logger.warning("Recovery probe failed for %s, reopening circuit", driver_id)
                 state.status = "circuit_open"
                 state.circuit_opened_at = time.monotonic()
             elif state.consecutive_failures >= threshold:
@@ -332,22 +336,20 @@ class FailoverManager:
                 if state.status != "circuit_open":
                     _logger.warning(
                         "Circuit opened for %s after %d consecutive failures",
-                        driver_id, state.consecutive_failures,
+                        driver_id,
+                        state.consecutive_failures,
                     )
                     state.status = "failing"
                     state.status = "circuit_open"
                     state.circuit_opened_at = time.monotonic()
-            elif (state.status == "degraded"
-                  and state.consecutive_failures >= half_threshold):
+            elif state.status == "degraded" and state.consecutive_failures >= half_threshold:
                 # Degraded driver hitting half-threshold: escalate to failing
                 _logger.warning("Degraded driver %s escalated to failing", driver_id)
                 state.status = "failing"
                 state.circuit_opened_at = time.monotonic()
-            elif (state.status == "healthy"
-                  and state.consecutive_failures >= half_threshold):
+            elif state.status == "healthy" and state.consecutive_failures >= half_threshold:
                 # Healthy driver hitting half-threshold: degrade
-                _logger.info("Driver degraded: %s (%d consecutive failures)",
-                             driver_id, state.consecutive_failures)
+                _logger.info("Driver degraded: %s (%d consecutive failures)", driver_id, state.consecutive_failures)
                 state.status = "degraded"
 
             return True
@@ -356,7 +358,7 @@ class FailoverManager:
     # Driver Selection
     # =========================================================================
 
-    def select_driver(self) -> Optional[FailoverDecision]:
+    def select_driver(self) -> FailoverDecision | None:
         """
         Select the best available driver based on priority and health.
 
@@ -382,13 +384,15 @@ class FailoverManager:
                     if elapsed >= config.recovery_timeout:
                         _logger.info(
                             "Circuit half-open for %s after %.1fs",
-                            driver_id, elapsed,
+                            driver_id,
+                            elapsed,
                         )
                         state.status = "recovering"
 
             # Sort configs by priority (lower = higher priority)
             sorted_configs = sorted(
-                self._configs.values(), key=lambda c: c.priority,
+                self._configs.values(),
+                key=lambda c: c.priority,
             )
 
             primary_id = sorted_configs[0].driver_id
@@ -432,7 +436,7 @@ class FailoverManager:
             _logger.error("No available drivers in failover pool")
             return None
 
-    def get_available_drivers(self) -> List[str]:
+    def get_available_drivers(self) -> list[str]:
         """
         Get all available driver IDs sorted by priority.
 
@@ -454,7 +458,7 @@ class FailoverManager:
     # Queries
     # =========================================================================
 
-    def get_driver(self, driver_id: str) -> Optional[FailoverState]:
+    def get_driver(self, driver_id: str) -> FailoverState | None:
         """
         Get the current state of a registered driver.
 
@@ -514,9 +518,7 @@ class FailoverManager:
                 elif state.status == "circuit_open":
                     circuit_open += 1
 
-            total_failovers = sum(
-                1 for d in self._decisions if d.fallback_used
-            )
+            total_failovers = sum(1 for d in self._decisions if d.fallback_used)
 
             return FailoverStats(
                 total_drivers=len(self._configs),
@@ -544,7 +546,7 @@ class FailoverManager:
             self._states.clear()
             self._decisions.clear()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Export full manager state for diagnostics."""
         stats = self.get_stats()
         with self._lock:
@@ -552,12 +554,8 @@ class FailoverManager:
                 "driver_count": len(self._configs),
                 "max_decisions": self._max_decisions,
                 "decision_count": len(self._decisions),
-                "configs": {
-                    did: cfg.to_dict() for did, cfg in self._configs.items()
-                },
-                "states": {
-                    did: st.to_dict() for did, st in self._states.items()
-                },
+                "configs": {did: cfg.to_dict() for did, cfg in self._configs.items()},
+                "states": {did: st.to_dict() for did, st in self._states.items()},
                 "stats": stats.to_dict(),
             }
 
@@ -578,7 +576,7 @@ class FailoverManager:
 # Global Instance
 # =============================================================================
 
-_manager: Optional[FailoverManager] = None
+_manager: FailoverManager | None = None
 _manager_lock = threading.Lock()
 
 

@@ -11,36 +11,41 @@ Validates:
 - Module exports
 """
 
-from datetime import datetime, timezone, timedelta
-from pathlib import Path
+from datetime import UTC, datetime, timedelta
 
-import pytest
-
-from core.intelligence.swarm.agent_metrics import AgentPool, AgentProfile, AgentInvocationResult
 from core.intelligence.evolution.agent_reaper import (
     AgentReaper,
-    ReaperConfig,
-    ReaperReport,
     ArchivalCandidate,
     ArchivalResult,
+    ReaperConfig,
+    ReaperReport,
 )
-
+from core.intelligence.swarm.agent_metrics import AgentInvocationResult, AgentPool, AgentProfile
 
 # =============================================================================
 # Fixtures
 # =============================================================================
+
 
 def _make_pool(**extra_agents) -> AgentPool:
     """Create a test agent pool with standard agents."""
     pool = AgentPool()
 
     # Internal agents (always protected)
-    pool.register(AgentProfile(
-        agent_id="gemini_primary", provider="gemini", model="gemini-3-pro",
-    ))
-    pool.register(AgentProfile(
-        agent_id="claude_opus", provider="claude", model="claude-opus-4-5",
-    ))
+    pool.register(
+        AgentProfile(
+            agent_id="gemini_primary",
+            provider="gemini",
+            model="gemini-3-pro",
+        )
+    )
+    pool.register(
+        AgentProfile(
+            agent_id="claude_opus",
+            provider="claude",
+            model="claude-opus-4-5",
+        )
+    )
 
     return pool
 
@@ -55,11 +60,13 @@ def _add_spawned_agent(
 ) -> AgentProfile:
     """Add a spawned agent with history to the pool."""
     profile = AgentProfile(
-        agent_id=agent_id, provider="spawned", model="custom",
+        agent_id=agent_id,
+        provider="spawned",
+        model="custom",
     )
     pool.register(profile)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     for i in range(invocations):
         success = (i / invocations) < success_ratio
         result = AgentInvocationResult(
@@ -79,6 +86,7 @@ def _add_spawned_agent(
 # =============================================================================
 # ReaperConfig Tests
 # =============================================================================
+
 
 class TestReaperConfig:
     """Test configuration defaults."""
@@ -106,6 +114,7 @@ class TestReaperConfig:
 # =============================================================================
 # Scan Tests
 # =============================================================================
+
 
 class TestScan:
     """Test agent scanning."""
@@ -212,6 +221,7 @@ class TestScan:
 # Reap Tests
 # =============================================================================
 
+
 class TestReap:
     """Test agent archival."""
 
@@ -289,6 +299,7 @@ class TestReap:
 # Health Reporting Tests
 # =============================================================================
 
+
 class TestHealthReporting:
     """Test agent health reporting."""
 
@@ -348,6 +359,7 @@ class TestHealthReporting:
 # ArchivalCandidate Tests
 # =============================================================================
 
+
 class TestArchivalCandidate:
     """Test ArchivalCandidate dataclass."""
 
@@ -368,11 +380,13 @@ class TestArchivalCandidate:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test that reaper types are importable."""
 
     def test_from_evolution_package(self):
-        from core.intelligence.evolution import AgentReaper, ReaperConfig, ReaperReport, ArchivalCandidate
+        from core.intelligence.evolution import AgentReaper, ArchivalCandidate, ReaperConfig, ReaperReport
+
         assert AgentReaper is not None
         assert ReaperConfig is not None
         assert ReaperReport is not None
@@ -380,6 +394,9 @@ class TestModuleExports:
 
     def test_from_reaper_module(self):
         from core.intelligence.evolution.agent_reaper import (
-            AgentReaper, ReaperConfig, ReaperReport, ArchivalCandidate, ArchivalResult,
+            AgentReaper,
+            ArchivalCandidate,
+            ReaperConfig,
         )
+
         assert all([AgentReaper, ReaperConfig, ReaperReport, ArchivalCandidate, ArchivalResult])

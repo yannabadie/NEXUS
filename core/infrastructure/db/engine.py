@@ -31,20 +31,18 @@ Author: Claude (NEXUS PRISM V10)
 Date: 2025-12-15
 """
 
+from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Generator, Optional
 
 try:
     from sqlalchemy import event
     from sqlalchemy.engine import Engine
     from sqlmodel import Session, SQLModel, create_engine
 except ImportError:
-    raise ImportError(
-        "Database features require SQLModel. Install with: pip install nexus-swarm-os[db]"
-    )
+    raise ImportError("Database features require SQLModel. Install with: pip install nexus-swarm-os[db]") from None
 
-from .models import Tenant, User, Workspace, Quota  # Import all models
+from .models import Quota, Tenant, User, Workspace  # Import all models
 
 # V12.2 IRONCLAD: Import audit models for table creation
 try:
@@ -68,10 +66,10 @@ except ImportError:
 DEFAULT_DB_PATH = ".nexus/master.db"
 
 # Global engine instance
-_engine: Optional[Engine] = None
+_engine: Engine | None = None
 
 
-def get_database_url(db_path: Optional[Path] = None) -> str:
+def get_database_url(db_path: Path | None = None) -> str:
     """
     Get the SQLite database URL.
 
@@ -91,7 +89,7 @@ def get_database_url(db_path: Optional[Path] = None) -> str:
     return f"sqlite:///{db_path}"
 
 
-def get_engine(db_path: Optional[Path] = None, echo: bool = False) -> Engine:
+def get_engine(db_path: Path | None = None, echo: bool = False) -> Engine:
     """
     Get or create the database engine singleton.
 
@@ -129,7 +127,7 @@ def get_engine(db_path: Optional[Path] = None, echo: bool = False) -> Engine:
     return _engine
 
 
-def init_db(db_path: Optional[Path] = None, echo: bool = False) -> None:
+def init_db(db_path: Path | None = None, echo: bool = False) -> None:
     """
     Initialize the database - create all tables.
 
@@ -156,7 +154,7 @@ def reset_engine() -> None:
 
 
 @contextmanager
-def get_session(db_path: Optional[Path] = None) -> Generator[Session, None, None]:
+def get_session(db_path: Path | None = None) -> Generator[Session, None, None]:
     """
     Get a database session as a context manager.
 
@@ -188,6 +186,7 @@ def get_session(db_path: Optional[Path] = None) -> Generator[Session, None, None
 # CONVENIENCE FUNCTIONS
 # =============================================================================
 
+
 def create_default_tenant(session: Session) -> Tenant:
     """
     Create the default tenant for single-tenant/CLI mode.
@@ -199,7 +198,8 @@ def create_default_tenant(session: Session) -> Tenant:
         The default Tenant instance
     """
     from uuid import UUID
-    from .models import create_quota_for_plan, PlanTier
+
+    from .models import PlanTier, create_quota_for_plan
 
     # Use a fixed UUID for the default tenant
     default_id = UUID("00000000-0000-0000-0000-000000000001")
@@ -238,7 +238,7 @@ def create_default_tenant(session: Session) -> Tenant:
     return tenant
 
 
-def get_tenant_by_slug(session: Session, slug: str) -> Optional[Tenant]:
+def get_tenant_by_slug(session: Session, slug: str) -> Tenant | None:
     """
     Get a tenant by their slug.
 
@@ -250,11 +250,12 @@ def get_tenant_by_slug(session: Session, slug: str) -> Optional[Tenant]:
         Tenant or None if not found
     """
     from sqlmodel import select
+
     statement = select(Tenant).where(Tenant.slug == slug)
     return session.exec(statement).first()
 
 
-def get_tenant_quota(session: Session, tenant_id) -> Optional[Quota]:
+def get_tenant_quota(session: Session, tenant_id) -> Quota | None:
     """
     Get quota for a tenant.
 
@@ -266,5 +267,6 @@ def get_tenant_quota(session: Session, tenant_id) -> Optional[Quota]:
         Quota or None if not found
     """
     from sqlmodel import select
+
     statement = select(Quota).where(Quota.tenant_id == tenant_id)
     return session.exec(statement).first()

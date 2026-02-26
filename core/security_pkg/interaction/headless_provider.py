@@ -32,17 +32,11 @@ V11.5: 2025-12-15 (CORTEX interactive mode)
 
 import asyncio
 import logging
-from datetime import datetime, timezone
-from typing import Optional, List, Any, Dict
+from datetime import UTC, datetime
+from typing import Any
 from uuid import uuid4
 
-from .base import (
-    InteractionProvider,
-    InteractionLevel,
-    InteractionRequiredError,
-    Choice
-)
-
+from .base import Choice, InteractionLevel, InteractionProvider, InteractionRequiredError
 
 logger = logging.getLogger("nexus.interaction.headless")
 
@@ -84,10 +78,10 @@ class HeadlessProvider(InteractionProvider):
     def __init__(
         self,
         strict: bool = False,
-        logger_name: Optional[str] = None,
+        logger_name: str | None = None,
         publish_events: bool = True,
         interactive: bool = False,
-        interaction_timeout: float = 300.0
+        interaction_timeout: float = 300.0,
     ):
         """
         Initialize headless provider.
@@ -104,14 +98,10 @@ class HeadlessProvider(InteractionProvider):
         self._publish_events = publish_events
         self._interactive = interactive
         self._interaction_timeout = interaction_timeout
-        self._pending_futures: Dict[str, asyncio.Future] = {}
-        self._pending_interactions: Dict[str, dict] = {}
+        self._pending_futures: dict[str, asyncio.Future] = {}
+        self._pending_interactions: dict[str, dict] = {}
 
-    async def _publish_event(
-        self,
-        event_type_name: str,
-        payload: Dict[str, Any]
-    ) -> None:
+    async def _publish_event(self, event_type_name: str, payload: dict[str, Any]) -> None:
         """
         Publish interaction event to Redis (fire-and-forget).
 
@@ -133,6 +123,7 @@ class HeadlessProvider(InteractionProvider):
             # Get current tenant context
             try:
                 from core.infrastructure.context import get_current_session_or_none
+
                 ctx = get_current_session_or_none()
                 if ctx:
                     tenant_id = ctx.tenant_id
@@ -149,7 +140,7 @@ class HeadlessProvider(InteractionProvider):
                 event_type=CerebroEventType(event_type_name),
                 tenant_id=tenant_id,
                 workspace_id=workspace_id,
-                payload=payload
+                payload=payload,
             )
 
             bus = get_redis_bus()
@@ -163,7 +154,7 @@ class HeadlessProvider(InteractionProvider):
     # V11.5 CORTEX - Interactive Mode Methods
     # =========================================================================
 
-    def get_pending_requests(self) -> List[dict]:
+    def get_pending_requests(self) -> list[dict]:
         """
         Return list of pending interaction metadata for snapshot.
 
@@ -200,12 +191,7 @@ class HeadlessProvider(InteractionProvider):
         return False
 
     async def _wait_for_response(
-        self,
-        request_id: str,
-        interaction_type: str,
-        prompt: str,
-        default: Any,
-        extra_data: Optional[dict] = None
+        self, request_id: str, interaction_type: str, prompt: str, default: Any, extra_data: dict | None = None
     ) -> Any:
         """
         Wait for external response in interactive mode.
@@ -227,20 +213,15 @@ class HeadlessProvider(InteractionProvider):
             "type": interaction_type,
             "prompt": prompt,
             "default": default,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            **(extra_data or {})
+            "timestamp": datetime.now(UTC).isoformat(),
+            **(extra_data or {}),
         }
 
         try:
-            result = await asyncio.wait_for(
-                future,
-                timeout=self._interaction_timeout
-            )
+            result = await asyncio.wait_for(future, timeout=self._interaction_timeout)
             return result
-        except asyncio.TimeoutError:
-            self._logger.warning(
-                f"[CORTEX] Timeout for {request_id} after {self._interaction_timeout}s"
-            )
+        except TimeoutError:
+            self._logger.warning(f"[CORTEX] Timeout for {request_id} after {self._interaction_timeout}s")
             return default
         finally:
             self._pending_futures.pop(request_id, None)
@@ -251,31 +232,27 @@ class HeadlessProvider(InteractionProvider):
     # =========================================================================
 
     async def ask(
-        self,
-        prompt: str,
-        default: Optional[str] = None,
-        timeout: Optional[float] = None,
-        required: bool = False
+        self, prompt: str, default: str | None = None, timeout: float | None = None, required: bool = False
     ) -> str:
         """Return default immediately, or wait for response in interactive mode."""
         request_id = str(uuid4())[:8]
         self._logger.info(f"[HEADLESS] Prompt: {prompt} (req={request_id})")
 
         # V10 CEREBRO: Publish event with request_id for interactive mode
-        await self._publish_event("interaction.ask", {
-            "prompt": prompt,
-            "default": default,
-            "required": required,
-            "request_id": request_id,
-        })
+        await self._publish_event(
+            "interaction.ask",
+            {
+                "prompt": prompt,
+                "default": default,
+                "required": required,
+                "request_id": request_id,
+            },
+        )
 
         # V11.5 CORTEX: Interactive mode - wait for external response
         if self._interactive:
             result = await self._wait_for_response(
-                request_id=request_id,
-                interaction_type="ask",
-                prompt=prompt,
-                default=default or ""
+                request_id=request_id, interaction_type="ask", prompt=prompt, default=default or ""
             )
             return str(result) if result is not None else ""
 
@@ -286,49 +263,37 @@ class HeadlessProvider(InteractionProvider):
 
         if required or self.strict:
             self._logger.warning(f"[HEADLESS] Required input has no default: {prompt}")
-            raise InteractionRequiredError(
-                prompt=prompt,
-                context="Headless mode cannot provide user input"
-            )
+            raise InteractionRequiredError(prompt=prompt, context="Headless mode cannot provide user input")
 
-        self._logger.debug(f"[HEADLESS] No default, returning empty string")
+        self._logger.debug("[HEADLESS] No default, returning empty string")
         return ""
 
-    async def confirm(
-        self,
-        prompt: str,
-        default: bool = False,
-        timeout: Optional[float] = None
-    ) -> bool:
+    async def confirm(self, prompt: str, default: bool = False, timeout: float | None = None) -> bool:
         """Return default confirmation immediately, or wait in interactive mode."""
         request_id = str(uuid4())[:8]
         self._logger.info(f"[HEADLESS] Confirm: {prompt} -> {default} (req={request_id})")
 
         # V10 CEREBRO: Publish event with request_id
-        await self._publish_event("interaction.confirm", {
-            "prompt": prompt,
-            "default": default,
-            "request_id": request_id,
-        })
+        await self._publish_event(
+            "interaction.confirm",
+            {
+                "prompt": prompt,
+                "default": default,
+                "request_id": request_id,
+            },
+        )
 
         # V11.5 CORTEX: Interactive mode - wait for external response
         if self._interactive:
             result = await self._wait_for_response(
-                request_id=request_id,
-                interaction_type="confirm",
-                prompt=prompt,
-                default=default
+                request_id=request_id, interaction_type="confirm", prompt=prompt, default=default
             )
             return bool(result) if result is not None else default
 
         return default
 
     async def choose(
-        self,
-        prompt: str,
-        choices: List[Choice],
-        default: Optional[str] = None,
-        timeout: Optional[float] = None
+        self, prompt: str, choices: list[Choice], default: str | None = None, timeout: float | None = None
     ) -> str:
         """Return default choice immediately, or wait in interactive mode."""
         request_id = str(uuid4())[:8]
@@ -338,12 +303,15 @@ class HeadlessProvider(InteractionProvider):
         choice_keys = [c.key for c in choices]
 
         # V10 CEREBRO: Publish event with request_id
-        await self._publish_event("interaction.choose", {
-            "prompt": prompt,
-            "choices": choice_keys,
-            "default": default,
-            "request_id": request_id,
-        })
+        await self._publish_event(
+            "interaction.choose",
+            {
+                "prompt": prompt,
+                "choices": choice_keys,
+                "default": default,
+                "request_id": request_id,
+            },
+        )
 
         # V11.5 CORTEX: Interactive mode - wait for external response
         if self._interactive:
@@ -353,7 +321,7 @@ class HeadlessProvider(InteractionProvider):
                 interaction_type="choose",
                 prompt=prompt,
                 default=fallback,
-                extra_data={"choices": choice_keys}
+                extra_data={"choices": choice_keys},
             )
             # Validate response is a valid choice
             if result in choice_keys:
@@ -362,55 +330,42 @@ class HeadlessProvider(InteractionProvider):
             return fallback or ""
 
         # Non-interactive: return default (legacy behavior)
-        if default is not None:
-            if any(c.key == default for c in choices):
-                self._logger.info(f"[HEADLESS] Using default choice: {default}")
-                return default
+        if default is not None and any(c.key == default for c in choices):
+            self._logger.info(f"[HEADLESS] Using default choice: {default}")
+            return default
 
         # No valid default - use first choice or raise
         if choices:
             first_key = choices[0].key
             if self.strict and default is None:
-                raise InteractionRequiredError(
-                    prompt=prompt,
-                    context=f"Choice required, options: {choice_keys}"
-                )
+                raise InteractionRequiredError(prompt=prompt, context=f"Choice required, options: {choice_keys}")
             self._logger.info(f"[HEADLESS] Using first choice: {first_key}")
             return first_key
 
-        raise InteractionRequiredError(
-            prompt=prompt,
-            context="No choices available"
-        )
+        raise InteractionRequiredError(prompt=prompt, context="No choices available")
 
-    async def announce(
-        self,
-        message: str,
-        level: InteractionLevel = InteractionLevel.INFO
-    ) -> None:
+    async def announce(self, message: str, level: InteractionLevel = InteractionLevel.INFO) -> None:
         """Log announcement instead of printing."""
         log_method = {
             InteractionLevel.DEBUG: self._logger.debug,
             InteractionLevel.INFO: self._logger.info,
             InteractionLevel.WARNING: self._logger.warning,
             InteractionLevel.ERROR: self._logger.error,
-            InteractionLevel.CRITICAL: self._logger.critical
+            InteractionLevel.CRITICAL: self._logger.critical,
         }.get(level, self._logger.info)
 
         log_method(f"[ANNOUNCE] {message}")
 
         # V10 CEREBRO: Publish event
-        await self._publish_event("interaction.announce", {
-            "message": message,
-            "level": level.value if hasattr(level, 'value') else str(level),
-        })
+        await self._publish_event(
+            "interaction.announce",
+            {
+                "message": message,
+                "level": level.value if hasattr(level, "value") else str(level),
+            },
+        )
 
-    async def progress(
-        self,
-        message: str,
-        current: int,
-        total: int
-    ) -> None:
+    async def progress(self, message: str, current: int, total: int) -> None:
         """Log progress at intervals (every 10% or completion)."""
         if total <= 0:
             return
@@ -418,22 +373,21 @@ class HeadlessProvider(InteractionProvider):
         pct = current / total * 100
 
         # Log at 0%, every 25%, and 100%
-        should_log = (
-            current == 0 or
-            current >= total or
-            (current % max(1, total // 4)) == 0
-        )
+        should_log = current == 0 or current >= total or (current % max(1, total // 4)) == 0
 
         if should_log:
             self._logger.debug(f"[PROGRESS] {pct:.0f}% ({current}/{total}) - {message}")
 
             # V10 CEREBRO: Publish event (only at log intervals to reduce noise)
-            await self._publish_event("interaction.progress", {
-                "message": message,
-                "current": current,
-                "total": total,
-                "percent": round(pct, 1),
-            })
+            await self._publish_event(
+                "interaction.progress",
+                {
+                    "message": message,
+                    "current": current,
+                    "total": total,
+                    "percent": round(pct, 1),
+                },
+            )
 
     @property
     def is_interactive(self) -> bool:

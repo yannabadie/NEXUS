@@ -4,11 +4,11 @@ Tests for ResultHandler - P5.1 Phase 3 Extraction
 Validates result handling logic extracted from OrchestratorV7.
 """
 
-import pytest
 import sys
 from pathlib import Path
-from unittest.mock import Mock, MagicMock
-from pydantic import ValidationError
+from unittest.mock import Mock
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -40,12 +40,7 @@ class TestResultHandler:
 
     def test_make_result_basic(self, handler):
         """make_result should create result dict with basic fields."""
-        result = handler.make_result(
-            state="IDLE",
-            output="Hello",
-            agent="claude",
-            finished=False
-        )
+        result = handler.make_result(state="IDLE", output="Hello", agent="claude", finished=False)
 
         assert result["state"] == "IDLE"
         assert result["output"] == "Hello"
@@ -55,11 +50,7 @@ class TestResultHandler:
     def test_make_result_with_error(self, handler):
         """make_result should include error field if provided."""
         result = handler.make_result(
-            state="ERROR",
-            output="Error occurred",
-            agent=None,
-            finished=False,
-            error="TEST_ERROR"
+            state="ERROR", output="Error occurred", agent=None, finished=False, error="TEST_ERROR"
         )
 
         assert result["error"] == "TEST_ERROR"
@@ -67,11 +58,7 @@ class TestResultHandler:
     def test_make_result_with_tool(self, handler):
         """make_result should include tool field if provided."""
         result = handler.make_result(
-            state="EXECUTING_TOOL",
-            output="Tool executed",
-            agent="gemini",
-            finished=False,
-            tool="read_file"
+            state="EXECUTING_TOOL", output="Tool executed", agent="gemini", finished=False, tool="read_file"
         )
 
         assert result["tool"] == "read_file"
@@ -83,7 +70,7 @@ class TestResultHandler:
             output="Done",
             agent="claude",
             finished=True,
-            metadata={"fast_path": True, "latency": 0.5}
+            metadata={"fast_path": True, "latency": 0.5},
         )
 
         assert result["metadata"]["fast_path"] is True
@@ -93,12 +80,7 @@ class TestResultHandler:
         """make_result should not record if task_start not set."""
         mock_orch._current_task_start = 0  # Not started
 
-        result = handler.make_result(
-            state="FINISHED",
-            output="Task complete",
-            agent="gemini",
-            finished=True
-        )
+        handler.make_result(state="FINISHED", output="Task complete", agent="gemini", finished=True)
 
         # Should not call auto_memory
         mock_orch.auto_memory.record_success.assert_not_called()
@@ -107,14 +89,10 @@ class TestResultHandler:
     def test_make_result_finished_success_recording(self, handler, mock_orch):
         """make_result should record success when task finishes."""
         import time
+
         mock_orch._current_task_start = time.time() - 5.0  # 5 seconds ago
 
-        result = handler.make_result(
-            state="FINISHED",
-            output="Task complete",
-            agent="claude",
-            finished=True
-        )
+        handler.make_result(state="FINISHED", output="Task complete", agent="claude", finished=True)
 
         # Should call record_success
         mock_orch.auto_memory.record_success.assert_called_once()
@@ -126,15 +104,10 @@ class TestResultHandler:
     def test_make_result_finished_failure_recording(self, handler, mock_orch):
         """make_result should record failure when task finishes with error."""
         import time
+
         mock_orch._current_task_start = time.time() - 3.0  # 3 seconds ago
 
-        result = handler.make_result(
-            state="FINISHED",
-            output="Task failed",
-            agent="gemini",
-            finished=True,
-            error="TIMEOUT"
-        )
+        handler.make_result(state="FINISHED", output="Task failed", agent="gemini", finished=True, error="TIMEOUT")
 
         # Should call record_failure
         mock_orch.auto_memory.record_failure.assert_called_once()
@@ -146,14 +119,10 @@ class TestResultHandler:
     def test_make_result_resets_task_start(self, handler, mock_orch):
         """make_result should reset task_start after recording."""
         import time
+
         mock_orch._current_task_start = time.time()
 
-        handler.make_result(
-            state="FINISHED",
-            output="Done",
-            agent="claude",
-            finished=True
-        )
+        handler.make_result(state="FINISHED", output="Done", agent="claude", finished=True)
 
         assert mock_orch._current_task_start == 0
 
@@ -163,11 +132,7 @@ class TestResultHandler:
 
     def test_validate_message_light(self, handler):
         """validate_message should accept valid LightMessageV7."""
-        response = {
-            "action_type": "TALK",
-            "content": "Test message",
-            "agent_id": "claude"
-        }
+        response = {"action_type": "TALK", "content": "Test message", "agent_id": "claude"}
 
         validated = handler.validate_message(response)
 
@@ -181,12 +146,7 @@ class TestResultHandler:
             "action_type": "TOOL_USE",
             "content": "Using tool",
             "agent_id": "gemini",
-            "tool_uses": [
-                {
-                    "tool_name": "read",
-                    "tool_args": {"file_path": "test.py"}
-                }
-            ]
+            "tool_uses": [{"tool_name": "read", "tool_args": {"file_path": "test.py"}}],
         }
 
         validated = handler.validate_message(response, expect_heavy=True)
@@ -200,12 +160,7 @@ class TestResultHandler:
             "action_type": "TOOL_USE",
             "content": "Using tool",
             "agent_id": "claude",
-            "tool_uses": [
-                {
-                    "tool_name": "write",
-                    "tool_args": {"file_path": "output.txt", "content": "data"}
-                }
-            ]
+            "tool_uses": [{"tool_name": "write", "tool_args": {"file_path": "output.txt", "content": "data"}}],
         }
 
         # Don't pass expect_heavy, should auto-detect from action_type
@@ -215,10 +170,7 @@ class TestResultHandler:
 
     def test_validate_message_invalid_schema(self, handler):
         """validate_message should raise ValueError for invalid schema."""
-        response = {
-            "action_type": "INVALID_ACTION",
-            "content": "Test"
-        }
+        response = {"action_type": "INVALID_ACTION", "content": "Test"}
 
         with pytest.raises(ValueError, match="Invalid message schema"):
             handler.validate_message(response)

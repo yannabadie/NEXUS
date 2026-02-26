@@ -9,21 +9,21 @@ This implements EVOLUTION_PROTOCOL.md Phase 5:
 - Old parent archived to ARCHIVE/GEN_XXX/
 - Rejected children archived to ARCHIVE/rejected/
 """
+
 import shutil
 import subprocess
-import time
-from pathlib import Path
-from typing import Optional, Callable, Dict, Any
+from collections.abc import Callable
 from datetime import datetime
+from pathlib import Path
+from typing import Any
 
-from core.intelligence.evolution.models import PromotionResult, ArchiveResult
 from core.intelligence.evolution.lineage import (
-    load_lineage,
-    save_lineage,
-    promote_child_to_parent,
     archive_generation,
+    load_lineage,
+    promote_child_to_parent,
+    save_lineage,
 )
-
+from core.intelligence.evolution.models import ArchiveResult, PromotionResult
 
 # Type alias for progress callback
 ProgressCallback = Callable[[str, float], None]
@@ -44,7 +44,7 @@ class PromotePhase:
         self,
         workspace_path: Path,
         nexus_root: Path,
-        progress_callback: Optional[ProgressCallback] = None,
+        progress_callback: ProgressCallback | None = None,
     ):
         """
         Initialize promote phase.
@@ -69,7 +69,7 @@ class PromotePhase:
         child_id: str,
         fitness_score: float,
         generation: int,
-        child_metadata: Optional[Dict[str, Any]] = None,
+        child_metadata: dict[str, Any] | None = None,
     ) -> PromotionResult:
         """
         Promote approved child to become the new active parent.
@@ -96,7 +96,7 @@ class PromotePhase:
         # Paths
         parent_path = self.nexus_root
         child_path = self.project_root / "GENERATION_ACTIVE" / child_id
-        archive_dir = self.project_root / "ARCHIVE" / f"GEN_{generation-1:03d}"
+        archive_dir = self.project_root / "ARCHIVE" / f"GEN_{generation - 1:03d}"
 
         # Validate child exists
         if not child_path.exists():
@@ -120,17 +120,12 @@ class PromotePhase:
             archive_parent_path = archive_dir / old_parent_id
             if not archive_parent_path.exists():
                 shutil.copytree(
-                    parent_path,
-                    archive_parent_path,
-                    ignore=shutil.ignore_patterns('__pycache__', '*.pyc', 'workspace')
+                    parent_path, archive_parent_path, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "workspace")
                 )
 
             # Update lineage with archive info
             lineage = archive_generation(
-                lineage,
-                old_parent_id,
-                archive_parent_path,
-                reason=f"Superseded by {child_id}"
+                lineage, old_parent_id, archive_parent_path, reason=f"Superseded by {child_id}"
             )
 
             # 3. Promote child - copy child files over parent
@@ -138,7 +133,7 @@ class PromotePhase:
 
             # Remove old parent files (except workspace and .git)
             for item in parent_path.iterdir():
-                if item.name in ['workspace', '.git', '__pycache__']:
+                if item.name in ["workspace", ".git", "__pycache__"]:
                     continue
                 if item.is_dir():
                     shutil.rmtree(item)
@@ -147,7 +142,7 @@ class PromotePhase:
 
             # Copy child files to parent location
             for item in child_path.iterdir():
-                if item.name in ['__pycache__', 'workspace']:
+                if item.name in ["__pycache__", "workspace"]:
                     continue
                 dest = parent_path / item.name
                 if item.is_dir():
@@ -158,10 +153,9 @@ class PromotePhase:
             # 4. Update LINEAGE.json
             self._report_progress("Updating lineage...", 0.6)
             birth_cert_path = child_metadata.get(
-                'birth_cert_path',
-                f"GENERATION_ACTIVE/{child_id}/BIRTH_CERTIFICATE.json"
+                "birth_cert_path", f"GENERATION_ACTIVE/{child_id}/BIRTH_CERTIFICATE.json"
             )
-            notable_features = [child_metadata.get('improvements_summary', 'Emergent mutation')]
+            notable_features = [child_metadata.get("improvements_summary", "Emergent mutation")]
 
             lineage = promote_child_to_parent(
                 lineage=lineage,
@@ -169,7 +163,7 @@ class PromotePhase:
                 child_path=parent_path,
                 fitness_score=fitness_score,
                 birth_cert_path=birth_cert_path,
-                notable_features=notable_features
+                notable_features=notable_features,
             )
 
             save_lineage(lineage, self.workspace_path)
@@ -181,12 +175,7 @@ class PromotePhase:
             # 6. Git commit
             self._report_progress("Git commit...", 0.9)
             try:
-                subprocess.run(
-                    ["git", "add", "-A"],
-                    cwd=self.project_root,
-                    check=True,
-                    capture_output=True
-                )
+                subprocess.run(["git", "add", "-A"], cwd=self.project_root, check=True, capture_output=True)
                 commit_msg = (
                     f"evolution(promote): {child_id} -> active parent (Gen {generation})\n\n"
                     f"Fitness Score: {fitness_score:.3f}\n"
@@ -194,10 +183,7 @@ class PromotePhase:
                     f"Generated with NEXUS Evolution Engine"
                 )
                 subprocess.run(
-                    ["git", "commit", "-m", commit_msg],
-                    cwd=self.project_root,
-                    check=True,
-                    capture_output=True
+                    ["git", "commit", "-m", commit_msg], cwd=self.project_root, check=True, capture_output=True
                 )
             except subprocess.CalledProcessError:
                 errors.append("Git commit failed (manual commit recommended)")
@@ -279,17 +265,19 @@ class PromotePhase:
                 if "rejected_children" not in lineage:
                     lineage["rejected_children"] = []
 
-                lineage["rejected_children"].append({
-                    "id": child_id,
-                    "generation": generation,
-                    "rejected_at": datetime.now().isoformat(),
-                    "reason": reason,
-                    "archive_path": str(archive_child_path),
-                    "fitness_score": fitness_score
-                })
+                lineage["rejected_children"].append(
+                    {
+                        "id": child_id,
+                        "generation": generation,
+                        "rejected_at": datetime.now().isoformat(),
+                        "reason": reason,
+                        "archive_path": str(archive_child_path),
+                        "fitness_score": fitness_score,
+                    }
+                )
 
                 save_lineage(lineage, self.workspace_path)
-            except Exception as e:
+            except Exception:
                 # Non-fatal, continue even if lineage update fails
                 pass
 
@@ -316,8 +304,8 @@ def promote_child(
     child_id: str,
     fitness_score: float,
     generation: int,
-    child_metadata: Optional[Dict[str, Any]] = None,
-    progress_callback: Optional[ProgressCallback] = None,
+    child_metadata: dict[str, Any] | None = None,
+    progress_callback: ProgressCallback | None = None,
 ) -> PromotionResult:
     """
     Convenience function to promote a child.
@@ -345,7 +333,7 @@ def archive_child(
     generation: int,
     reason: str = "rejected",
     fitness_score: float = 0.0,
-    progress_callback: Optional[ProgressCallback] = None,
+    progress_callback: ProgressCallback | None = None,
 ) -> ArchiveResult:
     """
     Convenience function to archive a rejected child.

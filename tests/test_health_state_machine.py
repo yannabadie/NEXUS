@@ -15,15 +15,16 @@ Date: 2025-12-11
 """
 
 import asyncio
-from datetime import datetime, timedelta
-from pathlib import Path
-from unittest import TestCase, main
-from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
 
 # Add parent to path for imports
 import sys
+from datetime import datetime, timedelta
+from pathlib import Path
+from unittest import TestCase, main
+from unittest.mock import AsyncMock
+
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.fsm.health_state_machine import (
@@ -55,6 +56,7 @@ class TestRecoveryStrategy(TestCase):
 
     def test_strategy_creation(self):
         """Test creating a recovery strategy."""
+
         async def dummy_action():
             return True
 
@@ -63,7 +65,7 @@ class TestRecoveryStrategy(TestCase):
             description="Test recovery strategy",
             action=dummy_action,
             cooldown_seconds=60.0,
-            max_attempts=5
+            max_attempts=5,
         )
 
         assert strategy.name == "test_strategy"
@@ -74,11 +76,7 @@ class TestRecoveryStrategy(TestCase):
 
     def test_strategy_is_available_initially(self):
         """Test that new strategy is available."""
-        strategy = RecoveryStrategy(
-            name="test",
-            description="Test",
-            action=AsyncMock()
-        )
+        strategy = RecoveryStrategy(name="test", description="Test", action=AsyncMock())
 
         assert strategy.is_available() is True
 
@@ -105,7 +103,7 @@ class TestRecoveryStrategy(TestCase):
             description="Test",
             action=AsyncMock(),
             cooldown_seconds=3600.0,  # 1 hour
-            max_attempts=10
+            max_attempts=10,
         )
 
         strategy.mark_used()
@@ -116,11 +114,7 @@ class TestRecoveryStrategy(TestCase):
     def test_strategy_available_after_cooldown(self):
         """Test that strategy becomes available after cooldown."""
         strategy = RecoveryStrategy(
-            name="test",
-            description="Test",
-            action=AsyncMock(),
-            cooldown_seconds=1.0,
-            max_attempts=10
+            name="test", description="Test", action=AsyncMock(), cooldown_seconds=1.0, max_attempts=10
         )
 
         strategy.mark_used()
@@ -131,12 +125,7 @@ class TestRecoveryStrategy(TestCase):
 
     def test_strategy_reset(self):
         """Test that reset clears counters."""
-        strategy = RecoveryStrategy(
-            name="test",
-            description="Test",
-            action=AsyncMock(),
-            max_attempts=2
-        )
+        strategy = RecoveryStrategy(name="test", description="Test", action=AsyncMock(), max_attempts=2)
 
         strategy.mark_used()
         strategy.mark_used()
@@ -164,11 +153,7 @@ class TestHealthStateMachineBasic(TestCase):
     def test_add_strategy(self):
         """Test adding a recovery strategy."""
         hsm = HealthStateMachine()
-        strategy = RecoveryStrategy(
-            name="test",
-            description="Test",
-            action=AsyncMock()
-        )
+        strategy = RecoveryStrategy(name="test", description="Test", action=AsyncMock())
 
         hsm.add_strategy(strategy)
 
@@ -234,11 +219,7 @@ class TestHealthStateMachineRecovery(TestCase):
             recovery_called.append(True)
             return True
 
-        hsm.add_strategy(RecoveryStrategy(
-            name="mock_recovery",
-            description="Mock recovery",
-            action=mock_recovery
-        ))
+        hsm.add_strategy(RecoveryStrategy(name="mock_recovery", description="Mock recovery", action=mock_recovery))
 
         async def run_test():
             # Trigger enough errors to reach CRITICAL and auto-recover
@@ -249,7 +230,7 @@ class TestHealthStateMachineRecovery(TestCase):
             assert len(recovery_called) > 0 or hsm.state in [
                 HealthState.RECOVERING,
                 HealthState.HEALTHY,
-                HealthState.CRITICAL
+                HealthState.CRITICAL,
             ]
 
         asyncio.run(run_test())
@@ -261,11 +242,7 @@ class TestHealthStateMachineRecovery(TestCase):
         async def successful_recovery():
             return True
 
-        hsm.add_strategy(RecoveryStrategy(
-            name="good_recovery",
-            description="Works",
-            action=successful_recovery
-        ))
+        hsm.add_strategy(RecoveryStrategy(name="good_recovery", description="Works", action=successful_recovery))
 
         async def run_test():
             # Force to CRITICAL
@@ -285,12 +262,9 @@ class TestHealthStateMachineRecovery(TestCase):
         async def failed_recovery():
             return False
 
-        hsm.add_strategy(RecoveryStrategy(
-            name="bad_recovery",
-            description="Fails",
-            action=failed_recovery,
-            max_attempts=1
-        ))
+        hsm.add_strategy(
+            RecoveryStrategy(name="bad_recovery", description="Fails", action=failed_recovery, max_attempts=1)
+        )
 
         async def run_test():
             hsm._state = HealthState.CRITICAL
@@ -335,12 +309,7 @@ class TestHealthStateMachineReset(TestCase):
     def test_reset_clears_strategy_counters(self):
         """Test that reset also resets strategy counters."""
         hsm = HealthStateMachine()
-        strategy = RecoveryStrategy(
-            name="test",
-            description="Test",
-            action=AsyncMock(),
-            max_attempts=1
-        )
+        strategy = RecoveryStrategy(name="test", description="Test", action=AsyncMock(), max_attempts=1)
         hsm.add_strategy(strategy)
         strategy.mark_used()
 
@@ -371,6 +340,7 @@ class TestHealthStateMachineHistory(TestCase):
 # =============================================================================
 # PYTEST ASYNC TESTS
 # =============================================================================
+
 
 @pytest.mark.asyncio
 async def test_multiple_strategies_tried_in_order():
@@ -411,12 +381,7 @@ async def test_strategy_exception_handled():
     async def exploding_strategy():
         raise ValueError("Strategy explosion!")
 
-    hsm.add_strategy(RecoveryStrategy(
-        "exploder",
-        "Explodes",
-        exploding_strategy,
-        max_attempts=1
-    ))
+    hsm.add_strategy(RecoveryStrategy("exploder", "Explodes", exploding_strategy, max_attempts=1))
 
     hsm._state = HealthState.CRITICAL
 

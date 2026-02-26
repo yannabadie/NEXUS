@@ -35,12 +35,11 @@ Usage:
 import json
 import logging
 import shutil
-from pathlib import Path
-from typing import Dict, List, Optional, Any
 from datetime import datetime
+from pathlib import Path
+from typing import Any
 
 from .project_memory import ProjectMemory
-
 
 # =============================================================================
 # Configuration
@@ -54,6 +53,7 @@ AGENT_RAGS_DIR = "agent_rags"
 # Namespace Info
 # =============================================================================
 
+
 class NamespaceInfo:
     """Information about a RAG namespace."""
 
@@ -65,7 +65,7 @@ class NamespaceInfo:
         created_at: str,
         chunks_count: int = 0,
         files_count: int = 0,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: dict[str, Any] | None = None,
     ):
         self.name = name
         self.namespace_type = namespace_type
@@ -75,7 +75,7 @@ class NamespaceInfo:
         self.files_count = files_count
         self.metadata = metadata or {}
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "name": self.name,
@@ -88,7 +88,7 @@ class NamespaceInfo:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'NamespaceInfo':
+    def from_dict(cls, data: dict[str, Any]) -> "NamespaceInfo":
         """Create from dictionary."""
         return cls(
             name=data["name"],
@@ -104,6 +104,7 @@ class NamespaceInfo:
 # =============================================================================
 # RAGNamespaceManager Class
 # =============================================================================
+
 
 class RAGNamespaceManager:
     """
@@ -130,8 +131,8 @@ class RAGNamespaceManager:
         self._embedding_engine = embedding_engine
 
         # Cache for loaded RAG instances
-        self._project_rag: Optional[ProjectMemory] = None
-        self._agent_rags: Dict[str, ProjectMemory] = {}
+        self._project_rag: ProjectMemory | None = None
+        self._agent_rags: dict[str, ProjectMemory] = {}
 
         # Ensure directories exist
         self.storage_dir.mkdir(parents=True, exist_ok=True)
@@ -140,7 +141,7 @@ class RAGNamespaceManager:
         # Load configuration
         self._config = self._load_config()
 
-    def _load_config(self) -> Dict[str, Any]:
+    def _load_config(self) -> dict[str, Any]:
         """Load namespace configuration."""
         if self.config_path.exists():
             try:
@@ -152,10 +153,7 @@ class RAGNamespaceManager:
     def _save_config(self):
         """Save namespace configuration."""
         try:
-            self.config_path.write_text(
-                json.dumps(self._config, indent=2, ensure_ascii=False),
-                encoding="utf-8"
-            )
+            self.config_path.write_text(json.dumps(self._config, indent=2, ensure_ascii=False), encoding="utf-8")
         except Exception as e:
             self._logger.error(f"Failed to save config: {e}")
 
@@ -173,10 +171,7 @@ class RAGNamespaceManager:
             ProjectMemory instance for project RAG
         """
         if self._project_rag is None:
-            self._project_rag = ProjectMemory(
-                self.nexus_root,
-                embedding_engine=self._embedding_engine
-            )
+            self._project_rag = ProjectMemory(self.nexus_root, embedding_engine=self._embedding_engine)
             self._logger.info("Project RAG loaded")
         return self._project_rag
 
@@ -184,7 +179,7 @@ class RAGNamespaceManager:
     # Agent RAGs
     # =========================================================================
 
-    def get_agent_rag(self, agent_name: str, create: bool = True) -> Optional[ProjectMemory]:
+    def get_agent_rag(self, agent_name: str, create: bool = True) -> ProjectMemory | None:
         """
         Get or create an agent-specific RAG.
 
@@ -216,11 +211,7 @@ class RAGNamespaceManager:
 
         return None
 
-    def create_agent_rag(
-        self,
-        agent_name: str,
-        metadata: Optional[Dict[str, Any]] = None
-    ) -> ProjectMemory:
+    def create_agent_rag(self, agent_name: str, metadata: dict[str, Any] | None = None) -> ProjectMemory:
         """
         Create a new agent-specific RAG.
 
@@ -269,12 +260,9 @@ class RAGNamespaceManager:
         nexus_subdir = agent_dir / ".nexus"
         nexus_subdir.mkdir(exist_ok=True)
 
-        return ProjectMemory(
-            agent_dir,
-            embedding_engine=self._embedding_engine
-        )
+        return ProjectMemory(agent_dir, embedding_engine=self._embedding_engine)
 
-    def _load_agent_rag(self, agent_name: str) -> Optional[ProjectMemory]:
+    def _load_agent_rag(self, agent_name: str) -> ProjectMemory | None:
         """Load an existing agent RAG from disk."""
         agent_dir = self.agent_rags_dir / agent_name
         if not agent_dir.exists():
@@ -324,7 +312,7 @@ class RAGNamespaceManager:
     # Namespace Operations
     # =========================================================================
 
-    def list_namespaces(self) -> List[NamespaceInfo]:
+    def list_namespaces(self) -> list[NamespaceInfo]:
         """
         List all available namespaces.
 
@@ -336,14 +324,16 @@ class RAGNamespaceManager:
         # Project namespace (always exists)
         project_rag = self.get_project_rag()
         stats = project_rag.get_stats()
-        namespaces.append(NamespaceInfo(
-            name="project",
-            namespace_type="project",
-            path=self.storage_dir,
-            created_at=self._config.get("created_at", datetime.now().isoformat()),
-            chunks_count=stats.total_chunks,
-            files_count=stats.total_files,
-        ))
+        namespaces.append(
+            NamespaceInfo(
+                name="project",
+                namespace_type="project",
+                path=self.storage_dir,
+                created_at=self._config.get("created_at", datetime.now().isoformat()),
+                chunks_count=stats.total_chunks,
+                files_count=stats.total_files,
+            )
+        )
 
         # Agent namespaces
         for agent_name, config in self._config.get("namespaces", {}).items():
@@ -359,19 +349,21 @@ class RAGNamespaceManager:
                     chunks = config.get("chunks_count", 0)
                     files = config.get("files_count", 0)
 
-                namespaces.append(NamespaceInfo(
-                    name=agent_name,
-                    namespace_type="agent",
-                    path=agent_dir,
-                    created_at=config.get("created_at", ""),
-                    chunks_count=chunks,
-                    files_count=files,
-                    metadata=config.get("metadata", {}),
-                ))
+                namespaces.append(
+                    NamespaceInfo(
+                        name=agent_name,
+                        namespace_type="agent",
+                        path=agent_dir,
+                        created_at=config.get("created_at", ""),
+                        chunks_count=chunks,
+                        files_count=files,
+                        metadata=config.get("metadata", {}),
+                    )
+                )
 
         return namespaces
 
-    def get_namespace_info(self, name: str) -> Optional[NamespaceInfo]:
+    def get_namespace_info(self, name: str) -> NamespaceInfo | None:
         """
         Get info about a specific namespace.
 
@@ -411,8 +403,7 @@ class RAGNamespaceManager:
         for chunk in agent_rag.chunks:
             # Check if already in project (by content hash or file_path)
             is_duplicate = any(
-                c.file_path == chunk.file_path and c.start_line == chunk.start_line
-                for c in project_rag.chunks
+                c.file_path == chunk.file_path and c.start_line == chunk.start_line for c in project_rag.chunks
             )
             if not is_duplicate:
                 project_rag.chunks.append(chunk)
@@ -437,10 +428,11 @@ class RAGNamespaceManager:
         """Sanitize namespace name for filesystem safety."""
         # Remove special characters, keep alphanumeric and underscore
         import re
-        sanitized = re.sub(r'[^a-zA-Z0-9_-]', '_', name)
+
+        sanitized = re.sub(r"[^a-zA-Z0-9_-]", "_", name)
         return sanitized.lower()
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """
         Get overall statistics across all namespaces.
 

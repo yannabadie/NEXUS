@@ -35,27 +35,28 @@ Usage:
 import ast
 import re
 import shlex
-from pathlib import Path
-from typing import Tuple, List, Optional, Set
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
 
 
 class CommandType(Enum):
     """Classification of command types for security routing."""
-    SIMPLE = "simple"       # Single command, no shell features (shell=False)
-    COMPLEX = "complex"     # Requires shell features (pipe, redirect)
-    BLOCKED = "blocked"     # Dangerous, always rejected
+
+    SIMPLE = "simple"  # Single command, no shell features (shell=False)
+    COMPLEX = "complex"  # Requires shell features (pipe, redirect)
+    BLOCKED = "blocked"  # Dangerous, always rejected
 
 
 @dataclass
 class CommandAnalysis:
     """Result of command analysis."""
+
     command_type: CommandType
     executable: str
-    arguments: List[str]
+    arguments: list[str]
     requires_shell: bool
-    blocked_reason: Optional[str] = None
+    blocked_reason: str | None = None
 
 
 class ExecutionPolicy:
@@ -72,71 +73,89 @@ class ExecutionPolicy:
     """
 
     # Dangerous executables - ALWAYS blocked
-    BLOCKED_EXECUTABLES: Set[str] = {
+    BLOCKED_EXECUTABLES: set[str] = {
         # Network tools (potential exfiltration)
-        "nc", "netcat", "ncat", "socat",
-        "telnet", "ftp", "sftp", "scp",
-        "curl", "wget",  # Block raw downloads in sandbox
-
+        "nc",
+        "netcat",
+        "ncat",
+        "socat",
+        "telnet",
+        "ftp",
+        "sftp",
+        "scp",
+        "curl",
+        "wget",  # Block raw downloads in sandbox
         # Privilege escalation
-        "sudo", "su", "doas", "runas",
-        "pkexec", "gksudo", "kdesudo",
-
+        "sudo",
+        "su",
+        "doas",
+        "runas",
+        "pkexec",
+        "gksudo",
+        "kdesudo",
         # Destructive commands
-        "dd", "mkfs", "fdisk", "parted",
-        "shred", "wipe",
-
+        "dd",
+        "mkfs",
+        "fdisk",
+        "parted",
+        "shred",
+        "wipe",
         # Code execution (potential payload download)
-        "perl", "ruby", "php", "node",
-        "powershell", "pwsh", "cmd.exe",
-
+        "perl",
+        "ruby",
+        "php",
+        "node",
+        "powershell",
+        "pwsh",
+        "cmd.exe",
         # System manipulation
-        "systemctl", "service", "init",
-        "reboot", "shutdown", "halt",
-        "crontab", "at",
-
+        "systemctl",
+        "service",
+        "init",
+        "reboot",
+        "shutdown",
+        "halt",
+        "crontab",
+        "at",
         # Compiler/build (prevent malicious builds)
-        "make", "gcc", "g++", "clang",
-        "cargo", "go build", "npm run",
+        "make",
+        "gcc",
+        "g++",
+        "clang",
+        "cargo",
+        "go build",
+        "npm run",
     }
 
     # Dangerous patterns in commands - ALWAYS blocked
-    BLOCKED_PATTERNS: List[Tuple[str, str]] = [
+    BLOCKED_PATTERNS: list[tuple[str, str]] = [
         # Recursive delete
         (r"\brm\s+(-[rf]+\s+)*(/|~|\$HOME)", "rm on root or home"),
         (r"\brm\s+-rf?\s+\*", "rm with wildcard"),
         (r"del\s+/[sq]\s+", "Windows recursive delete"),
-
         # Fork bombs
         (r":\(\)\{\s*:\|:&\s*\};:", "Fork bomb pattern"),
         (r"while\s+true.*do", "Infinite loop"),
-
         # Password/secret access
         (r"/etc/passwd", "Password file access"),
         (r"/etc/shadow", "Shadow file access"),
         (r"\.ssh/", "SSH directory access"),
         (r"\.aws/", "AWS credentials access"),
         (r"\.gnupg/", "GPG keys access"),
-
         # Path traversal - deep parent access
         (r"\.\.(/|\\)\.\.(/|\\)\.\.", "Deep path traversal"),
-
         # Parent directory write operations
         (r">\s*\.\.(/|\\)", "Write redirect to parent"),
         (r">>\s*\.\.(/|\\)", "Append redirect to parent"),
-
         # Git operations via bash (use git tool instead)
         (r"\bgit\s+(push|commit|add|reset|rebase|merge)\b", "Git write operation via bash"),
-
         # Environment manipulation
         (r"export\s+\w+=", "Environment variable export"),
         (r"\$\(.*\)", "Command substitution"),
         (r"`.*`", "Backtick command substitution"),
-
         # Network operations
         (r"\b(0\.0\.0\.0|127\.0\.0\.1|localhost)\b.*\d{4,5}", "Local network binding"),
         (r">/dev/tcp/", "Bash network redirect"),
-
         # History/log tampering
         (r"history\s+-[cd]", "History manipulation"),
         (r">\s*/var/log/", "Log file tampering"),
@@ -144,33 +163,41 @@ class ExecutionPolicy:
     ]
 
     # Shell metacharacters that require shell=True
-    SHELL_METACHARACTERS: Set[str] = {
-        "|",   # Pipe
-        "&",   # Background / AND
-        ";",   # Command separator
-        ">",   # Output redirect
-        "<",   # Input redirect
+    SHELL_METACHARACTERS: set[str] = {
+        "|",  # Pipe
+        "&",  # Background / AND
+        ";",  # Command separator
+        ">",  # Output redirect
+        "<",  # Input redirect
         ">>",  # Append redirect
         "2>",  # Stderr redirect
         "&&",  # Conditional AND
         "||",  # Conditional OR
-        "$(", ")",  # Command substitution
-        "`",   # Backtick substitution
-        "*",   # Glob wildcard
-        "?",   # Glob single char
-        "[",   # Glob charset
-        "~",   # Home directory
-        "$",   # Variable expansion
+        "$(",
+        ")",  # Command substitution
+        "`",  # Backtick substitution
+        "*",  # Glob wildcard
+        "?",  # Glob single char
+        "[",  # Glob charset
+        "~",  # Home directory
+        "$",  # Variable expansion
     }
 
     # Executables allowed with shell features (carefully controlled)
-    ALLOWED_COMPLEX_EXECUTABLES: Set[str] = {
-        "grep", "rg", "ripgrep",  # Search with pipe
-        "cat", "head", "tail",     # File viewing with pipe
-        "sort", "uniq", "wc",      # Text processing
-        "find",                     # File finding (limited)
-        "ls", "dir",               # Listing with pipe
-        "echo",                    # Output
+    ALLOWED_COMPLEX_EXECUTABLES: set[str] = {
+        "grep",
+        "rg",
+        "ripgrep",  # Search with pipe
+        "cat",
+        "head",
+        "tail",  # File viewing with pipe
+        "sort",
+        "uniq",
+        "wc",  # Text processing
+        "find",  # File finding (limited)
+        "ls",
+        "dir",  # Listing with pipe
+        "echo",  # Output
     }
 
     def __init__(self, workspace_path: Path):
@@ -183,11 +210,10 @@ class ExecutionPolicy:
         self.workspace_path = workspace_path.resolve()
         # Pre-compile blocked patterns for performance
         self._compiled_patterns = [
-            (re.compile(pattern, re.IGNORECASE), desc)
-            for pattern, desc in self.BLOCKED_PATTERNS
+            (re.compile(pattern, re.IGNORECASE), desc) for pattern, desc in self.BLOCKED_PATTERNS
         ]
 
-    def validate_command(self, command: str) -> Tuple[bool, Optional[str]]:
+    def validate_command(self, command: str) -> tuple[bool, str | None]:
         """
         Validate a shell command for security.
 
@@ -241,7 +267,7 @@ class ExecutionPolicy:
                 executable="",
                 arguments=[],
                 requires_shell=True,
-                blocked_reason="Malformed command (unparseable)"
+                blocked_reason="Malformed command (unparseable)",
             )
 
         if not parts:
@@ -250,7 +276,7 @@ class ExecutionPolicy:
                 executable="",
                 arguments=[],
                 requires_shell=False,
-                blocked_reason="Empty command"
+                blocked_reason="Empty command",
             )
 
         executable = parts[0].lower()
@@ -265,32 +291,30 @@ class ExecutionPolicy:
                 executable=executable,
                 arguments=parts[1:],
                 requires_shell=has_shell_features,
-                blocked_reason=f"Blocked executable: {executable_name}"
+                blocked_reason=f"Blocked executable: {executable_name}",
             )
 
         # Check for rm with dangerous patterns
         if executable_name == "rm":
             args_str = " ".join(parts[1:])
-            if re.search(r"-r.*-f|f.*-r|rf|fr", args_str):
-                # rm -rf is dangerous, check target
-                if any(dangerous in args_str for dangerous in ["/", "~", "..", "*"]):
-                    return CommandAnalysis(
-                        command_type=CommandType.BLOCKED,
-                        executable=executable,
-                        arguments=parts[1:],
-                        requires_shell=has_shell_features,
-                        blocked_reason="Dangerous rm command"
-                    )
+            if re.search(r"-r.*-f|f.*-r|rf|fr", args_str) and any(
+                dangerous in args_str for dangerous in ["/", "~", "..", "*"]
+            ):
+                # rm -rf is dangerous with dangerous target
+                return CommandAnalysis(
+                    command_type=CommandType.BLOCKED,
+                    executable=executable,
+                    arguments=parts[1:],
+                    requires_shell=has_shell_features,
+                    blocked_reason="Dangerous rm command",
+                )
 
         # Determine command type
         if has_shell_features:
             # Check if this complex command is allowed
             if executable_name in self.ALLOWED_COMPLEX_EXECUTABLES:
                 return CommandAnalysis(
-                    command_type=CommandType.COMPLEX,
-                    executable=executable,
-                    arguments=parts[1:],
-                    requires_shell=True
+                    command_type=CommandType.COMPLEX, executable=executable, arguments=parts[1:], requires_shell=True
                 )
             else:
                 # Complex command with non-allowed executable
@@ -299,15 +323,12 @@ class ExecutionPolicy:
                     executable=executable,
                     arguments=parts[1:],
                     requires_shell=True,
-                    blocked_reason=f"Shell features not allowed for: {executable_name}"
+                    blocked_reason=f"Shell features not allowed for: {executable_name}",
                 )
 
         # Simple command - can use shell=False
         return CommandAnalysis(
-            command_type=CommandType.SIMPLE,
-            executable=executable,
-            arguments=parts[1:],
-            requires_shell=False
+            command_type=CommandType.SIMPLE, executable=executable, arguments=parts[1:], requires_shell=False
         )
 
     def is_path_allowed(self, path: Path, operation: str = "read") -> bool:
@@ -347,7 +368,9 @@ class ExecutionPolicy:
 
         # Block sensitive directories (cross-platform) - outside workspace
         dir_sensitive = [
-            "/.ssh/", "/.aws/", "/.gnupg/",
+            "/.ssh/",
+            "/.aws/",
+            "/.gnupg/",
         ]
 
         for sens in dir_sensitive:
@@ -356,7 +379,9 @@ class ExecutionPolicy:
 
         # Block sensitive system paths (Unix) - outside workspace
         unix_sensitive = [
-            "/etc/passwd", "/etc/shadow", "/etc/sudoers",
+            "/etc/passwd",
+            "/etc/shadow",
+            "/etc/sudoers",
         ]
 
         for sens in unix_sensitive:
@@ -364,14 +389,10 @@ class ExecutionPolicy:
                 return False
 
         # For writes, must be within workspace (already checked above)
-        if operation == "write":
-            # Not in workspace = not allowed for write
-            return False
-
         # For reads outside workspace, allow (for evolution mode)
-        return True
+        return operation != "write"
 
-    def sanitize_arguments(self, args: List[str]) -> List[str]:
+    def sanitize_arguments(self, args: list[str]) -> list[str]:
         """
         Sanitize command arguments to prevent injection.
 
@@ -391,7 +412,7 @@ class ExecutionPolicy:
             sanitized.append(arg)
         return sanitized
 
-    def get_safe_execution_args(self, command: str) -> Optional[Tuple[List[str], bool]]:
+    def get_safe_execution_args(self, command: str) -> tuple[list[str], bool] | None:
         """
         Get safe execution arguments for a command.
 
@@ -427,8 +448,9 @@ class ExecutionPolicy:
 @dataclass
 class CodeValidationResult:
     """Result of code validation."""
+
     is_safe: bool
-    violations: List[str] = field(default_factory=list)
+    violations: list[str] = field(default_factory=list)
 
     def __bool__(self) -> bool:
         return self.is_safe
@@ -458,164 +480,244 @@ class CodeValidator(ast.NodeVisitor):
     # ==========================================================================
     # BLOCKED IMPORTS - Modules that provide dangerous capabilities
     # ==========================================================================
-    BLOCKED_IMPORTS: Set[str] = {
+    BLOCKED_IMPORTS: set[str] = {
         # System access
-        "os", "sys", "subprocess", "shutil", "pathlib",
-        "platform", "sysconfig",
-
+        "os",
+        "sys",
+        "subprocess",
+        "shutil",
+        "pathlib",
+        "platform",
+        "sysconfig",
         # Network access
-        "socket", "socketserver",
-        "http", "http.client", "http.server",
-        "urllib", "urllib.request", "urllib.parse",
-        "ftplib", "smtplib", "poplib", "imaplib",
-        "telnetlib", "ssl", "asyncio",
-
+        "socket",
+        "socketserver",
+        "http",
+        "http.client",
+        "http.server",
+        "urllib",
+        "urllib.request",
+        "urllib.parse",
+        "ftplib",
+        "smtplib",
+        "poplib",
+        "imaplib",
+        "telnetlib",
+        "ssl",
+        "asyncio",
         # Code execution / dynamic imports
-        "importlib", "runpy", "code", "codeop",
-        "compileall", "py_compile",
-
+        "importlib",
+        "runpy",
+        "code",
+        "codeop",
+        "compileall",
+        "py_compile",
         # Serialization (RCE vectors)
-        "pickle", "cPickle", "marshal", "shelve", "dill",
-
+        "pickle",
+        "cPickle",
+        "marshal",
+        "shelve",
+        "dill",
         # Native code / FFI
-        "ctypes", "cffi", "_ctypes", "ffi",
-
+        "ctypes",
+        "cffi",
+        "_ctypes",
+        "ffi",
         # Multiprocessing (sandbox escape)
-        "multiprocessing", "threading", "concurrent",
-        "_thread", "thread",
-
+        "multiprocessing",
+        "threading",
+        "concurrent",
+        "_thread",
+        "thread",
         # Dangerous builtins access
-        "builtins", "__builtins__",
-
+        "builtins",
+        "__builtins__",
         # File operations (use provided wrappers)
-        "io", "tempfile", "glob", "fnmatch",
-
+        "io",
+        "tempfile",
+        "glob",
+        "fnmatch",
         # Introspection
-        "inspect", "dis", "gc", "traceback",
-
+        "inspect",
+        "dis",
+        "gc",
+        "traceback",
         # Signals (process manipulation)
-        "signal", "atexit",
-
+        "signal",
+        "atexit",
         # Resource manipulation
-        "resource", "pwd", "grp", "crypt",
-
+        "resource",
+        "pwd",
+        "grp",
+        "crypt",
         # Windows-specific dangerous modules
-        "winreg", "msvcrt", "_winapi",
+        "winreg",
+        "msvcrt",
+        "_winapi",
     }
 
     # ==========================================================================
     # BLOCKED FUNCTIONS - Dangerous built-in functions
     # ==========================================================================
-    BLOCKED_FUNCTIONS: Set[str] = {
+    BLOCKED_FUNCTIONS: set[str] = {
         # Code execution
-        "eval", "exec", "compile",
+        "eval",
+        "exec",
+        "compile",
         "__import__",
-
         # File operations (must use provided safe wrappers)
-        "open", "file",
-
+        "open",
+        "file",
         # User input (interactive)
-        "input", "raw_input",
-
+        "input",
+        "raw_input",
         # Namespace manipulation
-        "globals", "locals", "vars",
+        "globals",
+        "locals",
+        "vars",
         "dir",  # Can reveal internal structure
-
         # Attribute manipulation
-        "getattr", "setattr", "delattr", "hasattr",
-
+        "getattr",
+        "setattr",
+        "delattr",
+        "hasattr",
         # Type manipulation
-        "type", "isinstance", "issubclass",
+        "type",
+        "isinstance",
+        "issubclass",
         "super",  # Can be used for attribute access
-
         # Object introspection
-        "id", "hash", "repr",  # Can leak memory addresses
-        "callable", "staticmethod", "classmethod",
-
+        "id",
+        "hash",
+        "repr",  # Can leak memory addresses
+        "callable",
+        "staticmethod",
+        "classmethod",
         # Memory manipulation
-        "memoryview", "bytearray",
-
+        "memoryview",
+        "bytearray",
         # System exit
-        "exit", "quit", "breakpoint",
-
+        "exit",
+        "quit",
+        "breakpoint",
         # Help (can reveal internals)
-        "help", "credits", "license", "copyright",
+        "help",
+        "credits",
+        "license",
+        "copyright",
     }
 
     # ==========================================================================
     # BLOCKED ATTRIBUTES - Dangerous dunder/special attributes
     # ==========================================================================
-    BLOCKED_ATTRIBUTES: Set[str] = {
+    BLOCKED_ATTRIBUTES: set[str] = {
         # Class/type introspection
-        "__class__", "__bases__", "__mro__",
-        "__subclasses__", "__subclasshook__",
-
+        "__class__",
+        "__bases__",
+        "__mro__",
+        "__subclasses__",
+        "__subclasshook__",
         # Object lifecycle
-        "__init__", "__new__", "__del__",
+        "__init__",
+        "__new__",
+        "__del__",
         "__init_subclass__",
-
         # Code objects
-        "__code__", "__globals__", "__builtins__",
-        "__closure__", "__annotations__",
-
+        "__code__",
+        "__globals__",
+        "__builtins__",
+        "__closure__",
+        "__annotations__",
         # Import machinery
-        "__import__", "__loader__", "__spec__",
-        "__package__", "__path__",
-
+        "__import__",
+        "__loader__",
+        "__spec__",
+        "__package__",
+        "__path__",
         # Callable manipulation
-        "__call__", "__func__", "__self__",
-
+        "__call__",
+        "__func__",
+        "__self__",
         # Descriptor protocol (can bypass restrictions)
-        "__get__", "__set__", "__delete__",
+        "__get__",
+        "__set__",
+        "__delete__",
         "__set_name__",
-
         # Attribute access hooks
-        "__getattr__", "__setattr__", "__delattr__",
+        "__getattr__",
+        "__setattr__",
+        "__delattr__",
         "__getattribute__",
-
         # Container dunders that could be abused
-        "__dict__", "__slots__",
-
+        "__dict__",
+        "__slots__",
         # Metaclass manipulation
-        "__metaclass__", "__prepare__",
-
+        "__metaclass__",
+        "__prepare__",
         # Module attributes
-        "__file__", "__cached__", "__doc__",
-
+        "__file__",
+        "__cached__",
+        "__doc__",
         # Reduce/pickle (serialization)
-        "__reduce__", "__reduce_ex__",
-        "__getstate__", "__setstate__",
+        "__reduce__",
+        "__reduce_ex__",
+        "__getstate__",
+        "__setstate__",
     }
 
     # ==========================================================================
     # ALLOWED SAFE BUILTINS - Whitelisted functions for tools
     # ==========================================================================
-    ALLOWED_BUILTINS: Set[str] = {
+    ALLOWED_BUILTINS: set[str] = {
         # Math
-        "abs", "round", "min", "max", "sum", "pow", "divmod",
-
+        "abs",
+        "round",
+        "min",
+        "max",
+        "sum",
+        "pow",
+        "divmod",
         # Type conversion
-        "int", "float", "str", "bool", "bytes",
-        "list", "tuple", "dict", "set", "frozenset",
-
+        "int",
+        "float",
+        "str",
+        "bool",
+        "bytes",
+        "list",
+        "tuple",
+        "dict",
+        "set",
+        "frozenset",
         # String operations
-        "ord", "chr", "ascii", "bin", "hex", "oct",
+        "ord",
+        "chr",
+        "ascii",
+        "bin",
+        "hex",
+        "oct",
         "format",
-
         # Iteration
-        "range", "enumerate", "zip", "map", "filter",
-        "reversed", "sorted", "iter", "next",
-
+        "range",
+        "enumerate",
+        "zip",
+        "map",
+        "filter",
+        "reversed",
+        "sorted",
+        "iter",
+        "next",
         # Length/membership
-        "len", "any", "all", "slice",
-
+        "len",
+        "any",
+        "all",
+        "slice",
         # Printing (output only)
         "print",
     }
 
     def __init__(self):
         """Initialize CodeValidator."""
-        self._violations: List[str] = []
+        self._violations: list[str] = []
 
     def validate_code(self, code: str) -> CodeValidationResult:
         """
@@ -633,22 +735,16 @@ class CodeValidator(ast.NodeVisitor):
         try:
             tree = ast.parse(code)
         except SyntaxError as e:
-            return CodeValidationResult(
-                is_safe=False,
-                violations=[f"Syntax error: {e.msg} (line {e.lineno})"]
-            )
+            return CodeValidationResult(is_safe=False, violations=[f"Syntax error: {e.msg} (line {e.lineno})"])
 
         # Step 2: Walk the AST and check for violations
         self.visit(tree)
 
-        return CodeValidationResult(
-            is_safe=len(self._violations) == 0,
-            violations=self._violations.copy()
-        )
+        return CodeValidationResult(is_safe=len(self._violations) == 0, violations=self._violations.copy())
 
     def _add_violation(self, node: ast.AST, message: str) -> None:
         """Add a violation with line number."""
-        line = getattr(node, 'lineno', '?')
+        line = getattr(node, "lineno", "?")
         self._violations.append(f"Line {line}: {message}")
 
     # ==========================================================================
@@ -658,7 +754,7 @@ class CodeValidator(ast.NodeVisitor):
     def visit_Import(self, node: ast.Import) -> None:
         """Check for blocked imports: import os, import subprocess"""
         for alias in node.names:
-            module_name = alias.name.split('.')[0]  # Get root module
+            module_name = alias.name.split(".")[0]  # Get root module
             if module_name in self.BLOCKED_IMPORTS:
                 self._add_violation(node, f"Blocked import: {alias.name}")
         self.generic_visit(node)
@@ -666,7 +762,7 @@ class CodeValidator(ast.NodeVisitor):
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
         """Check for blocked from-imports: from os import system"""
         if node.module:
-            module_name = node.module.split('.')[0]
+            module_name = node.module.split(".")[0]
             if module_name in self.BLOCKED_IMPORTS:
                 self._add_violation(node, f"Blocked import from: {node.module}")
         self.generic_visit(node)
@@ -701,9 +797,8 @@ class CodeValidator(ast.NodeVisitor):
     def visit_Name(self, node: ast.Name) -> None:
         """Check for direct access to blocked names."""
         # Block direct access to __builtins__ etc.
-        if node.id.startswith('__') and node.id.endswith('__'):
-            if node.id in self.BLOCKED_ATTRIBUTES:
-                self._add_violation(node, f"Blocked name access: {node.id}")
+        if node.id.startswith("__") and node.id.endswith("__") and node.id in self.BLOCKED_ATTRIBUTES:
+            self._add_violation(node, f"Blocked name access: {node.id}")
         self.generic_visit(node)
 
     def visit_Global(self, node: ast.Global) -> None:
@@ -720,18 +815,20 @@ class CodeValidator(ast.NodeVisitor):
         """Check class definitions for dangerous patterns."""
         # Check for metaclass usage
         for keyword in node.keywords:
-            if keyword.arg == 'metaclass':
+            if keyword.arg == "metaclass":
                 self._add_violation(node, f"Blocked: metaclass in class {node.name}")
 
         # Check for dangerous method definitions
         for item in node.body:
-            if isinstance(item, ast.FunctionDef):
-                if item.name in {'__del__', '__getattr__', '__setattr__',
-                                 '__getattribute__', '__reduce__', '__reduce_ex__'}:
-                    self._add_violation(
-                        item,
-                        f"Blocked: dangerous method {item.name}() in class {node.name}"
-                    )
+            if isinstance(item, ast.FunctionDef) and item.name in {
+                "__del__",
+                "__getattr__",
+                "__setattr__",
+                "__getattribute__",
+                "__reduce__",
+                "__reduce_ex__",
+            }:
+                self._add_violation(item, f"Blocked: dangerous method {item.name}() in class {node.name}")
 
         self.generic_visit(node)
 
@@ -740,13 +837,9 @@ class CodeValidator(ast.NodeVisitor):
         # Block decorator usage (could bypass restrictions)
         if node.decorator_list:
             for decorator in node.decorator_list:
-                if isinstance(decorator, ast.Name):
-                    if decorator.id in {'staticmethod', 'classmethod', 'property'}:
-                        continue  # These are safe
-                self._add_violation(
-                    decorator,
-                    f"Blocked: decorator on function {node.name}"
-                )
+                if isinstance(decorator, ast.Name) and decorator.id in {"staticmethod", "classmethod", "property"}:
+                    continue  # These are safe
+                self._add_violation(decorator, f"Blocked: decorator on function {node.name}")
         self.generic_visit(node)
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
@@ -763,13 +856,12 @@ class CodeValidator(ast.NodeVisitor):
         """Check with statements for dangerous patterns."""
         # Block file operations via with
         for item in node.items:
-            if isinstance(item.context_expr, ast.Call):
-                if isinstance(item.context_expr.func, ast.Name):
-                    if item.context_expr.func.id == 'open':
-                        self._add_violation(
-                            node,
-                            "Blocked: with open() - use provided file wrappers"
-                        )
+            if (
+                isinstance(item.context_expr, ast.Call)
+                and isinstance(item.context_expr.func, ast.Name)
+                and item.context_expr.func.id == "open"
+            ):
+                self._add_violation(node, "Blocked: with open() - use provided file wrappers")
         self.generic_visit(node)
 
     def visit_Try(self, node: ast.Try) -> None:
@@ -777,21 +869,18 @@ class CodeValidator(ast.NodeVisitor):
         for handler in node.handlers:
             if handler.type is None:
                 # Bare except: can catch SystemExit etc.
-                self._add_violation(
-                    handler,
-                    "Blocked: bare except clause (specify exception type)"
-                )
+                self._add_violation(handler, "Blocked: bare except clause (specify exception type)")
         self.generic_visit(node)
 
     def visit_Raise(self, node: ast.Raise) -> None:
         """Allow raise but check for SystemExit."""
-        if node.exc and isinstance(node.exc, ast.Call):
-            if isinstance(node.exc.func, ast.Name):
-                if node.exc.func.id in {'SystemExit', 'KeyboardInterrupt'}:
-                    self._add_violation(
-                        node,
-                        f"Blocked: raise {node.exc.func.id}"
-                    )
+        if (
+            node.exc
+            and isinstance(node.exc, ast.Call)
+            and isinstance(node.exc.func, ast.Name)
+            and node.exc.func.id in {"SystemExit", "KeyboardInterrupt"}
+        ):
+            self._add_violation(node, f"Blocked: raise {node.exc.func.id}")
         self.generic_visit(node)
 
 
@@ -799,11 +888,11 @@ class CodeValidator(ast.NodeVisitor):
 # Singletons for easy access
 # =============================================================================
 
-_policy: Optional[ExecutionPolicy] = None
-_code_validator: Optional[CodeValidator] = None
+_policy: ExecutionPolicy | None = None
+_code_validator: CodeValidator | None = None
 
 
-def get_execution_policy(workspace_path: Optional[Path] = None) -> ExecutionPolicy:
+def get_execution_policy(workspace_path: Path | None = None) -> ExecutionPolicy:
     """Get or create the global ExecutionPolicy instance."""
     global _policy
     if _policy is None:

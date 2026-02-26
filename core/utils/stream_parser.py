@@ -8,10 +8,10 @@ See: docs/STREAM_FORMAT_ANALYSIS.md for format specifications.
 """
 
 import json
-from typing import Optional, Tuple, Dict, Any
+from typing import Any
 
 
-def parse_stream_chunk(line: str, source: str) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
+def parse_stream_chunk(line: str, source: str) -> tuple[str | None, dict[str, Any] | None]:
     """
     Parse a single line of stream-json output.
 
@@ -49,20 +49,18 @@ def parse_stream_chunk(line: str, source: str) -> Tuple[Optional[str], Optional[
     return text_chunk, data
 
 
-def _extract_gemini_text(data: Dict[str, Any]) -> Optional[str]:
+def _extract_gemini_text(data: dict[str, Any]) -> str | None:
     """
     Extract streaming text from Gemini stream-json.
 
     Format: {"type":"message", "role":"assistant", "content":"...", "delta":true}
     """
-    if (data.get("type") == "message" and
-        data.get("role") == "assistant" and
-        data.get("delta") is True):
+    if data.get("type") == "message" and data.get("role") == "assistant" and data.get("delta") is True:
         return data.get("content", "")
     return None
 
 
-def _extract_claude_text(data: Dict[str, Any]) -> Optional[str]:
+def _extract_claude_text(data: dict[str, Any]) -> str | None:
     """
     Extract streaming text from Claude stream-json.
 
@@ -78,7 +76,7 @@ def _extract_claude_text(data: Dict[str, Any]) -> Optional[str]:
     return None
 
 
-def is_result_message(data: Optional[Dict[str, Any]], source: str) -> bool:
+def is_result_message(data: dict[str, Any] | None, source: str) -> bool:
     """
     Check if this message is the final result.
 
@@ -96,7 +94,7 @@ def is_result_message(data: Optional[Dict[str, Any]], source: str) -> bool:
     return data.get("type") == "result"
 
 
-def extract_final_result(data: Dict[str, Any], source: str) -> Optional[str]:
+def extract_final_result(data: dict[str, Any], source: str) -> str | None:
     """
     Extract final result text from result message.
 
@@ -115,7 +113,7 @@ def extract_final_result(data: Dict[str, Any], source: str) -> Optional[str]:
     return None
 
 
-def extract_stats(data: Dict[str, Any], source: str) -> Dict[str, Any]:
+def extract_stats(data: dict[str, Any], source: str) -> dict[str, Any]:
     """
     Extract statistics from result message.
 
@@ -133,12 +131,12 @@ def extract_stats(data: Dict[str, Any], source: str) -> Dict[str, Any]:
             "duration_ms": data.get("duration_ms"),
             "num_turns": data.get("num_turns"),
             "total_cost_usd": data.get("total_cost_usd"),
-            "usage": data.get("usage", {})
+            "usage": data.get("usage", {}),
         }
     return {}
 
 
-def is_tool_message(data: Optional[Dict[str, Any]], source: str) -> bool:
+def is_tool_message(data: dict[str, Any] | None, source: str) -> bool:
     """
     Check if this message indicates tool use.
 
@@ -154,17 +152,16 @@ def is_tool_message(data: Optional[Dict[str, Any]], source: str) -> bool:
 
     if source == "gemini":
         return data.get("type") == "tool_use"
-    elif source == "claude":
+    elif source == "claude" and data.get("type") == "stream_event":
         # Claude: content_block_start with tool_use
-        if data.get("type") == "stream_event":
-            event = data.get("event", {})
-            if event.get("type") == "content_block_start":
-                block = event.get("content_block", {})
-                return block.get("type") == "tool_use"
+        event = data.get("event", {})
+        if event.get("type") == "content_block_start":
+            block = event.get("content_block", {})
+            return block.get("type") == "tool_use"
     return False
 
 
-def extract_tool_info(data: Dict[str, Any], source: str) -> Optional[Dict[str, Any]]:
+def extract_tool_info(data: dict[str, Any], source: str) -> dict[str, Any] | None:
     """
     Extract tool information from tool_use message.
 
@@ -180,17 +177,16 @@ def extract_tool_info(data: Dict[str, Any], source: str) -> Optional[Dict[str, A
             return {
                 "tool_name": data.get("tool_name"),
                 "tool_id": data.get("tool_id"),
-                "parameters": data.get("parameters", {})
+                "parameters": data.get("parameters", {}),
             }
-    elif source == "claude":
-        if data.get("type") == "stream_event":
-            event = data.get("event", {})
-            if event.get("type") == "content_block_start":
-                block = event.get("content_block", {})
-                if block.get("type") == "tool_use":
-                    return {
-                        "tool_name": block.get("name"),
-                        "tool_id": block.get("id"),
-                        "parameters": block.get("input", {})
-                    }
+    elif source == "claude" and data.get("type") == "stream_event":
+        event = data.get("event", {})
+        if event.get("type") == "content_block_start":
+            block = event.get("content_block", {})
+            if block.get("type") == "tool_use":
+                return {
+                    "tool_name": block.get("name"),
+                    "tool_id": block.get("id"),
+                    "parameters": block.get("input", {}),
+                }
     return None

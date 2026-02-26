@@ -5,11 +5,12 @@ These tests verify the BudgetService extracted from repl.py works correctly.
 """
 
 import json
-import pytest
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 
 class TestBudgetService:
@@ -45,11 +46,8 @@ class TestBudgetService:
     def budget_service(self, temp_workspace, mock_console, mock_config):
         """Create a BudgetService instance."""
         from core.observability.telemetry.service import BudgetService
-        return BudgetService(
-            workspace_path=temp_workspace,
-            console=mock_console,
-            config=mock_config
-        )
+
+        return BudgetService(workspace_path=temp_workspace, console=mock_console, config=mock_config)
 
     @pytest.fixture
     def workspace_with_budget(self, temp_workspace):
@@ -61,7 +59,7 @@ class TestBudgetService:
             "spent_today_usd": 2.5,
             "limit_usd": 10.0,
             "api_calls_today": 15,
-            "last_reset": datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            "last_reset": datetime.now(UTC).strftime("%Y-%m-%d"),
         }
 
         budget_file.write_text(json.dumps(state), encoding="utf-8")
@@ -81,11 +79,8 @@ class TestBudgetService:
     def test_status_shows_warning_level(self, workspace_with_budget, mock_console, mock_config):
         """Test status shows correct warning level."""
         from core.observability.telemetry.service import BudgetService
-        service = BudgetService(
-            workspace_path=workspace_with_budget,
-            console=mock_console,
-            config=mock_config
-        )
+
+        service = BudgetService(workspace_path=workspace_with_budget, console=mock_console, config=mock_config)
 
         result = service.status()
         assert result.success is True
@@ -94,7 +89,7 @@ class TestBudgetService:
 
     def test_reset_cancelled_by_user(self, budget_service, mock_console):
         """Test reset cancelled when user says no."""
-        with patch('builtins.input', return_value='no'):
+        with patch("builtins.input", return_value="no"):
             result = budget_service.reset(confirmed=False)
 
         assert result.success is False
@@ -110,14 +105,14 @@ class TestBudgetService:
 
     def test_reset_confirmed_by_input(self, budget_service, mock_console):
         """Test reset confirmed via user input."""
-        with patch('builtins.input', return_value='yes'):
+        with patch("builtins.input", return_value="yes"):
             result = budget_service.reset(confirmed=False)
 
         assert result.success is True
 
     def test_reset_keyboard_interrupt(self, budget_service, mock_console):
         """Test reset handles KeyboardInterrupt."""
-        with patch('builtins.input', side_effect=KeyboardInterrupt):
+        with patch("builtins.input", side_effect=KeyboardInterrupt):
             result = budget_service.reset(confirmed=False)
 
         assert result.success is False
@@ -132,7 +127,7 @@ class TestBudgetService:
         assert result.success is True
         assert result.data is not None
         assert "new_limit" in result.data
-        mock_console.print.assert_any_call(f"\n[green]Added $5.00 to daily budget.[/green]")
+        mock_console.print.assert_any_call("\n[green]Added $5.00 to daily budget.[/green]")
 
     def test_add_credit_zero(self, budget_service, mock_console):
         """Test adding zero credit fails."""
@@ -169,25 +164,21 @@ class TestBudgetService:
             {
                 "type": "api_call",
                 "session_id": "test",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "data": {
                     "provider": "anthropic",
                     "model": "claude-3",
                     "tokens_in": 100,
                     "tokens_out": 200,
-                    "success": True
-                }
+                    "success": True,
+                },
             }
         ]
         with open(telemetry_file, "w", encoding="utf-8") as f:
             for event in events:
                 f.write(json.dumps(event) + "\n")
 
-        service = BudgetService(
-            workspace_path=temp_workspace,
-            console=mock_console,
-            config=mock_config
-        )
+        service = BudgetService(workspace_path=temp_workspace, console=mock_console, config=mock_config)
 
         result = service.history()
 
@@ -211,7 +202,7 @@ class TestGetBudgetService:
 
     def test_get_service_creates_new(self):
         """Test creating new service when not in extras."""
-        from core.observability.telemetry.service import _get_budget_service, BudgetService
+        from core.observability.telemetry.service import BudgetService, _get_budget_service
 
         with tempfile.TemporaryDirectory() as tmpdir:
             mock_context = MagicMock()

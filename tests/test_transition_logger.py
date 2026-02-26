@@ -16,12 +16,10 @@ Validates:
 """
 
 import time
-import pytest
 
 from core.fsm.transition_logger import (
-    DEFAULT_RECENT_LIMIT,
-    LoggerStats,
     MAX_ENTRIES,
+    LoggerStats,
     StateDurationStats,
     TransitionEntry,
     TransitionFrequency,
@@ -30,10 +28,10 @@ from core.fsm.transition_logger import (
     reset_transition_logger,
 )
 
-
 # =============================================================================
 # TransitionEntry Tests
 # =============================================================================
+
 
 class TestTransitionEntry:
     """Test TransitionEntry dataclass."""
@@ -60,6 +58,7 @@ class TestTransitionEntry:
 # StateDurationStats Tests
 # =============================================================================
 
+
 class TestStateDurationStats:
     """Test StateDurationStats dataclass."""
 
@@ -73,6 +72,7 @@ class TestStateDurationStats:
 # =============================================================================
 # TransitionFrequency Tests
 # =============================================================================
+
 
 class TestTransitionFrequency:
     """Test TransitionFrequency dataclass."""
@@ -88,6 +88,7 @@ class TestTransitionFrequency:
 # LoggerStats Tests
 # =============================================================================
 
+
 class TestLoggerStats:
     """Test LoggerStats dataclass."""
 
@@ -102,6 +103,7 @@ class TestLoggerStats:
 # Logging Tests
 # =============================================================================
 
+
 class TestLogging:
     """Test transition logging."""
 
@@ -114,7 +116,8 @@ class TestLogging:
     def test_log_with_details(self):
         logger = TransitionLogger()
         entry = logger.log(
-            "idle", "running",
+            "idle",
+            "running",
             trigger="user_input",
             session_id="s1",
             duration_ms=150.0,
@@ -132,13 +135,14 @@ class TestLogging:
     def test_auto_eviction(self):
         logger = TransitionLogger(max_entries=5)
         for i in range(10):
-            logger.log(f"s{i}", f"s{i+1}")
+            logger.log(f"s{i}", f"s{i + 1}")
         assert logger.entry_count == 5
 
 
 # =============================================================================
 # Query Tests
 # =============================================================================
+
 
 class TestQueries:
     """Test transition queries."""
@@ -155,7 +159,7 @@ class TestQueries:
     def test_get_recent_default_limit(self):
         logger = TransitionLogger()
         for i in range(5):
-            logger.log(f"s{i}", f"s{i+1}")
+            logger.log(f"s{i}", f"s{i + 1}")
         assert len(logger.get_recent()) == 5
 
     def test_get_by_state(self):
@@ -211,6 +215,7 @@ class TestQueries:
 # =============================================================================
 # Analysis Tests
 # =============================================================================
+
 
 class TestAnalysis:
     """Test transition analysis."""
@@ -269,6 +274,7 @@ class TestAnalysis:
 # Statistics Tests
 # =============================================================================
 
+
 class TestStatistics:
     """Test logger statistics."""
 
@@ -300,6 +306,7 @@ class TestStatistics:
 # State Tests
 # =============================================================================
 
+
 class TestState:
     """Test state management."""
 
@@ -327,6 +334,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global transition logger."""
 
@@ -353,23 +361,32 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_fsm_package(self):
         from core.fsm import (
-            TransitionLogger, TransitionEntry,
-            StateDurationStats, TransitionFrequency,
-            LoggerStats, get_transition_logger, reset_transition_logger,
+            LoggerStats,
+            StateDurationStats,
+            TransitionEntry,
+            TransitionFrequency,
+            TransitionLogger,
+            get_transition_logger,
+            reset_transition_logger,
         )
-        assert all([
-            TransitionLogger, TransitionEntry,
-            StateDurationStats, TransitionFrequency,
-            LoggerStats, get_transition_logger, reset_transition_logger,
-        ])
+
+        assert all(
+            [
+                TransitionLogger,
+                TransitionEntry,
+                StateDurationStats,
+                TransitionFrequency,
+                LoggerStats,
+                get_transition_logger,
+                reset_transition_logger,
+            ]
+        )
 
     def test_from_module(self):
-        from core.fsm.transition_logger import (
-            TransitionLogger, MAX_ENTRIES, DEFAULT_RECENT_LIMIT,
-        )
         assert MAX_ENTRIES == 50000

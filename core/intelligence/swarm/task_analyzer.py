@@ -22,17 +22,21 @@ from __future__ import annotations
 import asyncio
 import re
 from dataclasses import dataclass, field
-from enum import IntEnum, Enum
-from typing import List, Dict, Optional, Tuple, TYPE_CHECKING
+from enum import Enum, IntEnum
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from core.memory_pkg.memory.project_memory import ProjectMemory
 
 
 class TaskComplexity(IntEnum):
     """Task complexity levels (1-5)"""
-    TRIVIAL = 1   # Skip negotiation, direct execution
-    SIMPLE = 2    # Basic task, minimal coordination
+
+    TRIVIAL = 1  # Skip negotiation, direct execution
+    SIMPLE = 2  # Basic task, minimal coordination
     MODERATE = 3  # Standard multi-agent task
-    COMPLEX = 4   # Requires careful coordination
-    EXPERT = 5    # Requires RED_BLUE or specialist
+    COMPLEX = 4  # Requires careful coordination
+    EXPERT = 5  # Requires RED_BLUE or specialist
 
 
 class AnalysisStage(IntEnum):
@@ -43,6 +47,7 @@ class AnalysisStage(IntEnum):
     Stage 2: Heuristic classification (Cost: Low - CPU only)
     Stage 3: LLM fallback for ambiguous (Cost: API tokens)
     """
+
     STAGE1_REGEX = 1
     STAGE2_HEURISTIC = 2
     STAGE3_LLM = 3
@@ -50,6 +55,7 @@ class AnalysisStage(IntEnum):
 
 class TaskDomain(Enum):
     """Task domain categories"""
+
     CODING = "coding"
     RESEARCH = "research"
     ANALYSIS = "analysis"
@@ -63,58 +69,133 @@ class TaskDomain(Enum):
 
 
 # Keywords that indicate task domains
-DOMAIN_KEYWORDS: Dict[TaskDomain, List[str]] = {
+DOMAIN_KEYWORDS: dict[TaskDomain, list[str]] = {
     TaskDomain.CODING: [
-        "code", "implement", "function", "class", "method", "script",
-        "python", "javascript", "typescript", "rust", "go", "program",
-        "create file", "write code", "develop", "build"
+        "code",
+        "implement",
+        "function",
+        "class",
+        "method",
+        "script",
+        "python",
+        "javascript",
+        "typescript",
+        "rust",
+        "go",
+        "program",
+        "create file",
+        "write code",
+        "develop",
+        "build",
     ],
     TaskDomain.RESEARCH: [
-        "search", "find", "look up", "research", "investigate",
-        "what is", "how does", "why", "compare", "difference between",
-        "latest", "recent", "news", "documentation"
+        "search",
+        "find",
+        "look up",
+        "research",
+        "investigate",
+        "what is",
+        "how does",
+        "why",
+        "compare",
+        "difference between",
+        "latest",
+        "recent",
+        "news",
+        "documentation",
     ],
     TaskDomain.ANALYSIS: [
-        "analyze", "examine", "review", "understand", "explain",
-        "investigate", "study", "evaluate", "assess", "audit"
+        "analyze",
+        "examine",
+        "review",
+        "understand",
+        "explain",
+        "investigate",
+        "study",
+        "evaluate",
+        "assess",
+        "audit",
     ],
     TaskDomain.CREATIVE: [
-        "brainstorm", "idea", "creative", "design", "propose",
-        "suggest", "imagine", "innovate", "improve", "enhance"
+        "brainstorm",
+        "idea",
+        "creative",
+        "design",
+        "propose",
+        "suggest",
+        "imagine",
+        "innovate",
+        "improve",
+        "enhance",
     ],
     TaskDomain.DEBUGGING: [
-        "debug", "fix", "bug", "error", "issue", "problem",
-        "crash", "exception", "traceback", "broken", "not working"
+        "debug",
+        "fix",
+        "bug",
+        "error",
+        "issue",
+        "problem",
+        "crash",
+        "exception",
+        "traceback",
+        "broken",
+        "not working",
     ],
     TaskDomain.SECURITY: [
-        "security", "vulnerability", "exploit", "attack",
-        "protect", "secure", "authentication", "authorization",
-        "injection", "xss", "csrf", "penetration"
+        "security",
+        "vulnerability",
+        "exploit",
+        "attack",
+        "protect",
+        "secure",
+        "authentication",
+        "authorization",
+        "injection",
+        "xss",
+        "csrf",
+        "penetration",
     ],
     TaskDomain.DOCUMENTATION: [
-        "document", "readme", "guide", "tutorial", "explain how",
-        "write docs", "api reference", "changelog"
+        "document",
+        "readme",
+        "guide",
+        "tutorial",
+        "explain how",
+        "write docs",
+        "api reference",
+        "changelog",
     ],
-    TaskDomain.TESTING: [
-        "test", "pytest", "unittest", "coverage", "mock",
-        "assert", "verify", "validate", "qa"
-    ],
+    TaskDomain.TESTING: ["test", "pytest", "unittest", "coverage", "mock", "assert", "verify", "validate", "qa"],
     TaskDomain.ARCHITECTURE: [
-        "architecture", "design pattern", "structure", "system design",
-        "scalability", "refactor", "reorganize", "modular"
+        "architecture",
+        "design pattern",
+        "structure",
+        "system design",
+        "scalability",
+        "refactor",
+        "reorganize",
+        "modular",
     ],
     TaskDomain.WEB_INTERACTION: [
-        "web", "url", "fetch", "api", "http", "request",
-        "scrape", "download", "upload", "endpoint"
-    ]
+        "web",
+        "url",
+        "fetch",
+        "api",
+        "http",
+        "request",
+        "scrape",
+        "download",
+        "upload",
+        "endpoint",
+    ],
 }
 
 # Agent strengths by domain (Gemini 3 Pro vs Claude Opus 4.5)
-AGENT_DOMAIN_STRENGTHS: Dict[str, Dict[TaskDomain, float]] = {
+AGENT_DOMAIN_STRENGTHS: dict[str, dict[TaskDomain, float]] = {
     "gemini": {
-        TaskDomain.RESEARCH: 0.95,        # Grounding, web search
-        TaskDomain.WEB_INTERACTION: 0.90, # Terminal-Bench leader
-        TaskDomain.ANALYSIS: 0.85,        # Long-horizon planning
+        TaskDomain.RESEARCH: 0.95,  # Grounding, web search
+        TaskDomain.WEB_INTERACTION: 0.90,  # Terminal-Bench leader
+        TaskDomain.ANALYSIS: 0.85,  # Long-horizon planning
         TaskDomain.DOCUMENTATION: 0.75,
         TaskDomain.CREATIVE: 0.70,
         TaskDomain.CODING: 0.70,
@@ -124,17 +205,17 @@ AGENT_DOMAIN_STRENGTHS: Dict[str, Dict[TaskDomain, float]] = {
         TaskDomain.SECURITY: 0.65,
     },
     "claude": {
-        TaskDomain.CODING: 0.95,          # SWE-bench 80.9%
-        TaskDomain.DEBUGGING: 0.90,       # Sustained autonomy
-        TaskDomain.ARCHITECTURE: 0.90,    # Complex reasoning
-        TaskDomain.SECURITY: 0.85,        # Red team expertise
-        TaskDomain.CREATIVE: 0.85,        # Creativity
+        TaskDomain.CODING: 0.95,  # SWE-bench 80.9%
+        TaskDomain.DEBUGGING: 0.90,  # Sustained autonomy
+        TaskDomain.ARCHITECTURE: 0.90,  # Complex reasoning
+        TaskDomain.SECURITY: 0.85,  # Red team expertise
+        TaskDomain.CREATIVE: 0.85,  # Creativity
         TaskDomain.ANALYSIS: 0.80,
         TaskDomain.TESTING: 0.80,
         TaskDomain.DOCUMENTATION: 0.75,
-        TaskDomain.RESEARCH: 0.60,        # No native web search
+        TaskDomain.RESEARCH: 0.60,  # No native web search
         TaskDomain.WEB_INTERACTION: 0.50,
-    }
+    },
 }
 
 # =============================================================================
@@ -143,60 +224,74 @@ AGENT_DOMAIN_STRENGTHS: Dict[str, Dict[TaskDomain, float]] = {
 # These commands are recognized INSTANTLY via regex - no LLM needed
 STAGE1_INSTANT_COMMANDS = [
     # System commands (exact match)
-    r'^/?(status|state|info)$',
-    r'^/?(clear|cls|reset)$',
-    r'^/?(exit|quit|bye|q)$',
-    r'^/?(help|\?)$',
-    r'^/?(version|ver|v)$',
-    r'^/?(config|settings|prefs)$',
-    r'^/?(history|hist|logs?)$',
-    r'^/?(cancel|stop|abort)$',
+    r"^/?(status|state|info)$",
+    r"^/?(clear|cls|reset)$",
+    r"^/?(exit|quit|bye|q)$",
+    r"^/?(help|\?)$",
+    r"^/?(version|ver|v)$",
+    r"^/?(config|settings|prefs)$",
+    r"^/?(history|hist|logs?)$",
+    r"^/?(cancel|stop|abort)$",
     # Session commands
-    r'^/?(save|load|restore)$',
-    r'^/?(undo|redo)$',
+    r"^/?(save|load|restore)$",
+    r"^/?(undo|redo)$",
 ]
 
 # V7.5 HIVE MIND: Patterns for trivial conversational inputs (greetings, etc.)
 # These inputs should NOT trigger multi-agent collaboration
 CONVERSATIONAL_TRIVIAL_PATTERNS = [
     # Greetings (FR/EN/ES/DE)
-    r'^(hello|hi|hey|bonjour|salut|coucou|hola|hallo|guten tag)[\s!?.]*$',
-    r'^(bonsoir|good morning|good evening|good night)[\s!?.]*$',
+    r"^(hello|hi|hey|bonjour|salut|coucou|hola|hallo|guten tag)[\s!?.]*$",
+    r"^(bonsoir|good morning|good evening|good night)[\s!?.]*$",
     # Farewells
-    r'^(bye|goodbye|au revoir|ciao|adieu|à bientôt|a\+)[\s!?.]*$',
+    r"^(bye|goodbye|au revoir|ciao|adieu|à bientôt|a\+)[\s!?.]*$",
     # Acknowledgments
-    r'^(ok|okay|d\'accord|oui|yes|non|no|merci|thanks|thank you|thx|ty)[\s!?.]*$',
-    r'^(parfait|perfect|great|cool|nice|super|génial)[\s!?.]*$',
-    r'^(compris|understood|got it|roger)[\s!?.]*$',
+    r"^(ok|okay|d\'accord|oui|yes|non|no|merci|thanks|thank you|thx|ty)[\s!?.]*$",
+    r"^(parfait|perfect|great|cool|nice|super|génial)[\s!?.]*$",
+    r"^(compris|understood|got it|roger)[\s!?.]*$",
     # Simple questions about the assistant
-    r'^(ça va\??|how are you\??|comment vas-tu\??|tu vas bien\??)[\s!?.]*$',
-    r'^(qui es-tu\??|who are you\??|what are you\??)[\s!?.]*$',
+    r"^(ça va\??|how are you\??|comment vas-tu\??|tu vas bien\??)[\s!?.]*$",
+    r"^(qui es-tu\??|who are you\??|what are you\??)[\s!?.]*$",
     # Testing/probing
-    r'^(test|testing|1234?|ping|pong)[\s!?.]*$',
+    r"^(test|testing|1234?|ping|pong)[\s!?.]*$",
     # Continuation prompts
-    r'^(continue|continues|go on|vas-y|go ahead)[\s!?.]*$',
+    r"^(continue|continues|go on|vas-y|go ahead)[\s!?.]*$",
     # Empty or whitespace-only (after strip)
-    r'^\s*$',
+    r"^\s*$",
 ]
 
 # V11 SENTINEL: Minimum confidence threshold for Stage 2 (below = Stage 3 LLM)
 STAGE2_CONFIDENCE_THRESHOLD = 0.6
 
 # Keywords that increase complexity
-COMPLEXITY_INDICATORS: Dict[str, int] = {
+COMPLEXITY_INDICATORS: dict[str, int] = {
     # High complexity (+2)
-    "security": 2, "vulnerability": 2, "architecture": 2,
-    "refactor entire": 2, "redesign": 2, "migrate": 2,
-    "critical": 2, "production": 2, "scalability": 2,
-
+    "security": 2,
+    "vulnerability": 2,
+    "architecture": 2,
+    "refactor entire": 2,
+    "redesign": 2,
+    "migrate": 2,
+    "critical": 2,
+    "production": 2,
+    "scalability": 2,
     # Medium complexity (+1)
-    "implement": 1, "debug": 1, "analyze": 1,
-    "integrate": 1, "optimize": 1, "test coverage": 1,
-    "multiple files": 1, "across": 1, "complex": 1,
-
+    "implement": 1,
+    "debug": 1,
+    "analyze": 1,
+    "integrate": 1,
+    "optimize": 1,
+    "test coverage": 1,
+    "multiple files": 1,
+    "across": 1,
+    "complex": 1,
     # Low complexity (-1)
-    "simple": -1, "quick": -1, "small": -1,
-    "just": -1, "only": -1, "trivial": -1,
+    "simple": -1,
+    "quick": -1,
+    "small": -1,
+    "just": -1,
+    "only": -1,
+    "trivial": -1,
 }
 
 # =============================================================================
@@ -207,29 +302,29 @@ COMPLEXITY_INDICATORS: Dict[str, int] = {
 TASK_STRUCTURE_PATTERNS = {
     # Multi-step tasks (complexity +1)
     "multi_step": [
-        r'\b(first|then|after that|finally|next)\b',
-        r'\b(step\s*\d|phase\s*\d)\b',
-        r'\d+\.\s+\w+',  # Numbered lists
-        r'\band\s+then\b',
+        r"\b(first|then|after that|finally|next)\b",
+        r"\b(step\s*\d|phase\s*\d)\b",
+        r"\d+\.\s+\w+",  # Numbered lists
+        r"\band\s+then\b",
     ],
     # Questions (usually ANALYSIS domain)
     "question": [
-        r'\?$',
-        r'^(what|why|how|where|when|which|who)\b',
-        r'^(is|are|do|does|can|could|should|would)\b.*\?',
+        r"\?$",
+        r"^(what|why|how|where|when|which|who)\b",
+        r"^(is|are|do|does|can|could|should|would)\b.*\?",
     ],
     # Imperative commands (direct action)
     "imperative": [
-        r'^(create|write|implement|add|remove|delete|fix|update|change)\b',
-        r'^(run|execute|test|build|deploy|install)\b',
-        r'^(find|search|look|check|verify|validate)\b',
+        r"^(create|write|implement|add|remove|delete|fix|update|change)\b",
+        r"^(run|execute|test|build|deploy|install)\b",
+        r"^(find|search|look|check|verify|validate)\b",
     ],
     # Conditional tasks (complexity +1)
     "conditional": [
-        r'\bif\s+.+\s+(then|do|create)\b',
-        r'\bwhen\s+.+\s+(then|do|should)\b',
-        r'\bunless\b',
-        r'\bdepending on\b',
+        r"\bif\s+.+\s+(then|do|create)\b",
+        r"\bwhen\s+.+\s+(then|do|should)\b",
+        r"\bunless\b",
+        r"\bdepending on\b",
     ],
 }
 
@@ -237,24 +332,24 @@ TASK_STRUCTURE_PATTERNS = {
 CONTEXT_CLUE_PATTERNS = {
     # File references indicate CODING domain
     "file_reference": [
-        r'\b[\w/\\]+\.(py|js|ts|go|rs|java|cpp|c|h|md|json|yaml|yml|toml)\b',
-        r'`[^`]+\.(py|js|ts|go|rs|java|cpp|c|h)`',
+        r"\b[\w/\\]+\.(py|js|ts|go|rs|java|cpp|c|h|md|json|yaml|yml|toml)\b",
+        r"`[^`]+\.(py|js|ts|go|rs|java|cpp|c|h)`",
     ],
     # Code blocks indicate CODING domain
     "code_block": [
-        r'```[\w]*\n',
-        r'`[^`]{10,}`',  # Inline code longer than 10 chars
+        r"```[\w]*\n",
+        r"`[^`]{10,}`",  # Inline code longer than 10 chars
     ],
     # URLs indicate WEB_INTERACTION domain
     "url_reference": [
-        r'https?://[^\s]+',
-        r'\bapi\.[\w.]+\b',
+        r"https?://[^\s]+",
+        r"\bapi\.[\w.]+\b",
     ],
     # Error messages indicate DEBUGGING domain
     "error_message": [
-        r'\b(error|exception|traceback|stack trace)\b.*:',
-        r'\bline\s+\d+\b',
-        r'\b(TypeError|ValueError|KeyError|AttributeError|ImportError)\b',
+        r"\b(error|exception|traceback|stack trace)\b.*:",
+        r"\bline\s+\d+\b",
+        r"\b(TypeError|ValueError|KeyError|AttributeError|ImportError)\b",
     ],
 }
 
@@ -268,9 +363,10 @@ class TaskAnalysis:
 
     V11 SENTINEL: Added analysis_stage to track classification cost.
     """
+
     # Core analysis
     complexity: TaskComplexity
-    domains: List[TaskDomain]
+    domains: list[TaskDomain]
     primary_domain: TaskDomain
 
     # Requirements
@@ -290,13 +386,13 @@ class TaskAnalysis:
     confidence: float = 0.5
 
     # Detected keywords
-    detected_keywords: List[str] = field(default_factory=list)
+    detected_keywords: list[str] = field(default_factory=list)
 
     # V11 SENTINEL: Classification stage used (1=Regex, 2=Heuristic, 3=LLM)
     analysis_stage: AnalysisStage = AnalysisStage.STAGE2_HEURISTIC
 
     # V11 SENTINEL: Instant command detected (Stage 1)
-    instant_command: Optional[str] = None
+    instant_command: str | None = None
 
     @property
     def recommended_lead(self) -> str:
@@ -315,12 +411,9 @@ class TaskAnalysis:
     @property
     def needs_adversarial_mode(self) -> bool:
         """Whether task should use RED_BLUE mode"""
-        return (
-            self.complexity == TaskComplexity.EXPERT
-            or TaskDomain.SECURITY in self.domains
-        )
+        return self.complexity == TaskComplexity.EXPERT or TaskDomain.SECURITY in self.domains
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "complexity": self.complexity.name,
             "complexity_value": self.complexity.value,
@@ -344,7 +437,7 @@ class TaskAnalysis:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "TaskAnalysis":
+    def from_dict(cls, data: dict) -> TaskAnalysis:
         """
         V12.4: Create TaskAnalysis from a dictionary (for blackboard deserialization).
 
@@ -403,7 +496,7 @@ class TaskAnalyzer:
     V11.2 MEMORIA: RAG-enriched classification for domain hints.
     """
 
-    def __init__(self, project_memory: Optional["ProjectMemory"] = None):
+    def __init__(self, project_memory: ProjectMemory | None = None):
         """
         Initialize TaskAnalyzer.
 
@@ -421,14 +514,14 @@ class TaskAnalyzer:
         # V11.2 MEMORIA: ProjectMemory for RAG-enriched classification
         self.project_memory = project_memory
 
-    def _compile_structure_patterns(self) -> Dict[str, List[re.Pattern]]:
+    def _compile_structure_patterns(self) -> dict[str, list[re.Pattern]]:
         """V10 FIX F1: Compile task structure patterns."""
         compiled = {}
         for category, patterns in TASK_STRUCTURE_PATTERNS.items():
             compiled[category] = [re.compile(p, re.IGNORECASE | re.MULTILINE) for p in patterns]
         return compiled
 
-    def _compile_context_patterns(self) -> Dict[str, List[re.Pattern]]:
+    def _compile_context_patterns(self) -> dict[str, list[re.Pattern]]:
         """V10 FIX F1: Compile context clue patterns."""
         compiled = {}
         for category, patterns in CONTEXT_CLUE_PATTERNS.items():
@@ -439,7 +532,7 @@ class TaskAnalyzer:
         """Compile regex patterns for trivial conversational inputs"""
         return [re.compile(p, re.IGNORECASE) for p in CONVERSATIONAL_TRIVIAL_PATTERNS]
 
-    def _compile_instant_commands(self) -> List[re.Pattern]:
+    def _compile_instant_commands(self) -> list[re.Pattern]:
         """V11 SENTINEL: Compile Stage 1 instant command patterns."""
         return [re.compile(p, re.IGNORECASE) for p in STAGE1_INSTANT_COMMANDS]
 
@@ -447,7 +540,7 @@ class TaskAnalyzer:
     # V11 SENTINEL: Stage 1 - Instant Command Detection (Cost: $0)
     # =========================================================================
 
-    def is_instant_command(self, text: str) -> Optional[str]:
+    def is_instant_command(self, text: str) -> str | None:
         """
         V11 SENTINEL: Stage 1 - Check if input is an instant command.
 
@@ -465,7 +558,7 @@ class TaskAnalyzer:
             match = pattern.match(text_stripped)
             if match:
                 # Extract the command from the match
-                return match.group(0).lstrip('/')
+                return match.group(0).lstrip("/")
         return None
 
     def is_conversational_trivial(self, text: str) -> bool:
@@ -478,17 +571,14 @@ class TaskAnalyzer:
             True if input is a simple greeting/acknowledgment
         """
         text_stripped = text.strip()
-        for pattern in self._trivial_patterns:
-            if pattern.match(text_stripped):
-                return True
-        return False
+        return any(pattern.match(text_stripped) for pattern in self._trivial_patterns)
 
-    def _compile_patterns(self) -> Dict[TaskDomain, re.Pattern]:
+    def _compile_patterns(self) -> dict[TaskDomain, re.Pattern]:
         """Compile regex patterns for domain detection"""
         patterns = {}
         for domain, keywords in DOMAIN_KEYWORDS.items():
             # Create case-insensitive pattern
-            pattern = r'\b(' + '|'.join(re.escape(k) for k in keywords) + r')\b'
+            pattern = r"\b(" + "|".join(re.escape(k) for k in keywords) + r")\b"
             patterns[domain] = re.compile(pattern, re.IGNORECASE)
         return patterns
 
@@ -558,9 +648,7 @@ class TaskAnalyzer:
         # V11.2 MEMORIA: Enrich with RAG context (if available)
         rag_domains, complexity_boost = self._enrich_with_rag_context(user_input)
         if rag_domains:
-            domains, detected_keywords = self._apply_rag_domain_hints(
-                domains, rag_domains, detected_keywords
-            )
+            domains, detected_keywords = self._apply_rag_domain_hints(domains, rag_domains, detected_keywords)
 
         # Determine primary domain
         primary_domain = domains[0] if domains else TaskDomain.CODING
@@ -582,22 +670,14 @@ class TaskAnalyzer:
         # Detect requirements
         requires_web = self._detect_web_requirement(input_lower)
         requires_code = self._detect_code_requirement(input_lower, domains)
-        requires_reasoning = self._detect_reasoning_requirement(
-            input_lower, complexity
-        )
-        requires_iteration = self._detect_iteration_requirement(
-            input_lower, domains
-        )
+        requires_reasoning = self._detect_reasoning_requirement(input_lower, complexity)
+        requires_iteration = self._detect_iteration_requirement(input_lower, domains)
 
         # Calculate agent fit scores
-        gemini_score, claude_score = self._calculate_agent_fit(
-            domains, requires_web, requires_code, requires_reasoning
-        )
+        gemini_score, claude_score = self._calculate_agent_fit(domains, requires_web, requires_code, requires_reasoning)
 
         # Estimate confidence
-        confidence = self._estimate_confidence(
-            domains, detected_keywords, user_input
-        )
+        confidence = self._estimate_confidence(domains, detected_keywords, user_input)
 
         # V11 SENTINEL: Stage 2 result (Heuristic)
         # If confidence is below threshold, Stage 3 (LLM) could be triggered
@@ -624,17 +704,15 @@ class TaskAnalyzer:
             analysis_stage=analysis_stage,
         )
 
-    def _detect_domains(
-        self, text: str
-    ) -> Tuple[List[TaskDomain], List[str]]:
+    def _detect_domains(self, text: str) -> tuple[list[TaskDomain], list[str]]:
         """
         Detect task domains from text.
 
         Returns:
             Tuple of (domains list sorted by relevance, detected keywords)
         """
-        domain_scores: Dict[TaskDomain, int] = {}
-        detected_keywords: List[str] = []
+        domain_scores: dict[TaskDomain, int] = {}
+        detected_keywords: list[str] = []
 
         for domain, pattern in self._domain_patterns.items():
             matches = pattern.findall(text)
@@ -650,17 +728,11 @@ class TaskAnalyzer:
                 detected_keywords.append(f"[CONTEXT:{domain.value}]")
 
         # Sort by score descending
-        sorted_domains = sorted(
-            domain_scores.keys(),
-            key=lambda d: domain_scores[d],
-            reverse=True
-        )
+        sorted_domains = sorted(domain_scores.keys(), key=lambda d: domain_scores[d], reverse=True)
 
         return sorted_domains, list(set(detected_keywords))
 
-    def _calculate_complexity(
-        self, text: str, domains: List[TaskDomain]
-    ) -> TaskComplexity:
+    def _calculate_complexity(self, text: str, domains: list[TaskDomain]) -> TaskComplexity:
         """Calculate task complexity based on indicators and structure (V10 FIX F1)."""
         score = 3  # Start at MODERATE
 
@@ -694,59 +766,53 @@ class TaskAnalyzer:
     def _detect_web_requirement(self, text: str) -> bool:
         """Detect if task requires web access"""
         web_indicators = [
-            "search", "latest", "recent", "news", "web",
-            "url", "http", "fetch", "api", "online",
-            "documentation", "look up", "find out"
+            "search",
+            "latest",
+            "recent",
+            "news",
+            "web",
+            "url",
+            "http",
+            "fetch",
+            "api",
+            "online",
+            "documentation",
+            "look up",
+            "find out",
         ]
         return any(indicator in text for indicator in web_indicators)
 
-    def _detect_code_requirement(
-        self, text: str, domains: List[TaskDomain]
-    ) -> bool:
+    def _detect_code_requirement(self, text: str, domains: list[TaskDomain]) -> bool:
         """Detect if task requires code execution"""
-        code_indicators = [
-            "run", "execute", "test", "pytest", "build",
-            "compile", "bash", "terminal", "command"
-        ]
+        code_indicators = ["run", "execute", "test", "pytest", "build", "compile", "bash", "terminal", "command"]
         has_indicators = any(ind in text for ind in code_indicators)
-        has_code_domain = any(
-            d in [TaskDomain.CODING, TaskDomain.TESTING, TaskDomain.DEBUGGING]
-            for d in domains
-        )
+        has_code_domain = any(d in [TaskDomain.CODING, TaskDomain.TESTING, TaskDomain.DEBUGGING] for d in domains)
         return has_indicators or has_code_domain
 
-    def _detect_reasoning_requirement(
-        self, text: str, complexity: TaskComplexity
-    ) -> bool:
+    def _detect_reasoning_requirement(self, text: str, complexity: TaskComplexity) -> bool:
         """Detect if task requires deep reasoning"""
         reasoning_indicators = [
-            "why", "analyze", "understand", "explain how",
-            "design", "architecture", "complex", "trade-off"
+            "why",
+            "analyze",
+            "understand",
+            "explain how",
+            "design",
+            "architecture",
+            "complex",
+            "trade-off",
         ]
-        return (
-            any(ind in text for ind in reasoning_indicators)
-            or complexity >= TaskComplexity.COMPLEX
-        )
+        return any(ind in text for ind in reasoning_indicators) or complexity >= TaskComplexity.COMPLEX
 
-    def _detect_iteration_requirement(
-        self, text: str, domains: List[TaskDomain]
-    ) -> bool:
+    def _detect_iteration_requirement(self, text: str, domains: list[TaskDomain]) -> bool:
         """Detect if task requires iteration/refinement"""
-        iteration_indicators = [
-            "improve", "refine", "iterate", "brainstorm",
-            "creative", "enhance", "optimize"
-        ]
+        iteration_indicators = ["improve", "refine", "iterate", "brainstorm", "creative", "enhance", "optimize"]
         has_indicators = any(ind in text for ind in iteration_indicators)
         has_creative = TaskDomain.CREATIVE in domains
         return has_indicators or has_creative
 
     def _calculate_agent_fit(
-        self,
-        domains: List[TaskDomain],
-        requires_web: bool,
-        requires_code: bool,
-        requires_reasoning: bool
-    ) -> Tuple[float, float]:
+        self, domains: list[TaskDomain], requires_web: bool, requires_code: bool, requires_reasoning: bool
+    ) -> tuple[float, float]:
         """
         Calculate fit scores for Gemini and Claude.
 
@@ -789,12 +855,7 @@ class TaskAnalyzer:
 
         return gemini_score, claude_score
 
-    def _estimate_confidence(
-        self,
-        domains: List[TaskDomain],
-        keywords: List[str],
-        text: str
-    ) -> float:
+    def _estimate_confidence(self, domains: list[TaskDomain], keywords: list[str], text: str) -> float:
         """Estimate confidence in the analysis"""
         confidence = 0.5  # Base confidence
 
@@ -819,7 +880,7 @@ class TaskAnalyzer:
     # V10 FIX F1: Context-Aware Analysis Methods
     # =========================================================================
 
-    def _analyze_task_structure(self, text: str) -> Dict[str, bool]:
+    def _analyze_task_structure(self, text: str) -> dict[str, bool]:
         """
         V10 FIX F1: Analyze task structure beyond keywords.
 
@@ -847,7 +908,7 @@ class TaskAnalyzer:
 
         return structure
 
-    def _detect_context_clues(self, text: str) -> List[str]:
+    def _detect_context_clues(self, text: str) -> list[str]:
         """
         V10 FIX F1: Detect context clues that inform classification.
 
@@ -864,7 +925,7 @@ class TaskAnalyzer:
 
         return clues
 
-    def _infer_domains_from_context(self, text: str) -> List[TaskDomain]:
+    def _infer_domains_from_context(self, text: str) -> list[TaskDomain]:
         """
         V10 FIX F1: Infer domains from context clues, not just keywords.
 
@@ -895,11 +956,7 @@ class TaskAnalyzer:
 
         return inferred
 
-    def _adjust_complexity_from_structure(
-        self,
-        base_complexity: int,
-        text: str
-    ) -> int:
+    def _adjust_complexity_from_structure(self, base_complexity: int, text: str) -> int:
         """
         V10 FIX F1: Adjust complexity based on task structure analysis.
 
@@ -976,19 +1033,13 @@ class TaskAnalyzer:
             return False
 
         # Don't escalate if clear domain detected
-        if len(analysis.domains) >= 2 and analysis.confidence > 0.4:
-            return False
-
-        return True
+        return not (len(analysis.domains) >= 2 and analysis.confidence > 0.4)
 
     # =========================================================================
     # V11.2 MEMORIA: RAG-Enriched Classification
     # =========================================================================
 
-    def _enrich_with_rag_context(
-        self,
-        user_input: str
-    ) -> Tuple[List[TaskDomain], float]:
+    def _enrich_with_rag_context(self, user_input: str) -> tuple[list[TaskDomain], float]:
         """
         V11.2 MEMORIA: Get RAG context to help classification.
 
@@ -1012,35 +1063,34 @@ class TaskAnalyzer:
             if not chunks:
                 return [], 0.0
 
-            domain_hints: List[TaskDomain] = []
+            domain_hints: list[TaskDomain] = []
             complexity_boost = 0.0
 
             for chunk in chunks:
-                file_path = getattr(chunk, 'file_path', getattr(chunk, 'source_path', ''))
-                content = getattr(chunk, 'content', '')
+                file_path = getattr(chunk, "file_path", getattr(chunk, "source_path", ""))
+                content = getattr(chunk, "content", "")
 
                 # Infer domain from file extension
-                if file_path.endswith('.py'):
+                if file_path.endswith(".py"):
                     if TaskDomain.CODING not in domain_hints:
                         domain_hints.append(TaskDomain.CODING)
-                    if 'test_' in file_path or '/tests/' in file_path:
-                        if TaskDomain.TESTING not in domain_hints:
-                            domain_hints.append(TaskDomain.TESTING)
-                elif file_path.endswith('.md'):
+                    if ("test_" in file_path or "/tests/" in file_path) and TaskDomain.TESTING not in domain_hints:
+                        domain_hints.append(TaskDomain.TESTING)
+                elif file_path.endswith(".md"):
                     if TaskDomain.DOCUMENTATION not in domain_hints:
                         domain_hints.append(TaskDomain.DOCUMENTATION)
-                elif file_path.endswith(('.js', '.ts', '.tsx', '.jsx')):
+                elif file_path.endswith((".js", ".ts", ".tsx", ".jsx")):
                     if TaskDomain.CODING not in domain_hints:
                         domain_hints.append(TaskDomain.CODING)
 
                 # Complexity hints from content patterns
-                if 'async' in content or 'await' in content:
+                if "async" in content or "await" in content:
                     complexity_boost += 0.1
-                if 'class ' in content:
+                if "class " in content:
                     complexity_boost += 0.05
-                if 'try:' in content or 'except' in content:
+                if "try:" in content or "except" in content:
                     complexity_boost += 0.05
-                if 'security' in content.lower() or 'auth' in content.lower():
+                if "security" in content.lower() or "auth" in content.lower():
                     complexity_boost += 0.1
                     if TaskDomain.SECURITY not in domain_hints:
                         domain_hints.append(TaskDomain.SECURITY)
@@ -1052,11 +1102,8 @@ class TaskAnalyzer:
             return [], 0.0
 
     def _apply_rag_domain_hints(
-        self,
-        detected_domains: List[TaskDomain],
-        rag_domains: List[TaskDomain],
-        detected_keywords: List[str]
-    ) -> Tuple[List[TaskDomain], List[str]]:
+        self, detected_domains: list[TaskDomain], rag_domains: list[TaskDomain], detected_keywords: list[str]
+    ) -> tuple[list[TaskDomain], list[str]]:
         """
         V11.2 MEMORIA: Merge RAG-inferred domains with keyword-detected domains.
 

@@ -32,7 +32,7 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -64,16 +64,18 @@ AVERAGE_FLOOR = 0.30
 # Types
 # =============================================================================
 
+
 @dataclass
 class PhaseConfidence:
     """Confidence measurement for a single phase."""
+
     phase: str
     confidence: float
     depth: int
     timestamp: float = field(default_factory=time.monotonic)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "phase": self.phase,
             "confidence": round(self.confidence, 4),
@@ -85,7 +87,8 @@ class PhaseConfidence:
 @dataclass
 class ConfidenceTrajectory:
     """Summary of confidence across all recorded phases."""
-    entries: List[PhaseConfidence]
+
+    entries: list[PhaseConfidence]
     trend: str  # "improving", "declining", "stable", "insufficient_data"
     average: float
     minimum: float
@@ -93,7 +96,7 @@ class ConfidenceTrajectory:
     latest: float
     drop_detected: bool
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "trend": self.trend,
             "average": round(self.average, 4),
@@ -108,12 +111,13 @@ class ConfidenceTrajectory:
 @dataclass
 class AbortRecommendation:
     """Recommendation on whether to abort the pipeline."""
+
     should_abort: bool
     reason: str
     confidence: float  # Current confidence
     threshold: float  # What it was compared against
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "should_abort": self.should_abort,
             "reason": self.reason,
@@ -125,6 +129,7 @@ class AbortRecommendation:
 # =============================================================================
 # Stepwise Confidence Monitor
 # =============================================================================
+
 
 class StepwiseConfidenceMonitor:
     """
@@ -140,7 +145,7 @@ class StepwiseConfidenceMonitor:
     """
 
     def __init__(self, abort_threshold: float = AVERAGE_FLOOR):
-        self._entries: List[PhaseConfidence] = []
+        self._entries: list[PhaseConfidence] = []
         self._abort_threshold = abort_threshold
 
     def record(
@@ -169,7 +174,9 @@ class StepwiseConfidenceMonitor:
         self._entries.append(entry)
         _logger.debug(
             "Confidence recorded: phase=%s confidence=%.3f depth=%d",
-            phase, entry.confidence, entry.depth,
+            phase,
+            entry.confidence,
+            entry.depth,
         )
         return entry
 
@@ -201,7 +208,7 @@ class StepwiseConfidenceMonitor:
             return AbortRecommendation(
                 should_abort=True,
                 reason=f"Confidence {latest.confidence:.2f} below floor "
-                       f"{depth_floor:.2f} at depth {latest.depth} ({latest.phase})",
+                f"{depth_floor:.2f} at depth {latest.depth} ({latest.phase})",
                 confidence=latest.confidence,
                 threshold=depth_floor,
             )
@@ -214,7 +221,7 @@ class StepwiseConfidenceMonitor:
                 return AbortRecommendation(
                     should_abort=True,
                     reason=f"Sharp confidence drop: {prev.confidence:.2f} -> "
-                           f"{latest.confidence:.2f} (Δ={drop:.2f} > {DROP_THRESHOLD})",
+                    f"{latest.confidence:.2f} (Δ={drop:.2f} > {DROP_THRESHOLD})",
                     confidence=latest.confidence,
                     threshold=prev.confidence - DROP_THRESHOLD,
                 )
@@ -224,8 +231,7 @@ class StepwiseConfidenceMonitor:
         if avg < self._abort_threshold:
             return AbortRecommendation(
                 should_abort=True,
-                reason=f"Average confidence {avg:.2f} below threshold "
-                       f"{self._abort_threshold:.2f}",
+                reason=f"Average confidence {avg:.2f} below threshold {self._abort_threshold:.2f}",
                 confidence=avg,
                 threshold=self._abort_threshold,
             )
@@ -286,7 +292,7 @@ class StepwiseConfidenceMonitor:
         """Reset for a new task."""
         self._entries.clear()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize monitor state."""
         traj = self.get_trajectory()
         return traj.to_dict()
@@ -296,7 +302,7 @@ class StepwiseConfidenceMonitor:
     # =========================================================================
 
     @staticmethod
-    def _compute_trend(values: List[float]) -> str:
+    def _compute_trend(values: list[float]) -> str:
         """Compute trend from sequence of values."""
         if len(values) < 2:
             return "insufficient_data"
@@ -320,9 +326,6 @@ class StepwiseConfidenceMonitor:
         return "stable"
 
     @staticmethod
-    def _detect_drop(values: List[float]) -> bool:
+    def _detect_drop(values: list[float]) -> bool:
         """Detect any sharp drop in the sequence."""
-        for i in range(1, len(values)):
-            if values[i - 1] - values[i] > DROP_THRESHOLD:
-                return True
-        return False
+        return any(values[i - 1] - values[i] > DROP_THRESHOLD for i in range(1, len(values)))

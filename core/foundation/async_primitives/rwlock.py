@@ -30,7 +30,6 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import asynccontextmanager
-from typing import Optional
 from dataclasses import dataclass
 
 
@@ -127,11 +126,7 @@ class AsyncRWLock:
         return self._pending_writers
 
     def __repr__(self) -> str:
-        return (
-            f"AsyncRWLock(readers={self._readers}, "
-            f"writer={self._writer}, "
-            f"pending_writers={self._pending_writers})"
-        )
+        return f"AsyncRWLock(readers={self._readers}, writer={self._writer}, pending_writers={self._pending_writers})"
 
 
 class AsyncRWLockWithTimeout(AsyncRWLock):
@@ -154,12 +149,9 @@ class AsyncRWLockWithTimeout(AsyncRWLock):
         """
         async with self._condition:
             try:
-                await asyncio.wait_for(
-                    self._wait_for_read(),
-                    timeout=timeout
-                )
-            except asyncio.TimeoutError:
-                raise asyncio.TimeoutError("Timeout acquiring read lock")
+                await asyncio.wait_for(self._wait_for_read(), timeout=timeout)
+            except TimeoutError:
+                raise TimeoutError("Timeout acquiring read lock") from None
             self._readers += 1
 
         try:
@@ -185,12 +177,9 @@ class AsyncRWLockWithTimeout(AsyncRWLock):
             self._pending_writers += 1
             try:
                 try:
-                    await asyncio.wait_for(
-                        self._wait_for_write(),
-                        timeout=timeout
-                    )
-                except asyncio.TimeoutError:
-                    raise asyncio.TimeoutError("Timeout acquiring write lock")
+                    await asyncio.wait_for(self._wait_for_write(), timeout=timeout)
+                except TimeoutError:
+                    raise TimeoutError("Timeout acquiring write lock") from None
                 self._writer = True
             finally:
                 self._pending_writers -= 1
@@ -216,6 +205,7 @@ class AsyncRWLockWithTimeout(AsyncRWLock):
 @dataclass
 class RWLockStats:
     """Statistics for an AsyncRWLock."""
+
     total_reads: int = 0
     total_writes: int = 0
     read_wait_time_ms: float = 0.0
@@ -243,6 +233,7 @@ class InstrumentedAsyncRWLock(AsyncRWLock):
     async def read(self):
         """Instrumented read lock acquisition."""
         import time
+
         start = time.monotonic()
 
         async with self._condition:
@@ -264,6 +255,7 @@ class InstrumentedAsyncRWLock(AsyncRWLock):
     async def write(self):
         """Instrumented write lock acquisition."""
         import time
+
         start = time.monotonic()
 
         async with self._condition:

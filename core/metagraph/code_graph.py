@@ -12,12 +12,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import Path
-from typing import Dict, List, Set, Optional
 
 
 class SymbolType(Enum):
     """Type of code symbol."""
+
     MODULE = "module"
     CLASS = "class"
     FUNCTION = "function"
@@ -28,12 +27,13 @@ class SymbolType(Enum):
 
 class DependencyType(Enum):
     """Type of dependency relationship."""
-    IMPORTS = "imports"              # A imports B
-    CALLS = "calls"                  # A calls B
-    INHERITS = "inherits"            # A inherits from B
-    USES = "uses"                    # A uses B (generic)
-    DEFINES = "defines"              # Module defines Class/Function
-    CONTAINS = "contains"            # Class contains Method
+
+    IMPORTS = "imports"  # A imports B
+    CALLS = "calls"  # A calls B
+    INHERITS = "inherits"  # A inherits from B
+    USES = "uses"  # A uses B (generic)
+    DEFINES = "defines"  # Module defines Class/Function
+    CONTAINS = "contains"  # Class contains Method
 
 
 @dataclass
@@ -50,13 +50,14 @@ class Symbol:
         docstring: Symbol's docstring (if any)
         metadata: Additional metadata (decorators, params, etc.)
     """
+
     name: str
     qualified_name: str
     symbol_type: SymbolType
     file_path: str
     line_number: int
-    docstring: Optional[str] = None
-    metadata: Dict[str, any] = field(default_factory=dict)
+    docstring: str | None = None
+    metadata: dict[str, any] = field(default_factory=dict)
 
     def __hash__(self):
         return hash(self.qualified_name)
@@ -79,6 +80,7 @@ class Dependency:
         file_path: File where dependency occurs
         line_number: Line where dependency occurs
     """
+
     source: Symbol
     target: Symbol
     dep_type: DependencyType
@@ -105,9 +107,9 @@ class CodeGraph:
     """
 
     def __init__(self):
-        self.symbols: Dict[str, Symbol] = {}
-        self.dependencies: Dict[str, List[Dependency]] = {}
-        self.reverse_deps: Dict[str, List[Dependency]] = {}
+        self.symbols: dict[str, Symbol] = {}
+        self.dependencies: dict[str, list[Dependency]] = {}
+        self.reverse_deps: dict[str, list[Dependency]] = {}
 
     def add_symbol(self, symbol: Symbol) -> None:
         """Add symbol to graph."""
@@ -138,44 +140,35 @@ class CodeGraph:
             self.reverse_deps[target_name] = []
         self.reverse_deps[target_name].append(dep)
 
-    def get_symbol(self, qualified_name: str) -> Optional[Symbol]:
+    def get_symbol(self, qualified_name: str) -> Symbol | None:
         """Get symbol by qualified name."""
         return self.symbols.get(qualified_name)
 
-    def get_dependencies(self, qualified_name: str) -> List[Dependency]:
+    def get_dependencies(self, qualified_name: str) -> list[Dependency]:
         """Get all dependencies of a symbol (what it depends on)."""
         return self.dependencies.get(qualified_name, [])
 
-    def get_dependents(self, qualified_name: str) -> List[Dependency]:
+    def get_dependents(self, qualified_name: str) -> list[Dependency]:
         """Get all dependents of a symbol (what depends on it)."""
         return self.reverse_deps.get(qualified_name, [])
 
-    def find_symbols_by_name(self, name: str) -> List[Symbol]:
+    def find_symbols_by_name(self, name: str) -> list[Symbol]:
         """Find all symbols with given name (unqualified)."""
-        return [
-            sym for sym in self.symbols.values()
-            if sym.name == name
-        ]
+        return [sym for sym in self.symbols.values() if sym.name == name]
 
-    def find_symbols_by_type(self, symbol_type: SymbolType) -> List[Symbol]:
+    def find_symbols_by_type(self, symbol_type: SymbolType) -> list[Symbol]:
         """Find all symbols of given type."""
-        return [
-            sym for sym in self.symbols.values()
-            if sym.symbol_type == symbol_type
-        ]
+        return [sym for sym in self.symbols.values() if sym.symbol_type == symbol_type]
 
-    def find_symbols_in_file(self, file_path: str) -> List[Symbol]:
+    def find_symbols_in_file(self, file_path: str) -> list[Symbol]:
         """Find all symbols defined in a file."""
-        return [
-            sym for sym in self.symbols.values()
-            if sym.file_path == file_path
-        ]
+        return [sym for sym in self.symbols.values() if sym.file_path == file_path]
 
     def get_transitive_dependencies(
         self,
         qualified_name: str,
         max_depth: int = 10,
-    ) -> Set[Symbol]:
+    ) -> set[Symbol]:
         """
         Get transitive dependencies (all symbols reachable from this one).
 
@@ -202,17 +195,13 @@ class CodeGraph:
                     queue.append((target_name, depth + 1))
 
         # Convert names to symbols
-        return {
-            self.symbols[name]
-            for name in visited
-            if name in self.symbols and name != qualified_name
-        }
+        return {self.symbols[name] for name in visited if name in self.symbols and name != qualified_name}
 
     def get_transitive_dependents(
         self,
         qualified_name: str,
         max_depth: int = 10,
-    ) -> Set[Symbol]:
+    ) -> set[Symbol]:
         """
         Get transitive dependents (all symbols that depend on this one).
 
@@ -239,13 +228,9 @@ class CodeGraph:
                     queue.append((source_name, depth + 1))
 
         # Convert names to symbols
-        return {
-            self.symbols[name]
-            for name in visited
-            if name in self.symbols and name != qualified_name
-        }
+        return {self.symbols[name] for name in visited if name in self.symbols and name != qualified_name}
 
-    def stats(self) -> Dict[str, int]:
+    def stats(self) -> dict[str, int]:
         """Get graph statistics."""
         total_deps = sum(len(deps) for deps in self.dependencies.values())
 

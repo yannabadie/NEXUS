@@ -14,10 +14,10 @@ Channel Format: nexus:{tenant_id}:{workspace_id}:{event_type}
 """
 
 import json
-from enum import Enum
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 from uuid import uuid4
 
 
@@ -70,8 +70,8 @@ class CerebroEventType(str, Enum):
     # Saga Events (V12.4.1 Epic 1.3 - Durable Sagas)
     # =========================================================================
     SAGA_CHECKPOINT = "saga.checkpoint"  # Phase checkpoint created
-    SAGA_ROLLBACK = "saga.rollback"      # Rollback to previous phase
-    SAGA_RESUME = "saga.resume"          # Saga resumed from disk/Redis
+    SAGA_ROLLBACK = "saga.rollback"  # Rollback to previous phase
+    SAGA_RESUME = "saga.resume"  # Saga resumed from disk/Redis
 
     # =========================================================================
     # Graph Events for React Flow UI (V10 SYNAPSE)
@@ -95,7 +95,7 @@ def _generate_event_id() -> str:
 
 def _generate_timestamp() -> str:
     """Generate ISO 8601 timestamp in UTC."""
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 @dataclass
@@ -124,12 +124,12 @@ class CerebroEvent:
     event_type: CerebroEventType
     tenant_id: str
     workspace_id: str
-    payload: Dict[str, Any]
+    payload: dict[str, Any]
     timestamp: str = field(default_factory=_generate_timestamp)
     event_id: str = field(default_factory=_generate_event_id)
     # V10 SYNAPSE: Correlation tracking for tracing related events
-    correlation_id: Optional[str] = None
-    sequence_number: Optional[int] = None
+    correlation_id: str | None = None
+    sequence_number: int | None = None
 
     def to_json(self) -> str:
         """
@@ -153,7 +153,7 @@ class CerebroEvent:
             data["sequence_number"] = self.sequence_number
         return json.dumps(data, ensure_ascii=False)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         Convert event to dictionary.
 
@@ -204,7 +204,7 @@ class CerebroEvent:
         )
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "CerebroEvent":
+    def from_dict(cls, d: dict[str, Any]) -> "CerebroEvent":
         """
         Create event from dictionary.
 
@@ -239,9 +239,7 @@ class CerebroEvent:
 
     @staticmethod
     def wildcard_channel(
-        tenant_id: str,
-        workspace_id: Optional[str] = None,
-        event_type: Optional[CerebroEventType] = None
+        tenant_id: str, workspace_id: str | None = None, event_type: CerebroEventType | None = None
     ) -> str:
         """
         Get Redis pattern for subscribing to multiple channels.
@@ -268,12 +266,8 @@ class CerebroEvent:
 # Convenience Functions
 # =============================================================================
 
-def create_interaction_event(
-    event_type: CerebroEventType,
-    tenant_id: str,
-    workspace_id: str,
-    **kwargs
-) -> CerebroEvent:
+
+def create_interaction_event(event_type: CerebroEventType, tenant_id: str, workspace_id: str, **kwargs) -> CerebroEvent:
     """
     Create an interaction event with common fields.
 
@@ -299,7 +293,7 @@ def create_system_log_event(
     workspace_id: str,
     level: str,
     message: str,
-    logger_name: Optional[str] = None,
+    logger_name: str | None = None,
 ) -> CerebroEvent:
     """
     Create a system log event.

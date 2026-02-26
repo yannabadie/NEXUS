@@ -20,22 +20,22 @@ import time
 import pytest
 
 from core.foundation.agents.capability_profiler import (
-    CapabilityProfiler,
-    AgentProfile,
-    CapabilityRecord,
-    MatchResult,
-    KNOWN_CAPABILITIES,
     DEFAULT_PROFICIENCY,
+    KNOWN_CAPABILITIES,
     LEARNING_RATE,
     MIN_OBSERVATIONS,
+    AgentProfile,
+    CapabilityProfiler,
+    CapabilityRecord,
+    MatchResult,
     get_capability_profiler,
     reset_capability_profiler,
 )
 
-
 # =============================================================================
 # CapabilityRecord Tests
 # =============================================================================
+
 
 class TestCapabilityRecord:
     """Test CapabilityRecord dataclass."""
@@ -73,8 +73,11 @@ class TestCapabilityRecord:
 
     def test_to_dict(self):
         rec = CapabilityRecord(
-            capability="coding", proficiency=0.8,
-            observations=5, successes=4, total_quality=3.5,
+            capability="coding",
+            proficiency=0.8,
+            observations=5,
+            successes=4,
+            total_quality=3.5,
         )
         d = rec.to_dict()
         assert d["capability"] == "coding"
@@ -86,6 +89,7 @@ class TestCapabilityRecord:
 # =============================================================================
 # AgentProfile Tests
 # =============================================================================
+
 
 class TestAgentProfile:
     """Test AgentProfile dataclass."""
@@ -111,7 +115,8 @@ class TestAgentProfile:
     def test_get_proficiency_present(self):
         profile = AgentProfile(agent_id="claude")
         profile.capabilities["coding"] = CapabilityRecord(
-            capability="coding", proficiency=0.9,
+            capability="coding",
+            proficiency=0.9,
         )
         assert profile.get_proficiency("coding") == 0.9
 
@@ -125,7 +130,8 @@ class TestAgentProfile:
     def test_to_dict(self):
         profile = AgentProfile(agent_id="claude", total_tasks=5, total_successes=4)
         profile.capabilities["coding"] = CapabilityRecord(
-            capability="coding", proficiency=0.85,
+            capability="coding",
+            proficiency=0.85,
         )
         d = profile.to_dict()
         assert d["agent_id"] == "claude"
@@ -138,12 +144,14 @@ class TestAgentProfile:
 # MatchResult Tests
 # =============================================================================
 
+
 class TestMatchResult:
     """Test MatchResult dataclass."""
 
     def test_full_match(self):
         m = MatchResult(
-            agent_id="claude", score=0.9,
+            agent_id="claude",
+            score=0.9,
             matched_capabilities=["coding", "debugging"],
             missing_capabilities=[],
             proficiency_details={"coding": 0.9, "debugging": 0.85},
@@ -152,7 +160,8 @@ class TestMatchResult:
 
     def test_partial_match(self):
         m = MatchResult(
-            agent_id="gemini", score=0.5,
+            agent_id="gemini",
+            score=0.5,
             matched_capabilities=["research"],
             missing_capabilities=["coding"],
             proficiency_details={"research": 0.8, "coding": 0.0},
@@ -161,7 +170,8 @@ class TestMatchResult:
 
     def test_to_dict(self):
         m = MatchResult(
-            agent_id="claude", score=0.85,
+            agent_id="claude",
+            score=0.85,
             matched_capabilities=["coding"],
             missing_capabilities=["research"],
             proficiency_details={"coding": 0.9, "research": 0.0},
@@ -175,6 +185,7 @@ class TestMatchResult:
 # =============================================================================
 # Registration Tests
 # =============================================================================
+
 
 class TestRegistration:
     """Test agent registration."""
@@ -244,6 +255,7 @@ class TestRegistration:
 # Outcome Recording & Learning Tests
 # =============================================================================
 
+
 class TestOutcomeRecording:
     """Test outcome recording and proficiency learning."""
 
@@ -284,7 +296,8 @@ class TestOutcomeRecording:
     def test_proficiency_decreases_on_failure(self):
         p = CapabilityProfiler()
         p.register_agent(
-            "claude", capabilities=["coding"],
+            "claude",
+            capabilities=["coding"],
             initial_proficiency={"coding": 0.8},
         )
         p.record_outcome("claude", "coding", success=False)
@@ -293,8 +306,7 @@ class TestOutcomeRecording:
     def test_ema_convergence(self):
         """Multiple successes should push proficiency toward 1.0."""
         p = CapabilityProfiler()
-        p.register_agent("claude", capabilities=["coding"],
-                         initial_proficiency={"coding": 0.5})
+        p.register_agent("claude", capabilities=["coding"], initial_proficiency={"coding": 0.5})
         for _ in range(20):
             p.record_outcome("claude", "coding", success=True, quality=1.0)
         assert p.get_proficiency("claude", "coding") > 0.9
@@ -310,16 +322,14 @@ class TestOutcomeRecording:
 
     def test_proficiency_stays_bounded(self):
         p = CapabilityProfiler()
-        p.register_agent("claude", capabilities=["coding"],
-                         initial_proficiency={"coding": 0.99})
+        p.register_agent("claude", capabilities=["coding"], initial_proficiency={"coding": 0.99})
         p.record_outcome("claude", "coding", success=True, quality=1.0)
         assert 0.0 <= p.get_proficiency("claude", "coding") <= 1.0
 
     def test_success_without_quality(self):
         """Success without explicit quality should use default 0.7."""
         p = CapabilityProfiler()
-        p.register_agent("claude", capabilities=["coding"],
-                         initial_proficiency={"coding": 0.5})
+        p.register_agent("claude", capabilities=["coding"], initial_proficiency={"coding": 0.5})
         p.record_outcome("claude", "coding", success=True)
         # EMA: 0.5 * 0.8 + 0.7 * 0.2 = 0.4 + 0.14 = 0.54
         expected = (1 - LEARNING_RATE) * 0.5 + LEARNING_RATE * 0.7
@@ -330,20 +340,21 @@ class TestOutcomeRecording:
 # Decay Tests
 # =============================================================================
 
+
 class TestDecay:
     """Test proficiency decay."""
 
     def test_no_decay_recent(self):
         p = CapabilityProfiler()
-        p.register_agent("claude", capabilities=["coding"],
-                         initial_proficiency={"coding": 0.9})
+        p.register_agent("claude", capabilities=["coding"], initial_proficiency={"coding": 0.9})
         decayed = p.apply_decay("claude")
         assert decayed == 0
 
     def test_decay_applied(self):
         p = CapabilityProfiler(decay_rate_per_hour=0.1)
         profile = p.register_agent(
-            "claude", capabilities=["coding"],
+            "claude",
+            capabilities=["coding"],
             initial_proficiency={"coding": 0.9},
         )
         # Simulate 2 hours ago
@@ -357,7 +368,8 @@ class TestDecay:
         """Proficiency should decay toward DEFAULT_PROFICIENCY."""
         p = CapabilityProfiler(decay_rate_per_hour=1.0)
         profile = p.register_agent(
-            "claude", capabilities=["coding"],
+            "claude",
+            capabilities=["coding"],
             initial_proficiency={"coding": 0.9},
         )
         rec = profile.capabilities["coding"]
@@ -370,7 +382,8 @@ class TestDecay:
         """Low proficiency should decay upward toward default."""
         p = CapabilityProfiler(decay_rate_per_hour=0.1)
         profile = p.register_agent(
-            "claude", capabilities=["coding"],
+            "claude",
+            capabilities=["coding"],
             initial_proficiency={"coding": 0.1},
         )
         rec = profile.capabilities["coding"]
@@ -382,7 +395,8 @@ class TestDecay:
         p = CapabilityProfiler(decay_rate_per_hour=0.1)
         for name in ["claude", "gemini"]:
             profile = p.register_agent(
-                name, capabilities=["coding"],
+                name,
+                capabilities=["coding"],
                 initial_proficiency={"coding": 0.9},
             )
             profile.capabilities["coding"].last_updated = time.monotonic() - 7200
@@ -393,6 +407,7 @@ class TestDecay:
 # =============================================================================
 # Matching Tests
 # =============================================================================
+
 
 class TestMatching:
     """Test task-capability matching."""
@@ -496,6 +511,7 @@ class TestMatching:
 # Query Tests
 # =============================================================================
 
+
 class TestQueries:
     """Test query methods."""
 
@@ -531,12 +547,9 @@ class TestQueries:
 
     def test_top_agents(self):
         p = CapabilityProfiler()
-        p.register_agent("claude", capabilities=["coding"],
-                         initial_proficiency={"coding": 0.9})
-        p.register_agent("gemini", capabilities=["coding"],
-                         initial_proficiency={"coding": 0.7})
-        p.register_agent("ollama", capabilities=["coding"],
-                         initial_proficiency={"coding": 0.5})
+        p.register_agent("claude", capabilities=["coding"], initial_proficiency={"coding": 0.9})
+        p.register_agent("gemini", capabilities=["coding"], initial_proficiency={"coding": 0.7})
+        p.register_agent("ollama", capabilities=["coding"], initial_proficiency={"coding": 0.5})
         top = p.top_agents("coding", limit=2)
         assert len(top) == 2
         assert top[0] == ("claude", 0.9)
@@ -550,8 +563,7 @@ class TestQueries:
 
     def test_get_proficiency(self):
         p = CapabilityProfiler()
-        p.register_agent("claude", capabilities=["coding"],
-                         initial_proficiency={"coding": 0.85})
+        p.register_agent("claude", capabilities=["coding"], initial_proficiency={"coding": 0.85})
         assert p.get_proficiency("claude", "coding") == 0.85
 
     def test_get_proficiency_unknown_agent(self):
@@ -567,6 +579,7 @@ class TestQueries:
 # =============================================================================
 # State Management Tests
 # =============================================================================
+
 
 class TestStateManagement:
     """Test state management."""
@@ -616,6 +629,7 @@ class TestStateManagement:
 # Constants Tests
 # =============================================================================
 
+
 class TestConstants:
     """Test module constants."""
 
@@ -639,38 +653,38 @@ class TestConstants:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_agents_package(self):
         from core.foundation.agents import (
-            CapabilityProfiler,
+            KNOWN_CAPABILITIES,
             AgentProfile,
+            CapabilityProfiler,
             CapabilityRecord,
             MatchResult,
-            KNOWN_CAPABILITIES,
         )
-        assert all([CapabilityProfiler, AgentProfile, CapabilityRecord,
-                     MatchResult, KNOWN_CAPABILITIES])
+
+        assert all([CapabilityProfiler, AgentProfile, CapabilityRecord, MatchResult, KNOWN_CAPABILITIES])
 
     def test_from_module(self):
         from core.foundation.agents.capability_profiler import (
-            CapabilityProfiler,
+            KNOWN_CAPABILITIES,
             AgentProfile,
+            CapabilityProfiler,
             CapabilityRecord,
             MatchResult,
-            KNOWN_CAPABILITIES,
-            DEFAULT_PROFICIENCY,
-            LEARNING_RATE,
         )
-        assert all([CapabilityProfiler, AgentProfile, CapabilityRecord,
-                     MatchResult])
+
+        assert all([CapabilityProfiler, AgentProfile, CapabilityRecord, MatchResult])
         assert len(KNOWN_CAPABILITIES) >= 20
 
 
 # =============================================================================
 # Singleton Tests
 # =============================================================================
+
 
 class TestSingleton:
     """Test singleton pattern."""

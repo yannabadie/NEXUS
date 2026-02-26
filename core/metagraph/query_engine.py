@@ -11,17 +11,17 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import List, Set, Optional
 
-from .code_graph import CodeGraph, Symbol, Dependency, DependencyType, SymbolType
+from .code_graph import CodeGraph, Dependency, Symbol, SymbolType
 
 
 @dataclass
 class DependencyResult:
     """Result of dependency query."""
+
     symbol: Symbol
-    direct_dependencies: List[Dependency]
-    transitive_dependencies: Set[Symbol]
+    direct_dependencies: list[Dependency]
+    transitive_dependencies: set[Symbol]
     dependency_depth: int
 
     def __repr__(self) -> str:
@@ -35,11 +35,12 @@ class DependencyResult:
 @dataclass
 class ImpactResult:
     """Result of impact analysis."""
+
     file_path: str
-    affected_symbols: List[Symbol]
-    direct_dependents: List[Dependency]
-    transitive_dependents: Set[Symbol]
-    affected_files: Set[str]
+    affected_symbols: list[Symbol]
+    direct_dependents: list[Dependency]
+    transitive_dependents: set[Symbol]
+    affected_files: set[str]
     impact_score: float  # 0-1, higher = more impact
 
     def __repr__(self) -> str:
@@ -54,6 +55,7 @@ class ImpactResult:
 @dataclass
 class SearchResult:
     """Result of semantic search."""
+
     symbol: Symbol
     score: float  # 0-1, higher = better match
     match_reason: str  # Why this matched (name, docstring, etc.)
@@ -66,7 +68,7 @@ def query_dependencies(
     graph: CodeGraph,
     symbol_name: str,
     max_depth: int = 10,
-) -> Optional[DependencyResult]:
+) -> DependencyResult | None:
     """
     Query what a symbol depends on.
 
@@ -165,16 +167,8 @@ def analyze_impact(
         all_transitive_deps.update(transitive_deps)
 
     # Extract affected files
-    affected_files = {
-        dep.source.file_path
-        for dep in all_direct_deps
-        if dep.source.file_path
-    }
-    affected_files.update(
-        sym.file_path
-        for sym in all_transitive_deps
-        if sym.file_path
-    )
+    affected_files = {dep.source.file_path for dep in all_direct_deps if dep.source.file_path}
+    affected_files.update(sym.file_path for sym in all_transitive_deps if sym.file_path)
 
     # Remove the file itself
     affected_files.discard(file_path)
@@ -200,9 +194,9 @@ def analyze_impact(
 def semantic_search(
     graph: CodeGraph,
     query: str,
-    symbol_types: List[SymbolType] | None = None,
+    symbol_types: list[SymbolType] | None = None,
     limit: int = 10,
-) -> List[SearchResult]:
+) -> list[SearchResult]:
     """
     Search for symbols by text query.
 
@@ -266,11 +260,13 @@ def semantic_search(
 
         # If any match, add to results
         if score > 0:
-            results.append(SearchResult(
-                symbol=symbol,
-                score=score,
-                match_reason=", ".join(match_reasons),
-            ))
+            results.append(
+                SearchResult(
+                    symbol=symbol,
+                    score=score,
+                    match_reason=", ".join(match_reasons),
+                )
+            )
 
     # Sort by score (descending) and limit
     results.sort(key=lambda r: r.score, reverse=True)
@@ -324,12 +320,7 @@ def _calculate_impact_score(
     log_files = math.log1p(num_files)
 
     # Weighted sum
-    raw_score = (
-        0.3 * log_symbols +
-        0.2 * log_direct +
-        0.3 * log_transitive +
-        0.2 * log_files
-    )
+    raw_score = 0.3 * log_symbols + 0.2 * log_direct + 0.3 * log_transitive + 0.2 * log_files
 
     # Normalize to [0, 1] (assume max ~10.0 for very high impact)
     normalized = min(raw_score / 10.0, 1.0)

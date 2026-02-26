@@ -9,19 +9,17 @@ Verifies:
 5. Stats and filtering
 """
 
-import pytest
-from pathlib import Path
-from datetime import datetime
 from dataclasses import dataclass
-from typing import List, Optional
 from enum import Enum
 
-from core.memory_pkg.memory import SuccessMemory, SuccessEntry, get_success_memory  # V2 via backward compat alias
+import pytest
 
+from core.memory_pkg.memory import SuccessEntry, SuccessMemory, get_success_memory  # V2 via backward compat alias
 
 # =============================================================================
 # Mock Classes for Testing
 # =============================================================================
+
 
 class MockTaskComplexity(Enum):
     TRIVIAL = 1
@@ -55,10 +53,11 @@ class MockExecutionStatus(Enum):
 @dataclass
 class MockTaskAnalysis:
     """Mock TaskAnalysis for testing."""
+
     raw_input: str = "Test task"
     complexity: MockTaskComplexity = MockTaskComplexity.MODERATE
-    domains: List[MockTaskDomain] = None
-    primary_domain: Optional[MockTaskDomain] = None
+    domains: list[MockTaskDomain] = None
+    primary_domain: MockTaskDomain | None = None
 
     def __post_init__(self):
         if self.domains is None:
@@ -70,39 +69,40 @@ class MockTaskAnalysis:
 @dataclass
 class MockAgentOutput:
     """Mock agent output."""
+
     agent_id: str
     status: str = "success"
-    error: Optional[str] = None
+    error: str | None = None
 
 
 @dataclass
 class MockExecutionResult:
     """Mock ExecutionResult for testing."""
+
     mode: MockCollaborationMode = MockCollaborationMode.PING_PONG
     status: MockExecutionStatus = MockExecutionStatus.COMPLETED
     total_rounds: int = 3
-    agent_outputs: List[MockAgentOutput] = None
+    agent_outputs: list[MockAgentOutput] = None
 
     def __post_init__(self):
         if self.agent_outputs is None:
-            self.agent_outputs = [
-                MockAgentOutput(agent_id="Gemini"),
-                MockAgentOutput(agent_id="Claude")
-            ]
+            self.agent_outputs = [MockAgentOutput(agent_id="Gemini"), MockAgentOutput(agent_id="Claude")]
 
 
 @dataclass
 class MockNegotiationResult:
     """Mock NegotiationResult for testing."""
+
     total_turns: int = 2
 
 
 @dataclass
 class MockSwarmResult:
     """Mock SwarmResult for testing."""
+
     selected_mode: MockCollaborationMode = MockCollaborationMode.PING_PONG
     execution_result: MockExecutionResult = None
-    negotiation_result: Optional[MockNegotiationResult] = None
+    negotiation_result: MockNegotiationResult | None = None
     total_time_seconds: float = 5.5
 
     def __post_init__(self):
@@ -113,6 +113,7 @@ class MockSwarmResult:
 # =============================================================================
 # SuccessEntry Tests
 # =============================================================================
+
 
 class TestSuccessEntry:
     """Tests for SuccessEntry dataclass."""
@@ -129,7 +130,7 @@ class TestSuccessEntry:
             complexity="MODERATE",
             domains=["coding", "debugging"],
             quality_score=0.85,
-            timestamp="2025-12-04T12:00:00"
+            timestamp="2025-12-04T12:00:00",
         )
 
         assert entry.task_id == "task-001"
@@ -148,7 +149,7 @@ class TestSuccessEntry:
             complexity="SIMPLE",
             domains=["coding"],
             quality_score=0.9,
-            timestamp="2025-12-04T12:00:00"
+            timestamp="2025-12-04T12:00:00",
         )
 
         d = entry.to_dict()
@@ -168,7 +169,7 @@ class TestSuccessEntry:
             "complexity": "COMPLEX",
             "domains": ["research"],
             "quality_score": 0.75,
-            "timestamp": "2025-12-04T13:00:00"
+            "timestamp": "2025-12-04T13:00:00",
         }
 
         entry = SuccessEntry.from_dict(data)
@@ -190,7 +191,7 @@ class TestSuccessEntry:
             timestamp="2025-12-04T14:00:00",
             primary_domain="architecture",
             negotiation_turns=3,
-            execution_rounds=4
+            execution_rounds=4,
         )
 
         reconstructed = SuccessEntry.from_dict(original.to_dict())
@@ -202,6 +203,7 @@ class TestSuccessEntry:
 # =============================================================================
 # SuccessMemory Tests
 # =============================================================================
+
 
 class TestSuccessMemory:
     """Tests for SuccessMemory class."""
@@ -218,7 +220,7 @@ class TestSuccessMemory:
             raw_input="Fix the authentication bug in auth.py",
             complexity=MockTaskComplexity.MODERATE,
             domains=[MockTaskDomain.CODING, MockTaskDomain.DEBUGGING],
-            primary_domain=MockTaskDomain.CODING
+            primary_domain=MockTaskDomain.CODING,
         )
 
     @pytest.fixture
@@ -230,13 +232,10 @@ class TestSuccessMemory:
                 mode=MockCollaborationMode.PING_PONG,
                 status=MockExecutionStatus.COMPLETED,
                 total_rounds=4,
-                agent_outputs=[
-                    MockAgentOutput(agent_id="Gemini"),
-                    MockAgentOutput(agent_id="Claude")
-                ]
+                agent_outputs=[MockAgentOutput(agent_id="Gemini"), MockAgentOutput(agent_id="Claude")],
             ),
             negotiation_result=MockNegotiationResult(total_turns=2),
-            total_time_seconds=12.5
+            total_time_seconds=12.5,
         )
 
     def test_initialization(self, memory, tmp_path):
@@ -251,11 +250,7 @@ class TestSuccessMemory:
 
     def test_record_success(self, memory, mock_analysis, mock_result):
         """Can record a success."""
-        entry = memory.record_success(
-            task_id="task-001",
-            analysis=mock_analysis,
-            result=mock_result
-        )
+        entry = memory.record_success(task_id="task-001", analysis=mock_analysis, result=mock_result)
 
         assert entry.task_id == "task-001"
         assert entry.complexity == "MODERATE"
@@ -376,10 +371,7 @@ class TestSuccessMemory:
         # Completed with few rounds = higher quality
         # Score breakdown: 0.5 base + 0.15 (rounds<=2) + 0.1 (no errors) = 0.75
         good_result = MockSwarmResult(
-            execution_result=MockExecutionResult(
-                status=MockExecutionStatus.COMPLETED,
-                total_rounds=2
-            )
+            execution_result=MockExecutionResult(status=MockExecutionStatus.COMPLETED, total_rounds=2)
         )
         entry1 = memory.record_success("task-001", mock_analysis, good_result)
         assert entry1.quality_score >= 0.7  # Should be ~0.75
@@ -387,10 +379,7 @@ class TestSuccessMemory:
         # Many rounds = lower quality
         # Score breakdown: 0.5 base + 0.05 (rounds<=6) + 0.1 (no errors) = 0.65
         slow_result = MockSwarmResult(
-            execution_result=MockExecutionResult(
-                status=MockExecutionStatus.COMPLETED,
-                total_rounds=6
-            )
+            execution_result=MockExecutionResult(status=MockExecutionStatus.COMPLETED, total_rounds=6)
         )
         entry2 = memory.record_success("task-002", mock_analysis, slow_result)
         assert entry2.quality_score < entry1.quality_score
@@ -406,6 +395,7 @@ class TestSuccessMemory:
 # Module-Level Singleton Tests
 # =============================================================================
 
+
 class TestGetSuccessMemory:
     """Tests for get_success_memory function."""
 
@@ -413,6 +403,7 @@ class TestGetSuccessMemory:
         """Returns None before initialization."""
         # Reset global state
         import core.memory.success_memory as sm
+
         sm._default_memory = None
 
         result = get_success_memory()
@@ -422,6 +413,7 @@ class TestGetSuccessMemory:
         """Can initialize with workspace path."""
         # Reset global state
         import core.memory.success_memory as sm
+
         sm._default_memory = None
 
         memory = get_success_memory(workspace_path=tmp_path)
@@ -431,6 +423,7 @@ class TestGetSuccessMemory:
     def test_returns_same_instance(self, tmp_path):
         """Returns same instance on subsequent calls."""
         import core.memory.success_memory as sm
+
         sm._default_memory = None
 
         memory1 = get_success_memory(workspace_path=tmp_path)
@@ -442,6 +435,7 @@ class TestGetSuccessMemory:
 # =============================================================================
 # HybridSwarmEngine Integration Tests
 # =============================================================================
+
 
 class TestHybridSwarmEngineIntegration:
     """Tests for SuccessMemory integration with HybridSwarmEngine."""

@@ -15,30 +15,27 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.execution_pkg.routing.routing_effectiveness_analyzer import (
     MAX_DECISIONS,
-    RoutingEffectivenessAnalyzer,
-    RoutingDecisionRecord,
-    PolicyMetrics,
     AnalyzerStats,
+    PolicyMetrics,
+    RoutingDecisionRecord,
+    RoutingEffectivenessAnalyzer,
     get_routing_analyzer,
     reset_routing_analyzer,
 )
 
-
 # =============================================================================
 # RoutingDecisionRecord Tests
 # =============================================================================
+
 
 class TestRoutingDecisionRecord:
     """Test RoutingDecisionRecord dataclass."""
 
     def test_to_dict(self):
         r = RoutingDecisionRecord(
-            decision_id="rd_000000", policy="COST_OPTIMIZED",
-            selected_model="claude-sonnet", outcome_quality=0.85
+            decision_id="rd_000000", policy="COST_OPTIMIZED", selected_model="claude-sonnet", outcome_quality=0.85
         )
         d = r.to_dict()
         assert d["policy"] == "COST_OPTIMIZED"
@@ -48,6 +45,7 @@ class TestRoutingDecisionRecord:
 # =============================================================================
 # PolicyMetrics Tests
 # =============================================================================
+
 
 class TestPolicyMetrics:
     """Test PolicyMetrics dataclass."""
@@ -88,6 +86,7 @@ class TestPolicyMetrics:
 # AnalyzerStats Tests
 # =============================================================================
 
+
 class TestAnalyzerStats:
     """Test AnalyzerStats dataclass."""
 
@@ -100,6 +99,7 @@ class TestAnalyzerStats:
 # =============================================================================
 # Recording Tests
 # =============================================================================
+
 
 class TestRecording:
     """Test decision recording."""
@@ -131,6 +131,7 @@ class TestRecording:
 # =============================================================================
 # Query Tests
 # =============================================================================
+
 
 class TestQueries:
     """Test query methods."""
@@ -167,7 +168,7 @@ class TestQueries:
 
     def test_recent_decisions(self):
         a = RoutingEffectivenessAnalyzer()
-        for i in range(5):
+        for _i in range(5):
             a.record_decision("BALANCED")
         recent = a.get_recent_decisions(limit=3)
         assert len(recent) == 3
@@ -183,12 +184,13 @@ class TestQueries:
 # Bounded History Tests
 # =============================================================================
 
+
 class TestBoundedHistory:
     """Test bounded decision history."""
 
     def test_eviction(self):
         a = RoutingEffectivenessAnalyzer(max_decisions=5)
-        for i in range(10):
+        for _i in range(10):
             a.record_decision("BALANCED")
         assert a.decision_count == 5
 
@@ -196,6 +198,7 @@ class TestBoundedHistory:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test analyzer statistics."""
@@ -224,6 +227,7 @@ class TestStatistics:
 # State Tests
 # =============================================================================
 
+
 class TestState:
     """Test state management."""
 
@@ -249,6 +253,7 @@ class TestState:
 # =============================================================================
 # Global Singleton Tests
 # =============================================================================
+
 
 class TestGlobalSingleton:
     """Test global routing analyzer."""
@@ -276,21 +281,30 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_routing_package(self):
         from core.execution_pkg.routing import (
-            RoutingEffectivenessAnalyzer, RoutingDecisionRecord,
-            PolicyMetrics, RoutingAnalyzerStats,
-            get_routing_analyzer, reset_routing_analyzer,
+            PolicyMetrics,
+            RoutingAnalyzerStats,
+            RoutingDecisionRecord,
+            RoutingEffectivenessAnalyzer,
+            get_routing_analyzer,
+            reset_routing_analyzer,
         )
-        assert all([
-            RoutingEffectivenessAnalyzer, RoutingDecisionRecord,
-            PolicyMetrics, RoutingAnalyzerStats,
-            get_routing_analyzer, reset_routing_analyzer,
-        ])
+
+        assert all(
+            [
+                RoutingEffectivenessAnalyzer,
+                RoutingDecisionRecord,
+                PolicyMetrics,
+                RoutingAnalyzerStats,
+                get_routing_analyzer,
+                reset_routing_analyzer,
+            ]
+        )
 
     def test_constants(self):
-        from core.execution_pkg.routing.routing_effectiveness_analyzer import MAX_DECISIONS
         assert MAX_DECISIONS == 50000

@@ -16,8 +16,6 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.intelligence.swarm.negotiation_tracker import (
     MAX_NEGOTIATIONS,
     NegotiationRecord,
@@ -28,17 +26,18 @@ from core.intelligence.swarm.negotiation_tracker import (
     reset_negotiation_tracker,
 )
 
-
 # =============================================================================
 # NegotiationTurn Tests
 # =============================================================================
+
 
 class TestNegotiationTurn:
     """Test NegotiationTurn dataclass."""
 
     def test_basic(self):
-        t = NegotiationTurn(turn_number=1, agent_id="claude",
-                            proposed_mode="PARALLEL", reasoning="Independent subtasks")
+        t = NegotiationTurn(
+            turn_number=1, agent_id="claude", proposed_mode="PARALLEL", reasoning="Independent subtasks"
+        )
         assert t.agent_id == "claude"
 
     def test_to_dict(self):
@@ -52,14 +51,18 @@ class TestNegotiationTurn:
 # NegotiationRecord Tests
 # =============================================================================
 
+
 class TestNegotiationRecord:
     """Test NegotiationRecord dataclass."""
 
     def test_to_dict(self):
         r = NegotiationRecord(
-            negotiation_id="neg_000001", task_domain="coding",
-            initial_mode="PARALLEL", final_mode="LEAD_SUPPORT",
-            turn_count=3, converged=True,
+            negotiation_id="neg_000001",
+            task_domain="coding",
+            initial_mode="PARALLEL",
+            final_mode="LEAD_SUPPORT",
+            turn_count=3,
+            converged=True,
         )
         d = r.to_dict()
         assert d["negotiation_id"] == "neg_000001"
@@ -69,6 +72,7 @@ class TestNegotiationRecord:
 # =============================================================================
 # NegotiationStats Tests
 # =============================================================================
+
 
 class TestNegotiationStats:
     """Test NegotiationStats dataclass."""
@@ -91,14 +95,18 @@ class TestNegotiationStats:
 # Recording Tests
 # =============================================================================
 
+
 class TestRecording:
     """Test negotiation recording."""
 
     def test_record_basic(self):
         t = NegotiationTracker()
         r = t.record_negotiation(
-            task_domain="coding", initial_mode="PARALLEL",
-            final_mode="LEAD_SUPPORT", turn_count=3, converged=True,
+            task_domain="coding",
+            initial_mode="PARALLEL",
+            final_mode="LEAD_SUPPORT",
+            turn_count=3,
+            converged=True,
         )
         assert r.negotiation_id == "neg_000001"
         assert t.negotiation_count == 1
@@ -106,8 +114,11 @@ class TestRecording:
     def test_record_failed(self):
         t = NegotiationTracker()
         r = t.record_negotiation(
-            task_domain="security", initial_mode="RED_BLUE",
-            final_mode="", turn_count=4, converged=False,
+            task_domain="security",
+            initial_mode="RED_BLUE",
+            final_mode="",
+            turn_count=4,
+            converged=False,
         )
         assert r.converged is False
 
@@ -129,6 +140,7 @@ class TestRecording:
 # =============================================================================
 # Convergence Rate Tests
 # =============================================================================
+
 
 class TestConvergenceRate:
     """Test convergence rate calculation."""
@@ -156,6 +168,7 @@ class TestConvergenceRate:
 # Ranking Tests
 # =============================================================================
 
+
 class TestRankings:
     """Test mode proposal and agreement rankings."""
 
@@ -182,6 +195,7 @@ class TestRankings:
 # =============================================================================
 # Query Tests
 # =============================================================================
+
 
 class TestQueries:
     """Test query methods."""
@@ -214,6 +228,7 @@ class TestQueries:
 # Bounded History Tests
 # =============================================================================
 
+
 class TestBoundedHistory:
     """Test bounded negotiation history."""
 
@@ -228,6 +243,7 @@ class TestBoundedHistory:
 # Statistics Tests
 # =============================================================================
 
+
 class TestStatistics:
     """Test tracker statistics."""
 
@@ -238,10 +254,10 @@ class TestStatistics:
 
     def test_stats_after_recording(self):
         t = NegotiationTracker()
-        t.record_negotiation(initial_mode="PARALLEL", final_mode="PARALLEL",
-                             turn_count=2, duration_ms=100, converged=True)
-        t.record_negotiation(initial_mode="RED_BLUE", final_mode="",
-                             turn_count=4, duration_ms=200, converged=False)
+        t.record_negotiation(
+            initial_mode="PARALLEL", final_mode="PARALLEL", turn_count=2, duration_ms=100, converged=True
+        )
+        t.record_negotiation(initial_mode="RED_BLUE", final_mode="", turn_count=4, duration_ms=200, converged=False)
         stats = t.get_stats()
         assert stats.total_negotiations == 2
         assert stats.converged_count == 1
@@ -256,6 +272,7 @@ class TestStatistics:
 # =============================================================================
 # State Tests
 # =============================================================================
+
 
 class TestState:
     """Test state management."""
@@ -283,6 +300,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global negotiation tracker."""
 
@@ -309,21 +327,30 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_swarm_package(self):
         from core.intelligence.swarm import (
-            NegotiationTracker, NegotiationTurn, NegotiationRecord,
+            NegotiationRecord,
             NegotiationStats,
-            get_negotiation_tracker, reset_negotiation_tracker,
+            NegotiationTracker,
+            NegotiationTurn,
+            get_negotiation_tracker,
+            reset_negotiation_tracker,
         )
-        assert all([
-            NegotiationTracker, NegotiationTurn, NegotiationRecord,
-            NegotiationStats,
-            get_negotiation_tracker, reset_negotiation_tracker,
-        ])
+
+        assert all(
+            [
+                NegotiationTracker,
+                NegotiationTurn,
+                NegotiationRecord,
+                NegotiationStats,
+                get_negotiation_tracker,
+                reset_negotiation_tracker,
+            ]
+        )
 
     def test_constants(self):
-        from core.intelligence.swarm.negotiation_tracker import MAX_NEGOTIATIONS
         assert MAX_NEGOTIATIONS == 50000

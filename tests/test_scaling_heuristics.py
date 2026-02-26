@@ -25,25 +25,25 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.intelligence.swarm.scaling_heuristics import (
-    CoordinationType,
-    TaskCharacteristic,
-    ScalingRecommendation,
-    ScalingStats,
-    ScalingHeuristicEvaluator,
-    SCALING_BENEFIT,
-    DEGRADATION_RISK,
-    COORDINATION_MAP,
     CHARACTERISTIC_KEYWORDS,
     COMPLEXITY_AGENT_MAP,
+    COORDINATION_MAP,
+    DEGRADATION_RISK,
+    SCALING_BENEFIT,
     SINGLE_AGENT_THRESHOLD,
+    CoordinationType,
+    ScalingHeuristicEvaluator,
+    ScalingRecommendation,
+    ScalingStats,
+    TaskCharacteristic,
     get_scaling_heuristics,
     reset_scaling_heuristics,
 )
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(autouse=True)
 def _reset_singleton():
@@ -62,6 +62,7 @@ def evaluator() -> ScalingHeuristicEvaluator:
 # ===========================================================================
 # Section 1: Enum values
 # ===========================================================================
+
 
 class TestCoordinationType:
     """Tests for CoordinationType enum."""
@@ -128,6 +129,7 @@ class TestTaskCharacteristic:
 # Section 2: ScalingRecommendation dataclass
 # ===========================================================================
 
+
 class TestScalingRecommendation:
     """Tests for ScalingRecommendation creation and serialization."""
 
@@ -163,9 +165,13 @@ class TestScalingRecommendation:
         rec = ScalingRecommendation(coordination=CoordinationType.CENTRALIZED)
         d = rec.to_dict()
         expected_keys = {
-            "coordination", "max_agents", "confidence",
-            "characteristic", "expected_benefit_pct",
-            "degradation_risk", "reasoning",
+            "coordination",
+            "max_agents",
+            "confidence",
+            "characteristic",
+            "expected_benefit_pct",
+            "degradation_risk",
+            "reasoning",
         }
         assert set(d.keys()) == expected_keys
 
@@ -197,6 +203,7 @@ class TestScalingRecommendation:
 # Section 3: ScalingStats dataclass
 # ===========================================================================
 
+
 class TestScalingStats:
     """Tests for ScalingStats creation and serialization."""
 
@@ -226,8 +233,10 @@ class TestScalingStats:
         stats = ScalingStats()
         d = stats.to_dict()
         expected_keys = {
-            "total_recommendations", "coordination_counts",
-            "single_agent_overrides", "avg_confidence",
+            "total_recommendations",
+            "coordination_counts",
+            "single_agent_overrides",
+            "avg_confidence",
         }
         assert set(d.keys()) == expected_keys
 
@@ -253,6 +262,7 @@ class TestScalingStats:
 # Section 4: Task classification by keywords
 # ===========================================================================
 
+
 class TestClassifyByKeywords:
     """Tests for keyword-based task classification."""
 
@@ -261,9 +271,7 @@ class TestClassifyByKeywords:
         assert rec.characteristic == TaskCharacteristic.PARALLELIZABLE
 
     def test_sequential_reasoning_keywords(self, evaluator):
-        rec = evaluator.evaluate(
-            "Step by step, derive the proof and calculate the theorem using logic"
-        )
+        rec = evaluator.evaluate("Step by step, derive the proof and calculate the theorem using logic")
         assert rec.characteristic == TaskCharacteristic.SEQUENTIAL_REASONING
 
     def test_web_navigation_keywords(self, evaluator):
@@ -271,27 +279,19 @@ class TestClassifyByKeywords:
         assert rec.characteristic == TaskCharacteristic.WEB_NAVIGATION
 
     def test_code_generation_keywords(self, evaluator):
-        rec = evaluator.evaluate(
-            "Write and implement a class with a function to build this module"
-        )
+        rec = evaluator.evaluate("Write and implement a class with a function to build this module")
         assert rec.characteristic == TaskCharacteristic.CODE_GENERATION
 
     def test_code_review_keywords(self, evaluator):
-        rec = evaluator.evaluate(
-            "Review this code for security bugs, debug and validate the fix"
-        )
+        rec = evaluator.evaluate("Review this code for security bugs, debug and validate the fix")
         assert rec.characteristic == TaskCharacteristic.CODE_REVIEW
 
     def test_creative_keywords(self, evaluator):
-        rec = evaluator.evaluate(
-            "Brainstorm and design a creative innovative architecture"
-        )
+        rec = evaluator.evaluate("Brainstorm and design a creative innovative architecture")
         assert rec.characteristic == TaskCharacteristic.CREATIVE
 
     def test_analytical_keywords(self, evaluator):
-        rec = evaluator.evaluate(
-            "Analyze performance, compare benchmarks, evaluate and assess results"
-        )
+        rec = evaluator.evaluate("Analyze performance, compare benchmarks, evaluate and assess results")
         assert rec.characteristic == TaskCharacteristic.ANALYTICAL
 
     def test_single_keyword_match(self, evaluator):
@@ -315,6 +315,7 @@ class TestClassifyByKeywords:
 # ===========================================================================
 # Section 5: Task classification from domains
 # ===========================================================================
+
 
 class TestClassifyByDomains:
     """Tests for domain-based task classification."""
@@ -363,9 +364,7 @@ class TestClassifyByDomains:
 
     def test_multiple_domains(self, evaluator):
         """Multiple domains should each contribute their boost."""
-        rec = evaluator.evaluate(
-            "do something", domains=["SECURITY", "ANALYSIS"]
-        )
+        rec = evaluator.evaluate("do something", domains=["SECURITY", "ANALYSIS"])
         # Both contribute +2.0 to their respective characteristics
         # CODE_REVIEW and ANALYTICAL both get 2.0, but CODE_REVIEW appears first in iteration
         assert rec.characteristic in (
@@ -377,6 +376,7 @@ class TestClassifyByDomains:
 # ===========================================================================
 # Section 6: Sequential reasoning -> SINGLE_AGENT + degradation warning
 # ===========================================================================
+
 
 class TestSequentialReasoning:
     """Tests for sequential reasoning tasks."""
@@ -407,31 +407,24 @@ class TestSequentialReasoning:
 # Section 7: Parallelizable tasks -> PARALLEL + high benefit
 # ===========================================================================
 
+
 class TestParallelizableTasks:
     """Tests for parallelizable tasks."""
 
     def test_parallel_coordination_type(self, evaluator):
-        rec = evaluator.evaluate(
-            "Run multiple independent tasks in parallel simultaneously"
-        )
+        rec = evaluator.evaluate("Run multiple independent tasks in parallel simultaneously")
         assert rec.coordination == CoordinationType.PARALLEL
 
     def test_parallel_high_benefit(self, evaluator):
-        rec = evaluator.evaluate(
-            "Run independent tasks in parallel simultaneously"
-        )
+        rec = evaluator.evaluate("Run independent tasks in parallel simultaneously")
         assert rec.expected_benefit_pct > 50.0
 
     def test_parallel_low_degradation_risk(self, evaluator):
-        rec = evaluator.evaluate(
-            "Run independent tasks in parallel simultaneously"
-        )
+        rec = evaluator.evaluate("Run independent tasks in parallel simultaneously")
         assert rec.degradation_risk <= 0.10
 
     def test_parallel_allows_two_agents(self, evaluator):
-        rec = evaluator.evaluate(
-            "Run parallel independent tasks", complexity="moderate"
-        )
+        rec = evaluator.evaluate("Run parallel independent tasks", complexity="moderate")
         assert rec.max_agents == 2
 
 
@@ -439,26 +432,21 @@ class TestParallelizableTasks:
 # Section 8: Code review -> centralized (RED_BLUE mode suggestion)
 # ===========================================================================
 
+
 class TestCodeReview:
     """Tests for code review tasks."""
 
     def test_code_review_centralized(self, evaluator):
-        rec = evaluator.evaluate(
-            "Review this code for security bugs and audit the fix"
-        )
+        rec = evaluator.evaluate("Review this code for security bugs and audit the fix")
         assert rec.coordination == CoordinationType.CENTRALIZED
 
     def test_code_review_red_blue_mode(self, evaluator):
-        rec = evaluator.evaluate(
-            "Review and audit this security code for bugs"
-        )
+        rec = evaluator.evaluate("Review and audit this security code for bugs")
         mode = evaluator.get_mode_suggestion(rec)
         assert mode == "RED_BLUE"
 
     def test_code_review_positive_benefit(self, evaluator):
-        rec = evaluator.evaluate(
-            "Review this code for security bugs, debug and validate"
-        )
+        rec = evaluator.evaluate("Review this code for security bugs, debug and validate")
         assert rec.expected_benefit_pct > 0
 
 
@@ -466,19 +454,16 @@ class TestCodeReview:
 # Section 9: Creative tasks -> decentralized (PING_PONG suggestion)
 # ===========================================================================
 
+
 class TestCreativeTasks:
     """Tests for creative tasks."""
 
     def test_creative_decentralized(self, evaluator):
-        rec = evaluator.evaluate(
-            "Brainstorm and design innovative creative ideas"
-        )
+        rec = evaluator.evaluate("Brainstorm and design innovative creative ideas")
         assert rec.coordination == CoordinationType.DECENTRALIZED
 
     def test_creative_ping_pong_mode(self, evaluator):
-        rec = evaluator.evaluate(
-            "Brainstorm creative innovative design ideas"
-        )
+        rec = evaluator.evaluate("Brainstorm creative innovative design ideas")
         mode = evaluator.get_mode_suggestion(rec)
         assert mode == "PING_PONG"
 
@@ -490,6 +475,7 @@ class TestCreativeTasks:
 # ===========================================================================
 # Section 10: Simple/trivial tasks -> single agent override
 # ===========================================================================
+
 
 class TestSimpleTrivialOverride:
     """Tests for complexity-based single agent override."""
@@ -540,6 +526,7 @@ class TestSimpleTrivialOverride:
 # Section 11: SINGLE_AGENT_THRESHOLD behavior
 # ===========================================================================
 
+
 class TestSingleAgentThreshold:
     """Tests for the SINGLE_AGENT_THRESHOLD constant and its effect."""
 
@@ -574,6 +561,7 @@ class TestSingleAgentThreshold:
 # ===========================================================================
 # Section 12: get_mode_suggestion() mapping to NEXUS swarm modes
 # ===========================================================================
+
 
 class TestGetModeSuggestion:
     """Tests for mapping recommendations to NEXUS swarm modes."""
@@ -642,6 +630,7 @@ class TestGetModeSuggestion:
 # Section 13: Historical outcome adjustment
 # ===========================================================================
 
+
 class TestHistoricalOutcomeAdjustment:
     """Tests for _get_historical_adjustment and record_outcome."""
 
@@ -652,21 +641,15 @@ class TestHistoricalOutcomeAdjustment:
 
     def test_fewer_than_three_returns_zero(self, evaluator):
         """With fewer than 3 relevant outcomes, adjustment should be 0.0."""
-        evaluator.record_outcome(
-            TaskCharacteristic.PARALLELIZABLE, CoordinationType.PARALLEL, True
-        )
-        evaluator.record_outcome(
-            TaskCharacteristic.PARALLELIZABLE, CoordinationType.PARALLEL, True
-        )
+        evaluator.record_outcome(TaskCharacteristic.PARALLELIZABLE, CoordinationType.PARALLEL, True)
+        evaluator.record_outcome(TaskCharacteristic.PARALLELIZABLE, CoordinationType.PARALLEL, True)
         adj = evaluator._get_historical_adjustment(TaskCharacteristic.PARALLELIZABLE)
         assert adj == 0.0
 
     def test_three_successes_positive_adjustment(self, evaluator):
         """3 successes should give positive adjustment."""
         for _ in range(3):
-            evaluator.record_outcome(
-                TaskCharacteristic.PARALLELIZABLE, CoordinationType.PARALLEL, True
-            )
+            evaluator.record_outcome(TaskCharacteristic.PARALLELIZABLE, CoordinationType.PARALLEL, True)
         adj = evaluator._get_historical_adjustment(TaskCharacteristic.PARALLELIZABLE)
         # success_rate = 1.0, adjustment = (1.0 - 0.5) * 0.2 = 0.1
         assert adj == pytest.approx(0.1)
@@ -674,9 +657,7 @@ class TestHistoricalOutcomeAdjustment:
     def test_three_failures_negative_adjustment(self, evaluator):
         """3 failures should give negative adjustment."""
         for _ in range(3):
-            evaluator.record_outcome(
-                TaskCharacteristic.PARALLELIZABLE, CoordinationType.PARALLEL, False
-            )
+            evaluator.record_outcome(TaskCharacteristic.PARALLELIZABLE, CoordinationType.PARALLEL, False)
         adj = evaluator._get_historical_adjustment(TaskCharacteristic.PARALLELIZABLE)
         # success_rate = 0.0, adjustment = (0.0 - 0.5) * 0.2 = -0.1
         assert adj == pytest.approx(-0.1)
@@ -684,13 +665,9 @@ class TestHistoricalOutcomeAdjustment:
     def test_mixed_outcomes_moderate_adjustment(self, evaluator):
         """50/50 outcomes should give ~0.0 adjustment."""
         for _ in range(3):
-            evaluator.record_outcome(
-                TaskCharacteristic.CREATIVE, CoordinationType.DECENTRALIZED, True
-            )
+            evaluator.record_outcome(TaskCharacteristic.CREATIVE, CoordinationType.DECENTRALIZED, True)
         for _ in range(3):
-            evaluator.record_outcome(
-                TaskCharacteristic.CREATIVE, CoordinationType.DECENTRALIZED, False
-            )
+            evaluator.record_outcome(TaskCharacteristic.CREATIVE, CoordinationType.DECENTRALIZED, False)
         adj = evaluator._get_historical_adjustment(TaskCharacteristic.CREATIVE)
         # success_rate = 0.5, adjustment = (0.5 - 0.5) * 0.2 = 0.0
         assert adj == pytest.approx(0.0)
@@ -698,9 +675,7 @@ class TestHistoricalOutcomeAdjustment:
     def test_different_characteristics_independent(self, evaluator):
         """Outcomes for one characteristic should not affect another."""
         for _ in range(5):
-            evaluator.record_outcome(
-                TaskCharacteristic.PARALLELIZABLE, CoordinationType.PARALLEL, True
-            )
+            evaluator.record_outcome(TaskCharacteristic.PARALLELIZABLE, CoordinationType.PARALLEL, True)
         adj_parallel = evaluator._get_historical_adjustment(TaskCharacteristic.PARALLELIZABLE)
         adj_creative = evaluator._get_historical_adjustment(TaskCharacteristic.CREATIVE)
         assert adj_parallel > 0
@@ -708,28 +683,22 @@ class TestHistoricalOutcomeAdjustment:
 
     def test_history_trimming_at_100(self, evaluator):
         """History should be trimmed when exceeding 100 entries."""
-        for i in range(105):
-            evaluator.record_outcome(
-                TaskCharacteristic.PARALLELIZABLE, CoordinationType.PARALLEL, True
-            )
+        for _i in range(105):
+            evaluator.record_outcome(TaskCharacteristic.PARALLELIZABLE, CoordinationType.PARALLEL, True)
         # After 101st entry, history is trimmed to last 50
         # Then entries 102-105 are added, total = 54
         assert len(evaluator._outcome_history) <= 55
 
     def test_record_outcome_updates_stats(self, evaluator):
-        evaluator.record_outcome(
-            TaskCharacteristic.CODE_REVIEW, CoordinationType.CENTRALIZED, True
-        )
-        stats = evaluator.get_stats()
+        evaluator.record_outcome(TaskCharacteristic.CODE_REVIEW, CoordinationType.CENTRALIZED, True)
+        evaluator.get_stats()
         assert len(evaluator._stats.outcomes) == 1
 
     def test_historical_adjustment_affects_evaluation(self, evaluator):
         """Historical successes should increase expected_benefit_pct."""
         rec_before = evaluator.evaluate("Run independent parallel tasks simultaneously")
         for _ in range(5):
-            evaluator.record_outcome(
-                TaskCharacteristic.PARALLELIZABLE, CoordinationType.PARALLEL, True
-            )
+            evaluator.record_outcome(TaskCharacteristic.PARALLELIZABLE, CoordinationType.PARALLEL, True)
         rec_after = evaluator.evaluate("Run independent parallel tasks simultaneously")
         assert rec_after.expected_benefit_pct > rec_before.expected_benefit_pct
 
@@ -738,68 +707,47 @@ class TestHistoricalOutcomeAdjustment:
 # Section 14: Confidence computation
 # ===========================================================================
 
+
 class TestConfidenceComputation:
     """Tests for _compute_confidence."""
 
     def test_confidence_bounded_above(self, evaluator):
         """Confidence should never exceed 0.95."""
-        conf = evaluator._compute_confidence(
-            TaskCharacteristic.PARALLELIZABLE, "expert", 10.0, 0.0
-        )
+        conf = evaluator._compute_confidence(TaskCharacteristic.PARALLELIZABLE, "expert", 10.0, 0.0)
         assert conf <= 0.95
 
     def test_confidence_bounded_below(self, evaluator):
         """Confidence should never go below 0.1."""
-        conf = evaluator._compute_confidence(
-            TaskCharacteristic.MIXED, "moderate", 0.0, 1.0
-        )
+        conf = evaluator._compute_confidence(TaskCharacteristic.MIXED, "moderate", 0.0, 1.0)
         assert conf >= 0.1
 
     def test_high_benefit_high_confidence(self, evaluator):
         """Strong benefit signal should produce high confidence."""
-        conf = evaluator._compute_confidence(
-            TaskCharacteristic.PARALLELIZABLE, "complex", 0.808, 0.05
-        )
+        conf = evaluator._compute_confidence(TaskCharacteristic.PARALLELIZABLE, "complex", 0.808, 0.05)
         assert conf > 0.7
 
     def test_high_risk_reduces_confidence(self, evaluator):
         """High degradation risk should reduce confidence."""
-        conf_low_risk = evaluator._compute_confidence(
-            TaskCharacteristic.PARALLELIZABLE, "complex", 0.5, 0.05
-        )
-        conf_high_risk = evaluator._compute_confidence(
-            TaskCharacteristic.PARALLELIZABLE, "complex", 0.5, 0.70
-        )
+        conf_low_risk = evaluator._compute_confidence(TaskCharacteristic.PARALLELIZABLE, "complex", 0.5, 0.05)
+        conf_high_risk = evaluator._compute_confidence(TaskCharacteristic.PARALLELIZABLE, "complex", 0.5, 0.70)
         assert conf_high_risk < conf_low_risk
 
     def test_well_studied_boost(self, evaluator):
         """PARALLELIZABLE and SEQUENTIAL_REASONING get a +0.1 confidence boost."""
-        conf_parallelizable = evaluator._compute_confidence(
-            TaskCharacteristic.PARALLELIZABLE, "complex", 0.3, 0.1
-        )
-        conf_mixed = evaluator._compute_confidence(
-            TaskCharacteristic.MIXED, "complex", 0.3, 0.1
-        )
+        conf_parallelizable = evaluator._compute_confidence(TaskCharacteristic.PARALLELIZABLE, "complex", 0.3, 0.1)
+        conf_mixed = evaluator._compute_confidence(TaskCharacteristic.MIXED, "complex", 0.3, 0.1)
         assert conf_parallelizable > conf_mixed
 
     def test_sequential_well_studied_boost(self, evaluator):
         """SEQUENTIAL_REASONING should also get the well-studied boost."""
-        conf_seq = evaluator._compute_confidence(
-            TaskCharacteristic.SEQUENTIAL_REASONING, "complex", 0.3, 0.1
-        )
-        conf_analytical = evaluator._compute_confidence(
-            TaskCharacteristic.ANALYTICAL, "complex", 0.3, 0.1
-        )
+        conf_seq = evaluator._compute_confidence(TaskCharacteristic.SEQUENTIAL_REASONING, "complex", 0.3, 0.1)
+        conf_analytical = evaluator._compute_confidence(TaskCharacteristic.ANALYTICAL, "complex", 0.3, 0.1)
         assert conf_seq > conf_analytical
 
     def test_moderate_complexity_reduces_confidence(self, evaluator):
         """Moderate complexity should reduce confidence by 0.05."""
-        conf_moderate = evaluator._compute_confidence(
-            TaskCharacteristic.CODE_GENERATION, "moderate", 0.3, 0.1
-        )
-        conf_complex = evaluator._compute_confidence(
-            TaskCharacteristic.CODE_GENERATION, "complex", 0.3, 0.1
-        )
+        conf_moderate = evaluator._compute_confidence(TaskCharacteristic.CODE_GENERATION, "moderate", 0.3, 0.1)
+        conf_complex = evaluator._compute_confidence(TaskCharacteristic.CODE_GENERATION, "complex", 0.3, 0.1)
         assert conf_moderate < conf_complex
 
     def test_confidence_in_recommendation_is_bounded(self, evaluator):
@@ -812,6 +760,7 @@ class TestConfidenceComputation:
 # Section 15: Reasoning string building
 # ===========================================================================
 
+
 class TestReasoningStringBuilding:
     """Tests for _build_reasoning."""
 
@@ -819,7 +768,9 @@ class TestReasoningStringBuilding:
         reasoning = evaluator._build_reasoning(
             TaskCharacteristic.PARALLELIZABLE,
             CoordinationType.PARALLEL,
-            0.808, 0.05, "moderate",
+            0.808,
+            0.05,
+            "moderate",
         )
         assert "parallelizable" in reasoning
 
@@ -827,7 +778,9 @@ class TestReasoningStringBuilding:
         reasoning = evaluator._build_reasoning(
             TaskCharacteristic.PARALLELIZABLE,
             CoordinationType.PARALLEL,
-            0.808, 0.05, "moderate",
+            0.808,
+            0.05,
+            "moderate",
         )
         assert "+80.8%" in reasoning
         assert "benefit" in reasoning.lower()
@@ -836,7 +789,9 @@ class TestReasoningStringBuilding:
         reasoning = evaluator._build_reasoning(
             TaskCharacteristic.SEQUENTIAL_REASONING,
             CoordinationType.SINGLE_AGENT,
-            -0.50, 0.70, "moderate",
+            -0.50,
+            0.70,
+            "moderate",
         )
         assert "DEGRADE" in reasoning
         assert "50.0%" in reasoning
@@ -845,7 +800,9 @@ class TestReasoningStringBuilding:
         reasoning = evaluator._build_reasoning(
             TaskCharacteristic.SEQUENTIAL_REASONING,
             CoordinationType.SINGLE_AGENT,
-            -0.50, 0.70, "moderate",
+            -0.50,
+            0.70,
+            "moderate",
         )
         assert "High degradation risk" in reasoning
         assert "70%" in reasoning
@@ -854,7 +811,9 @@ class TestReasoningStringBuilding:
         reasoning = evaluator._build_reasoning(
             TaskCharacteristic.PARALLELIZABLE,
             CoordinationType.PARALLEL,
-            0.808, 0.05, "moderate",
+            0.808,
+            0.05,
+            "moderate",
         )
         assert "High degradation risk" not in reasoning
 
@@ -862,7 +821,9 @@ class TestReasoningStringBuilding:
         reasoning = evaluator._build_reasoning(
             TaskCharacteristic.CODE_GENERATION,
             CoordinationType.SINGLE_AGENT,
-            0.0, 0.25, "simple",
+            0.0,
+            0.25,
+            "simple",
         )
         assert "single-agent" in reasoning.lower() or "SPECIALIST" in reasoning
 
@@ -870,7 +831,9 @@ class TestReasoningStringBuilding:
         reasoning = evaluator._build_reasoning(
             TaskCharacteristic.PARALLELIZABLE,
             CoordinationType.PARALLEL,
-            0.808, 0.05, "moderate",
+            0.808,
+            0.05,
+            "moderate",
         )
         assert "parallel" in reasoning.lower()
 
@@ -883,6 +846,7 @@ class TestReasoningStringBuilding:
 # ===========================================================================
 # Section 16: Singleton get/reset pattern
 # ===========================================================================
+
 
 class TestSingletonPattern:
     """Tests for get_scaling_heuristics and reset_scaling_heuristics."""
@@ -947,6 +911,7 @@ class TestSingletonPattern:
 # Section 17: Statistics tracking
 # ===========================================================================
 
+
 class TestStatisticsTracking:
     """Tests for coordination_counts, single_agent_overrides, and averages."""
 
@@ -987,7 +952,7 @@ class TestStatisticsTracking:
 
     def test_avg_confidence_running_average(self, evaluator):
         evaluator.evaluate("Run parallel independent tasks simultaneously")
-        stats1 = evaluator.get_stats()
+        evaluator.get_stats()
         evaluator.evaluate("Brainstorm creative innovative ideas")
         stats2 = evaluator.get_stats()
         # Average should reflect both evaluations
@@ -1022,6 +987,7 @@ class TestStatisticsTracking:
 # ===========================================================================
 # Section 18: Edge cases
 # ===========================================================================
+
 
 class TestEdgeCases:
     """Tests for edge cases: empty text, unknown domains, mixed tasks."""
@@ -1112,6 +1078,7 @@ class TestEdgeCases:
 # Section 19: Constants verification
 # ===========================================================================
 
+
 class TestConstants:
     """Tests for module-level constants."""
 
@@ -1164,6 +1131,7 @@ class TestConstants:
 # Section 20: Integration / end-to-end flows
 # ===========================================================================
 
+
 class TestIntegrationFlows:
     """End-to-end tests combining multiple evaluator capabilities."""
 
@@ -1179,9 +1147,7 @@ class TestIntegrationFlows:
         mode = evaluator.get_mode_suggestion(rec)
         assert mode == "PARALLEL"
 
-        evaluator.record_outcome(
-            rec.characteristic, rec.coordination, True
-        )
+        evaluator.record_outcome(rec.characteristic, rec.coordination, True)
 
         stats = evaluator.get_stats()
         assert stats.total_recommendations == 1

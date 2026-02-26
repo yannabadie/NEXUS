@@ -6,24 +6,24 @@ and System 2 (reflection triggers). Covers enums, dataclasses, core API,
 cascade risk, chain summaries, trends, singleton pattern, and edge cases.
 """
 
-import math
 import threading
+
 import pytest
 
 from core.intelligence.reasoning.uncertainty_propagator import (
-    UncertaintyLevel,
-    PropagationSignal,
     ChainSummary,
+    PropagationSignal,
     PropagatorStats,
+    UncertaintyLevel,
     UncertaintyPropagator,
     get_uncertainty_propagator,
     reset_uncertainty_propagator,
 )
 
-
 # =============================================================================
 # Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def propagator():
@@ -42,6 +42,7 @@ def reset_singleton():
 # =============================================================================
 # 1. UncertaintyLevel enum values
 # =============================================================================
+
 
 class TestUncertaintyLevel:
     """Tests for UncertaintyLevel enum."""
@@ -70,6 +71,7 @@ class TestUncertaintyLevel:
 # 2. PropagationSignal dataclass and confidence_drop property
 # =============================================================================
 
+
 class TestPropagationSignal:
     """Tests for PropagationSignal dataclass."""
 
@@ -95,26 +97,41 @@ class TestPropagationSignal:
 
     def test_confidence_drop_positive(self):
         signal = PropagationSignal(
-            step_name="s", raw_confidence=0.8, propagated_confidence=0.6,
-            uncertainty_level=UncertaintyLevel.MODERATE, needs_reflection=False,
-            cascade_risk=0.0, upstream_uncertainty=0.0, chain_position=1,
+            step_name="s",
+            raw_confidence=0.8,
+            propagated_confidence=0.6,
+            uncertainty_level=UncertaintyLevel.MODERATE,
+            needs_reflection=False,
+            cascade_risk=0.0,
+            upstream_uncertainty=0.0,
+            chain_position=1,
         )
         assert abs(signal.confidence_drop - 0.2) < 1e-9
 
     def test_confidence_drop_zero_when_no_upstream(self):
         signal = PropagationSignal(
-            step_name="s", raw_confidence=0.9, propagated_confidence=0.9,
-            uncertainty_level=UncertaintyLevel.CONFIDENT, needs_reflection=False,
-            cascade_risk=0.0, upstream_uncertainty=0.0, chain_position=1,
+            step_name="s",
+            raw_confidence=0.9,
+            propagated_confidence=0.9,
+            uncertainty_level=UncertaintyLevel.CONFIDENT,
+            needs_reflection=False,
+            cascade_risk=0.0,
+            upstream_uncertainty=0.0,
+            chain_position=1,
         )
         assert signal.confidence_drop == 0.0
 
     def test_confidence_drop_negative_possible(self):
         """confidence_drop can be negative if propagated > raw (e.g., after boost)."""
         signal = PropagationSignal(
-            step_name="s", raw_confidence=0.3, propagated_confidence=0.4,
-            uncertainty_level=UncertaintyLevel.UNCERTAIN, needs_reflection=False,
-            cascade_risk=0.0, upstream_uncertainty=0.0, chain_position=1,
+            step_name="s",
+            raw_confidence=0.3,
+            propagated_confidence=0.4,
+            uncertainty_level=UncertaintyLevel.UNCERTAIN,
+            needs_reflection=False,
+            cascade_risk=0.0,
+            upstream_uncertainty=0.0,
+            chain_position=1,
         )
         assert signal.confidence_drop < 0
 
@@ -122,6 +139,7 @@ class TestPropagationSignal:
 # =============================================================================
 # 3. ChainSummary dataclass
 # =============================================================================
+
 
 class TestChainSummary:
     """Tests for ChainSummary dataclass."""
@@ -151,6 +169,7 @@ class TestChainSummary:
 # 4. PropagatorStats dataclass
 # =============================================================================
 
+
 class TestPropagatorStats:
     """Tests for PropagatorStats dataclass."""
 
@@ -170,6 +189,7 @@ class TestPropagatorStats:
 # =============================================================================
 # 5-6. First step propagation (no upstream)
 # =============================================================================
+
 
 class TestFirstStepPropagation:
     """Tests for the first propagation step with no upstream uncertainty."""
@@ -215,6 +235,7 @@ class TestFirstStepPropagation:
 # =============================================================================
 # 7-8. Upstream uncertainty accumulation
 # =============================================================================
+
 
 class TestUpstreamUncertainty:
     """Tests for uncertainty accumulation across multiple steps."""
@@ -265,6 +286,7 @@ class TestUpstreamUncertainty:
 # 9. Reflection threshold
 # =============================================================================
 
+
 class TestReflectionThreshold:
     """Tests for needs_reflection at various confidence levels."""
 
@@ -308,6 +330,7 @@ class TestReflectionThreshold:
 # 10. Cascade risk computation
 # =============================================================================
 
+
 class TestCascadeRisk:
     """Tests for cascade risk computation."""
 
@@ -342,6 +365,7 @@ class TestCascadeRisk:
 # =============================================================================
 # 11. UncertaintyLevel classification at boundaries
 # =============================================================================
+
 
 class TestUncertaintyClassification:
     """Tests for _classify_uncertainty at boundary values."""
@@ -384,6 +408,7 @@ class TestUncertaintyClassification:
 # =============================================================================
 # 12. record_reflection_success
 # =============================================================================
+
 
 class TestRecordReflectionSuccess:
     """Tests for record_reflection_success method."""
@@ -440,6 +465,7 @@ class TestRecordReflectionSuccess:
 # 13. get_chain_summary
 # =============================================================================
 
+
 class TestGetChainSummary:
     """Tests for get_chain_summary method."""
 
@@ -481,8 +507,7 @@ class TestGetChainSummary:
         # actually ends up lowest in propagated terms.
         signals = list(propagator._chain)
         min_prop = min(s.propagated_confidence for s in signals)
-        expected_weakest = [s.step_name for s in signals
-                           if s.propagated_confidence == min_prop][0]
+        expected_weakest = [s.step_name for s in signals if s.propagated_confidence == min_prop][0]
         summary = propagator.get_chain_summary()
         assert summary.weakest_step == expected_weakest
 
@@ -499,8 +524,7 @@ class TestGetChainSummary:
         # great propagated = 0.99 * (1 - 0.8075) = 0.99 * 0.1925 ~ 0.19
         # So great might actually be lower. Let's just verify consistency.
         min_prop = min(s.propagated_confidence for s in signals)
-        expected = [s.step_name for s in signals
-                    if s.propagated_confidence == min_prop][0]
+        expected = [s.step_name for s in signals if s.propagated_confidence == min_prop][0]
         assert summary.weakest_step == expected
 
     def test_reflection_triggers_counted(self, propagator):
@@ -522,6 +546,7 @@ class TestGetChainSummary:
 # =============================================================================
 # 14. Uncertainty trend
 # =============================================================================
+
 
 class TestUncertaintyTrend:
     """Tests for _compute_trend method via get_chain_summary."""
@@ -575,6 +600,7 @@ class TestUncertaintyTrend:
 # 15. reset_chain
 # =============================================================================
 
+
 class TestResetChain:
     """Tests for reset_chain method."""
 
@@ -614,6 +640,7 @@ class TestResetChain:
 # =============================================================================
 # 16. get_stats tracking
 # =============================================================================
+
 
 class TestGetStats:
     """Tests for get_stats method."""
@@ -665,6 +692,7 @@ class TestGetStats:
 # 17. MAX_CHAIN_LENGTH truncation
 # =============================================================================
 
+
 class TestMaxChainLength:
     """Tests for chain truncation at MAX_CHAIN_LENGTH."""
 
@@ -691,6 +719,7 @@ class TestMaxChainLength:
 # =============================================================================
 # 18. Confidence clamping to [0, 1]
 # =============================================================================
+
 
 class TestConfidenceClamping:
     """Tests for confidence clamping at input boundaries."""
@@ -719,6 +748,7 @@ class TestConfidenceClamping:
 # =============================================================================
 # 19. Singleton pattern
 # =============================================================================
+
 
 class TestSingletonPattern:
     """Tests for get_uncertainty_propagator / reset_uncertainty_propagator."""
@@ -762,6 +792,7 @@ class TestSingletonPattern:
 # =============================================================================
 # 20. Edge cases
 # =============================================================================
+
 
 class TestEdgeCases:
     """Edge case tests for robustness."""
@@ -851,25 +882,26 @@ class TestEdgeCases:
         p1 = UncertaintyPropagator()
         p1.propagate("bad", 0.5)
         # Upstream after 1 step: (1 - 0.5) * 0.85^1 = 0.425
-        signal_immediate = p1.propagate("next", 0.9)
+        p1.propagate("next", 0.9)
 
         p2 = UncertaintyPropagator()
         p2.propagate("bad", 0.5)
         p2.propagate("good", 0.99)  # Extra good step between
         # The "bad" step is now older, its decay is 0.85^2 instead of 0.85^1
-        signal_decayed = p2.propagate("next", 0.9)
+        p2.propagate("next", 0.9)
 
         # The bad step should contribute less to upstream in p2 (older, more decay)
         # but p2 also has the "good" step contributing some uncertainty.
         # Key: DECAY_FACTOR < 1 means older contributions shrink.
-        decay_1 = UncertaintyPropagator.DECAY_FACTOR ** 1
-        decay_2 = UncertaintyPropagator.DECAY_FACTOR ** 2
+        decay_1 = UncertaintyPropagator.DECAY_FACTOR**1
+        decay_2 = UncertaintyPropagator.DECAY_FACTOR**2
         assert decay_2 < decay_1  # Older step decays more
 
 
 # =============================================================================
 # Additional: Cascade risk thresholds (WARNING, CRITICAL constants)
 # =============================================================================
+
 
 class TestCascadeThresholds:
     """Tests verifying CASCADE_WARNING and CASCADE_CRITICAL constants."""

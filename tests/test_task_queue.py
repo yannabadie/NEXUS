@@ -17,10 +17,7 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.intelligence.swarm.task_queue import (
-    QueueStats,
     SwarmTask,
     SwarmTaskQueue,
     TaskStatus,
@@ -28,10 +25,10 @@ from core.intelligence.swarm.task_queue import (
     reset_task_queue,
 )
 
-
 # =============================================================================
 # TaskStatus Tests
 # =============================================================================
+
 
 class TestTaskStatus:
     """Test TaskStatus enum."""
@@ -51,6 +48,7 @@ class TestTaskStatus:
 # =============================================================================
 # SwarmTask Tests
 # =============================================================================
+
 
 class TestSwarmTask:
     """Test SwarmTask dataclass."""
@@ -80,6 +78,7 @@ class TestSwarmTask:
 # =============================================================================
 # Enqueue Tests
 # =============================================================================
+
 
 class TestEnqueue:
     """Test task enqueuing."""
@@ -119,6 +118,7 @@ class TestEnqueue:
 # =============================================================================
 # Acquire Tests
 # =============================================================================
+
 
 class TestAcquire:
     """Test task acquisition."""
@@ -166,6 +166,7 @@ class TestAcquire:
 # =============================================================================
 # Complete Tests
 # =============================================================================
+
 
 class TestComplete:
     """Test task completion."""
@@ -218,6 +219,7 @@ class TestComplete:
 # Fail / Cancel Tests
 # =============================================================================
 
+
 class TestFailCancel:
     """Test fail and cancel."""
 
@@ -251,6 +253,7 @@ class TestFailCancel:
 # =============================================================================
 # Query Tests
 # =============================================================================
+
 
 class TestQuery:
     """Test queries."""
@@ -311,6 +314,7 @@ class TestQuery:
 # Cleanup Tests
 # =============================================================================
 
+
 class TestCleanup:
     """Test cleanup."""
 
@@ -329,6 +333,7 @@ class TestCleanup:
 # Statistics Tests
 # =============================================================================
 
+
 class TestStatistics:
     """Test queue statistics."""
 
@@ -340,7 +345,7 @@ class TestStatistics:
     def test_stats_after_operations(self):
         q = SwarmTaskQueue()
         t1 = q.enqueue("a")
-        t2 = q.enqueue("b")
+        q.enqueue("b")
         q.acquire()
         q.complete(t1)
         stats = q.get_stats()
@@ -358,6 +363,7 @@ class TestStatistics:
 # =============================================================================
 # State Tests
 # =============================================================================
+
 
 class TestState:
     """Test state management."""
@@ -392,6 +398,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global task queue."""
 
@@ -418,22 +425,34 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_swarm_package(self):
         from core.intelligence.swarm import (
-            SwarmTaskQueue, SwarmTask, SwarmTaskStatus,
-            QueueStats, get_task_queue, reset_task_queue,
+            QueueStats,
+            SwarmTask,
+            SwarmTaskQueue,
+            SwarmTaskStatus,
+            get_task_queue,
+            reset_task_queue,
         )
-        assert all([
-            SwarmTaskQueue, SwarmTask, SwarmTaskStatus,
-            QueueStats, get_task_queue, reset_task_queue,
-        ])
+
+        assert all(
+            [
+                SwarmTaskQueue,
+                SwarmTask,
+                SwarmTaskStatus,
+                QueueStats,
+                get_task_queue,
+                reset_task_queue,
+            ]
+        )
 
     def test_from_module(self):
         from core.intelligence.swarm.task_queue import (
-            SwarmTaskQueue, TaskStatus, SwarmTask,
             MAX_QUEUE_SIZE,
         )
+
         assert MAX_QUEUE_SIZE == 10000

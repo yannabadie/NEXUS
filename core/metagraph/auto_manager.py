@@ -28,13 +28,12 @@ from __future__ import annotations
 
 import os
 import time
-from pathlib import Path
-from typing import Optional, Set, List
 from datetime import datetime, timedelta
+from pathlib import Path
 
-from .code_graph import CodeGraph
-from .scanner import scan_codebase, ScanStats
 from .auditor import get_auditor
+from .code_graph import CodeGraph
+from .scanner import ScanStats, scan_codebase
 
 
 class AutoManager:
@@ -49,9 +48,9 @@ class AutoManager:
     """
 
     def __init__(self):
-        self._graph: Optional[CodeGraph] = None
-        self._last_scan_time: Optional[datetime] = None
-        self._scan_stats: Optional[ScanStats] = None
+        self._graph: CodeGraph | None = None
+        self._last_scan_time: datetime | None = None
+        self._scan_stats: ScanStats | None = None
 
         # Configuration (from env or defaults)
         self._auto_scan_enabled = os.getenv("METAGRAPH_AUTO_SCAN", "true").lower() == "true"
@@ -73,11 +72,7 @@ class AutoManager:
             CodeGraph instance (cached or freshly scanned)
         """
         # Check if we need to scan
-        needs_scan = (
-            force_refresh or
-            self._graph is None or
-            self._is_stale()
-        )
+        needs_scan = force_refresh or self._graph is None or self._is_stale()
 
         if needs_scan and self._auto_scan_enabled:
             self._perform_full_scan()
@@ -88,7 +83,7 @@ class AutoManager:
 
         return self._graph
 
-    def auto_refresh(self, changed_files: List[str]) -> None:
+    def auto_refresh(self, changed_files: list[str]) -> None:
         """
         Incrementally update graph for changed files.
 
@@ -102,7 +97,7 @@ class AutoManager:
             return
 
         # Filter for Python files
-        py_files = [f for f in changed_files if f.endswith('.py')]
+        py_files = [f for f in changed_files if f.endswith(".py")]
 
         if not py_files:
             return
@@ -148,7 +143,7 @@ class AutoManager:
             "transitive_dependents": len(result.transitive_dependents),
         }
 
-    def find_experts_for_file(self, file_path: str) -> List[str]:
+    def find_experts_for_file(self, file_path: str) -> list[str]:
         """
         Find symbols/classes in a file (potential experts).
 
@@ -195,10 +190,7 @@ class AutoManager:
         dep_count = len(result.transitive_dependencies)
 
         # Risk thresholds
-        if dep_count == 0:
-            risk_level = "low"
-            is_safe = True
-        elif dep_count < 10:
+        if dep_count == 0 or dep_count < 10:
             risk_level = "low"
             is_safe = True
         elif dep_count < 50:
@@ -262,14 +254,14 @@ class AutoManager:
     def _get_age_minutes(self) -> float:
         """Get graph age in minutes."""
         if not self._last_scan_time:
-            return float('inf')
+            return float("inf")
 
         age = datetime.now() - self._last_scan_time
         return age.total_seconds() / 60
 
 
 # Global singleton
-_manager_instance: Optional[AutoManager] = None
+_manager_instance: AutoManager | None = None
 
 
 def get_manager() -> AutoManager:
@@ -288,6 +280,7 @@ def reset_manager() -> None:
 
 # Convenience functions
 
+
 def get_graph(force_refresh: bool = False) -> CodeGraph:
     """
     Get current code graph (auto-scans if needed).
@@ -301,7 +294,7 @@ def get_graph(force_refresh: bool = False) -> CodeGraph:
     return get_manager().get_graph(force_refresh=force_refresh)
 
 
-def auto_refresh(changed_files: List[str]) -> None:
+def auto_refresh(changed_files: list[str]) -> None:
     """
     Auto-refresh graph after file changes.
 
@@ -324,7 +317,7 @@ def get_impact_before_edit(file_path: str) -> dict:
     return get_manager().get_impact_before_edit(file_path)
 
 
-def find_experts_for_file(file_path: str) -> List[str]:
+def find_experts_for_file(file_path: str) -> list[str]:
     """
     Find symbols in a file (potential experts).
 

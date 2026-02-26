@@ -18,8 +18,6 @@ Validates:
 - Module exports
 """
 
-import pytest
-
 from core.intelligence.evolution.strategy_performance_tracker import (
     MAX_APPLICATIONS,
     MIN_TRIALS_FOR_RECOMMENDATION,
@@ -32,22 +30,20 @@ from core.intelligence.evolution.strategy_performance_tracker import (
     reset_strategy_tracker,
 )
 
-
 # =============================================================================
 # StrategyApplication Tests
 # =============================================================================
+
 
 class TestStrategyApplication:
     """Test StrategyApplication dataclass."""
 
     def test_fitness_delta(self):
-        a = StrategyApplication(strategy="code_specialist", domain="python",
-                                fitness_before=0.5, fitness_after=0.8)
+        a = StrategyApplication(strategy="code_specialist", domain="python", fitness_before=0.5, fitness_after=0.8)
         assert abs(a.fitness_delta - 0.3) < 0.01
 
     def test_improvement(self):
-        a = StrategyApplication(strategy="code_specialist", domain="python",
-                                fitness_before=0.5, fitness_after=0.75)
+        a = StrategyApplication(strategy="code_specialist", domain="python", fitness_before=0.5, fitness_after=0.75)
         assert abs(a.improvement - 0.5) < 0.01  # 50% improvement
 
     def test_improvement_zero_baseline(self):
@@ -55,8 +51,9 @@ class TestStrategyApplication:
         assert a.improvement == 0.0
 
     def test_to_dict(self):
-        a = StrategyApplication(strategy="code_specialist", domain="python",
-                                fitness_before=0.5, fitness_after=0.8, success=True)
+        a = StrategyApplication(
+            strategy="code_specialist", domain="python", fitness_before=0.5, fitness_after=0.8, success=True
+        )
         d = a.to_dict()
         assert d["strategy"] == "code_specialist"
         assert "fitness_delta" in d
@@ -65,6 +62,7 @@ class TestStrategyApplication:
 # =============================================================================
 # StrategyMetrics Tests
 # =============================================================================
+
 
 class TestStrategyMetrics:
     """Test StrategyMetrics dataclass."""
@@ -87,12 +85,14 @@ class TestStrategyMetrics:
 # StrategyRecommendation Tests
 # =============================================================================
 
+
 class TestStrategyRecommendation:
     """Test StrategyRecommendation dataclass."""
 
     def test_to_dict(self):
-        r = StrategyRecommendation(strategy="code_specialist", confidence=0.8,
-                                   expected_improvement=0.15, based_on_trials=10)
+        r = StrategyRecommendation(
+            strategy="code_specialist", confidence=0.8, expected_improvement=0.15, based_on_trials=10
+        )
         d = r.to_dict()
         assert d["confidence"] == 0.8
 
@@ -101,12 +101,12 @@ class TestStrategyRecommendation:
 # TrackerStats Tests
 # =============================================================================
 
+
 class TestTrackerStats:
     """Test TrackerStats dataclass."""
 
     def test_to_dict(self):
-        s = TrackerStats(total_applications=20, unique_strategies=3,
-                         unique_domains=5, overall_success_rate=0.85)
+        s = TrackerStats(total_applications=20, unique_strategies=3, unique_domains=5, overall_success_rate=0.85)
         d = s.to_dict()
         assert d["total_applications"] == 20
 
@@ -115,13 +115,13 @@ class TestTrackerStats:
 # Recording Tests
 # =============================================================================
 
+
 class TestRecording:
     """Test application recording."""
 
     def test_record_basic(self):
         t = StrategyPerformanceTracker()
-        a = t.record_application("code_specialist", "python",
-                                 fitness_before=0.5, fitness_after=0.8, success=True)
+        a = t.record_application("code_specialist", "python", fitness_before=0.5, fitness_after=0.8, success=True)
         assert a.strategy == "code_specialist"
         assert t.application_count == 1
 
@@ -146,6 +146,7 @@ class TestRecording:
 # Metrics Query Tests
 # =============================================================================
 
+
 class TestMetricsQueries:
     """Test metrics queries."""
 
@@ -168,6 +169,7 @@ class TestMetricsQueries:
 # Recommendation Tests
 # =============================================================================
 
+
 class TestRecommendations:
     """Test strategy recommendations."""
 
@@ -184,8 +186,7 @@ class TestRecommendations:
     def test_sufficient_trials(self):
         t = StrategyPerformanceTracker()
         for _ in range(5):
-            t.record_application("code_specialist", "python",
-                                 fitness_before=0.5, fitness_after=0.8)
+            t.record_application("code_specialist", "python", fitness_before=0.5, fitness_after=0.8)
         rec = t.recommend_strategy("python")
         assert rec is not None
         assert rec.strategy == "code_specialist"
@@ -218,6 +219,7 @@ class TestRecommendations:
 # Domain Ranking Tests
 # =============================================================================
 
+
 class TestDomainRanking:
     """Test domain ranking."""
 
@@ -240,6 +242,7 @@ class TestDomainRanking:
 # Listing Tests
 # =============================================================================
 
+
 class TestListing:
     """Test listing strategies and domains."""
 
@@ -260,6 +263,7 @@ class TestListing:
 # Bounded History Tests
 # =============================================================================
 
+
 class TestBoundedHistory:
     """Test bounded application history."""
 
@@ -273,6 +277,7 @@ class TestBoundedHistory:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Test tracker statistics."""
@@ -302,6 +307,7 @@ class TestStatistics:
 # State Tests
 # =============================================================================
 
+
 class TestState:
     """Test state management."""
 
@@ -329,6 +335,7 @@ class TestState:
 # Global Singleton Tests
 # =============================================================================
 
+
 class TestGlobalSingleton:
     """Test global strategy tracker."""
 
@@ -355,24 +362,33 @@ class TestGlobalSingleton:
 # Module Export Tests
 # =============================================================================
 
+
 class TestModuleExports:
     """Test module imports."""
 
     def test_from_evolution_package(self):
         from core.intelligence.evolution import (
-            StrategyPerformanceTracker, StrategyApplication,
-            StrategyMetrics, StrategyRecommendation, TrackerStats,
-            get_strategy_tracker, reset_strategy_tracker,
+            StrategyApplication,
+            StrategyMetrics,
+            StrategyPerformanceTracker,
+            StrategyRecommendation,
+            TrackerStats,
+            get_strategy_tracker,
+            reset_strategy_tracker,
         )
-        assert all([
-            StrategyPerformanceTracker, StrategyApplication,
-            StrategyMetrics, StrategyRecommendation, TrackerStats,
-            get_strategy_tracker, reset_strategy_tracker,
-        ])
+
+        assert all(
+            [
+                StrategyPerformanceTracker,
+                StrategyApplication,
+                StrategyMetrics,
+                StrategyRecommendation,
+                TrackerStats,
+                get_strategy_tracker,
+                reset_strategy_tracker,
+            ]
+        )
 
     def test_constants(self):
-        from core.intelligence.evolution.strategy_performance_tracker import (
-            MAX_APPLICATIONS, MIN_TRIALS_FOR_RECOMMENDATION,
-        )
         assert MAX_APPLICATIONS == 50000
         assert MIN_TRIALS_FOR_RECOMMENDATION == 3

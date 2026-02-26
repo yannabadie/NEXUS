@@ -12,10 +12,9 @@ The generated NEXUS.md starts generalist and can be refined as NEXUS works.
 
 import json
 import re
-from pathlib import Path
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Set
 from datetime import datetime
+from pathlib import Path
 
 
 @dataclass
@@ -23,17 +22,17 @@ class ProjectAnalysis:
     """Results of project analysis."""
 
     # Tech stack detection
-    languages: List[str] = field(default_factory=list)
-    frameworks: List[str] = field(default_factory=list)
-    databases: List[str] = field(default_factory=list)
-    tools: List[str] = field(default_factory=list)
+    languages: list[str] = field(default_factory=list)
+    frameworks: list[str] = field(default_factory=list)
+    databases: list[str] = field(default_factory=list)
+    tools: list[str] = field(default_factory=list)
 
     # Project structure
-    directories: List[str] = field(default_factory=list)
-    key_files: List[str] = field(default_factory=list)
+    directories: list[str] = field(default_factory=list)
+    key_files: list[str] = field(default_factory=list)
 
     # Commands discovered
-    commands: Dict[str, str] = field(default_factory=dict)
+    commands: dict[str, str] = field(default_factory=dict)
 
     # Conventions observed
     indentation: str = "unknown"
@@ -79,7 +78,7 @@ class AutoBootstrap:
         "PyTorch": ["import torch", "from torch"],
         "TensorFlow": ["import tensorflow", "from tensorflow"],
         # JavaScript/TypeScript
-        "React": ["from 'react'", "from \"react\"", "@types/react"],
+        "React": ["from 'react'", 'from "react"', "@types/react"],
         "Next.js": ["from 'next'", "next.config"],
         "Vue": ["from 'vue'", "@vue/"],
         "Express": ["from 'express'", "require('express')"],
@@ -119,7 +118,7 @@ class AutoBootstrap:
             project_path: Root path of the project to analyze
         """
         self.project_path = Path(project_path).resolve()
-        self.analysis: Optional[ProjectAnalysis] = None
+        self.analysis: ProjectAnalysis | None = None
 
     def analyze(self) -> ProjectAnalysis:
         """
@@ -154,11 +153,22 @@ class AutoBootstrap:
         self.analysis = analysis
         return analysis
 
-    def _analyze_directories(self) -> List[str]:
+    def _analyze_directories(self) -> list[str]:
         """Find significant directories."""
         significant_dirs = []
-        ignored = {".git", "node_modules", "__pycache__", ".venv", "venv",
-                   ".tox", ".pytest_cache", "dist", "build", ".next", "target"}
+        ignored = {
+            ".git",
+            "node_modules",
+            "__pycache__",
+            ".venv",
+            "venv",
+            ".tox",
+            ".pytest_cache",
+            "dist",
+            "build",
+            ".next",
+            "target",
+        }
 
         try:
             for item in self.project_path.iterdir():
@@ -169,14 +179,27 @@ class AutoBootstrap:
 
         return sorted(significant_dirs)[:20]  # Limit to 20
 
-    def _find_key_files(self) -> List[str]:
+    def _find_key_files(self) -> list[str]:
         """Find configuration and key files."""
         key_patterns = [
-            "README*", "LICENSE*", "CHANGELOG*",
-            "package.json", "pyproject.toml", "setup.py", "setup.cfg",
-            "Makefile", "Dockerfile", "docker-compose*",
-            "requirements*.txt", "Pipfile", "Cargo.toml", "go.mod",
-            "tsconfig.json", ".env.example", "*.config.js", "*.config.ts",
+            "README*",
+            "LICENSE*",
+            "CHANGELOG*",
+            "package.json",
+            "pyproject.toml",
+            "setup.py",
+            "setup.cfg",
+            "Makefile",
+            "Dockerfile",
+            "docker-compose*",
+            "requirements*.txt",
+            "Pipfile",
+            "Cargo.toml",
+            "go.mod",
+            "tsconfig.json",
+            ".env.example",
+            "*.config.js",
+            "*.config.ts",
         ]
 
         found = []
@@ -187,7 +210,7 @@ class AutoBootstrap:
 
         return sorted(set(found))[:30]  # Limit and dedupe
 
-    def _detect_languages(self) -> List[str]:
+    def _detect_languages(self) -> list[str]:
         """Detect programming languages used."""
         detected = []
 
@@ -197,8 +220,11 @@ class AutoBootstrap:
                     # File extension pattern
                     matches = list(self.project_path.rglob(pattern))
                     # Exclude common ignored directories
-                    matches = [m for m in matches
-                               if not any(p in str(m) for p in ["node_modules", "__pycache__", ".git", "venv"])]
+                    matches = [
+                        m
+                        for m in matches
+                        if not any(p in str(m) for p in ["node_modules", "__pycache__", ".git", "venv"])
+                    ]
                     if matches:
                         detected.append(lang)
                         break
@@ -210,7 +236,7 @@ class AutoBootstrap:
 
         return detected
 
-    def _detect_frameworks(self) -> List[str]:
+    def _detect_frameworks(self) -> list[str]:
         """Detect frameworks by searching file contents."""
         detected = []
 
@@ -218,7 +244,10 @@ class AutoBootstrap:
         # Note: Be careful with patterns - they must be specific enough to not
         # match legitimate project directories (e.g., "test_" would match "test_project")
         exclude_patterns = [
-            "node_modules", "__pycache__", ".git", "venv",
+            "node_modules",
+            "__pycache__",
+            ".git",
+            "venv",
             "auto_bootstrap.py",  # This file contains detection patterns!
         ]
 
@@ -260,7 +289,7 @@ class AutoBootstrap:
                 files_to_check.append(pkg_file)
 
         # Check patterns
-        content_cache: Dict[Path, str] = {}
+        content_cache: dict[Path, str] = {}
 
         for framework, patterns in self.FRAMEWORK_PATTERNS.items():
             for file_path in files_to_check:
@@ -297,20 +326,23 @@ class AutoBootstrap:
 
         return detected
 
-    def _detect_databases(self) -> List[str]:
+    def _detect_databases(self) -> list[str]:
         """Detect databases from connection strings and imports."""
         detected = []
 
         # Exclude bootstrap module (contains detection patterns)
         exclude_patterns = [
-            "node_modules", "__pycache__", ".git", "venv",
-            "auto_bootstrap.py", "core/bootstrap", "test_auto_bootstrap"
+            "node_modules",
+            "__pycache__",
+            ".git",
+            "venv",
+            "auto_bootstrap.py",
+            "core/bootstrap",
+            "test_auto_bootstrap",
         ]
 
         # Check common config files
-        config_files = [
-            "*.py", ".env*", "*.json", "*.yaml", "*.yml", "*.toml"
-        ]
+        config_files = ["*.py", ".env*", "*.json", "*.yaml", "*.yml", "*.toml"]
 
         files_to_check = []
         for pattern in config_files:
@@ -331,7 +363,7 @@ class AutoBootstrap:
 
         return detected
 
-    def _detect_tools(self) -> List[str]:
+    def _detect_tools(self) -> list[str]:
         """Detect development tools."""
         detected = []
 
@@ -389,7 +421,7 @@ class AutoBootstrap:
 
         return detected
 
-    def _discover_commands(self) -> Dict[str, str]:
+    def _discover_commands(self) -> dict[str, str]:
         """Discover available commands from package files."""
         commands = {}
 
@@ -496,10 +528,7 @@ class AutoBootstrap:
 
     def _has_tests(self) -> bool:
         """Check if project has tests."""
-        test_indicators = [
-            "tests/", "test/", "spec/", "__tests__/",
-            "*_test.py", "test_*.py", "*.test.js", "*.spec.ts"
-        ]
+        test_indicators = ["tests/", "test/", "spec/", "__tests__/", "*_test.py", "test_*.py", "*.test.js", "*.spec.ts"]
 
         for indicator in test_indicators:
             if "/" in indicator:
@@ -523,11 +552,11 @@ class AutoBootstrap:
             ".travis.yml",
             "Jenkinsfile",
             ".circleci/config.yml",
-            "azure-pipelines.yml"
+            "azure-pipelines.yml",
         ]
         return any((self.project_path / p).exists() for p in ci_paths)
 
-    def generate_nexus_md(self, analysis: Optional[ProjectAnalysis] = None) -> str:
+    def generate_nexus_md(self, analysis: ProjectAnalysis | None = None) -> str:
         """
         Generate NEXUS.md content from analysis.
 
@@ -553,12 +582,14 @@ class AutoBootstrap:
             lines.append(f"> {description}")
             lines.append("")
 
-        lines.extend([
-            f"> Auto-generated by NEXUS AutoBootstrap ({analysis.analysis_date[:10]})",
-            "",
-            "---",
-            "",
-        ])
+        lines.extend(
+            [
+                f"> Auto-generated by NEXUS AutoBootstrap ({analysis.analysis_date[:10]})",
+                "",
+                "---",
+                "",
+            ]
+        )
 
         # Tech Stack - Enhanced
         lines.append("## Tech Stack")
@@ -656,14 +687,14 @@ class AutoBootstrap:
             lines.append("")
 
             # Group by type
-            install_cmds = {k: v for k, v in analysis.commands.items()
-                           if 'install' in k.lower()}
-            test_cmds = {k: v for k, v in analysis.commands.items()
-                         if 'test' in k.lower() or 'pytest' in k.lower()}
-            build_cmds = {k: v for k, v in analysis.commands.items()
-                          if 'build' in k.lower() or 'make' in k.lower()}
-            other_cmds = {k: v for k, v in analysis.commands.items()
-                          if k not in install_cmds and k not in test_cmds and k not in build_cmds}
+            install_cmds = {k: v for k, v in analysis.commands.items() if "install" in k.lower()}
+            test_cmds = {k: v for k, v in analysis.commands.items() if "test" in k.lower() or "pytest" in k.lower()}
+            build_cmds = {k: v for k, v in analysis.commands.items() if "build" in k.lower() or "make" in k.lower()}
+            other_cmds = {
+                k: v
+                for k, v in analysis.commands.items()
+                if k not in install_cmds and k not in test_cmds and k not in build_cmds
+            }
 
             if install_cmds:
                 lines.append("### Setup")
@@ -772,7 +803,7 @@ class AutoBootstrap:
 
         return "\n".join(lines)
 
-    def _extract_project_description(self) -> Optional[str]:
+    def _extract_project_description(self) -> str | None:
         """Extract project description from README or package files."""
         # Try README
         for readme in ["README.md", "README.rst", "README.txt", "README"]:
@@ -820,7 +851,7 @@ class AutoBootstrap:
 
         return None
 
-    def _detect_language_version(self, language: str) -> Optional[str]:
+    def _detect_language_version(self, language: str) -> str | None:
         """Detect language version from config files."""
         if language == "Python":
             # Check pyproject.toml
@@ -855,7 +886,7 @@ class AutoBootstrap:
 
         return None
 
-    def _detect_entry_points(self) -> Dict[str, str]:
+    def _detect_entry_points(self) -> dict[str, str]:
         """Detect main entry points for the project."""
         entry_points = {}
 
@@ -873,7 +904,7 @@ class AutoBootstrap:
                 content = pyproject.read_text(encoding="utf-8")
                 if "[project.scripts]" in content or "[tool.poetry.scripts]" in content:
                     # Extract script names
-                    matches = re.findall(r'(\w+)\s*=', content[content.find("scripts"):])
+                    matches = re.findall(r"(\w+)\s*=", content[content.find("scripts") :])
                     for script in matches[:3]:
                         if script and not script.startswith("_"):
                             entry_points[script] = "CLI command"
@@ -946,7 +977,7 @@ class AutoBootstrap:
             return "Azure Pipelines"
         return "CI configured"
 
-    def _detect_protected_files(self) -> Dict[str, str]:
+    def _detect_protected_files(self) -> dict[str, str]:
         """Detect files that should not be modified."""
         protected = {}
 
@@ -975,7 +1006,7 @@ class AutoBootstrap:
 
         return protected
 
-    def _get_framework_rules(self, frameworks: List[str]) -> List[str]:
+    def _get_framework_rules(self, frameworks: list[str]) -> list[str]:
         """Get framework-specific DO NOT rules."""
         rules = []
 
@@ -1004,7 +1035,7 @@ class AutoBootstrap:
 
         return rules[:5]  # Limit to 5 rules
 
-    def _detect_architecture_patterns(self) -> List[str]:
+    def _detect_architecture_patterns(self) -> list[str]:
         """Detect architectural patterns from project structure."""
         patterns = []
 
@@ -1036,7 +1067,7 @@ class AutoBootstrap:
 
         return patterns[:5]
 
-    def _detect_important_files(self) -> Dict[str, str]:
+    def _detect_important_files(self) -> dict[str, str]:
         """Detect important configuration files."""
         important = {}
 
@@ -1064,7 +1095,7 @@ class AutoBootstrap:
 
         return dict(list(important.items())[:8])
 
-    def save(self, content: Optional[str] = None, path: Optional[Path] = None) -> Path:
+    def save(self, content: str | None = None, path: Path | None = None) -> Path:
         """
         Save NEXUS.md to project.
 
@@ -1094,7 +1125,7 @@ class AutoBootstrap:
         return not nexus_md.exists()
 
 
-def bootstrap_project(project_path: Path, force: bool = False) -> Optional[Path]:
+def bootstrap_project(project_path: Path, force: bool = False) -> Path | None:
     """
     Convenience function to bootstrap a project.
 

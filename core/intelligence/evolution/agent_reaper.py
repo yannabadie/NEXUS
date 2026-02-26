@@ -22,13 +22,12 @@ Usage:
 
 from __future__ import annotations
 
-import json
-import shutil
 import logging
+import shutil
 from dataclasses import dataclass, field
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -36,6 +35,7 @@ _logger = logging.getLogger(__name__)
 # =============================================================================
 # Configuration
 # =============================================================================
+
 
 @dataclass
 class ReaperConfig:
@@ -50,6 +50,7 @@ class ReaperConfig:
         protect_internal: Never archive internal agents (gemini, claude)
         dry_run: If True, scan but don't actually archive
     """
+
     min_importance: float = 0.1
     max_inactivity_days: int = 30
     min_success_rate: float = 0.2
@@ -62,15 +63,17 @@ class ReaperConfig:
 # Data Types
 # =============================================================================
 
+
 @dataclass
 class ArchivalCandidate:
     """An agent identified for potential archival."""
+
     agent_id: str
     reason: str
     importance_score: float
     success_rate: float
     invocation_count: int
-    last_active: Optional[str] = None
+    last_active: str | None = None
     days_inactive: int = 0
     provider: str = ""
 
@@ -78,16 +81,17 @@ class ArchivalCandidate:
 @dataclass
 class ReaperReport:
     """Results from a reaper scan."""
-    candidates: List[ArchivalCandidate] = field(default_factory=list)
-    protected: List[str] = field(default_factory=list)
-    healthy: List[str] = field(default_factory=list)
-    exempt: List[str] = field(default_factory=list)
+
+    candidates: list[ArchivalCandidate] = field(default_factory=list)
+    protected: list[str] = field(default_factory=list)
+    healthy: list[str] = field(default_factory=list)
+    exempt: list[str] = field(default_factory=list)
     scanned_at: str = ""
     total_agents: int = 0
 
     def __post_init__(self):
         if not self.scanned_at:
-            self.scanned_at = datetime.now(timezone.utc).isoformat()
+            self.scanned_at = datetime.now(UTC).isoformat()
 
     @property
     def candidate_count(self) -> int:
@@ -99,7 +103,7 @@ class ReaperReport:
         total = len(self.healthy) + len(self.candidates) + len(self.exempt)
         return len(self.healthy) / total if total > 0 else 1.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "scanned_at": self.scanned_at,
             "total_agents": self.total_agents,
@@ -124,15 +128,17 @@ class ReaperReport:
 @dataclass
 class ArchivalResult:
     """Result of archiving a single agent."""
+
     agent_id: str
     success: bool
-    archive_path: Optional[str] = None
+    archive_path: str | None = None
     error: str = ""
 
 
 # =============================================================================
 # Agent Reaper
 # =============================================================================
+
 
 class AgentReaper:
     """
@@ -151,8 +157,8 @@ class AgentReaper:
     def __init__(
         self,
         agent_pool: Any,
-        workspace_path: Optional[Path] = None,
-        config: Optional[ReaperConfig] = None,
+        workspace_path: Path | None = None,
+        config: ReaperConfig | None = None,
     ):
         """
         Initialize the agent reaper.
@@ -174,7 +180,7 @@ class AgentReaper:
             ReaperReport with candidates, protected, healthy, and exempt agents
         """
         report = ReaperReport(total_agents=len(self._pool.agents))
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         for agent_id, profile in self._pool.agents.items():
             # Skip inactive agents (already archived)
@@ -206,7 +212,7 @@ class AgentReaper:
 
         return report
 
-    def reap(self, report: Optional[ReaperReport] = None) -> List[ArchivalResult]:
+    def reap(self, report: ReaperReport | None = None) -> list[ArchivalResult]:
         """
         Archive agents identified as candidates.
 
@@ -221,12 +227,9 @@ class AgentReaper:
 
         if self.config.dry_run:
             _logger.info(f"Dry run: would archive {report.candidate_count} agents")
-            return [
-                ArchivalResult(agent_id=c.agent_id, success=False, error="dry_run")
-                for c in report.candidates
-            ]
+            return [ArchivalResult(agent_id=c.agent_id, success=False, error="dry_run") for c in report.candidates]
 
-        results: List[ArchivalResult] = []
+        results: list[ArchivalResult] = []
         for candidate in report.candidates:
             result = self._archive_agent(candidate)
             results.append(result)
@@ -236,7 +239,7 @@ class AgentReaper:
 
         return results
 
-    def get_agent_health(self, agent_id: str) -> Dict[str, Any]:
+    def get_agent_health(self, agent_id: str) -> dict[str, Any]:
         """
         Get health report for a specific agent.
 
@@ -247,7 +250,7 @@ class AgentReaper:
             return {"agent_id": agent_id, "status": "not_found"}
 
         profile = self._pool.agents[agent_id]
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         days_inactive = self._get_days_inactive(profile, now)
 
         # Determine health status
@@ -285,7 +288,7 @@ class AgentReaper:
             "warnings": warnings,
         }
 
-    def get_pool_health(self) -> Dict[str, Any]:
+    def get_pool_health(self) -> dict[str, Any]:
         """
         Get health report for the entire agent pool.
 
@@ -314,9 +317,7 @@ class AgentReaper:
     # Internal Methods
     # =========================================================================
 
-    def _evaluate_agent(
-        self, agent_id: str, profile: Any, now: datetime
-    ) -> Optional[ArchivalCandidate]:
+    def _evaluate_agent(self, agent_id: str, profile: Any, now: datetime) -> ArchivalCandidate | None:
         """Evaluate a single agent against archival criteria."""
         importance = profile.average_importance
         success_rate = profile.success_rate
@@ -373,7 +374,7 @@ class AgentReaper:
 
         # Ensure both are tz-aware for comparison
         if last_ts.tzinfo is None:
-            last_ts = last_ts.replace(tzinfo=timezone.utc)
+            last_ts = last_ts.replace(tzinfo=UTC)
 
         delta = now - last_ts
         return delta.days

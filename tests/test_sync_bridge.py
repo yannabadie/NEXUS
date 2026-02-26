@@ -4,12 +4,12 @@ V9.4 ISSUE-003: OrchestratorSyncBridge Unit Tests
 Tests for state synchronization between HiveMind and Swarm.
 """
 
-import pytest
-import asyncio
-from pathlib import Path
 from datetime import datetime
-from unittest.mock import Mock, MagicMock, AsyncMock, patch
+from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import AsyncMock, Mock
+
+import pytest
 
 from core.execution_pkg.orchestration.sync_bridge import (
     OrchestratorSyncBridge,
@@ -40,11 +40,7 @@ class TestSyncEvent:
 
     def test_create_event(self):
         """Event created with required fields."""
-        event = SyncEvent(
-            event_type=SyncEventType.TASK_CREATED,
-            source="hivemind",
-            task_id="test_123"
-        )
+        event = SyncEvent(event_type=SyncEventType.TASK_CREATED, source="hivemind", task_id="test_123")
 
         assert event.event_type == SyncEventType.TASK_CREATED
         assert event.source == "hivemind"
@@ -60,7 +56,7 @@ class TestSyncEvent:
             source="swarm",
             task_id="test_456",
             data={"phase": "analysis", "context_index": 50},
-            propagated_to=["hivemind"]
+            propagated_to=["hivemind"],
         )
 
         assert event.data["phase"] == "analysis"
@@ -68,11 +64,7 @@ class TestSyncEvent:
 
     def test_event_to_dict(self):
         """Event serializes to dict."""
-        event = SyncEvent(
-            event_type=SyncEventType.ROLLBACK_STARTED,
-            source="sync_bridge",
-            task_id="test_789"
-        )
+        event = SyncEvent(event_type=SyncEventType.ROLLBACK_STARTED, source="sync_bridge", task_id="test_789")
 
         d = event.to_dict()
 
@@ -147,11 +139,7 @@ class TestUnifiedTaskCreation:
         mock_session = Mock()
         bridge.set_session_manager(mock_session)
 
-        task_id = bridge.create_unified_task(
-            "Build API",
-            "SEQUENTIAL",
-            metadata={"priority": "high"}
-        )
+        task_id = bridge.create_unified_task("Build API", "SEQUENTIAL", metadata={"priority": "high"})
 
         mock_session.create_task.assert_called_once()
         call_args = mock_session.create_task.call_args
@@ -184,10 +172,7 @@ class TestCheckpointSynchronization:
         bridge.set_session_manager(mock_session)
 
         result = await bridge.sync_checkpoint(
-            source="hivemind",
-            task_id="task_001",
-            phase_or_mode="analysis",
-            checkpoint_data={"context_index": 50}
+            source="hivemind", task_id="task_001", phase_or_mode="analysis", checkpoint_data={"context_index": 50}
         )
 
         assert result is True
@@ -208,7 +193,7 @@ class TestCheckpointSynchronization:
             source="swarm",
             task_id="task_002",
             phase_or_mode="PARALLEL",
-            checkpoint_data={"fallback_chain": ["PARALLEL", "SEQUENTIAL"]}
+            checkpoint_data={"fallback_chain": ["PARALLEL", "SEQUENTIAL"]},
         )
 
         assert result is True
@@ -221,11 +206,7 @@ class TestCheckpointSynchronization:
         bridge = OrchestratorSyncBridge()
         # No session manager set
 
-        result = await bridge.sync_checkpoint(
-            source="hivemind",
-            task_id="task_003",
-            phase_or_mode="debate"
-        )
+        result = await bridge.sync_checkpoint(source="hivemind", task_id="task_003", phase_or_mode="debate")
 
         assert result is False
 
@@ -236,11 +217,7 @@ class TestCheckpointSynchronization:
         mock_session.create_checkpoint.return_value = "cp_sync"
         bridge.set_session_manager(mock_session)
 
-        result = bridge.sync_checkpoint_sync(
-            source="hivemind",
-            task_id="task_sync",
-            phase_or_mode="architecture"
-        )
+        result = bridge.sync_checkpoint_sync(source="hivemind", task_id="task_sync", phase_or_mode="architecture")
 
         assert result is True
 
@@ -270,9 +247,7 @@ class TestCoordinatedRollback:
         bridge.set_session_manager(mock_session)
 
         result = await bridge.coordinated_rollback(
-            task_id="task_rollback",
-            target_phase="analysis",
-            context_manager=None
+            task_id="task_rollback", target_phase="analysis", context_manager=None
         )
 
         assert result is True
@@ -295,10 +270,7 @@ class TestCoordinatedRollback:
         mock_saga.rollback_to = AsyncMock(return_value=True)
         bridge.set_saga_manager(mock_saga)
 
-        result = await bridge.coordinated_rollback(
-            task_id="task_saga",
-            target_phase="analysis"
-        )
+        result = await bridge.coordinated_rollback(task_id="task_saga", target_phase="analysis")
 
         assert result is True
 
@@ -313,10 +285,7 @@ class TestCoordinatedRollback:
         mock_saga.rollback_to = AsyncMock(side_effect=Exception("Saga error"))
         bridge.set_saga_manager(mock_saga)
 
-        result = await bridge.coordinated_rollback(
-            task_id="task_error",
-            target_phase="analysis"
-        )
+        result = await bridge.coordinated_rollback(task_id="task_error", target_phase="analysis")
 
         assert result is False
         events = bridge.get_events()
@@ -422,7 +391,7 @@ class TestEventManagement:
         bridge = OrchestratorSyncBridge()
 
         task1 = bridge.create_unified_task("Task 1", "PARALLEL")
-        task2 = bridge.create_unified_task("Task 2", "SEQUENTIAL")
+        bridge.create_unified_task("Task 2", "SEQUENTIAL")
 
         events = bridge.get_events(task_id=task1)
 
