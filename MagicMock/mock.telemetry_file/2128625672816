@@ -1,1 +1,0 @@
-{"type": "swarm_task", "session_id": "20260226_152946", "timestamp": "2026-02-26T14:29:47.061307+00:00", "data": {"timestamp": "2026-02-26T14:29:47.061104+00:00", "mode": "ping_pong", "rounds": 0, "duration_seconds": 0.6427044868469238, "success": false, "agents_used": [], "negotiation_turns": 0}}
