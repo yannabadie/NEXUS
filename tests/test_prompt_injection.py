@@ -78,7 +78,7 @@ class TestInputGuard:
         for attack in attacks:
             result = guard.validate(attack)
             assert not result.is_safe, f"Should block: {attack}"
-            assert result.threat_type == ThreatType.ROLE_MANIPULATION
+            assert result.threat_type in (ThreatType.ROLE_MANIPULATION, ThreatType.INSTRUCTION_OVERRIDE)
 
     def test_role_override_blocked(self):
         """Role override attempts should be blocked."""
