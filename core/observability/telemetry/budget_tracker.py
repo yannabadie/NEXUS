@@ -9,15 +9,15 @@ Usage:
     tracker.track_cost("claude-opus", input_tokens=1000, output_tokens=500)
     tracker.check_budget()  # Raises BudgetExceededError if over limit
 
-Pricing (Feb 2026 - OFFICIAL):
+Pricing (Feb 2026 - OFFICIAL, verified 2026-02-26):
     Claude Opus 4.6:    $5/1M input, $25/1M output
-                        $6.25/1M cache creation, $0.50/1M cache read (90% savings!)
-    Claude Sonnet 4.5:  $1/1M input, $5/1M output
-                        $1.25/1M cache creation, $0.10/1M cache read
-    Claude Haiku 4.5:   $0.25/1M input, $1.25/1M output
-                        $0.3125/1M cache creation, $0.025/1M cache read
+                        $6.25/1M cache write, $0.50/1M cache read
+    Claude Sonnet 4.5:  $3/1M input, $15/1M output
+                        $3.75/1M cache write, $0.30/1M cache read
+    Claude Haiku 4.5:   $1/1M input, $5/1M output
+                        $1.25/1M cache write, $0.10/1M cache read
     Gemini 3 Pro:       $2/1M input, $12/1M output (no caching)
-    Gemini 3 Flash:     $0.50/1M input, $3/1M output (no caching)
+    Gemini 2.5 Flash:   $0.30/1M input, $2.50/1M output (no caching)
 """
 
 import json
@@ -34,9 +34,12 @@ _logger = logging.getLogger(__name__)
 # =============================================================================
 
 # Cost per 1 MILLION tokens (USD)
-# Official pricing as of Feb 2026 - Sources: Anthropic & Google AI pricing pages
-# Note: Anthropic models support prompt caching (cache_creation/cache_read)
-# Last verified: 2026-02-25
+# Official pricing as of Feb 2026
+# Sources:
+#   Anthropic: platform.claude.com/docs/en/about-claude/pricing
+#   Google: ai.google.dev/gemini-api/docs/pricing
+# Note: Anthropic cache formula: write = 1.25x input (5min TTL), read = 0.1x input
+# Last verified: 2026-02-26
 PRICING = {
     # Claude models (Opus 4.6, Sonnet 4.5, Haiku 4.5) - WITH PROMPT CACHING
     "claude-opus-4-6-20250116": {
@@ -63,29 +66,41 @@ PRICING = {
         "cache_creation": 6.25,
         "cache_read": 0.50,
     },
+    "claude-sonnet-4-6-20260217": {
+        "input": 3.00,  # $3/MTok
+        "output": 15.00,  # $15/MTok
+        "cache_creation": 3.75,  # $3.75/MTok (1.25x input, 5min TTL)
+        "cache_read": 0.30,  # $0.30/MTok (0.1x input)
+    },
+    "claude-sonnet-4-6": {
+        "input": 3.00,
+        "output": 15.00,
+        "cache_creation": 3.75,
+        "cache_read": 0.30,
+    },
     "claude-sonnet-4-5-20250929": {
-        "input": 1.00,  # $1/MTok (CORRECTED from 3.00)
-        "output": 5.00,  # $5/MTok (CORRECTED from 15.00)
-        "cache_creation": 1.25,  # $1.25/MTok
-        "cache_read": 0.10,  # $0.10/MTok
+        "input": 3.00,
+        "output": 15.00,
+        "cache_creation": 3.75,
+        "cache_read": 0.30,
     },
     "claude-sonnet": {
+        "input": 3.00,
+        "output": 15.00,
+        "cache_creation": 3.75,
+        "cache_read": 0.30,
+    },
+    "claude-haiku-4-5-20251001": {
+        "input": 1.00,  # $1/MTok
+        "output": 5.00,  # $5/MTok
+        "cache_creation": 1.25,  # $1.25/MTok (1.25x input)
+        "cache_read": 0.10,  # $0.10/MTok (0.1x input)
+    },
+    "claude-haiku": {
         "input": 1.00,
         "output": 5.00,
         "cache_creation": 1.25,
         "cache_read": 0.10,
-    },
-    "claude-haiku-4-5-20251001": {
-        "input": 0.25,  # $0.25/MTok (CORRECTED from 1.00)
-        "output": 1.25,  # $1.25/MTok (CORRECTED from 5.00)
-        "cache_creation": 0.3125,  # $0.3125/MTok
-        "cache_read": 0.025,  # $0.025/MTok
-    },
-    "claude-haiku": {
-        "input": 0.25,
-        "output": 1.25,
-        "cache_creation": 0.3125,
-        "cache_read": 0.025,
     },
     # Gemini models (no prompt caching as of Feb 2026)
     "gemini-3-pro-preview": {
@@ -94,12 +109,12 @@ PRICING = {
     },
     "gemini-3-pro": {"input": 2.00, "output": 12.00},
     "gemini-pro": {"input": 2.00, "output": 12.00},
-    "gemini-2.5-flash": {"input": 0.15, "output": 0.60},  # Correct
+    "gemini-2.5-flash": {"input": 0.30, "output": 2.50},
     "gemini-3-flash": {
         "input": 0.50,  # $0.50/MTok (CORRECTED from 0.075)
         "output": 3.00,  # $3/MTok (CORRECTED from 0.30)
     },
-    "gemini-flash": {"input": 0.15, "output": 0.60},  # Alias (2.5-flash)
+    "gemini-flash": {"input": 0.30, "output": 2.50},  # Alias (2.5-flash)
     # Local models (zero cost)
     "ollama": {"input": 0.0, "output": 0.0},
     "llama3.1": {"input": 0.0, "output": 0.0},
