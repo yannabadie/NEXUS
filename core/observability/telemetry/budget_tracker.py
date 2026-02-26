@@ -103,10 +103,12 @@ PRICING = {
         "cache_read": 0.10,
     },
     # Gemini models (no prompt caching as of Feb 2026)
-    "gemini-3-pro-preview": {
-        "input": 2.00,  # $2/MTok (CORRECTED from 1.25)
-        "output": 12.00,  # $12/MTok (CORRECTED from 5.00)
+    "gemini-3.1-pro-preview": {
+        "input": 2.00,  # $2/MTok (ai.google.dev, 2026-02-19)
+        "output": 12.00,  # $12/MTok
     },
+    "gemini-3.1-pro": {"input": 2.00, "output": 12.00},
+    "gemini-3-pro-preview": {"input": 2.00, "output": 12.00},
     "gemini-3-pro": {"input": 2.00, "output": 12.00},
     "gemini-pro": {"input": 2.00, "output": 12.00},
     "gemini-2.5-flash": {"input": 0.30, "output": 2.50},
