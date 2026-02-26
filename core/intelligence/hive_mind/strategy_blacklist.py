@@ -126,7 +126,7 @@ class StrategyBlacklist:
         """Generate a hash for a strategy."""
         # Normalize: lowercase, remove extra whitespace
         normalized = " ".join(strategy.lower().split())
-        return hashlib.md5(normalized.encode()).hexdigest()[:12]
+        return hashlib.md5(normalized.encode(), usedforsecurity=False).hexdigest()[:12]
 
     def _extract_keywords(self, strategy: str) -> set[str]:
         """Extract keywords from a strategy for similarity matching."""

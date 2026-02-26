@@ -826,7 +826,7 @@ class ArchitectureGenerationPhase:
                 # Generate unique ID
                 import hashlib
 
-                agent_id = f"{spec.role}_{hashlib.md5(spec.mission.encode()).hexdigest()[:6]}"
+                agent_id = f"{spec.role}_{hashlib.md5(spec.mission.encode(), usedforsecurity=False).hexdigest()[:6]}"
 
                 # Create agent file in workspace
                 agent_path = self.workspace_path / "agents" / f"{agent_id}.json"

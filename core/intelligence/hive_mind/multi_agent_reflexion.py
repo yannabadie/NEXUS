@@ -540,7 +540,7 @@ class MultiAgentReflexion:
     def _fingerprint(text: str) -> str:
         """Create a fingerprint for context matching."""
         normalized = " ".join(text.lower().split()[:30])
-        return hashlib.md5(normalized.encode()).hexdigest()[:12]
+        return hashlib.md5(normalized.encode(), usedforsecurity=False).hexdigest()[:12]
 
     @staticmethod
     def _word_overlap(a: str, b: str) -> float:

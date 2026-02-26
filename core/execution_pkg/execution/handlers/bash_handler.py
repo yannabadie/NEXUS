@@ -191,7 +191,7 @@ class BashHandler(BaseHandler):
         """
         return subprocess.run(
             command,
-            shell=True,
+            shell=True,  # nosec B602  # intentional: bash_handler executes user shell commands by design
             cwd=str(self.workspace_path),
             capture_output=True,
             text=True,

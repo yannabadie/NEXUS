@@ -616,7 +616,7 @@ class ExperienceDistiller:
     def _fingerprint(text: str) -> str:
         """Create a stable fingerprint for text."""
         normalized = " ".join(text.lower().split()[:50])
-        return hashlib.md5(normalized.encode()).hexdigest()[:12]
+        return hashlib.md5(normalized.encode(), usedforsecurity=False).hexdigest()[:12]
 
     def _load(self) -> None:
         """Load principles from disk."""

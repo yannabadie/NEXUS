@@ -366,7 +366,7 @@ class FeatureFlags:
     def _in_rollout(self, flag_name: str, context_key: str, pct: int) -> bool:
         """Deterministic percentage check using hash."""
         raw = f"{flag_name}:{context_key}"
-        h = hashlib.md5(raw.encode()).hexdigest()
+        h = hashlib.md5(raw.encode(), usedforsecurity=False).hexdigest()
         bucket = int(h[:8], 16) % 100
         return bucket < pct
 

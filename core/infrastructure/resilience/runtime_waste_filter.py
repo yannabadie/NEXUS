@@ -549,7 +549,7 @@ class RuntimeWasteFilter:
     def _hash(content: str) -> str:
         """Hash content for comparison."""
         normalized = " ".join(content.lower().split())
-        return hashlib.md5(normalized.encode()).hexdigest()
+        return hashlib.md5(normalized.encode(), usedforsecurity=False).hexdigest()
 
 
 # ---------------------------------------------------------------------------

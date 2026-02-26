@@ -198,7 +198,7 @@ Objective: {status["objective"]}"""
 
     def clear(self):
         """Clear terminal screen"""
-        os.system("cls" if os.name == "nt" else "clear")
+        os.system("cls" if os.name == "nt" else "clear")  # nosec B605  # intentional: screen clear command, not user-controlled
 
     def show_spinner(self, text: str):
         """
