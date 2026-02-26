@@ -124,6 +124,7 @@ ignore = [
     "E501",    # line too long (handled by formatter)
     "B008",    # do not perform function calls in argument defaults
     "SIM108",  # use ternary operator
+    "UP042",   # str+Enum → StrEnum migration deferred (needs full test pass)
 ]
 
 [tool.ruff.lint.isort]

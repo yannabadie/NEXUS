@@ -32,6 +32,11 @@ def test_global_integration():
         patch("core.interface_pkg.interface.repl.load_config") as MockConfig,
         patch("core.intelligence.evolution.lineage.load_lineage") as MockLineage,
         patch("core.intelligence.evolution.lineage.get_current_parent") as MockGetParent,
+        patch.object(
+            InteractiveNexusV7,
+            "_calculate_nexus_root",
+            return_value=workspace_path,
+        ),
     ):
         # Mock Config
         mock_config = MagicMock()

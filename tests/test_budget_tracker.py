@@ -94,8 +94,8 @@ class TestPricingConstants:
         """Test Claude Sonnet pricing is defined (Feb 2026 official rates)."""
         assert "claude-sonnet-4-5-20250929" in PRICING
         pricing = PRICING["claude-sonnet-4-5-20250929"]
-        assert pricing["input"] == 1.00  # CORRECTED from 3.00
-        assert pricing["output"] == 5.00  # CORRECTED from 15.00
+        assert pricing["input"] == 3.00  # $3/MTok (platform.claude.com)
+        assert pricing["output"] == 15.00  # $15/MTok (platform.claude.com)
 
     def test_gemini_pro_pricing_exists(self):
         """Test Gemini Pro pricing is defined (Feb 2026 official rates)."""
@@ -176,8 +176,8 @@ class TestCostCalculation:
             input_tokens=1_000_000,
             output_tokens=100_000,
         )
-        # $1 for input + $0.50 for output = $1.50 (CORRECTED from $4.50)
-        assert abs(cost - 1.50) < 0.01
+        # $3 for input + $1.50 for output = $4.50 (platform.claude.com)
+        assert abs(cost - 4.50) < 0.01
 
     def test_calculate_gemini_pro_cost(self, budget_tracker):
         """Test Gemini Pro cost calculation (Feb 2026 rates)."""

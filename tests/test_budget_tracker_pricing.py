@@ -34,7 +34,7 @@ class TestPricingCorrectness:
         assert cost == 30.00, f"Expected $30, got ${cost}"
 
     def test_claude_sonnet_pricing_correct(self, tmp_path: Path):
-        """Claude Sonnet 4.5 should be $1/MTok input, $5/MTok output."""
+        """Claude Sonnet 4.5 should be $3/MTok input, $15/MTok output."""
         tracker = BudgetTracker(workspace_path=tmp_path)
 
         # 1M input + 1M output
@@ -42,11 +42,11 @@ class TestPricingCorrectness:
             model="claude-sonnet-4-5-20250929", input_tokens=1_000_000, output_tokens=1_000_000
         )
 
-        # Expected: $1 (input) + $5 (output) = $6
-        assert cost == 6.00, f"Expected $6, got ${cost}"
+        # Expected: $3 (input) + $15 (output) = $18
+        assert cost == 18.00, f"Expected $18, got ${cost}"
 
     def test_claude_haiku_pricing_correct(self, tmp_path: Path):
-        """Claude Haiku 4.5 should be $0.25/MTok input, $1.25/MTok output."""
+        """Claude Haiku 4.5 should be $1/MTok input, $5/MTok output."""
         tracker = BudgetTracker(workspace_path=tmp_path)
 
         # 1M input + 1M output
@@ -54,8 +54,8 @@ class TestPricingCorrectness:
             model="claude-haiku-4-5-20251001", input_tokens=1_000_000, output_tokens=1_000_000
         )
 
-        # Expected: $0.25 (input) + $1.25 (output) = $1.50
-        assert cost == 1.50, f"Expected $1.50, got ${cost}"
+        # Expected: $1 (input) + $5 (output) = $6
+        assert cost == 6.00, f"Expected $6, got ${cost}"
 
     def test_gemini_3_pro_pricing_correct(self, tmp_path: Path):
         """Gemini 3 Pro should be $2/MTok input, $12/MTok output."""
@@ -114,7 +114,7 @@ class TestPromptCachingEconomics:
         assert savings_pct == 90.0, f"Expected 90% savings, got {savings_pct:.1f}%"
 
     def test_sonnet_cache_read_savings(self, tmp_path: Path):
-        """Sonnet cache read should also save 90% ($0.10 vs $1.00)."""
+        """Sonnet cache read should also save 90% ($0.30 vs $3.00)."""
         tracker = BudgetTracker(workspace_path=tmp_path)
 
         # Regular input
@@ -127,8 +127,8 @@ class TestPromptCachingEconomics:
             model="claude-sonnet-4-5-20250929", input_tokens=0, output_tokens=0, cache_read_tokens=1_000_000
         )
 
-        assert cost_no_cache == 1.00
-        assert cost_with_cache == 0.10
+        assert cost_no_cache == 3.00
+        assert cost_with_cache == 0.30
 
         # Verify 90% savings
         savings_pct = (1 - cost_with_cache / cost_no_cache) * 100
@@ -193,11 +193,11 @@ class TestBackwardsCompatibility:
         cost = tracker.track_cost(model="claude-sonnet-4-5-20250929", input_tokens=1_000_000, output_tokens=1_000_000)
 
         # Should work and calculate normal cost
-        assert cost == 6.00  # $1 input + $5 output
+        assert cost == 18.00  # $3 input + $15 output
 
         # Verify state updated
         stats = tracker.get_stats()
-        assert stats["spent_today_usd"] == 6.00
+        assert stats["spent_today_usd"] == 18.00
 
 
 class TestCostAccuracy:
@@ -211,10 +211,10 @@ class TestCostAccuracy:
         cost = tracker.calculate_cost(model="claude-sonnet-4-5-20250929", input_tokens=1_500, output_tokens=500)
 
         # Expected:
-        # Input:  (1500 / 1M) * $1.00 = $0.0015
-        # Output: (500 / 1M) * $5.00 = $0.0025
-        # Total: $0.004
-        expected = 0.0015 + 0.0025
+        # Input:  (1500 / 1M) * $3.00 = $0.0045
+        # Output: (500 / 1M) * $15.00 = $0.0075
+        # Total: $0.012
+        expected = 0.0045 + 0.0075
         assert abs(cost - expected) < 0.00001, f"Expected ${expected}, got ${cost}"
 
     def test_large_context_with_cache(self, tmp_path: Path):
@@ -299,10 +299,10 @@ class TestModelAliases:
         ],
     )
     def test_sonnet_aliases_correct(self, tmp_path: Path, alias: str):
-        """All Sonnet aliases should use $1/$5 pricing."""
+        """All Sonnet aliases should use $3/$15 pricing."""
         tracker = BudgetTracker(workspace_path=tmp_path)
         cost = tracker.calculate_cost(alias, 1_000_000, 1_000_000)
-        assert cost == 6.00, f"Alias '{alias}' pricing wrong: ${cost}"
+        assert cost == 18.00, f"Alias '{alias}' pricing wrong: ${cost}"
 
     @pytest.mark.parametrize(
         "alias",
