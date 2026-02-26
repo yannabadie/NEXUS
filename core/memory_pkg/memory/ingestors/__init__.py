@@ -25,6 +25,8 @@ Environment:
     DOCLING_OCR_ENABLED = "true" | "false" (default: true)
 """
 
+from __future__ import annotations
+
 import logging
 from pathlib import Path
 from typing import Any

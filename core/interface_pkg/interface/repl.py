@@ -777,12 +777,16 @@ class InteractiveNexusV7:
             /workspace switch <name> - Switch to another workspace
         """
 
-        from core.interface_pkg.interface_pkg.workspace import (
-            WorkspaceError,
-            WorkspaceExistsError,
-            WorkspaceManager,
-            WorkspaceNotFoundError,
-        )
+        try:
+            from core.interface_pkg.interface_pkg.workspace import (  # noqa: F401  # P5.6 workspace module not yet implemented
+                WorkspaceError,
+                WorkspaceExistsError,
+                WorkspaceManager,
+                WorkspaceNotFoundError,
+            )
+        except (ImportError, ModuleNotFoundError):
+            self.console.print("[yellow]Workspace management not available (module not implemented)[/yellow]")
+            return
 
         # Lazy init workspace manager
         if not hasattr(self, "workspace_manager"):
@@ -1035,9 +1039,14 @@ class InteractiveNexusV7:
 
         # 8. Update workspace manager reference
         if hasattr(self, "workspace_manager"):
-            from core.interface_pkg.interface_pkg.workspace import WorkspaceManager
+            try:
+                from core.interface_pkg.interface_pkg.workspace import (
+                    WorkspaceManager,  # noqa: F401  # P5.6 not yet implemented
+                )
 
-            self.workspace_manager = WorkspaceManager(self.nexus_root)
+                self.workspace_manager = WorkspaceManager(self.nexus_root)
+            except (ImportError, ModuleNotFoundError):
+                pass
 
     # ==================== END WORKSPACE MANAGEMENT ====================
 

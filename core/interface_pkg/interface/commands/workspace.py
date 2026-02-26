@@ -29,8 +29,12 @@ def _get_workspace_manager(context: CommandContext):
     Get or create WorkspaceManager from context.
 
     WorkspaceManager requires nexus_root path.
+    NOTE: P5.6 workspace module not yet implemented — raises ImportError at runtime.
     """
-    from core.interface_pkg.interface_pkg.workspace import WorkspaceManager
+    try:
+        from core.interface_pkg.interface_pkg.workspace import WorkspaceManager  # noqa: F401
+    except (ImportError, ModuleNotFoundError) as err:
+        raise ImportError("Workspace management module not yet implemented (P5.6)") from err
 
     # Try to get cached manager from extras
     manager = context.extras.get("workspace_manager")
@@ -163,15 +167,21 @@ class WorkspaceCommand(Command):
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
         """Execute workspace command using WorkspaceManager."""
-        from core.interface_pkg.interface_pkg.workspace import (
-            WorkspaceError,
-            WorkspaceExistsError,
-            WorkspaceNotFoundError,
-        )
+        try:
+            from core.interface_pkg.interface_pkg.workspace import (  # noqa: F401
+                WorkspaceError,
+                WorkspaceExistsError,
+                WorkspaceNotFoundError,
+            )
+        except (ImportError, ModuleNotFoundError):
+            return CommandResult(
+                status=CommandStatus.ERROR,
+                message="Workspace management not available (module not implemented)",
+            )
 
         try:
             manager = _get_workspace_manager(context)
-        except ValueError as e:
+        except (ValueError, ImportError) as e:
             return CommandResult(status=CommandStatus.ERROR, message=str(e))
 
         parts = args.strip().split(maxsplit=1)

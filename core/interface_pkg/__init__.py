@@ -2,7 +2,6 @@
 NEXUS V12.4 - Interface Package
 
 Consolidated interface components:
-- workspace: Multi-workspace management
 - notifications: Email and file-based notifications
 - mcp: MCP (Model Context Protocol) client and registry
 - interface: Command parsing and analytics
@@ -10,7 +9,6 @@ Consolidated interface components:
 P5.6 Phase 3: Package consolidation for reduced cognitive load.
 """
 
-# Workspace exports
 # Interface exports
 from core.interface_pkg.interface import (
     AnalyticsStats,
@@ -53,23 +51,8 @@ from core.interface_pkg.notifications import (
     get_repl_alert_message,
     send_review_email,
 )
-from core.interface_pkg.workspace import (
-    WorkspaceError,
-    WorkspaceExistsError,
-    WorkspaceInfo,
-    WorkspaceManager,
-    WorkspaceMetrics,
-    WorkspaceNotFoundError,
-)
 
 __all__ = [
-    # Workspace
-    "WorkspaceManager",
-    "WorkspaceInfo",
-    "WorkspaceMetrics",
-    "WorkspaceError",
-    "WorkspaceNotFoundError",
-    "WorkspaceExistsError",
     # Notifications
     "send_review_email",
     "EmailNotificationError",
