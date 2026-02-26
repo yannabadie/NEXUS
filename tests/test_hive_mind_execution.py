@@ -56,7 +56,10 @@ def test_hive_mind_execution():
         (workspace_path / ".nexus").mkdir(exist_ok=True)
 
         # Mock Config
-        with patch("core.interface_pkg.interface.repl.load_config") as MockConfig:
+        with (
+            patch("core.interface_pkg.interface.repl.load_config") as MockConfig,
+            patch.object(InteractiveNexusV7, "_calculate_nexus_root", return_value=workspace_path),
+        ):
             mock_config = MagicMock()
             mock_config.workspace_path = workspace_path
             mock_config.log_level = "INFO"

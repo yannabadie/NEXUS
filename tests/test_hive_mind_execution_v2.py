@@ -23,6 +23,7 @@ def test_hive_mind_execution_v2():
         patch("core.drivers.async_factory.AsyncDriverFactory.get_best_gemini"),
         patch("core.drivers.async_factory.AsyncDriverFactory.get_best_claude"),
         patch("core.interface_pkg.interface.repl.load_config") as MockConfig,
+        patch.object(InteractiveNexusV7, "_calculate_nexus_root", return_value=workspace_path),
         patch("core.intelligence.evolution.lineage.load_lineage") as MockLineage,
         patch("core.intelligence.evolution.lineage.get_current_parent") as MockGetParent,
     ):

@@ -19,6 +19,9 @@ from core.drivers.protocol import (
     DriverResponseStatus,
 )
 
+# Skip all tests if openai is not installed (Kimi driver requires it)
+pytest.importorskip("openai", reason="openai package required for Kimi driver tests")
+
 # =============================================================================
 # Mock OpenAI Response Objects (Kimi uses OpenAI-compatible API)
 # =============================================================================
