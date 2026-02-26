@@ -11,8 +11,9 @@ Author: Claude (NEXUS V11.6 KEYMAKER)
 Date: 2025-12-15
 """
 
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 
 class TestAuthEndpoints:
@@ -26,23 +27,21 @@ class TestAuthEndpoints:
             pytest.skip("fastapi[all] not installed")
 
         try:
-            from jose import jwt
+            from jose import jwt  # noqa: F401  # availability check
         except ImportError:
             pytest.skip("python-jose not installed")
 
         from core.api.cerebro.routes import auth
 
-        # Mock the JWT creation to avoid dependency on middleware
-        with patch.object(auth, 'ADMIN_PASSWORD', 'nexus'):
+        # Mock the fallback password to avoid env dependency
+        with patch.object(auth, "FALLBACK_ADMIN_PASSWORD", "nexus"):
             from fastapi import FastAPI
+
             app = FastAPI()
             app.include_router(auth.router, prefix="/api/auth")
 
             with TestClient(app) as client:
-                response = client.post(
-                    "/api/auth/login",
-                    json={"username": "admin", "password": "nexus"}
-                )
+                response = client.post("/api/auth/login", json={"username": "admin", "password": "nexus"})
 
             # Should succeed with default password
             assert response.status_code == 200
@@ -59,17 +58,15 @@ class TestAuthEndpoints:
         except ImportError:
             pytest.skip("fastapi[all] not installed")
 
+        from fastapi import FastAPI
+
         from core.api.cerebro.routes import auth
 
-        from fastapi import FastAPI
         app = FastAPI()
         app.include_router(auth.router, prefix="/api/auth")
 
         with TestClient(app) as client:
-            response = client.post(
-                "/api/auth/login",
-                json={"username": "admin", "password": "wrong_password"}
-            )
+            response = client.post("/api/auth/login", json={"username": "admin", "password": "wrong_password"})
 
         assert response.status_code == 401
         assert "Invalid credentials" in response.json()["detail"]
@@ -81,9 +78,10 @@ class TestAuthEndpoints:
         except ImportError:
             pytest.skip("fastapi[all] not installed")
 
+        from fastapi import FastAPI
+
         from core.api.cerebro.routes import auth
 
-        from fastapi import FastAPI
         app = FastAPI()
         app.include_router(auth.router, prefix="/api/auth")
 
@@ -99,9 +97,10 @@ class TestAuthEndpoints:
         except ImportError:
             pytest.skip("fastapi[all] not installed")
 
+        from fastapi import FastAPI
+
         from core.api.cerebro.routes import auth
 
-        from fastapi import FastAPI
         app = FastAPI()
         app.include_router(auth.router, prefix="/api/auth")
 
@@ -118,8 +117,10 @@ class TestAuthDependencies:
     def test_require_auth_no_header(self):
         """require_auth should raise 401 without Authorization header."""
         import asyncio
-        from core.api.cerebro.deps import require_auth
+
         from fastapi import HTTPException
+
+        from core.api.cerebro.deps import require_auth
 
         with pytest.raises(HTTPException) as exc_info:
             asyncio.run(require_auth(None))
@@ -129,8 +130,10 @@ class TestAuthDependencies:
     def test_require_auth_invalid_format(self):
         """require_auth should raise 401 with invalid format."""
         import asyncio
-        from core.api.cerebro.deps import require_auth
+
         from fastapi import HTTPException
+
+        from core.api.cerebro.deps import require_auth
 
         with pytest.raises(HTTPException) as exc_info:
             asyncio.run(require_auth("InvalidToken"))
@@ -141,6 +144,7 @@ class TestAuthDependencies:
     def test_get_current_user_optional_returns_none(self):
         """get_current_user_optional should return None without auth."""
         import asyncio
+
         from core.api.cerebro.deps import get_current_user_optional
 
         result = asyncio.run(get_current_user_optional(None))
@@ -149,6 +153,7 @@ class TestAuthDependencies:
     def test_get_current_user_optional_invalid_returns_none(self):
         """get_current_user_optional should return None with invalid token."""
         import asyncio
+
         from core.api.cerebro.deps import get_current_user_optional
 
         result = asyncio.run(get_current_user_optional("Bearer invalid_token"))
@@ -162,11 +167,7 @@ class TestAuthenticatedUser:
         """AuthenticatedUser should have expected fields."""
         from core.api.cerebro.deps import AuthenticatedUser
 
-        user = AuthenticatedUser(
-            user_id="test_user",
-            tenant_id="test_tenant",
-            workspace_id="test_workspace"
-        )
+        user = AuthenticatedUser(user_id="test_user", tenant_id="test_tenant", workspace_id="test_workspace")
 
         assert user.user_id == "test_user"
         assert user.tenant_id == "test_tenant"
@@ -176,11 +177,7 @@ class TestAuthenticatedUser:
         """AuthenticatedUser __str__ should include key info."""
         from core.api.cerebro.deps import AuthenticatedUser
 
-        user = AuthenticatedUser(
-            user_id="admin",
-            tenant_id="default",
-            workspace_id="main"
-        )
+        user = AuthenticatedUser(user_id="admin", tenant_id="default", workspace_id="main")
 
         str_repr = str(user)
         assert "admin" in str_repr
@@ -197,9 +194,10 @@ class TestIRONCLADEnforcement:
         except ImportError:
             pytest.skip("fastapi[all] not installed")
 
+        from fastapi import FastAPI
+
         from core.api.cerebro.routes import state
 
-        from fastapi import FastAPI
         app = FastAPI()
         app.include_router(state.router, prefix="/api/state")
 
@@ -218,18 +216,16 @@ class TestIRONCLADEnforcement:
         except ImportError:
             pytest.skip("fastapi[all] not installed")
 
+        from fastapi import FastAPI
+
         from core.api.cerebro.routes import state
 
-        from fastapi import FastAPI
         app = FastAPI()
         app.include_router(state.router, prefix="/api/state")
 
         with TestClient(app) as client:
             # Query param only, no auth - this is the IDOR attack vector
-            response = client.get(
-                "/api/state/snapshot",
-                params={"tenant_id": "admin"}
-            )
+            response = client.get("/api/state/snapshot", params={"tenant_id": "admin"})
 
         # V11.6.1 IRONCLAD: Query params are IGNORED, must return 401
         assert response.status_code == 401
@@ -242,18 +238,16 @@ class TestIRONCLADEnforcement:
         except ImportError:
             pytest.skip("fastapi[all] not installed")
 
+        from fastapi import FastAPI
+
         from core.api.cerebro.routes import workflow
 
-        from fastapi import FastAPI
         app = FastAPI()
         app.include_router(workflow.router, prefix="/api/workflow")
 
         with TestClient(app) as client:
             # No auth token
-            response = client.post(
-                "/api/workflow/start",
-                json={"task": "test task"}
-            )
+            response = client.post("/api/workflow/start", json={"task": "test task"})
 
         # V11.6.1 IRONCLAD: Must return 401
         assert response.status_code == 401
@@ -265,18 +259,16 @@ class TestIRONCLADEnforcement:
         except ImportError:
             pytest.skip("fastapi[all] not installed")
 
+        from fastapi import FastAPI
+
         from core.api.cerebro.routes import files
 
-        from fastapi import FastAPI
         app = FastAPI()
         app.include_router(files.router, prefix="/api/files")
 
         with TestClient(app) as client:
             # No auth token - this is the attack vector the advisor mentioned
-            response = client.get(
-                "/api/files/content",
-                params={"path": ".env"}
-            )
+            response = client.get("/api/files/content", params={"path": ".env"})
 
         # V11.6.1 IRONCLAD: Must return 401, not 403
         # Note: 403 would be PathGuardian, but auth should fail first
@@ -289,9 +281,10 @@ class TestIRONCLADEnforcement:
         except ImportError:
             pytest.skip("fastapi[all] not installed")
 
+        from fastapi import FastAPI
+
         from core.api.cerebro.routes import interactions
 
-        from fastapi import FastAPI
         app = FastAPI()
         app.include_router(interactions.router, prefix="/api/interactions")
 
@@ -310,20 +303,19 @@ class TestIRONCLADEnforcement:
         except ImportError:
             pytest.skip("fastapi[all] not installed")
 
+        from fastapi import FastAPI
+
         from core.api.cerebro.routes import stream
 
-        from fastapi import FastAPI
         app = FastAPI()
         app.include_router(stream.router, prefix="/ws")
 
-        with TestClient(app) as client:
-            # No auth token - this is the IDOR attack vector
-            # V11.6.2 IRONCLAD: WebSocket should reject (close with 4001)
-            with pytest.raises(WebSocketDisconnect):
-                with client.websocket_connect("/ws/stream"):
-                    pass
-            # Test passes if WebSocketDisconnect is raised
-            # Log shows: "[IRONCLAD] WebSocket connection rejected: no token provided"
+        # No auth token - this is the IDOR attack vector
+        # V11.6.2 IRONCLAD: WebSocket should reject (close with 4001)
+        with TestClient(app) as client, pytest.raises(WebSocketDisconnect), client.websocket_connect("/ws/stream"):
+            pass
+        # Test passes if WebSocketDisconnect is raised
+        # Log shows: "[IRONCLAD] WebSocket connection rejected: no token provided"
 
     def test_websocket_with_tenant_id_only_closes_4001(self):
         """WebSocket with tenant_id param but no token closes 4001 (IDOR prevention)."""
@@ -333,20 +325,23 @@ class TestIRONCLADEnforcement:
         except ImportError:
             pytest.skip("fastapi[all] not installed")
 
+        from fastapi import FastAPI
+
         from core.api.cerebro.routes import stream
 
-        from fastapi import FastAPI
         app = FastAPI()
         app.include_router(stream.router, prefix="/ws")
 
-        with TestClient(app) as client:
-            # tenant_id param only, no token - this is the IDOR attack vector
-            # V11.6.2: tenant_id param is now IGNORED
-            with pytest.raises(WebSocketDisconnect):
-                with client.websocket_connect("/ws/stream?tenant_id=admin"):
-                    pass
-            # V11.6.2 IRONCLAD: Must close with 4001, not allow anonymous access
-            # Test passes if WebSocketDisconnect is raised (no token = rejected)
+        # tenant_id param only, no token - this is the IDOR attack vector
+        # V11.6.2: tenant_id param is now IGNORED
+        with (
+            TestClient(app) as client,
+            pytest.raises(WebSocketDisconnect),
+            client.websocket_connect("/ws/stream?tenant_id=admin"),
+        ):
+            pass
+        # V11.6.2 IRONCLAD: Must close with 4001, not allow anonymous access
+        # Test passes if WebSocketDisconnect is raised (no token = rejected)
 
 
 class TestKeymakerConfig:
@@ -359,7 +354,7 @@ class TestKeymakerConfig:
         from core.api.cerebro.routes import auth
 
         # Default password should be 'nexus'
-        assert auth.ADMIN_PASSWORD == "nexus" or auth.ADMIN_PASSWORD != ""
+        assert auth.FALLBACK_ADMIN_PASSWORD == "nexus" or auth.FALLBACK_ADMIN_PASSWORD != ""
 
     def test_token_expiration_set(self):
         """Token expiration should be configured."""
@@ -384,7 +379,7 @@ class TestAuthRouterRegistered:
         assert "/api/auth/logout" in routes
 
     def test_app_version_updated(self):
-        """App version should be 11.6.0."""
+        """App version should be 13.0.0."""
         try:
             from fastapi.testclient import TestClient
         except ImportError:
@@ -398,5 +393,5 @@ class TestAuthRouterRegistered:
             response = client.get("/")
 
         data = response.json()
-        assert data["version"] == "11.6.0"
+        assert data["version"] == "13.0.0"
         assert "auth" in data

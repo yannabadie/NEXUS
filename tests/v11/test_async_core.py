@@ -11,14 +11,15 @@ Date: 2025-12-15
 """
 
 import asyncio
+import contextlib
 import time
-import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
 
+import pytest
 
 # =============================================================================
 # ConcurrencyLimiter Tests
 # =============================================================================
+
 
 class TestConcurrencyLimiter:
     """Test suite for ConcurrencyLimiter."""
@@ -26,6 +27,7 @@ class TestConcurrencyLimiter:
     def setup_method(self):
         """Reset singleton before each test."""
         from core.api.concurrency_limiter import reset_concurrency_limiter
+
         reset_concurrency_limiter()
 
     def test_singleton_pattern(self):
@@ -107,9 +109,7 @@ class TestConcurrencyLimiter:
         num_tasks = max_concurrent * 3
         await asyncio.gather(*[task() for _ in range(num_tasks)])
 
-        assert max_observed <= max_concurrent, (
-            f"Concurrency exceeded: observed {max_observed}, max {max_concurrent}"
-        )
+        assert max_observed <= max_concurrent, f"Concurrency exceeded: observed {max_observed}, max {max_concurrent}"
 
     def test_sync_timeout(self):
         """Test sync acquisition timeout."""
@@ -180,6 +180,7 @@ class TestConcurrencyLimiter:
 # Event Loop Responsiveness Tests
 # =============================================================================
 
+
 class TestEventLoopResponsiveness:
     """Tests to verify event loop remains responsive during operations."""
 
@@ -201,29 +202,24 @@ class TestEventLoopResponsiveness:
 
         # Run both concurrently
         heartbeat_task = asyncio.create_task(heartbeat())
-        result = await slow_operation()
+        await slow_operation()
 
         # Wait a bit for heartbeat to accumulate
         await asyncio.sleep(0.3)
         heartbeat_task.cancel()
 
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             await heartbeat_task
-        except asyncio.CancelledError:
-            pass
 
         # Heartbeats should have continued during slow_operation
         assert len(heartbeats) >= 10, (
-            f"Event loop was blocked! Only {len(heartbeats)} heartbeats "
-            f"(expected at least 10)"
+            f"Event loop was blocked! Only {len(heartbeats)} heartbeats (expected at least 10)"
         )
 
     @pytest.mark.asyncio
     async def test_concurrent_tasks_fair(self):
         """Verify concurrent tasks get fair execution."""
-        from core.api.concurrency_limiter import (
-            get_concurrency_limiter, reset_concurrency_limiter
-        )
+        from core.api.concurrency_limiter import get_concurrency_limiter, reset_concurrency_limiter
 
         reset_concurrency_limiter()
         limiter = get_concurrency_limiter()
@@ -250,15 +246,14 @@ class TestEventLoopResponsiveness:
 # Graceful Shutdown Tests
 # =============================================================================
 
+
 class TestGracefulShutdown:
     """Tests for graceful shutdown and cancellation handling."""
 
     @pytest.mark.asyncio
     async def test_cancellation_cleanup(self):
         """Verify cleanup happens on cancellation."""
-        from core.api.concurrency_limiter import (
-            get_concurrency_limiter, reset_concurrency_limiter
-        )
+        from core.api.concurrency_limiter import get_concurrency_limiter, reset_concurrency_limiter
 
         reset_concurrency_limiter()
         limiter = get_concurrency_limiter()
@@ -291,20 +286,20 @@ class TestGracefulShutdown:
 # Integration Tests with Executors
 # =============================================================================
 
+
 class TestExecutorIntegration:
     """Test ConcurrencyLimiter integration with executors."""
 
     def test_base_executor_import(self):
         """Verify base executor imports concurrency limiter."""
-        from core.swarm.executors.base import get_concurrency_limiter
+        from core.intelligence.swarm.executors.base import get_concurrency_limiter
+
         assert callable(get_concurrency_limiter)
 
     @pytest.mark.asyncio
     async def test_parallel_invocations_limited(self):
         """Test that parallel invocations respect concurrency limit."""
-        from core.api.concurrency_limiter import (
-            get_concurrency_limiter, reset_concurrency_limiter
-        )
+        from core.api.concurrency_limiter import get_concurrency_limiter, reset_concurrency_limiter
 
         reset_concurrency_limiter()
         limiter = get_concurrency_limiter()
@@ -326,14 +321,13 @@ class TestExecutorIntegration:
         tasks = [mock_invoke() for _ in range(limiter.max_concurrent * 2)]
         await asyncio.gather(*tasks)
 
-        assert max_seen <= limiter.max_concurrent, (
-            f"Max concurrent {max_seen} exceeded limit {limiter.max_concurrent}"
-        )
+        assert max_seen <= limiter.max_concurrent, f"Max concurrent {max_seen} exceeded limit {limiter.max_concurrent}"
 
 
 # =============================================================================
 # Driver Deadlock Prevention Tests
 # =============================================================================
+
 
 class TestDeadlockPrevention:
     """Tests for deadlock prevention in async drivers."""
@@ -341,6 +335,7 @@ class TestDeadlockPrevention:
     def test_gemini_driver_has_stderr_drain(self):
         """Verify Gemini driver has stderr drain task."""
         import inspect
+
         from core.drivers.async_gemini_driver import AsyncGeminiDriver
 
         source = inspect.getsource(AsyncGeminiDriver.invoke_stream)
@@ -353,6 +348,7 @@ class TestDeadlockPrevention:
     def test_claude_driver_has_stderr_drain(self):
         """Verify Claude driver has stderr drain task."""
         import inspect
+
         from core.drivers.async_claude_driver import AsyncClaudeDriver
 
         source = inspect.getsource(AsyncClaudeDriver.invoke_stream)
@@ -365,6 +361,7 @@ class TestDeadlockPrevention:
     def test_gemini_driver_has_process_wait_timeout(self):
         """Verify Gemini driver has timeout on proc.wait()."""
         import inspect
+
         from core.drivers.async_gemini_driver import AsyncGeminiDriver
 
         source = inspect.getsource(AsyncGeminiDriver.invoke_stream)
@@ -375,6 +372,7 @@ class TestDeadlockPrevention:
     def test_claude_driver_has_process_wait_timeout(self):
         """Verify Claude driver has timeout on proc.wait()."""
         import inspect
+
         from core.drivers.async_claude_driver import AsyncClaudeDriver
 
         source = inspect.getsource(AsyncClaudeDriver.invoke_stream)

@@ -8,11 +8,11 @@ Endpoints:
 """
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
 from fastapi import APIRouter
 
-from core.events.redis_bus import get_redis_bus
+from core.observability.events.redis_bus import get_redis_bus
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ router = APIRouter()
 
 
 @router.get("/")
-async def health() -> Dict[str, str]:
+async def health() -> dict[str, str]:
     """
     Basic liveness check.
 
@@ -34,7 +34,7 @@ async def health() -> Dict[str, str]:
 
 
 @router.get("/ready")
-async def readiness() -> Dict[str, Any]:
+async def readiness() -> dict[str, Any]:
     """
     Readiness check with Redis status.
 
@@ -61,7 +61,7 @@ async def readiness() -> Dict[str, Any]:
 
 
 @router.get("/info")
-async def info() -> Dict[str, Any]:
+async def info() -> dict[str, Any]:
     """
     Detailed system information.
 
@@ -84,7 +84,7 @@ async def info() -> Dict[str, Any]:
 
 
 @router.get("/ping")
-async def ping() -> Dict[str, str]:
+async def ping() -> dict[str, str]:
     """
     Simple ping endpoint for monitoring.
 

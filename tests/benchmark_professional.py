@@ -30,60 +30,63 @@ Author: Claude Code (Professional Benchmark)
 Date: 2025-12-07
 """
 
-import sys
-import os
-import time
 import json
+import sys
 import threading
-import traceback
-import psutil
-from pathlib import Path
-from datetime import datetime
-from dataclasses import dataclass, field, asdict
-from typing import List, Dict, Any, Optional, Tuple
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import asdict, dataclass, field
+from datetime import datetime
 from enum import Enum
+from pathlib import Path
+from typing import Any
+
+import psutil
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 # Core imports
-from core.swarm.collaboration_modes import CollaborationMode, get_mode_characteristics
-from core.swarm.task_analyzer import TaskAnalyzer, TaskComplexity, TaskDomain
-from core.swarm.mode_selector import ModeSelector, ModeProposal
-from core.swarm.session_manager import SwarmSessionManager
-from core.swarm.agent_metrics import AgentPool
-from core.memory.auto_memory import AutoMemory, get_auto_memory
-from core.utils.atomic_store import AtomicJsonStore
+from core.intelligence.swarm.collaboration_modes import (  # noqa: E402  # path setup required before import
+    CollaborationMode,
+    get_mode_characteristics,
+)
+from core.intelligence.swarm.mode_selector import ModeProposal, ModeSelector  # noqa: E402
+from core.intelligence.swarm.session_manager import SwarmSessionManager  # noqa: E402
+from core.intelligence.swarm.task_analyzer import TaskAnalyzer, TaskComplexity  # noqa: E402
+from core.memory_pkg.memory.auto_memory import get_auto_memory  # noqa: E402
+from core.utils.atomic_store import AtomicJsonStore  # noqa: E402
 
 
 class BenchmarkSeverity(Enum):
     CRITICAL = "critical"  # Must pass for production
-    HIGH = "high"          # Should pass
-    MEDIUM = "medium"      # Nice to have
-    LOW = "low"            # Informational
+    HIGH = "high"  # Should pass
+    MEDIUM = "medium"  # Nice to have
+    LOW = "low"  # Informational
 
 
 @dataclass
 class BenchmarkResult:
     """Result of a single benchmark test."""
+
     test_name: str
     scenario: str
     severity: str
     passed: bool
     duration_seconds: float
-    error: Optional[str] = None
-    metrics: Dict[str, Any] = field(default_factory=dict)
+    error: str | None = None
+    metrics: dict[str, Any] = field(default_factory=dict)
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return asdict(self)
 
 
 @dataclass
 class BenchmarkReport:
     """Complete benchmark report."""
+
     run_id: str
     start_time: str
     end_time: str
@@ -91,8 +94,8 @@ class BenchmarkReport:
     passed: int
     failed: int
     critical_failures: int
-    results: List[BenchmarkResult]
-    system_info: Dict[str, Any]
+    results: list[BenchmarkResult]
+    system_info: dict[str, Any]
 
     @property
     def pass_rate(self) -> float:
@@ -102,7 +105,7 @@ class BenchmarkReport:
     def is_production_ready(self) -> bool:
         return self.critical_failures == 0
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "run_id": self.run_id,
             "start_time": self.start_time,
@@ -114,7 +117,7 @@ class BenchmarkReport:
             "pass_rate": f"{self.pass_rate:.1f}%",
             "production_ready": self.is_production_ready,
             "results": [r.to_dict() for r in self.results],
-            "system_info": self.system_info
+            "system_info": self.system_info,
         }
 
 
@@ -134,7 +137,7 @@ class ProfessionalBenchmark:
         self.skip_llm = skip_llm
 
         self.log_file = self.workspace / f"benchmark_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jsonl"
-        self.results: List[BenchmarkResult] = []
+        self.results: list[BenchmarkResult] = []
         self.lock = threading.Lock()
 
         # Initialize components
@@ -159,7 +162,7 @@ class ProfessionalBenchmark:
         # Mode selector (needs auto_memory)
         self.mode_selector = ModeSelector(
             agent_pool=None,  # Will use default agents
-            auto_memory=self.auto_memory
+            auto_memory=self.auto_memory,
         )
         print("[INIT] ModeSelector loaded")
 
@@ -172,6 +175,7 @@ class ProfessionalBenchmark:
     def _check_gemini_cli(self) -> bool:
         """Check if Gemini CLI is available."""
         import shutil
+
         return shutil.which("gemini") is not None
 
     def _log_result(self, result: BenchmarkResult):
@@ -191,7 +195,7 @@ class ProfessionalBenchmark:
     # LAYER 1: COMPONENT TESTS (No LLM Required)
     # =========================================================================
 
-    def test_task_analyzer(self) -> List[BenchmarkResult]:
+    def test_task_analyzer(self) -> list[BenchmarkResult]:
         """Test TaskAnalyzer complexity classification."""
         print("\n📊 LAYER 1.1: TASK ANALYZER")
         results = []
@@ -220,35 +224,39 @@ class ProfessionalBenchmark:
 
                 passed = complexity_ok and domain_ok
 
-                results.append(BenchmarkResult(
-                    test_name=f"analyzer_{expected_complexity.name.lower()}",
-                    scenario="task_analyzer",
-                    severity=BenchmarkSeverity.HIGH.value,
-                    passed=passed,
-                    duration_seconds=time.time() - start,
-                    metrics={
-                        "input": task_input[:50],
-                        "expected": expected_complexity.name,
-                        "actual": analysis.complexity.name,
-                        "domains": [d.value for d in analysis.domains[:3]],
-                        "gemini_fit": round(analysis.gemini_fit_score, 2),
-                        "claude_fit": round(analysis.claude_fit_score, 2)
-                    }
-                ))
+                results.append(
+                    BenchmarkResult(
+                        test_name=f"analyzer_{expected_complexity.name.lower()}",
+                        scenario="task_analyzer",
+                        severity=BenchmarkSeverity.HIGH.value,
+                        passed=passed,
+                        duration_seconds=time.time() - start,
+                        metrics={
+                            "input": task_input[:50],
+                            "expected": expected_complexity.name,
+                            "actual": analysis.complexity.name,
+                            "domains": [d.value for d in analysis.domains[:3]],
+                            "gemini_fit": round(analysis.gemini_fit_score, 2),
+                            "claude_fit": round(analysis.claude_fit_score, 2),
+                        },
+                    )
+                )
             except Exception as e:
-                results.append(BenchmarkResult(
-                    test_name=f"analyzer_{expected_complexity.name.lower()}",
-                    scenario="task_analyzer",
-                    severity=BenchmarkSeverity.HIGH.value,
-                    passed=False,
-                    duration_seconds=time.time() - start,
-                    error=str(e)
-                ))
+                results.append(
+                    BenchmarkResult(
+                        test_name=f"analyzer_{expected_complexity.name.lower()}",
+                        scenario="task_analyzer",
+                        severity=BenchmarkSeverity.HIGH.value,
+                        passed=False,
+                        duration_seconds=time.time() - start,
+                        error=str(e),
+                    )
+                )
             self._log_result(results[-1])
 
         return results
 
-    def test_mode_selector(self) -> List[BenchmarkResult]:
+    def test_mode_selector(self) -> list[BenchmarkResult]:
         """Test ModeSelector with DyLAN scoring."""
         print("\n📊 LAYER 1.2: MODE SELECTOR")
         results = []
@@ -268,40 +276,44 @@ class ProfessionalBenchmark:
 
                 # Validate proposal structure
                 valid = (
-                    isinstance(proposal, ModeProposal) and
-                    isinstance(proposal.mode, CollaborationMode) and
-                    0 <= proposal.confidence <= 1 and
-                    len(proposal.reasoning) > 0
+                    isinstance(proposal, ModeProposal)
+                    and isinstance(proposal.mode, CollaborationMode)
+                    and 0 <= proposal.confidence <= 1
+                    and len(proposal.reasoning) > 0
                 )
 
-                results.append(BenchmarkResult(
-                    test_name=f"selector_{expected_complexity.name.lower()}",
-                    scenario="mode_selector",
-                    severity=BenchmarkSeverity.HIGH.value,
-                    passed=valid,
-                    duration_seconds=time.time() - start,
-                    metrics={
-                        "input": task_input[:40],
-                        "selected_mode": proposal.mode.value,
-                        "confidence": round(proposal.confidence, 3),
-                        "alternatives": [a[0].value for a in proposal.alternatives[:2]],
-                        "reasoning": proposal.reasoning[:100]
-                    }
-                ))
+                results.append(
+                    BenchmarkResult(
+                        test_name=f"selector_{expected_complexity.name.lower()}",
+                        scenario="mode_selector",
+                        severity=BenchmarkSeverity.HIGH.value,
+                        passed=valid,
+                        duration_seconds=time.time() - start,
+                        metrics={
+                            "input": task_input[:40],
+                            "selected_mode": proposal.mode.value,
+                            "confidence": round(proposal.confidence, 3),
+                            "alternatives": [a[0].value for a in proposal.alternatives[:2]],
+                            "reasoning": proposal.reasoning[:100],
+                        },
+                    )
+                )
             except Exception as e:
-                results.append(BenchmarkResult(
-                    test_name=f"selector_{expected_complexity.name.lower()}",
-                    scenario="mode_selector",
-                    severity=BenchmarkSeverity.HIGH.value,
-                    passed=False,
-                    duration_seconds=time.time() - start,
-                    error=str(e)
-                ))
+                results.append(
+                    BenchmarkResult(
+                        test_name=f"selector_{expected_complexity.name.lower()}",
+                        scenario="mode_selector",
+                        severity=BenchmarkSeverity.HIGH.value,
+                        passed=False,
+                        duration_seconds=time.time() - start,
+                        error=str(e),
+                    )
+                )
             self._log_result(results[-1])
 
         return results
 
-    def test_session_manager(self) -> List[BenchmarkResult]:
+    def test_session_manager(self) -> list[BenchmarkResult]:
         """Test SessionManager isolation and checkpoints (CRITICAL)."""
         print("\n🔒 LAYER 1.3: SESSION MANAGER (CRITICAL)")
         results = []
@@ -311,65 +323,71 @@ class ProfessionalBenchmark:
         try:
             sessions = []
             for i in range(10):
-                task_id = f"test_task_{i}_{int(time.time()*1000)}"
+                task_id = f"test_task_{i}_{int(time.time() * 1000)}"
                 # Must create task first
                 self.session_manager.create_task(task_id, "parallel")
                 session = self.session_manager.get_or_create_session(
-                    task_id=task_id,
-                    role="specialist",
-                    agent_id="gemini"
+                    task_id=task_id, role="specialist", agent_id="gemini"
                 )
                 sessions.append(session)
 
             # All sessions must be unique
             unique = len(set(sessions)) == len(sessions)
 
-            results.append(BenchmarkResult(
-                test_name="session_uuid_uniqueness",
-                scenario="session_manager",
-                severity=BenchmarkSeverity.CRITICAL.value,
-                passed=unique,
-                duration_seconds=time.time() - start,
-                metrics={"sessions_created": len(sessions), "unique_count": len(set(sessions))}
-            ))
+            results.append(
+                BenchmarkResult(
+                    test_name="session_uuid_uniqueness",
+                    scenario="session_manager",
+                    severity=BenchmarkSeverity.CRITICAL.value,
+                    passed=unique,
+                    duration_seconds=time.time() - start,
+                    metrics={"sessions_created": len(sessions), "unique_count": len(set(sessions))},
+                )
+            )
         except Exception as e:
-            results.append(BenchmarkResult(
-                test_name="session_uuid_uniqueness",
-                scenario="session_manager",
-                severity=BenchmarkSeverity.CRITICAL.value,
-                passed=False,
-                duration_seconds=time.time() - start,
-                error=str(e)
-            ))
+            results.append(
+                BenchmarkResult(
+                    test_name="session_uuid_uniqueness",
+                    scenario="session_manager",
+                    severity=BenchmarkSeverity.CRITICAL.value,
+                    passed=False,
+                    duration_seconds=time.time() - start,
+                    error=str(e),
+                )
+            )
         self._log_result(results[-1])
 
         # Test 2: Same task+role returns same session
         start = time.time()
         try:
-            task_id = f"task_x_{int(time.time()*1000)}"
+            task_id = f"task_x_{int(time.time() * 1000)}"
             self.session_manager.create_task(task_id, "lead_support")
             session1 = self.session_manager.get_or_create_session(task_id, "lead", "gemini")
             session2 = self.session_manager.get_or_create_session(task_id, "lead", "gemini")
 
             same_session = session1 == session2
 
-            results.append(BenchmarkResult(
-                test_name="session_reuse_same_task",
-                scenario="session_manager",
-                severity=BenchmarkSeverity.CRITICAL.value,
-                passed=same_session,
-                duration_seconds=time.time() - start,
-                metrics={"session1": session1, "session2": session2}
-            ))
+            results.append(
+                BenchmarkResult(
+                    test_name="session_reuse_same_task",
+                    scenario="session_manager",
+                    severity=BenchmarkSeverity.CRITICAL.value,
+                    passed=same_session,
+                    duration_seconds=time.time() - start,
+                    metrics={"session1": session1, "session2": session2},
+                )
+            )
         except Exception as e:
-            results.append(BenchmarkResult(
-                test_name="session_reuse_same_task",
-                scenario="session_manager",
-                severity=BenchmarkSeverity.CRITICAL.value,
-                passed=False,
-                duration_seconds=time.time() - start,
-                error=str(e)
-            ))
+            results.append(
+                BenchmarkResult(
+                    test_name="session_reuse_same_task",
+                    scenario="session_manager",
+                    severity=BenchmarkSeverity.CRITICAL.value,
+                    passed=False,
+                    duration_seconds=time.time() - start,
+                    error=str(e),
+                )
+            )
         self._log_result(results[-1])
 
         # Test 3: Checkpoint creation
@@ -383,28 +401,32 @@ class ProfessionalBenchmark:
 
             valid_checkpoint = checkpoint_id is not None and len(checkpoint_id) > 0
 
-            results.append(BenchmarkResult(
-                test_name="checkpoint_creation",
-                scenario="session_manager",
-                severity=BenchmarkSeverity.HIGH.value,
-                passed=valid_checkpoint,
-                duration_seconds=time.time() - start,
-                metrics={"checkpoint_id": checkpoint_id[:20] if checkpoint_id else None}
-            ))
+            results.append(
+                BenchmarkResult(
+                    test_name="checkpoint_creation",
+                    scenario="session_manager",
+                    severity=BenchmarkSeverity.HIGH.value,
+                    passed=valid_checkpoint,
+                    duration_seconds=time.time() - start,
+                    metrics={"checkpoint_id": checkpoint_id[:20] if checkpoint_id else None},
+                )
+            )
         except Exception as e:
-            results.append(BenchmarkResult(
-                test_name="checkpoint_creation",
-                scenario="session_manager",
-                severity=BenchmarkSeverity.HIGH.value,
-                passed=False,
-                duration_seconds=time.time() - start,
-                error=str(e)
-            ))
+            results.append(
+                BenchmarkResult(
+                    test_name="checkpoint_creation",
+                    scenario="session_manager",
+                    severity=BenchmarkSeverity.HIGH.value,
+                    passed=False,
+                    duration_seconds=time.time() - start,
+                    error=str(e),
+                )
+            )
         self._log_result(results[-1])
 
         return results
 
-    def test_collaboration_modes(self) -> List[BenchmarkResult]:
+    def test_collaboration_modes(self) -> list[BenchmarkResult]:
         """Test all 6 collaboration modes and fallback chains."""
         print("\n🐝 LAYER 1.4: COLLABORATION MODES")
         results = []
@@ -418,36 +440,40 @@ class ProfessionalBenchmark:
             for mode in CollaborationMode:
                 char = get_mode_characteristics(mode)
                 valid = (
-                    char is not None and
-                    hasattr(char, 'complexity_affinity') and
-                    hasattr(char, 'parallelism_benefit') and
-                    hasattr(char, 'adversarial') and
-                    hasattr(char, 'description')
+                    char is not None
+                    and hasattr(char, "complexity_affinity")
+                    and hasattr(char, "parallelism_benefit")
+                    and hasattr(char, "adversarial")
+                    and hasattr(char, "description")
                 )
                 if not valid:
                     all_valid = False
                 mode_info[mode.value] = {
                     "complexity": char.complexity_affinity if char else None,
-                    "parallelism": char.parallelism_benefit if char else None
+                    "parallelism": char.parallelism_benefit if char else None,
                 }
 
-            results.append(BenchmarkResult(
-                test_name="modes_characteristics",
-                scenario="collaboration_modes",
-                severity=BenchmarkSeverity.MEDIUM.value,
-                passed=all_valid,
-                duration_seconds=time.time() - start,
-                metrics=mode_info
-            ))
+            results.append(
+                BenchmarkResult(
+                    test_name="modes_characteristics",
+                    scenario="collaboration_modes",
+                    severity=BenchmarkSeverity.MEDIUM.value,
+                    passed=all_valid,
+                    duration_seconds=time.time() - start,
+                    metrics=mode_info,
+                )
+            )
         except Exception as e:
-            results.append(BenchmarkResult(
-                test_name="modes_characteristics",
-                scenario="collaboration_modes",
-                severity=BenchmarkSeverity.MEDIUM.value,
-                passed=False,
-                duration_seconds=time.time() - start,
-                error=str(e)
-            ))
+            results.append(
+                BenchmarkResult(
+                    test_name="modes_characteristics",
+                    scenario="collaboration_modes",
+                    severity=BenchmarkSeverity.MEDIUM.value,
+                    passed=False,
+                    duration_seconds=time.time() - start,
+                    error=str(e),
+                )
+            )
         self._log_result(results[-1])
 
         # Test 2: Fallback chain integrity (CRITICAL for Self-Healing)
@@ -473,31 +499,35 @@ class ProfessionalBenchmark:
                 fallback_results[mode.value] = {
                     "expected": expected.value if expected else None,
                     "actual": actual.value if actual else None,
-                    "correct": correct
+                    "correct": correct,
                 }
 
-            results.append(BenchmarkResult(
-                test_name="fallback_chain_integrity",
-                scenario="collaboration_modes",
-                severity=BenchmarkSeverity.CRITICAL.value,
-                passed=all_correct,
-                duration_seconds=time.time() - start,
-                metrics=fallback_results
-            ))
+            results.append(
+                BenchmarkResult(
+                    test_name="fallback_chain_integrity",
+                    scenario="collaboration_modes",
+                    severity=BenchmarkSeverity.CRITICAL.value,
+                    passed=all_correct,
+                    duration_seconds=time.time() - start,
+                    metrics=fallback_results,
+                )
+            )
         except Exception as e:
-            results.append(BenchmarkResult(
-                test_name="fallback_chain_integrity",
-                scenario="collaboration_modes",
-                severity=BenchmarkSeverity.CRITICAL.value,
-                passed=False,
-                duration_seconds=time.time() - start,
-                error=str(e)
-            ))
+            results.append(
+                BenchmarkResult(
+                    test_name="fallback_chain_integrity",
+                    scenario="collaboration_modes",
+                    severity=BenchmarkSeverity.CRITICAL.value,
+                    passed=False,
+                    duration_seconds=time.time() - start,
+                    error=str(e),
+                )
+            )
         self._log_result(results[-1])
 
         return results
 
-    def test_automemory(self) -> List[BenchmarkResult]:
+    def test_automemory(self) -> list[BenchmarkResult]:
         """Test AutoMemory recording and retrieval."""
         print("\n🧠 LAYER 1.5: AUTOMEMORY")
         results = []
@@ -514,38 +544,35 @@ class ProfessionalBenchmark:
                 swarm_mode="lead_support",
                 lead_agent="claude",
                 duration_seconds=5.0,
-                score=0.95
+                score=0.95,
             )
 
             # Retrieve recommendation
             rec = self.auto_memory.get_recommendation(task_type)
 
-            valid = (
-                rec is not None and
-                isinstance(rec, dict) and
-                "confidence" in rec
-            )
+            valid = rec is not None and isinstance(rec, dict) and "confidence" in rec
 
-            results.append(BenchmarkResult(
-                test_name="automemory_record_retrieve",
-                scenario="automemory",
-                severity=BenchmarkSeverity.MEDIUM.value,
-                passed=valid,
-                duration_seconds=time.time() - start,
-                metrics={
-                    "task_type": task_type,
-                    "recommendation": rec
-                }
-            ))
+            results.append(
+                BenchmarkResult(
+                    test_name="automemory_record_retrieve",
+                    scenario="automemory",
+                    severity=BenchmarkSeverity.MEDIUM.value,
+                    passed=valid,
+                    duration_seconds=time.time() - start,
+                    metrics={"task_type": task_type, "recommendation": rec},
+                )
+            )
         except Exception as e:
-            results.append(BenchmarkResult(
-                test_name="automemory_record_retrieve",
-                scenario="automemory",
-                severity=BenchmarkSeverity.MEDIUM.value,
-                passed=False,
-                duration_seconds=time.time() - start,
-                error=str(e)
-            ))
+            results.append(
+                BenchmarkResult(
+                    test_name="automemory_record_retrieve",
+                    scenario="automemory",
+                    severity=BenchmarkSeverity.MEDIUM.value,
+                    passed=False,
+                    duration_seconds=time.time() - start,
+                    error=str(e),
+                )
+            )
         self._log_result(results[-1])
 
         # Test 2: Gradient confidence boost constants
@@ -553,36 +580,40 @@ class ProfessionalBenchmark:
         try:
             # Verify the constants are correctly defined
             valid = (
-                self.mode_selector.AUTO_MEMORY_BOOST_VERY_HIGH == 0.30 and
-                self.mode_selector.AUTO_MEMORY_BOOST_HIGH == 0.25 and
-                self.mode_selector.AUTO_MEMORY_BOOST_LOW == 0.10 and
-                self.mode_selector.AUTO_MEMORY_MIN_CONFIDENCE == 0.5 and
-                self.mode_selector.AUTO_MEMORY_LEAD_BONUS == 0.20
+                self.mode_selector.AUTO_MEMORY_BOOST_VERY_HIGH == 0.30
+                and self.mode_selector.AUTO_MEMORY_BOOST_HIGH == 0.25
+                and self.mode_selector.AUTO_MEMORY_BOOST_LOW == 0.10
+                and self.mode_selector.AUTO_MEMORY_MIN_CONFIDENCE == 0.5
+                and self.mode_selector.AUTO_MEMORY_LEAD_BONUS == 0.20
             )
 
-            results.append(BenchmarkResult(
-                test_name="automemory_gradient_constants",
-                scenario="automemory",
-                severity=BenchmarkSeverity.MEDIUM.value,
-                passed=valid,
-                duration_seconds=time.time() - start,
-                metrics={
-                    "VERY_HIGH": self.mode_selector.AUTO_MEMORY_BOOST_VERY_HIGH,
-                    "HIGH": self.mode_selector.AUTO_MEMORY_BOOST_HIGH,
-                    "LOW": self.mode_selector.AUTO_MEMORY_BOOST_LOW,
-                    "MIN_CONF": self.mode_selector.AUTO_MEMORY_MIN_CONFIDENCE,
-                    "LEAD_BONUS": self.mode_selector.AUTO_MEMORY_LEAD_BONUS
-                }
-            ))
+            results.append(
+                BenchmarkResult(
+                    test_name="automemory_gradient_constants",
+                    scenario="automemory",
+                    severity=BenchmarkSeverity.MEDIUM.value,
+                    passed=valid,
+                    duration_seconds=time.time() - start,
+                    metrics={
+                        "VERY_HIGH": self.mode_selector.AUTO_MEMORY_BOOST_VERY_HIGH,
+                        "HIGH": self.mode_selector.AUTO_MEMORY_BOOST_HIGH,
+                        "LOW": self.mode_selector.AUTO_MEMORY_BOOST_LOW,
+                        "MIN_CONF": self.mode_selector.AUTO_MEMORY_MIN_CONFIDENCE,
+                        "LEAD_BONUS": self.mode_selector.AUTO_MEMORY_LEAD_BONUS,
+                    },
+                )
+            )
         except Exception as e:
-            results.append(BenchmarkResult(
-                test_name="automemory_gradient_constants",
-                scenario="automemory",
-                severity=BenchmarkSeverity.MEDIUM.value,
-                passed=False,
-                duration_seconds=time.time() - start,
-                error=str(e)
-            ))
+            results.append(
+                BenchmarkResult(
+                    test_name="automemory_gradient_constants",
+                    scenario="automemory",
+                    severity=BenchmarkSeverity.MEDIUM.value,
+                    passed=False,
+                    duration_seconds=time.time() - start,
+                    error=str(e),
+                )
+            )
         self._log_result(results[-1])
 
         return results
@@ -591,7 +622,7 @@ class ProfessionalBenchmark:
     # LAYER 2: STRESS TESTS (Concurrency & Load)
     # =========================================================================
 
-    def test_concurrent_sessions(self) -> List[BenchmarkResult]:
+    def test_concurrent_sessions(self) -> list[BenchmarkResult]:
         """Test concurrent session creation (Race conditions)."""
         print("\n🔥 LAYER 2.1: CONCURRENT SESSIONS")
         results = []
@@ -604,13 +635,11 @@ class ProfessionalBenchmark:
 
             def create_session(i):
                 try:
-                    task_id = f"concurrent_{i}_{int(time.time()*1000000)}"
+                    task_id = f"concurrent_{i}_{int(time.time() * 1000000)}"
                     # Must create task first
                     self.session_manager.create_task(task_id, "parallel")
                     session = self.session_manager.get_or_create_session(
-                        task_id=task_id,
-                        role="specialist",
-                        agent_id=f"agent_{i % 3}"
+                        task_id=task_id, role="specialist", agent_id=f"agent_{i % 3}"
                     )
                     return session, None
                 except Exception as e:
@@ -629,34 +658,38 @@ class ProfessionalBenchmark:
             all_unique = len(set(sessions)) == len(sessions)
             no_errors = len(errors) == 0
 
-            results.append(BenchmarkResult(
-                test_name="concurrent_session_creation",
-                scenario="stress",
-                severity=BenchmarkSeverity.CRITICAL.value,
-                passed=all_unique and no_errors,
-                duration_seconds=time.time() - start,
-                metrics={
-                    "threads": num_threads,
-                    "sessions_created": len(sessions),
-                    "unique_sessions": len(set(sessions)),
-                    "errors": len(errors),
-                    "error_samples": errors[:3] if errors else []
-                }
-            ))
+            results.append(
+                BenchmarkResult(
+                    test_name="concurrent_session_creation",
+                    scenario="stress",
+                    severity=BenchmarkSeverity.CRITICAL.value,
+                    passed=all_unique and no_errors,
+                    duration_seconds=time.time() - start,
+                    metrics={
+                        "threads": num_threads,
+                        "sessions_created": len(sessions),
+                        "unique_sessions": len(set(sessions)),
+                        "errors": len(errors),
+                        "error_samples": errors[:3] if errors else [],
+                    },
+                )
+            )
         except Exception as e:
-            results.append(BenchmarkResult(
-                test_name="concurrent_session_creation",
-                scenario="stress",
-                severity=BenchmarkSeverity.CRITICAL.value,
-                passed=False,
-                duration_seconds=time.time() - start,
-                error=str(e)
-            ))
+            results.append(
+                BenchmarkResult(
+                    test_name="concurrent_session_creation",
+                    scenario="stress",
+                    severity=BenchmarkSeverity.CRITICAL.value,
+                    passed=False,
+                    duration_seconds=time.time() - start,
+                    error=str(e),
+                )
+            )
         self._log_result(results[-1])
 
         return results
 
-    def test_atomic_store_contention(self) -> List[BenchmarkResult]:
+    def test_atomic_store_contention(self) -> list[BenchmarkResult]:
         """Test AtomicJsonStore under heavy concurrent writes."""
         print("\n🔥 LAYER 2.2: ATOMIC STORE CONTENTION")
         results = []
@@ -694,28 +727,32 @@ class ProfessionalBenchmark:
             # At least 90% of writes should persist (some may be overwritten due to race)
             high_success_rate = keys_present >= num_writes * 0.5  # 50% minimum
 
-            results.append(BenchmarkResult(
-                test_name="atomic_store_concurrent_writes",
-                scenario="stress",
-                severity=BenchmarkSeverity.HIGH.value,
-                passed=high_success_rate and len(errors) == 0,
-                duration_seconds=time.time() - start,
-                metrics={
-                    "total_writes": num_writes,
-                    "keys_persisted": keys_present,
-                    "success_rate": f"{keys_present/num_writes*100:.1f}%",
-                    "errors": len(errors)
-                }
-            ))
+            results.append(
+                BenchmarkResult(
+                    test_name="atomic_store_concurrent_writes",
+                    scenario="stress",
+                    severity=BenchmarkSeverity.HIGH.value,
+                    passed=high_success_rate and len(errors) == 0,
+                    duration_seconds=time.time() - start,
+                    metrics={
+                        "total_writes": num_writes,
+                        "keys_persisted": keys_present,
+                        "success_rate": f"{keys_present / num_writes * 100:.1f}%",
+                        "errors": len(errors),
+                    },
+                )
+            )
         except Exception as e:
-            results.append(BenchmarkResult(
-                test_name="atomic_store_concurrent_writes",
-                scenario="stress",
-                severity=BenchmarkSeverity.HIGH.value,
-                passed=False,
-                duration_seconds=time.time() - start,
-                error=str(e)
-            ))
+            results.append(
+                BenchmarkResult(
+                    test_name="atomic_store_concurrent_writes",
+                    scenario="stress",
+                    severity=BenchmarkSeverity.HIGH.value,
+                    passed=False,
+                    duration_seconds=time.time() - start,
+                    error=str(e),
+                )
+            )
         finally:
             if test_file.exists():
                 test_file.unlink()
@@ -723,7 +760,7 @@ class ProfessionalBenchmark:
 
         return results
 
-    def test_memory_usage(self) -> List[BenchmarkResult]:
+    def test_memory_usage(self) -> list[BenchmarkResult]:
         """Test memory usage doesn't explode under load."""
         print("\n🔥 LAYER 2.3: MEMORY USAGE")
         results = []
@@ -736,7 +773,9 @@ class ProfessionalBenchmark:
             # Create many objects
             analyses = []
             for i in range(100):
-                analysis = self.task_analyzer.analyze(f"Task {i} with complex description for testing memory usage patterns")
+                analysis = self.task_analyzer.analyze(
+                    f"Task {i} with complex description for testing memory usage patterns"
+                )
                 analyses.append(analysis)
 
             proposals = []
@@ -750,28 +789,32 @@ class ProfessionalBenchmark:
             # Memory increase should be < 100MB for this workload
             acceptable = mem_increase < 100
 
-            results.append(BenchmarkResult(
-                test_name="memory_usage_under_load",
-                scenario="stress",
-                severity=BenchmarkSeverity.MEDIUM.value,
-                passed=acceptable,
-                duration_seconds=time.time() - start,
-                metrics={
-                    "mem_before_mb": round(mem_before, 1),
-                    "mem_after_mb": round(mem_after, 1),
-                    "mem_increase_mb": round(mem_increase, 1),
-                    "objects_created": len(analyses) + len(proposals)
-                }
-            ))
+            results.append(
+                BenchmarkResult(
+                    test_name="memory_usage_under_load",
+                    scenario="stress",
+                    severity=BenchmarkSeverity.MEDIUM.value,
+                    passed=acceptable,
+                    duration_seconds=time.time() - start,
+                    metrics={
+                        "mem_before_mb": round(mem_before, 1),
+                        "mem_after_mb": round(mem_after, 1),
+                        "mem_increase_mb": round(mem_increase, 1),
+                        "objects_created": len(analyses) + len(proposals),
+                    },
+                )
+            )
         except Exception as e:
-            results.append(BenchmarkResult(
-                test_name="memory_usage_under_load",
-                scenario="stress",
-                severity=BenchmarkSeverity.MEDIUM.value,
-                passed=False,
-                duration_seconds=time.time() - start,
-                error=str(e)
-            ))
+            results.append(
+                BenchmarkResult(
+                    test_name="memory_usage_under_load",
+                    scenario="stress",
+                    severity=BenchmarkSeverity.MEDIUM.value,
+                    passed=False,
+                    duration_seconds=time.time() - start,
+                    error=str(e),
+                )
+            )
         self._log_result(results[-1])
 
         return results
@@ -780,28 +823,30 @@ class ProfessionalBenchmark:
     # LAYER 3: INTEGRATION TESTS (Requires Gemini CLI)
     # =========================================================================
 
-    def test_gemini_cli_integration(self) -> List[BenchmarkResult]:
+    def test_gemini_cli_integration(self) -> list[BenchmarkResult]:
         """Test Gemini CLI integration (requires CLI installed)."""
         print("\n🔌 LAYER 3.1: GEMINI CLI INTEGRATION")
         results = []
 
         if not self.gemini_cli_available:
-            results.append(BenchmarkResult(
-                test_name="gemini_cli_availability",
-                scenario="integration",
-                severity=BenchmarkSeverity.LOW.value,
-                passed=False,
-                duration_seconds=0,
-                error="Gemini CLI not found in PATH - skipping integration tests"
-            ))
+            results.append(
+                BenchmarkResult(
+                    test_name="gemini_cli_availability",
+                    scenario="integration",
+                    severity=BenchmarkSeverity.LOW.value,
+                    passed=False,
+                    duration_seconds=0,
+                    error="Gemini CLI not found in PATH - skipping integration tests",
+                )
+            )
             self._log_result(results[-1])
             return results
 
         # Test CLI is callable
         start = time.time()
         try:
-            import subprocess
             import platform
+            import subprocess
 
             # On Windows, use shell=True for proper PATH resolution
             use_shell = platform.system() == "Windows"
@@ -811,28 +856,32 @@ class ProfessionalBenchmark:
                 capture_output=True,
                 text=True,
                 timeout=10,
-                shell=use_shell
+                shell=use_shell,
             )
             version = result.stdout.strip() or result.stderr.strip()
             passed = result.returncode == 0
 
-            results.append(BenchmarkResult(
-                test_name="gemini_cli_version",
-                scenario="integration",
-                severity=BenchmarkSeverity.MEDIUM.value,
-                passed=passed,
-                duration_seconds=time.time() - start,
-                metrics={"version": version[:100] if version else "no output"}
-            ))
+            results.append(
+                BenchmarkResult(
+                    test_name="gemini_cli_version",
+                    scenario="integration",
+                    severity=BenchmarkSeverity.MEDIUM.value,
+                    passed=passed,
+                    duration_seconds=time.time() - start,
+                    metrics={"version": version[:100] if version else "no output"},
+                )
+            )
         except Exception as e:
-            results.append(BenchmarkResult(
-                test_name="gemini_cli_version",
-                scenario="integration",
-                severity=BenchmarkSeverity.MEDIUM.value,
-                passed=False,
-                duration_seconds=time.time() - start,
-                error=str(e)
-            ))
+            results.append(
+                BenchmarkResult(
+                    test_name="gemini_cli_version",
+                    scenario="integration",
+                    severity=BenchmarkSeverity.MEDIUM.value,
+                    passed=False,
+                    duration_seconds=time.time() - start,
+                    error=str(e),
+                )
+            )
         self._log_result(results[-1])
 
         return results
@@ -887,8 +936,7 @@ class ProfessionalBenchmark:
         passed = sum(1 for r in all_results if r.passed)
         failed = total - passed
         critical_failures = sum(
-            1 for r in all_results
-            if not r.passed and r.severity == BenchmarkSeverity.CRITICAL.value
+            1 for r in all_results if not r.passed and r.severity == BenchmarkSeverity.CRITICAL.value
         )
 
         # System info
@@ -900,7 +948,7 @@ class ProfessionalBenchmark:
             "workspace": str(self.workspace),
             "duration_seconds": round((end_time - start_time).total_seconds(), 2),
             "memory_mb": round(process.memory_info().rss / 1024 / 1024, 1),
-            "cpu_percent": process.cpu_percent()
+            "cpu_percent": process.cpu_percent(),
         }
 
         # Create report
@@ -913,7 +961,7 @@ class ProfessionalBenchmark:
             failed=failed,
             critical_failures=critical_failures,
             results=all_results,
-            system_info=system_info
+            system_info=system_info,
         )
 
         # Print summary

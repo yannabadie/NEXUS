@@ -6,18 +6,15 @@ Provides helpers for async/sync interoperability.
 TD-001: Extracted from duplicated patterns in tool_manager.py and repl.py.
 V8.4.4a: Added timeout + deprecation warning to run_sync().
 """
+
 import asyncio
-from typing import TypeVar, Coroutine, Any, Optional
+from collections.abc import Coroutine
+from typing import Any, TypeVar
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
-def run_sync(
-    coro: Coroutine[Any, Any, T],
-    *,
-    timeout: Optional[float] = 300.0,
-    warn: bool = True
-) -> T:
+def run_sync(coro: Coroutine[Any, Any, T], *, timeout: float | None = 300.0, warn: bool = True) -> T:
     """
     Execute an async coroutine from a synchronous context.
 
@@ -48,24 +45,26 @@ def run_sync(
     """
     if warn:
         import warnings
+
         warnings.warn(
             "run_sync() is deprecated since V8.4.4. "
             "Prefer async patterns with `await` or `asyncio.run()`. "
             "run_sync() will be removed in V9.0.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
 
     # V11.4 ASYNC: Detect if we're in an async context
     # WARNING: run_sync() does NOT preserve async context (CancellationToken, etc.)
     # This is why it's deprecated - use proper async patterns instead.
     try:
-        loop = asyncio.get_running_loop()
+        asyncio.get_running_loop()
         # Event loop exists - use ThreadPoolExecutor to avoid deadlock
         # Note: This creates a NEW event loop in the thread, losing context
         # For context-preserving async, use run_coroutine_threadsafe() directly
         # (only safe when called from a DIFFERENT thread than the event loop)
         import concurrent.futures
+
         with concurrent.futures.ThreadPoolExecutor() as executor:
             future = executor.submit(asyncio.run, coro)
             return future.result(timeout=timeout)
@@ -104,8 +103,6 @@ async def run_in_thread(func, *args, **kwargs):
         The result of the function
     """
     import functools
+
     loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(
-        None,
-        functools.partial(func, *args, **kwargs)
-    )
+    return await loop.run_in_executor(None, functools.partial(func, *args, **kwargs))

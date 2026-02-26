@@ -23,26 +23,24 @@ Usage:
 
 import logging
 import os
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator, List
 
-# V13.0: Passlib 1.7.4 + bcrypt 4.x compatibility
-# passlib logs "error reading bcrypt version" at WARNING level due to bcrypt 4.x API change
-# This is a known issue: https://github.com/pyca/bcrypt/issues/684
-# Fix: Set logger level to ERROR to suppress this specific warning
-logging.getLogger("passlib.handlers.bcrypt").setLevel(logging.ERROR)
+try:
+    from fastapi import FastAPI
+    from fastapi.middleware.cors import CORSMiddleware
+except ImportError:
+    raise ImportError("CEREBRO API requires FastAPI. Install with: pip install nexus-swarm-os[api]") from None
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
-from core.events.redis_bus import get_redis_bus
+from core.observability.events.redis_bus import get_redis_bus
 
 logger = logging.getLogger(__name__)
 
 # V11.3 HARDENING: CORS origins from environment (comma-separated)
 # Example: NEXUS_CORS_ORIGINS=http://localhost:3000,https://nexus.example.com
 _cors_env = os.environ.get("NEXUS_CORS_ORIGINS", "http://localhost:3000")
-CORS_ORIGINS: List[str] = [origin.strip() for origin in _cors_env.split(",") if origin.strip()]
+CORS_ORIGINS: list[str] = [origin.strip() for origin in _cors_env.split(",") if origin.strip()]
 
 if not CORS_ORIGINS:
     CORS_ORIGINS = ["http://localhost:3000"]
@@ -114,10 +112,12 @@ def create_cerebro_app() -> FastAPI:
 
     # Tenant context middleware (HTTP only, not WebSocket)
     from .middleware import TenantContextMiddleware
+
     app.add_middleware(TenantContextMiddleware)
 
     # V12.1 RETINA: Rate limiting middleware (Conseiller 1 feedback)
     from .rate_limit import setup_rate_limiting
+
     setup_rate_limiting(app)
 
     # Include routers
@@ -128,7 +128,8 @@ def create_cerebro_app() -> FastAPI:
     app.include_router(stream.router, prefix="/ws", tags=["websocket"])
 
     # V11.5 CORTEX routers
-    from .routes import state, interactions, workflow, files
+    from .routes import files, interactions, state, workflow
+
     app.include_router(state.router, prefix="/api/state", tags=["state"])
     app.include_router(interactions.router, prefix="/api/interactions", tags=["interactions"])
     app.include_router(workflow.router, prefix="/api/workflow", tags=["workflow"])
@@ -136,15 +137,28 @@ def create_cerebro_app() -> FastAPI:
 
     # V11.6 KEYMAKER routers
     from .routes import auth
+
     app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 
     # V12.2 IRONCLAD routers
     from .routes import users
+
     app.include_router(users.router, prefix="/api/users", tags=["users"])
 
     # V13.0 MEMORIA UNIVERSALIS routers
     from .routes import memory
+
     app.include_router(memory.router, prefix="/api/memory", tags=["memory"])
+
+    # V12.4 P2.1: Causality Timeline (observability)
+    from .routes import timeline
+
+    app.include_router(timeline.router, prefix="/api/timeline", tags=["timeline"])
+
+    # V12.4 A2A Protocol: Agent Card endpoint
+    from .routes import a2a
+
+    app.include_router(a2a.router, prefix="/.well-known", tags=["a2a"])
 
     # Root endpoint
     @app.get("/", tags=["root"])
@@ -171,6 +185,11 @@ def create_cerebro_app() -> FastAPI:
             "memory": "/api/memory/stats",
             "memory_namespaces": "/api/memory/namespaces",
             "memory_ingest": "/api/memory/ingest",
+            # V12.4 P2.1: Causality Timeline
+            "timeline": "/api/timeline/{task_id}",
+            "timeline_summary": "/api/timeline/{task_id}/summary",
+            # V12.4 A2A Protocol
+            "agent_card": "/.well-known/agent.json",
         }
 
     return app

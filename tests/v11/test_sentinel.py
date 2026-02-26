@@ -14,27 +14,27 @@ import asyncio
 import os
 import re
 import tempfile
-import pytest
-from pathlib import Path
-from unittest.mock import MagicMock, patch, AsyncMock
 
+import pytest
 
 # =============================================================================
 # F1: Hybrid Task Analyzer Tests
 # =============================================================================
+
 
 class TestHybridTaskAnalyzer:
     """Test suite for 3-stage cost-aware task classification."""
 
     def test_import_task_analyzer(self):
         """Verify TaskAnalyzer can be imported."""
-        from core.swarm.task_analyzer import TaskAnalyzer, AnalysisStage
+        from core.intelligence.swarm.task_analyzer import AnalysisStage, TaskAnalyzer
+
         assert TaskAnalyzer is not None
         assert AnalysisStage is not None
 
     def test_analysis_stage_enum(self):
         """Verify AnalysisStage enum has correct values."""
-        from core.swarm.task_analyzer import AnalysisStage
+        from core.intelligence.swarm.task_analyzer import AnalysisStage
 
         assert AnalysisStage.STAGE1_REGEX == 1
         assert AnalysisStage.STAGE2_HEURISTIC == 2
@@ -42,21 +42,35 @@ class TestHybridTaskAnalyzer:
 
     def test_stage1_instant_commands_patterns(self):
         """Verify Stage 1 regex patterns for instant commands."""
-        from core.swarm.task_analyzer import TaskAnalyzer
+        from core.intelligence.swarm.task_analyzer import TaskAnalyzer
 
         analyzer = TaskAnalyzer()
 
         # Test instant commands (should be detected)
         instant_commands = [
-            "/status", "status", "/clear", "clear",
-            "/exit", "exit", "quit", "/quit",
-            "/help", "help", "?",
-            "/version", "version",
-            "/config", "settings",
-            "/history", "logs",
-            "/cancel", "stop",
-            "/save", "load",
-            "/undo", "redo",
+            "/status",
+            "status",
+            "/clear",
+            "clear",
+            "/exit",
+            "exit",
+            "quit",
+            "/quit",
+            "/help",
+            "help",
+            "?",
+            "/version",
+            "version",
+            "/config",
+            "settings",
+            "/history",
+            "logs",
+            "/cancel",
+            "stop",
+            "/save",
+            "load",
+            "/undo",
+            "redo",
         ]
 
         for cmd in instant_commands:
@@ -65,7 +79,7 @@ class TestHybridTaskAnalyzer:
 
     def test_stage1_non_instant_commands(self):
         """Verify Stage 1 does NOT match non-instant commands."""
-        from core.swarm.task_analyzer import TaskAnalyzer
+        from core.intelligence.swarm.task_analyzer import TaskAnalyzer
 
         analyzer = TaskAnalyzer()
 
@@ -75,7 +89,7 @@ class TestHybridTaskAnalyzer:
             "create a new file",
             "explain the code",
             "status of the project",  # Contains 'status' but in sentence
-            "help me write code",     # Contains 'help' but in sentence
+            "help me write code",  # Contains 'help' but in sentence
         ]
 
         for text in non_instant:
@@ -87,11 +101,11 @@ class TestHybridTaskAnalyzer:
                 pass  # This is expected for "status of the project"
             elif result:
                 # Unexpected match
-                assert False, f"'{text}' should NOT be instant command, got: {result}"
+                raise AssertionError(f"'{text}' should NOT be instant command, got: {result}")
 
     def test_stage2_heuristic_analysis(self):
         """Verify Stage 2 heuristic analysis works."""
-        from core.swarm.task_analyzer import TaskAnalyzer, AnalysisStage
+        from core.intelligence.swarm.task_analyzer import AnalysisStage, TaskAnalyzer
 
         analyzer = TaskAnalyzer()
 
@@ -102,61 +116,64 @@ class TestHybridTaskAnalyzer:
 
     def test_stage3_confidence_threshold(self):
         """Verify confidence threshold constant exists."""
-        from core.swarm.task_analyzer import STAGE2_CONFIDENCE_THRESHOLD
+        from core.intelligence.swarm.task_analyzer import STAGE2_CONFIDENCE_THRESHOLD
 
         assert STAGE2_CONFIDENCE_THRESHOLD == 0.6
 
     def test_analyze_async_method_exists(self):
         """Verify analyze_async method exists."""
-        from core.swarm.task_analyzer import TaskAnalyzer
+        from core.intelligence.swarm.task_analyzer import TaskAnalyzer
 
         analyzer = TaskAnalyzer()
-        assert hasattr(analyzer, 'analyze_async')
+        assert hasattr(analyzer, "analyze_async")
         assert asyncio.iscoroutinefunction(analyzer.analyze_async)
 
     @pytest.mark.asyncio
     async def test_analyze_async_works(self):
         """Test that analyze_async returns valid result."""
-        from core.swarm.task_analyzer import TaskAnalyzer
+        from core.intelligence.swarm.task_analyzer import TaskAnalyzer
 
         analyzer = TaskAnalyzer()
         result = await analyzer.analyze_async("help")
 
         assert result is not None
-        assert hasattr(result, 'complexity')
-        assert hasattr(result, 'analysis_stage')
+        assert hasattr(result, "complexity")
+        assert hasattr(result, "analysis_stage")
 
     def test_task_analysis_has_new_fields(self):
         """Verify TaskAnalysis dataclass has V11 SENTINEL fields."""
-        from core.swarm.task_analyzer import TaskAnalyzer, TaskAnalysis, AnalysisStage
+        from core.intelligence.swarm.task_analyzer import AnalysisStage, TaskAnalyzer
 
         analyzer = TaskAnalyzer()
         result = analyzer.analyze("test")
 
         # Check new fields exist
-        assert hasattr(result, 'analysis_stage')
-        assert hasattr(result, 'instant_command')
+        assert hasattr(result, "analysis_stage")
+        assert hasattr(result, "instant_command")
         assert isinstance(result.analysis_stage, AnalysisStage)
 
     def test_needs_stage3_escalation(self):
         """Verify needs_stage3_escalation method exists and works."""
-        from core.swarm.task_analyzer import TaskAnalyzer
+        from core.intelligence.swarm.task_analyzer import TaskAnalyzer
 
         analyzer = TaskAnalyzer()
 
         # Simple query - should NOT need Stage 3
         result1 = analyzer.analyze("read file.py")
-        escalate1 = analyzer.needs_stage3_escalation(result1)
+        analyzer.needs_stage3_escalation(result1)
         # Escalation depends on confidence, may vary
 
         # Complex query - might need Stage 3
-        result2 = analyzer.analyze("refactor the authentication system to use OAuth2 with JWT tokens and implement proper session management")
+        analyzer.analyze(
+            "refactor the authentication system to use OAuth2 with JWT tokens and implement proper session management"
+        )
         # This might or might not escalate depending on confidence
 
 
 # =============================================================================
 # F2: Artifact Validator Tests
 # =============================================================================
+
 
 class TestArtifactValidator:
     """Test suite for physical file validation."""
@@ -169,8 +186,8 @@ class TestArtifactValidator:
         # Test: action word followed by filename
         # Note: json MUST come before js in alternation to avoid partial match
         patterns = [
-            r'(?:created|wrote|saved|generated|added)\s+.*?([a-zA-Z0-9_/-]+\.(?:json|yaml|yml|html|css|txt|py|js|ts|md))\b',
-            r'(?:modified|updated|edited|changed)\s+.*?([a-zA-Z0-9_/-]+\.(?:json|yaml|yml|html|css|txt|py|js|ts|md))\b',
+            r"(?:created|wrote|saved|generated|added)\s+.*?([a-zA-Z0-9_/-]+\.(?:json|yaml|yml|html|css|txt|py|js|ts|md))\b",
+            r"(?:modified|updated|edited|changed)\s+.*?([a-zA-Z0-9_/-]+\.(?:json|yaml|yml|html|css|txt|py|js|ts|md))\b",
         ]
 
         # Test cases that should match
@@ -199,7 +216,7 @@ class TestArtifactValidator:
     def test_existing_file_validation_passes(self):
         """Test that existing files pass validation."""
         # Create a temp file
-        with tempfile.NamedTemporaryFile(suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as f:
             temp_path = f.name
             f.write(b"# test file\n")
 
@@ -225,16 +242,14 @@ class TestArtifactValidator:
 
         for placeholder in placeholders:
             # These should be skipped in validation
-            is_placeholder = any(
-                p in placeholder.lower()
-                for p in ['example', 'placeholder', 'your_', 'xxx']
-            )
+            is_placeholder = any(p in placeholder.lower() for p in ["example", "placeholder", "your_", "xxx"])
             assert is_placeholder, f"{placeholder} should be detected as placeholder"
 
 
 # =============================================================================
 # F3: Reflection Loop Tests
 # =============================================================================
+
 
 class TestReflectionLoop:
     """Test suite for self-reflection in single agent mode."""
@@ -298,7 +313,7 @@ Be brutally honest. It's better to catch issues now than have them fail in produ
         ]
 
         for response, expected_score in test_responses:
-            match = re.search(r'SCORE:\s*(\d+)', response)
+            match = re.search(r"SCORE:\s*(\d+)", response)
             assert match is not None, f"Should find score in: {response}"
             score = int(match.group(1))
             assert score == expected_score, f"Expected {expected_score}, got {score}"
@@ -350,10 +365,14 @@ Be brutally honest. It's better to catch issues now than have them fail in produ
         ]
 
         for content, expected in test_cases:
-            should_reflect = len(content) > 100 or "```" in content or any(
-                kw in content.lower() for kw in ["def ", "class ", "function", "created", "wrote", "modified"]
+            should_reflect = (
+                len(content) > 100
+                or "```" in content
+                or any(kw in content.lower() for kw in ["def ", "class ", "function", "created", "wrote", "modified"])
             )
-            assert should_reflect == expected, f"Content '{content[:30]}...' should_reflect={expected}, got {should_reflect}"
+            assert should_reflect == expected, (
+                f"Content '{content[:30]}...' should_reflect={expected}, got {should_reflect}"
+            )
 
     def test_corrected_response_extraction(self):
         """Test extraction of corrected response from reflection."""
@@ -365,11 +384,7 @@ CORRECTED_RESPONSE: def safe_divide(a, b):
     return a / b
 
 """
-        match = re.search(
-            r'CORRECTED_RESPONSE:\s*(.*?)(?:$|\n\n)',
-            reflection,
-            re.DOTALL
-        )
+        match = re.search(r"CORRECTED_RESPONSE:\s*(.*?)(?:$|\n\n)", reflection, re.DOTALL)
 
         assert match is not None
         corrected = match.group(1).strip()
@@ -381,30 +396,31 @@ CORRECTED_RESPONSE: def safe_divide(a, b):
 # Integration Tests
 # =============================================================================
 
+
 class TestSentinelIntegration:
     """Integration tests for SENTINEL features working together."""
 
     def test_fsm_handlers_has_sentinel_methods(self):
         """Verify FSMHandlers has all SENTINEL methods."""
-        from core.orchestration.fsm_handlers import FSMHandlers
+        from core.execution_pkg.orchestration.fsm_handlers import FSMHandlers
 
         # Check F2 method exists
-        assert hasattr(FSMHandlers, '_validate_artifacts_f2')
+        assert hasattr(FSMHandlers, "_validate_artifacts_f2")
 
         # Check F3 method exists
-        assert hasattr(FSMHandlers, '_reflection_loop_f3')
+        assert hasattr(FSMHandlers, "_reflection_loop_f3")
 
     def test_task_analyzer_has_sentinel_features(self):
         """Verify TaskAnalyzer has all SENTINEL features."""
-        from core.swarm.task_analyzer import TaskAnalyzer
+        from core.intelligence.swarm.task_analyzer import TaskAnalyzer
 
         analyzer = TaskAnalyzer()
 
         # F1 features
-        assert hasattr(analyzer, 'is_instant_command')
-        assert hasattr(analyzer, 'analyze_async')
-        assert hasattr(analyzer, 'needs_stage3_escalation')
-        assert hasattr(analyzer, '_instant_command_patterns')
+        assert hasattr(analyzer, "is_instant_command")
+        assert hasattr(analyzer, "analyze_async")
+        assert hasattr(analyzer, "needs_stage3_escalation")
+        assert hasattr(analyzer, "_instant_command_patterns")
 
 
 # =============================================================================

@@ -17,12 +17,13 @@ Date: 2025-12-04
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import tempfile
 from pathlib import Path
 from threading import RLock
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 class AtomicJsonStore:
@@ -64,7 +65,7 @@ class AtomicJsonStore:
         """Check if the JSON file exists."""
         return self._filepath.exists()
 
-    def load(self) -> Dict[str, Any]:
+    def load(self) -> dict[str, Any]:
         """
         Load JSON data from file.
 
@@ -90,21 +91,13 @@ class AtomicJsonStore:
                 return json.loads(content)
             except json.JSONDecodeError as e:
                 # Log error but don't crash - return empty dict for recovery
-                raise json.JSONDecodeError(
-                    f"Invalid JSON in {self._filepath}: {e.msg}",
-                    e.doc,
-                    e.pos
-                )
+                raise json.JSONDecodeError(f"Invalid JSON in {self._filepath}: {e.msg}", e.doc, e.pos) from None
             except UnicodeDecodeError as e:
                 raise UnicodeDecodeError(
-                    e.encoding,
-                    e.object,
-                    e.start,
-                    e.end,
-                    f"Invalid UTF-8 in {self._filepath}: {e.reason}"
-                )
+                    e.encoding, e.object, e.start, e.end, f"Invalid UTF-8 in {self._filepath}: {e.reason}"
+                ) from None
 
-    def load_safe(self, default: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def load_safe(self, default: dict[str, Any] | None = None) -> dict[str, Any]:
         """
         Load JSON data from file, returning default on any error.
 
@@ -125,7 +118,7 @@ class AtomicJsonStore:
         except (json.JSONDecodeError, UnicodeDecodeError, OSError):
             return default
 
-    def save(self, data: Dict[str, Any]) -> None:
+    def save(self, data: dict[str, Any]) -> None:
         """
         Save data to JSON file atomically.
 
@@ -150,19 +143,12 @@ class AtomicJsonStore:
             self._filepath.parent.mkdir(parents=True, exist_ok=True)
 
             # Serialize to JSON with pretty formatting
-            json_content = json.dumps(
-                data,
-                indent=2,
-                ensure_ascii=False,
-                sort_keys=False
-            )
+            json_content = json.dumps(data, indent=2, ensure_ascii=False, sort_keys=False)
 
             # Write to temporary file in same directory (important for atomic rename)
             # Using same directory ensures same filesystem for atomic rename
             tmp_fd, tmp_path = tempfile.mkstemp(
-                suffix=".tmp",
-                prefix=f".{self._filepath.name}_",
-                dir=self._filepath.parent
+                suffix=".tmp", prefix=f".{self._filepath.name}_", dir=self._filepath.parent
             )
 
             try:
@@ -177,13 +163,11 @@ class AtomicJsonStore:
 
             except Exception:
                 # Clean up temp file on error
-                try:
+                with contextlib.suppress(OSError):
                     os.unlink(tmp_path)
-                except OSError:
-                    pass
                 raise
 
-    def update(self, updates: Dict[str, Any]) -> Dict[str, Any]:
+    def update(self, updates: dict[str, Any]) -> dict[str, Any]:
         """
         Atomically load, update, and save data.
 
@@ -238,7 +222,7 @@ class AtomicJsonStoreManager:
 
     def __init__(self) -> None:
         """Initialize the store manager."""
-        self._stores: Dict[Path, AtomicJsonStore] = {}
+        self._stores: dict[Path, AtomicJsonStore] = {}
         self._lock = RLock()
 
     def get_store(self, filepath: Path) -> AtomicJsonStore:
@@ -271,7 +255,7 @@ class AtomicJsonStoreManager:
 # =============================================================================
 # V10 PRISM: Multi-Tenant Atomic Store Access
 # =============================================================================
-_default_manager: Optional[AtomicJsonStoreManager] = None
+_default_manager: AtomicJsonStoreManager | None = None
 
 
 def get_store(filepath: Path) -> AtomicJsonStore:

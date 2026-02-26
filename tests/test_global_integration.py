@@ -1,38 +1,43 @@
-import sys
 import os
-from pathlib import Path
-import json
 import shutil
+import sys
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 # Add project root to path
 sys.path.append(os.getcwd())
 
-from core.interface.repl import InteractiveNexusV7
-from core.memory.auto_memory import AutoMemory
+from core.interface_pkg.interface.repl import InteractiveNexusV7
+
 
 def test_global_integration():
     print("\n🚀 GLOBAL INTEGRATION TEST: NEXUS V7.5 HIVE MIND\n")
-    
+
     workspace_path = Path("workspace_test_global")
     if workspace_path.exists():
         shutil.rmtree(workspace_path)
     workspace_path.mkdir()
     (workspace_path / ".nexus").mkdir()
     (workspace_path / "memory").mkdir()
-    
+
     # Setup environment
     print("1. Environment Setup...")
     gemini_info = {"model": "gemini-mock"}
     claude_info = {"model": "claude-mock"}
-    
-    # MOCKS
-    with patch('core.orchestration_v7.GeminiDriverV7') as MockGemini, \
-         patch('core.orchestration_v7.ClaudeDriverHybrid') as MockClaude, \
-         patch('core.interface.repl.load_config') as MockConfig, \
-         patch('core.evolution.lineage.load_lineage') as MockLineage, \
-         patch('core.evolution.lineage.get_current_parent') as MockGetParent:
-         
+
+    # MOCKS (V12.4: Use AsyncDriverFactory pattern)
+    with (
+        patch("core.drivers.async_factory.AsyncDriverFactory.get_best_gemini"),
+        patch("core.drivers.async_factory.AsyncDriverFactory.get_best_claude"),
+        patch("core.interface_pkg.interface.repl.load_config") as MockConfig,
+        patch("core.intelligence.evolution.lineage.load_lineage") as MockLineage,
+        patch("core.intelligence.evolution.lineage.get_current_parent") as MockGetParent,
+        patch.object(
+            InteractiveNexusV7,
+            "_calculate_nexus_root",
+            return_value=workspace_path,
+        ),
+    ):
         # Mock Config
         mock_config = MagicMock()
         mock_config.workspace_path = workspace_path
@@ -45,8 +50,9 @@ def test_global_integration():
         mock_config.red_team_mandatory = False
         mock_config.max_children_concurrent = 5
         mock_config.max_generations_per_day = 100
+        mock_config.budget_limit_usd = 50.0
         MockConfig.return_value = mock_config
-        
+
         # Mock Lineage
         MockLineage.return_value = {"history": []}
         MockGetParent.return_value = {"id": "PARENT_V1", "generation": 1, "asi_proximity_score": 0.5}
@@ -57,11 +63,11 @@ def test_global_integration():
         nexus_root_mock = workspace_path / "NEXUS_ROOT"
         nexus_root_mock.mkdir()
         repl.nexus_root = nexus_root_mock
-        
+
         # --- TEST 1: AGENT SPAWNING (Factory) ---
         print("\n🧪 TEST 1: AGENT FACTORY (/spawn)...")
         repl.spawn_agent("Python Refactoring Expert")
-        
+
         agent_dir = workspace_path / "agents" / "python_refactoring_expert"
         if agent_dir.exists() and (agent_dir / "BIRTH_CERTIFICATE.json").exists():
             print(f"✅ Agent Spawned: {agent_dir}")
@@ -70,25 +76,25 @@ def test_global_integration():
 
         # --- TEST 2: SWARM & AUTO-MEMORY ---
         print("\n🧪 TEST 2: SWARM EXECUTION & AUTO-MEMORY...")
-        
+
         # Mock Swarm Execution
         mock_swarm_result = {
             "mode": "LEAD_SUPPORT",
             "state": "completed",
             "output": "Optimization complete.",
-            "analysis": {"complexity": "COMPLEX", "primary_domain": "CODING"}
+            "analysis": {"complexity": "COMPLEX", "primary_domain": "CODING"},
         }
         repl.orchestrator.process_with_swarm = MagicMock(return_value=mock_swarm_result)
-        
+
         # Execute Task
         repl.run_swarm_task("Refactor core/orchestration_v7.py")
-        
+
         # Verify Memory Recording
         # We need to manually trigger the record because process_with_swarm mocks the whole flow
         # Let's check if AutoMemory was initialized
-        if hasattr(repl.orchestrator, 'auto_memory'):
+        if hasattr(repl.orchestrator, "auto_memory"):
             print("✅ Auto-Memory Initialized")
-            
+
             # Manually record a success to test persistence
             repl.orchestrator.auto_memory.record_success(
                 task_type="CODING",
@@ -96,9 +102,9 @@ def test_global_integration():
                 swarm_mode="LEAD_SUPPORT",
                 lead_agent="claude",
                 duration_seconds=5.0,
-                score=1.0
+                score=1.0,
             )
-            
+
             # Check file
             success_file = workspace_path / "memory" / "successes.jsonl"
             if success_file.exists():
@@ -116,9 +122,10 @@ def test_global_integration():
     try:
         if workspace_path.exists():
             shutil.rmtree(workspace_path)
-    except:
+    except Exception:
         pass
     print("\n🏁 Global Integration Test Completed.")
+
 
 if __name__ == "__main__":
     test_global_integration()

@@ -17,7 +17,7 @@ V11.3 HARDENING: JWT_SECRET loaded from environment variable.
 
 import logging
 import os
-from typing import Optional
+from datetime import UTC
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -40,7 +40,7 @@ if not JWT_SECRET:
     )
 
 
-def decode_jwt(token: str) -> Optional[dict]:
+def decode_jwt(token: str) -> dict | None:
     """
     Decode and validate JWT token.
 
@@ -51,14 +51,9 @@ def decode_jwt(token: str) -> Optional[dict]:
         Decoded claims dict or None if invalid
     """
     try:
-        from jose import jwt, JWTError
+        from jose import jwt
 
-        claims = jwt.decode(
-            token,
-            JWT_SECRET,
-            algorithms=[JWT_ALGORITHM],
-            options={"verify_exp": True}
-        )
+        claims = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM], options={"verify_exp": True})
         return claims
     except ImportError:
         logger.warning("python-jose not installed, JWT auth disabled")
@@ -100,7 +95,7 @@ class TenantContextMiddleware(BaseHTTPMiddleware):
             if claims:
                 # Hydrate PRISM context
                 try:
-                    from core.context import use_context_async
+                    from core.infrastructure.context import use_context_async
 
                     async with use_context_async(
                         tenant_id=claims.get("tenant_id", "anonymous"),
@@ -122,7 +117,7 @@ def create_jwt_token(
     user_id: str = "anonymous",
     workspace_id: str = "default",
     expires_in_seconds: int = 3600,
-    extra_claims: Optional[dict] = None,
+    extra_claims: dict | None = None,
 ) -> str:
     """
     Create a JWT token.
@@ -137,10 +132,11 @@ def create_jwt_token(
     Returns:
         JWT token string
     """
-    from datetime import datetime, timezone, timedelta
+    from datetime import datetime, timedelta
+
     from jose import jwt
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     claims = {
         "sub": user_id,
         "tenant_id": tenant_id,

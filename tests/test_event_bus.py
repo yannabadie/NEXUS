@@ -5,14 +5,14 @@ Validates lightweight async pub/sub EventBus.
 """
 
 import asyncio
-import pytest
-import time
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
-from core.async_primitives.event_bus import (
+import pytest
+
+from core.foundation.async_primitives.event_bus import (
     EventBus,
-    SyncEvent,
     EventType,
+    SyncEvent,
     get_event_bus,
     reset_event_bus,
 )
@@ -134,12 +134,14 @@ class TestEventBusBasics:
         bus.subscribe("multi", handler_a)
         bus.subscribe("multi", handler_b)
 
-        await bus.publish(SyncEvent(
-            event_type="multi",
-            source="test",
-            task_id="t1",
-            payload={},
-        ))
+        await bus.publish(
+            SyncEvent(
+                event_type="multi",
+                source="test",
+                task_id="t1",
+                payload={},
+            )
+        )
 
         assert len(received_a) == 1
         assert len(received_b) == 1
@@ -149,12 +151,14 @@ class TestEventBusBasics:
         """Publishing to no handlers should return False."""
         bus = EventBus()
 
-        result = await bus.publish(SyncEvent(
-            event_type="no_handlers",
-            source="test",
-            task_id="t1",
-            payload={},
-        ))
+        result = await bus.publish(
+            SyncEvent(
+                event_type="no_handlers",
+                source="test",
+                task_id="t1",
+                payload={},
+            )
+        )
 
         assert result is False
 
@@ -174,12 +178,14 @@ class TestEventBusUnsubscribe:
         bus.subscribe("unsub_test", handler)
 
         # First publish - should receive
-        await bus.publish(SyncEvent(
-            event_type="unsub_test",
-            source="test",
-            task_id="t1",
-            payload={},
-        ))
+        await bus.publish(
+            SyncEvent(
+                event_type="unsub_test",
+                source="test",
+                task_id="t1",
+                payload={},
+            )
+        )
         assert len(received) == 1
 
         # Unsubscribe
@@ -187,12 +193,14 @@ class TestEventBusUnsubscribe:
         assert result is True
 
         # Second publish - should not receive
-        await bus.publish(SyncEvent(
-            event_type="unsub_test",
-            source="test",
-            task_id="t2",
-            payload={},
-        ))
+        await bus.publish(
+            SyncEvent(
+                event_type="unsub_test",
+                source="test",
+                task_id="t2",
+                payload={},
+            )
+        )
         assert len(received) == 1  # Still 1
 
     def test_unsubscribe_not_found(self):
@@ -214,18 +222,22 @@ class TestEventBusHistory:
         """Published events should be kept in history."""
         bus = EventBus(keep_history=True)
 
-        await bus.publish(SyncEvent(
-            event_type="history_test",
-            source="test",
-            task_id="t1",
-            payload={"seq": 1},
-        ))
-        await bus.publish(SyncEvent(
-            event_type="history_test",
-            source="test",
-            task_id="t2",
-            payload={"seq": 2},
-        ))
+        await bus.publish(
+            SyncEvent(
+                event_type="history_test",
+                source="test",
+                task_id="t1",
+                payload={"seq": 1},
+            )
+        )
+        await bus.publish(
+            SyncEvent(
+                event_type="history_test",
+                source="test",
+                task_id="t2",
+                payload={"seq": 2},
+            )
+        )
 
         history = bus.get_history()
         assert len(history) == 2
@@ -318,7 +330,7 @@ class TestEventBusErrorHandling:
 
         bus.subscribe("fail_test", failing_handler)
 
-        with patch("core.async_primitives.event_bus.logger") as mock_logger:
+        with patch("core.foundation.async_primitives.event_bus.logger") as mock_logger:
             await bus.publish(SyncEvent(event_type="fail_test", source="t", task_id="1", payload={}))
             mock_logger.error.assert_called()
 
@@ -332,7 +344,7 @@ class TestEventBusErrorHandling:
 
         bus.subscribe("slow_test", slow_handler)
 
-        with patch("core.async_primitives.event_bus.logger") as mock_logger:
+        with patch("core.foundation.async_primitives.event_bus.logger") as mock_logger:
             await bus.publish(SyncEvent(event_type="slow_test", source="t", task_id="1", payload={}))
             # Should have logged timeout error
             mock_logger.error.assert_called()
@@ -350,13 +362,15 @@ class TestEventBusPublishAndWait:
 
         async def responder(event):
             # Simulate response
-            await bus.publish(SyncEvent(
-                event_type="response",
-                source="responder",
-                task_id=event.task_id,
-                payload={"answer": 42},
-                correlation_id=event.correlation_id,
-            ))
+            await bus.publish(
+                SyncEvent(
+                    event_type="response",
+                    source="responder",
+                    task_id=event.task_id,
+                    payload={"answer": 42},
+                    correlation_id=event.correlation_id,
+                )
+            )
 
         bus.subscribe("request", responder)
 

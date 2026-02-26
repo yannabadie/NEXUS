@@ -47,22 +47,21 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import time
 import re
+import time
+from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import AsyncIterator, Dict, List, Optional, Any
-from dataclasses import dataclass
+from typing import Any
 
+from .async_claude_driver import AsyncClaudeDriver, AsyncClaudeDriverConfig
+from .async_gemini_driver import AsyncGeminiDriver, AsyncGeminiDriverConfig
 from .protocol import (
     BaseAsyncDriver,
-    DriverProtocol,
     DriverResponse,
     DriverResponseStatus,
     StreamChunk,
     ToolCall,
 )
-from .async_gemini_driver import AsyncGeminiDriver, AsyncGeminiDriverConfig
-from .async_claude_driver import AsyncClaudeDriver, AsyncClaudeDriverConfig
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +70,8 @@ logger = logging.getLogger(__name__)
 # Tool Call Extractors
 # =============================================================================
 
-def extract_tool_calls_from_gemini(content: str) -> List[ToolCall]:
+
+def extract_tool_calls_from_gemini(content: str) -> list[ToolCall]:
     """
     Extract tool calls from Gemini response content.
 
@@ -86,28 +86,32 @@ def extract_tool_calls_from_gemini(content: str) -> List[ToolCall]:
             # Check for function_call in response
             if "function_call" in data:
                 fc = data["function_call"]
-                tool_calls.append(ToolCall(
-                    name=fc.get("name", "unknown"),
-                    arguments=fc.get("args", {}),
-                    id=fc.get("id"),
-                ))
+                tool_calls.append(
+                    ToolCall(
+                        name=fc.get("name", "unknown"),
+                        arguments=fc.get("args", {}),
+                        id=fc.get("id"),
+                    )
+                )
             # Check for parts with function calls
             if "parts" in data:
                 for part in data.get("parts", []):
                     if "functionCall" in part:
                         fc = part["functionCall"]
-                        tool_calls.append(ToolCall(
-                            name=fc.get("name", "unknown"),
-                            arguments=fc.get("args", {}),
-                            id=fc.get("id"),
-                        ))
+                        tool_calls.append(
+                            ToolCall(
+                                name=fc.get("name", "unknown"),
+                                arguments=fc.get("args", {}),
+                                id=fc.get("id"),
+                            )
+                        )
     except (json.JSONDecodeError, TypeError, KeyError):
         pass
 
     return tool_calls
 
 
-def extract_tool_calls_from_claude(content: str) -> List[ToolCall]:
+def extract_tool_calls_from_claude(content: str) -> list[ToolCall]:
     """
     Extract tool calls from Claude response content.
 
@@ -131,11 +135,13 @@ def extract_tool_calls_from_claude(content: str) -> List[ToolCall]:
         data = json.loads(content) if isinstance(content, str) else content
         if isinstance(data, dict) and "tool_use" in data:
             tu = data["tool_use"]
-            tool_calls.append(ToolCall(
-                name=tu.get("name", "unknown"),
-                arguments=tu.get("input", {}),
-                id=tu.get("id"),
-            ))
+            tool_calls.append(
+                ToolCall(
+                    name=tu.get("name", "unknown"),
+                    arguments=tu.get("input", {}),
+                    id=tu.get("id"),
+                )
+            )
     except (json.JSONDecodeError, TypeError, KeyError):
         pass
 
@@ -146,6 +152,7 @@ def extract_tool_calls_from_claude(content: str) -> List[ToolCall]:
 # Gemini CLI Adapter
 # =============================================================================
 
+
 class GeminiCLIAdapter(BaseAsyncDriver):
     """
     Adapter wrapping AsyncGeminiDriver to implement DriverProtocol.
@@ -155,8 +162,8 @@ class GeminiCLIAdapter(BaseAsyncDriver):
 
     def __init__(
         self,
-        config: Optional[AsyncGeminiDriverConfig] = None,
-        workspace_path: Optional[Path] = None,
+        config: AsyncGeminiDriverConfig | None = None,
+        workspace_path: Path | None = None,
     ):
         """
         Initialize Gemini CLI adapter.
@@ -183,11 +190,11 @@ class GeminiCLIAdapter(BaseAsyncDriver):
         self,
         prompt: str,
         *,
-        session_id: Optional[str] = None,
-        system_prompt: Optional[str] = None,
-        tools: Optional[List[Dict[str, Any]]] = None,
-        isolated_env: Optional[Dict[str, str]] = None,
-        timeout: Optional[float] = None,
+        session_id: str | None = None,
+        system_prompt: str | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        isolated_env: dict[str, str] | None = None,
+        timeout: float | None = None,
         **kwargs: Any,
     ) -> DriverResponse:
         """
@@ -241,7 +248,7 @@ class GeminiCLIAdapter(BaseAsyncDriver):
                 raw=raw,
             )
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return self._create_error_response(
                 f"Gemini CLI timeout after {effective_timeout}s",
                 error_code="TIMEOUT",
@@ -261,11 +268,11 @@ class GeminiCLIAdapter(BaseAsyncDriver):
         self,
         prompt: str,
         *,
-        session_id: Optional[str] = None,
-        system_prompt: Optional[str] = None,
-        tools: Optional[List[Dict[str, Any]]] = None,
-        isolated_env: Optional[Dict[str, str]] = None,
-        timeout: Optional[float] = None,
+        session_id: str | None = None,
+        system_prompt: str | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        isolated_env: dict[str, str] | None = None,
+        timeout: float | None = None,
         **kwargs: Any,
     ) -> AsyncIterator[StreamChunk]:
         """
@@ -303,7 +310,7 @@ class GeminiCLIAdapter(BaseAsyncDriver):
         except asyncio.CancelledError:
             raise
 
-    async def cancel(self, session_id: Optional[str] = None) -> bool:
+    async def cancel(self, session_id: str | None = None) -> bool:
         """Cancel ongoing Gemini CLI invocation."""
         try:
             await self._driver.cancel(session_uuid=session_id)
@@ -315,12 +322,14 @@ class GeminiCLIAdapter(BaseAsyncDriver):
     async def health_check(self) -> bool:
         """Check if Gemini CLI is available."""
         import shutil
+
         return shutil.which(self._config.cli_path) is not None
 
 
 # =============================================================================
 # Claude CLI Adapter
 # =============================================================================
+
 
 class ClaudeCLIAdapter(BaseAsyncDriver):
     """
@@ -331,8 +340,8 @@ class ClaudeCLIAdapter(BaseAsyncDriver):
 
     def __init__(
         self,
-        config: Optional[AsyncClaudeDriverConfig] = None,
-        workspace_path: Optional[Path] = None,
+        config: AsyncClaudeDriverConfig | None = None,
+        workspace_path: Path | None = None,
     ):
         """
         Initialize Claude CLI adapter.
@@ -359,11 +368,11 @@ class ClaudeCLIAdapter(BaseAsyncDriver):
         self,
         prompt: str,
         *,
-        session_id: Optional[str] = None,
-        system_prompt: Optional[str] = None,
-        tools: Optional[List[Dict[str, Any]]] = None,
-        isolated_env: Optional[Dict[str, str]] = None,
-        timeout: Optional[float] = None,
+        session_id: str | None = None,
+        system_prompt: str | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        isolated_env: dict[str, str] | None = None,
+        timeout: float | None = None,
         **kwargs: Any,
     ) -> DriverResponse:
         """
@@ -414,7 +423,7 @@ class ClaudeCLIAdapter(BaseAsyncDriver):
                 raw=raw,
             )
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return self._create_error_response(
                 f"Claude CLI timeout after {effective_timeout}s",
                 error_code="TIMEOUT",
@@ -433,11 +442,11 @@ class ClaudeCLIAdapter(BaseAsyncDriver):
         self,
         prompt: str,
         *,
-        session_id: Optional[str] = None,
-        system_prompt: Optional[str] = None,
-        tools: Optional[List[Dict[str, Any]]] = None,
-        isolated_env: Optional[Dict[str, str]] = None,
-        timeout: Optional[float] = None,
+        session_id: str | None = None,
+        system_prompt: str | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        isolated_env: dict[str, str] | None = None,
+        timeout: float | None = None,
         **kwargs: Any,
     ) -> AsyncIterator[StreamChunk]:
         """
@@ -473,7 +482,7 @@ class ClaudeCLIAdapter(BaseAsyncDriver):
         except asyncio.CancelledError:
             raise
 
-    async def cancel(self, session_id: Optional[str] = None) -> bool:
+    async def cancel(self, session_id: str | None = None) -> bool:
         """Cancel ongoing Claude CLI invocation."""
         try:
             await self._driver.cancel(session_uuid=session_id)
@@ -485,6 +494,7 @@ class ClaudeCLIAdapter(BaseAsyncDriver):
     async def health_check(self) -> bool:
         """Check if Claude CLI is available."""
         import shutil
+
         return shutil.which(self._config.cli_path) is not None
 
 
@@ -492,9 +502,10 @@ class ClaudeCLIAdapter(BaseAsyncDriver):
 # Unified Factory for CLI Adapters
 # =============================================================================
 
+
 def create_cli_adapter(
     provider: str,
-    workspace_path: Optional[Path] = None,
+    workspace_path: Path | None = None,
     **config_kwargs: Any,
 ) -> BaseAsyncDriver:
     """

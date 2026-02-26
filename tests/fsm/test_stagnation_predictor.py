@@ -13,23 +13,22 @@ Date: 2025-12-16
 """
 
 import json
-import pytest
+import sys
 from pathlib import Path
 
-import sys
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.fsm.stagnation_predictor import (
-    StagnationPredictor,
     PredictionLevel,
-    PredictionResult,
-    MessageMetrics,
+    StagnationPredictor,
 )
-
 
 # =============================================================================
 # Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def predictor():
@@ -41,13 +40,14 @@ def predictor():
 def stagnation_samples():
     """Load stagnation test samples from fixtures."""
     fixtures_path = Path(__file__).parent.parent / "fixtures" / "stagnation_samples.json"
-    with open(fixtures_path, "r", encoding="utf-8") as f:
+    with open(fixtures_path, encoding="utf-8") as f:
         return json.load(f)
 
 
 # =============================================================================
 # Leading Indicator Tests
 # =============================================================================
+
 
 class TestLeadingIndicators:
     """Tests for hesitation/indecision pattern detection."""
@@ -101,6 +101,7 @@ class TestLeadingIndicators:
 # Trajectory Analysis Tests
 # =============================================================================
 
+
 class TestTrajectoryAnalysis:
     """Tests for message trajectory analysis."""
 
@@ -141,6 +142,7 @@ class TestTrajectoryAnalysis:
 # Tool Factor Tests
 # =============================================================================
 
+
 class TestToolFactor:
     """Tests for tool mention without use detection."""
 
@@ -180,6 +182,7 @@ class TestToolFactor:
 # Similarity Tests
 # =============================================================================
 
+
 class TestSimilarityFactor:
     """Tests for message similarity detection."""
 
@@ -208,6 +211,7 @@ class TestSimilarityFactor:
 # =============================================================================
 # Prediction Level Tests
 # =============================================================================
+
 
 class TestPredictionLevels:
     """Tests for prediction level thresholds."""
@@ -252,7 +256,9 @@ class TestPredictionLevels:
     def test_prediction_intervene(self, predictor):
         """Test INTERVENE level for critical stagnation."""
         # Add hesitation messages with decreasing length (triggers trajectory)
-        predictor.add_message("This is a very long message where I'm discussing the problem but not taking action on it.")
+        predictor.add_message(
+            "This is a very long message where I'm discussing the problem but not taking action on it."
+        )
         predictor.add_message("Let me think about this more, perhaps we should consider alternatives.")
         predictor.add_message("Maybe we could try something else, I'm not sure.")
         predictor.add_message("On the other hand, what if...")
@@ -270,6 +276,7 @@ class TestPredictionLevels:
 # Prediction Result Tests
 # =============================================================================
 
+
 class TestPredictionResult:
     """Tests for PredictionResult dataclass."""
 
@@ -280,11 +287,11 @@ class TestPredictionResult:
 
         result = predictor.predict()
 
-        assert hasattr(result, 'probability')
-        assert hasattr(result, 'level')
-        assert hasattr(result, 'factors')
-        assert hasattr(result, 'recommendation')
-        assert hasattr(result, 'nudge_message')
+        assert hasattr(result, "probability")
+        assert hasattr(result, "level")
+        assert hasattr(result, "factors")
+        assert hasattr(result, "recommendation")
+        assert hasattr(result, "nudge_message")
 
     def test_probability_in_range(self, predictor):
         """Test that probability is in [0, 1] range."""
@@ -306,13 +313,14 @@ class TestPredictionResult:
 
         assert isinstance(result.factors, dict)
         # Should have at least some factor keys
-        possible_keys = {'indicators', 'trajectory', 'tool_factor', 'similarity'}
+        possible_keys = {"indicators", "trajectory", "tool_factor", "similarity"}
         assert len(set(result.factors.keys()) & possible_keys) >= 0
 
 
 # =============================================================================
 # Edge Cases
 # =============================================================================
+
 
 class TestEdgeCases:
     """Tests for edge cases and error handling."""
@@ -370,6 +378,7 @@ class TestEdgeCases:
 # Accuracy Tests (Ground Truth Dataset)
 # =============================================================================
 
+
 class TestAccuracy:
     """Tests for prediction accuracy on labeled dataset."""
 
@@ -399,9 +408,8 @@ class TestAccuracy:
             elif expected == "nudge":
                 if result.level in (PredictionLevel.NUDGE, PredictionLevel.INTERVENE):
                     correct += 1
-            elif expected == "intervene":
-                if result.level == PredictionLevel.INTERVENE:
-                    correct += 1
+            elif expected == "intervene" and result.level == PredictionLevel.INTERVENE:
+                correct += 1
 
             total += 1
 
@@ -481,6 +489,7 @@ class TestAccuracy:
 # =============================================================================
 # Statistics Tests
 # =============================================================================
+
 
 class TestStatistics:
     """Tests for predictor statistics."""

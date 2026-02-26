@@ -4,8 +4,8 @@ Task Execution Context - V7.5 Phase 0d
 Immutable context for task execution, replacing mutable self.active_agent.
 Enables thread-safe PARALLEL mode execution without race conditions.
 """
-from dataclasses import dataclass, field
-from typing import Optional
+
+from dataclasses import dataclass
 from uuid import uuid4
 
 
@@ -26,26 +26,18 @@ class TaskExecutionContext:
         # Change agent with immutable copy
         new_context = context.with_agent("Claude")
     """
+
     task_id: str
     current_agent: str
     objective: str = ""
     iteration: int = 0
-    tool_requesting_agent: Optional[str] = None
-    validation_agent: Optional[str] = None
+    tool_requesting_agent: str | None = None
+    validation_agent: str | None = None
 
     @classmethod
-    def create(
-        cls,
-        objective: str = "",
-        initial_agent: str = "Gemini"
-    ) -> "TaskExecutionContext":
+    def create(cls, objective: str = "", initial_agent: str = "Gemini") -> "TaskExecutionContext":
         """Create new context with unique task_id"""
-        return cls(
-            task_id=str(uuid4()),
-            current_agent=initial_agent,
-            objective=objective,
-            iteration=0
-        )
+        return cls(task_id=str(uuid4()), current_agent=initial_agent, objective=objective, iteration=0)
 
     def with_agent(self, agent: str) -> "TaskExecutionContext":
         """Return new context with different agent (immutable pattern)"""
@@ -55,7 +47,7 @@ class TaskExecutionContext:
             objective=self.objective,
             iteration=self.iteration,
             tool_requesting_agent=self.tool_requesting_agent,
-            validation_agent=self.validation_agent
+            validation_agent=self.validation_agent,
         )
 
     def with_iteration(self, iteration: int) -> "TaskExecutionContext":
@@ -66,7 +58,7 @@ class TaskExecutionContext:
             objective=self.objective,
             iteration=iteration,
             tool_requesting_agent=self.tool_requesting_agent,
-            validation_agent=self.validation_agent
+            validation_agent=self.validation_agent,
         )
 
     def with_tool_request(self, requesting_agent: str) -> "TaskExecutionContext":
@@ -77,7 +69,7 @@ class TaskExecutionContext:
             objective=self.objective,
             iteration=self.iteration,
             tool_requesting_agent=requesting_agent,
-            validation_agent=self.validation_agent
+            validation_agent=self.validation_agent,
         )
 
     def with_validation(self, validating_agent: str) -> "TaskExecutionContext":
@@ -88,7 +80,7 @@ class TaskExecutionContext:
             objective=self.objective,
             iteration=self.iteration,
             tool_requesting_agent=self.tool_requesting_agent,
-            validation_agent=validating_agent
+            validation_agent=validating_agent,
         )
 
     def swap_agent(self) -> "TaskExecutionContext":

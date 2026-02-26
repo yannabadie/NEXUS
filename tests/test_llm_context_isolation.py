@@ -17,16 +17,15 @@ Environment Variables:
 - SKIP_LLM_TESTS=1 : Skip these tests (for CI without credentials)
 """
 
-import pytest
 import os
 import subprocess
-import uuid
+import sys
 import time
-import threading
-import json
-from pathlib import Path
+import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import List, Tuple, Optional
+from pathlib import Path
+
+import pytest
 
 # Skip if no LLM access
 SKIP_LLM = os.environ.get("SKIP_LLM_TESTS", "").lower() in ("1", "true", "yes")
@@ -37,13 +36,13 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_
 AUTO_SKIP = SKIP_LLM or not GEMINI_API_KEY
 
 # Import NEXUS components
-import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
 # =============================================================================
 # Helpers
 # =============================================================================
+
 
 def is_gemini_available() -> bool:
     """Check if Gemini CLI is available."""
@@ -53,14 +52,14 @@ def is_gemini_available() -> bool:
             capture_output=True,
             text=True,
             timeout=10,
-            shell=True  # Windows compatibility
+            shell=True,  # Windows compatibility
         )
         return result.returncode == 0
     except Exception:
         return False
 
 
-def invoke_gemini(prompt: str, session_id: Optional[str] = None, timeout: int = 60) -> Tuple[str, int]:
+def invoke_gemini(prompt: str, session_id: str | None = None, timeout: int = 60) -> tuple[str, int]:
     """
     Invoke Gemini CLI with optional session.
 
@@ -85,7 +84,7 @@ def invoke_gemini(prompt: str, session_id: Optional[str] = None, timeout: int = 
             timeout=timeout,
             encoding="utf-8",
             errors="replace",
-            shell=True  # Windows compatibility
+            shell=True,  # Windows compatibility
         )
         return result.stdout.strip(), result.returncode
     except subprocess.TimeoutExpired:
@@ -107,19 +106,20 @@ def create_session_id() -> str:
 # Skip if: SKIP_LLM_TESTS=1, no API key, or Gemini CLI unavailable
 pytestmark = pytest.mark.skipif(
     AUTO_SKIP or not is_gemini_available(),
-    reason="LLM tests skipped (no GEMINI_API_KEY/GOOGLE_API_KEY or SKIP_LLM_TESTS=1)"
+    reason="LLM tests skipped (no GEMINI_API_KEY/GOOGLE_API_KEY or SKIP_LLM_TESTS=1)",
 )
 
 # Backward compatible decorator (for explicit use)
 skip_llm = pytest.mark.skipif(
     AUTO_SKIP or not is_gemini_available(),
-    reason="LLM tests skipped (no GEMINI_API_KEY/GOOGLE_API_KEY or SKIP_LLM_TESTS=1)"
+    reason="LLM tests skipped (no GEMINI_API_KEY/GOOGLE_API_KEY or SKIP_LLM_TESTS=1)",
 )
 
 
 # =============================================================================
 # Context Isolation Tests
 # =============================================================================
+
 
 @skip_llm
 class TestRealContextIsolation:
@@ -146,22 +146,21 @@ class TestRealContextIsolation:
         # First call: Set a unique identifier
         unique_value = f"NEXUS_SECRET_{uuid.uuid4().hex[:8]}"
         output1, code1 = invoke_gemini(
-            f"Remember this secret code: {unique_value}. Reply with 'STORED'.",
-            session_id=session_id
+            f"Remember this secret code: {unique_value}. Reply with 'STORED'.", session_id=session_id
         )
         assert code1 == 0, f"First call failed: {output1}"
 
         # Second call: Ask for the identifier
         output2, code2 = invoke_gemini(
-            "What was the secret code I told you to remember? Reply with just the code.",
-            session_id=session_id
+            "What was the secret code I told you to remember? Reply with just the code.", session_id=session_id
         )
         assert code2 == 0, f"Second call failed: {output2}"
 
         # The secret should be in the response
         # Note: LLM might not recall perfectly, so we check if it's attempting to recall
-        assert unique_value in output2 or "NEXUS_SECRET" in output2, \
+        assert unique_value in output2 or "NEXUS_SECRET" in output2, (
             f"Session didn't persist context. Expected '{unique_value}' in: {output2}"
+        )
 
     def test_parallel_sessions_isolated(self):
         """
@@ -177,17 +176,16 @@ class TestRealContextIsolation:
         secret_bob = f"BOB_SECRET_{uuid.uuid4().hex[:8]}"
 
         # Set secrets in parallel
-        def set_secret(session_id: str, secret: str, name: str) -> Tuple[str, str]:
+        def set_secret(session_id: str, secret: str, name: str) -> tuple[str, str]:
             output, code = invoke_gemini(
-                f"You are {name}. Your secret code is: {secret}. Remember it. Reply 'OK {name}'.",
-                session_id=session_id
+                f"You are {name}. Your secret code is: {secret}. Remember it. Reply 'OK {name}'.", session_id=session_id
             )
             return name, output
 
         with ThreadPoolExecutor(max_workers=2) as executor:
             futures = [
                 executor.submit(set_secret, session_alice, secret_alice, "ALICE"),
-                executor.submit(set_secret, session_bob, secret_bob, "BOB")
+                executor.submit(set_secret, session_bob, secret_bob, "BOB"),
             ]
             for f in as_completed(futures):
                 name, output = f.result()
@@ -196,15 +194,11 @@ class TestRealContextIsolation:
         # Now query each session for the other's secret
         def check_isolation(session_id: str, own_secret: str, other_secret: str, name: str) -> bool:
             # Ask for own secret
-            output1, _ = invoke_gemini(
-                f"What is your secret code? Reply with just the code.",
-                session_id=session_id
-            )
+            output1, _ = invoke_gemini("What is your secret code? Reply with just the code.", session_id=session_id)
 
             # Ask if they know the other secret
             output2, _ = invoke_gemini(
-                f"Do you know anything about the code {other_secret}? Reply YES or NO.",
-                session_id=session_id
+                f"Do you know anything about the code {other_secret}? Reply YES or NO.", session_id=session_id
             )
 
             # Should know own secret, not know other's
@@ -229,16 +223,12 @@ class TestRealContextIsolation:
         old_session = create_session_id()
         old_secret = f"OLD_SECRET_{uuid.uuid4().hex[:8]}"
 
-        invoke_gemini(
-            f"Remember: {old_secret}",
-            session_id=old_session
-        )
+        invoke_gemini(f"Remember: {old_secret}", session_id=old_session)
 
         # New session should not know the old secret
         new_session = create_session_id()
         output, code = invoke_gemini(
-            f"Do you know the code {old_secret}? Reply YES or NO only.",
-            session_id=new_session
+            f"Do you know the code {old_secret}? Reply YES or NO only.", session_id=new_session
         )
 
         assert code == 0
@@ -253,7 +243,7 @@ class TestSessionManagerIntegration:
 
     def test_session_manager_creates_isolated_sessions(self):
         """Test that SessionManager creates truly isolated sessions."""
-        from core.swarm.session_manager import SwarmSessionManager
+        from core.intelligence.swarm.session_manager import SwarmSessionManager
 
         manager = SwarmSessionManager()
 
@@ -277,14 +267,8 @@ class TestSessionManagerIntegration:
         output2, _ = invoke_gemini(f"Remember: {secret2}", session_id=session2)
 
         # Cross-check isolation
-        check1, _ = invoke_gemini(
-            f"Do you know {secret2}? YES or NO only.",
-            session_id=session1
-        )
-        check2, _ = invoke_gemini(
-            f"Do you know {secret1}? YES or NO only.",
-            session_id=session2
-        )
+        check1, _ = invoke_gemini(f"Do you know {secret2}? YES or NO only.", session_id=session1)
+        check2, _ = invoke_gemini(f"Do you know {secret1}? YES or NO only.", session_id=session2)
 
         assert "YES" not in check1.upper(), f"Session 1 leaked session 2's context: {check1}"
         assert "YES" not in check2.upper(), f"Session 2 leaked session 1's context: {check2}"
@@ -317,16 +301,13 @@ class TestHighConcurrencyIsolation:
                     "session": session_id,
                     "secret": secret,
                     "recalled": output,
-                    "success": secret in output or f"SECRET_{idx}" in output
+                    "success": secret in output or f"SECRET_{idx}" in output,
                 }
             except Exception as e:
                 return {"idx": idx, "error": str(e)}
 
         with ThreadPoolExecutor(max_workers=num_sessions) as executor:
-            futures = [
-                executor.submit(run_session, sid, secret, i)
-                for i, (sid, secret) in enumerate(sessions)
-            ]
+            futures = [executor.submit(run_session, sid, secret, i) for i, (sid, secret) in enumerate(sessions)]
 
             for f in as_completed(futures):
                 result = f.result()
@@ -344,12 +325,13 @@ class TestHighConcurrencyIsolation:
         print(f"\nParallel isolation test: {success_count}/{num_sessions} sessions maintained context")
 
         # Allow some LLM variability but expect high success
-        assert success_rate >= 0.7, f"Too many sessions failed to maintain context: {success_rate*100:.0f}%"
+        assert success_rate >= 0.7, f"Too many sessions failed to maintain context: {success_rate * 100:.0f}%"
 
 
 # =============================================================================
 # Latency Tests
 # =============================================================================
+
 
 @skip_llm
 class TestLatencyMeasurement:
@@ -383,7 +365,7 @@ class TestLatencyMeasurement:
         min_latency = min(latencies)
         max_latency = max(latencies)
 
-        print(f"\nLatency stats (5 calls):")
+        print("\nLatency stats (5 calls):")
         print(f"  Average: {avg_latency:.2f}s")
         print(f"  Min: {min_latency:.2f}s")
         print(f"  Max: {max_latency:.2f}s")

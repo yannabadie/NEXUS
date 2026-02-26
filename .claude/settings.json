@@ -29,7 +29,14 @@
     "deny": [
       "Bash(rm -rf /)",
       "Bash(rm -rf ~)",
-      "Bash(rm -rf /*)"
+      "Bash(rm -rf /*)",
+      "Read(./archives/**)",
+      "Read(./docs/archive/**)",
+      "Glob(./archives/**)",
+      "Grep(./archives/**)",
+      "Read(./KERNEL.py)",
+      "Edit(./KERNEL.py)",
+      "Write(./KERNEL.py)"
     ]
   },
   "hooks": {

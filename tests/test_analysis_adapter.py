@@ -4,17 +4,18 @@ NEXUS V8.2.0a - AnalysisAdapter Tests
 Tests for bidirectional conversion between TaskAnalysis and IndependentAnalysis.
 """
 
-import pytest
 import sys
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+
+import pytest
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.adapters import AnalysisAdapter
-from core.swarm.task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
-from core.hive_mind.types import IndependentAnalysis
+from core.intelligence.hive_mind.types import IndependentAnalysis
+from core.intelligence.swarm.task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
 
 
 class TestAnalysisAdapter:
@@ -47,7 +48,7 @@ class TestAnalysisAdapter:
             potential_risks=["Security issues"],
             confidence=0.8,
             reasoning="Standard web task",
-            timestamp=datetime.now()
+            timestamp=datetime.now(),
         )
 
         result = AnalysisAdapter.to_task_analysis(hive, "Create a login page")
@@ -78,7 +79,7 @@ class TestAnalysisAdapter:
                 potential_risks=[],
                 confidence=0.5,
                 reasoning="test",
-                timestamp=datetime.now()
+                timestamp=datetime.now(),
             )
             result = AnalysisAdapter.to_task_analysis(hive, "test")
             assert result.complexity == expected, f"Failed for '{complexity_str}'"
@@ -97,7 +98,7 @@ class TestAnalysisAdapter:
             claude_fit_score=0.9,
             raw_input="Audit the authentication module",
             confidence=0.85,
-            detected_keywords=["audit", "authentication"]
+            detected_keywords=["audit", "authentication"],
         )
 
         result = AnalysisAdapter.to_independent_analysis(swarm, "claude_opus")
@@ -120,7 +121,7 @@ class TestAnalysisAdapter:
             potential_risks=["Regression"],
             confidence=0.75,
             reasoning="Standard bug fix",
-            timestamp=datetime.now()
+            timestamp=datetime.now(),
         )
 
         # HiveMind -> Swarm
@@ -144,37 +145,36 @@ class TestAnalysisAdapter:
             potential_risks=[],
             confidence=0.5,
             reasoning="test",
-            timestamp=datetime.now()
+            timestamp=datetime.now(),
         )
 
-        result = AnalysisAdapter.to_task_analysis(
-            hive,
-            "Create tests for the REST API endpoints",
-            detect_domains=True
-        )
+        result = AnalysisAdapter.to_task_analysis(hive, "Create tests for the REST API endpoints", detect_domains=True)
 
         # Should detect TESTING and possibly WEB_INTERACTION
         assert TaskDomain.TESTING in result.domains
 
 
+@pytest.mark.skip(reason="V12.4.1: SuccessMemoryV2 uses LanceDB semantic search, not time decay")
 class TestSuccessMemoryDecay:
     """Tests for time decay in SuccessMemory."""
 
     def test_decay_function_exists(self):
         """Test that _apply_time_decay method exists."""
-        from core.memory.success_memory import SuccessMemory
         import tempfile
         from pathlib import Path
+
+        from core.memory_pkg.memory import SuccessMemory  # V2 via backward compat alias
 
         with tempfile.TemporaryDirectory() as tmp:
             memory = SuccessMemory(Path(tmp))
-            assert hasattr(memory, '_apply_time_decay')
+            assert hasattr(memory, "_apply_time_decay")
 
     def test_decay_recent_entry(self):
         """Test that recent entries have minimal decay."""
-        from core.memory.success_memory import SuccessMemory
         import tempfile
         from pathlib import Path
+
+        from core.memory_pkg.memory import SuccessMemory  # V2 via backward compat alias
 
         with tempfile.TemporaryDirectory() as tmp:
             memory = SuccessMemory(Path(tmp))
@@ -188,10 +188,11 @@ class TestSuccessMemoryDecay:
 
     def test_decay_old_entry(self):
         """Test that old entries have significant decay."""
-        from core.memory.success_memory import SuccessMemory
         import tempfile
-        from pathlib import Path
         from datetime import timedelta
+        from pathlib import Path
+
+        from core.memory_pkg.memory import SuccessMemory  # V2 via backward compat alias
 
         with tempfile.TemporaryDirectory() as tmp:
             memory = SuccessMemory(Path(tmp))
@@ -205,9 +206,10 @@ class TestSuccessMemoryDecay:
 
     def test_decay_invalid_timestamp(self):
         """Test that invalid timestamps return original score."""
-        from core.memory.success_memory import SuccessMemory
         import tempfile
         from pathlib import Path
+
+        from core.memory_pkg.memory import SuccessMemory  # V2 via backward compat alias
 
         with tempfile.TemporaryDirectory() as tmp:
             memory = SuccessMemory(Path(tmp))
@@ -218,36 +220,37 @@ class TestSuccessMemoryDecay:
 
     def test_get_best_mode_with_decay(self):
         """Test that get_best_mode_for_similar accepts apply_decay parameter."""
-        from core.memory.success_memory import SuccessMemory
+        import inspect
         import tempfile
         from pathlib import Path
-        import inspect
+
+        from core.memory_pkg.memory import SuccessMemory  # V2 via backward compat alias
 
         with tempfile.TemporaryDirectory() as tmp:
             memory = SuccessMemory(Path(tmp))
 
             # Check signature includes apply_decay
             sig = inspect.signature(memory.get_best_mode_for_similar)
-            assert 'apply_decay' in sig.parameters
+            assert "apply_decay" in sig.parameters
 
     def test_exponential_decay_curve(self):
         """V8.8: Test exponential decay produces expected curve."""
-        from core.memory.success_memory import SuccessMemory
         import tempfile
-        from pathlib import Path
         from datetime import datetime, timedelta
-        from math import exp
+        from pathlib import Path
+
+        from core.memory_pkg.memory import SuccessMemory  # V2 via backward compat alias
 
         with tempfile.TemporaryDirectory() as tmp:
             memory = SuccessMemory(Path(tmp))
 
             # Test decay at various ages
             test_cases = [
-                (0, 1.0),      # Today: no decay
-                (7, 0.97),     # 1 week: ~3% decay
-                (28, 0.89),    # 4 weeks: ~11% decay
-                (84, 0.71),    # 12 weeks: ~29% decay
-                (364, 0.23),   # 52 weeks: ~77% decay
+                (0, 1.0),  # Today: no decay
+                (7, 0.97),  # 1 week: ~3% decay
+                (28, 0.89),  # 4 weeks: ~11% decay
+                (84, 0.71),  # 12 weeks: ~29% decay
+                (364, 0.23),  # 52 weeks: ~77% decay
             ]
 
             for age_days, expected_approx in test_cases:
@@ -255,15 +258,17 @@ class TestSuccessMemoryDecay:
                 score = memory._apply_time_decay(1.0, timestamp)
 
                 # Allow 5% tolerance for floating point and time differences
-                assert abs(score - expected_approx) < 0.05, \
+                assert abs(score - expected_approx) < 0.05, (
                     f"At {age_days} days, expected ~{expected_approx}, got {score}"
+                )
 
     def test_domain_bonus_parameter(self):
         """V8.8: Test domain_bonus parameter in _apply_time_decay."""
-        from core.memory.success_memory import SuccessMemory
         import tempfile
-        from pathlib import Path
         from datetime import datetime
+        from pathlib import Path
+
+        from core.memory_pkg.memory import SuccessMemory  # V2 via backward compat alias
 
         with tempfile.TemporaryDirectory() as tmp:
             memory = SuccessMemory(Path(tmp))
@@ -281,25 +286,27 @@ class TestSuccessMemoryDecay:
 
     def test_get_best_mode_with_query_domains(self):
         """V8.8: Test query_domains parameter in get_best_mode_for_similar."""
-        from core.memory.success_memory import SuccessMemory
+        import inspect
         import tempfile
         from pathlib import Path
-        import inspect
+
+        from core.memory_pkg.memory import SuccessMemory  # V2 via backward compat alias
 
         with tempfile.TemporaryDirectory() as tmp:
             memory = SuccessMemory(Path(tmp))
 
             # Check signature includes query_domains
             sig = inspect.signature(memory.get_best_mode_for_similar)
-            assert 'query_domains' in sig.parameters
-            assert 'domain_boost' in sig.parameters
+            assert "query_domains" in sig.parameters
+            assert "domain_boost" in sig.parameters
 
     def test_decay_capped_at_one(self):
         """V8.8: Test that decayed score doesn't exceed 1.0."""
-        from core.memory.success_memory import SuccessMemory
         import tempfile
-        from pathlib import Path
         from datetime import datetime
+        from pathlib import Path
+
+        from core.memory_pkg.memory import SuccessMemory  # V2 via backward compat alias
 
         with tempfile.TemporaryDirectory() as tmp:
             memory = SuccessMemory(Path(tmp))

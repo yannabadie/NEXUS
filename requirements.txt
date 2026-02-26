@@ -1,116 +1,61 @@
-# NEXUS V8.0 TRUE HIVE MIND Dependencies
-# Philosophy: Minimal dependencies, maximum value
+# NEXUS V12.4 FORGE - Full Dependencies
+# Regenerated from pyproject.toml extras (Feb 2026)
+#
+# For minimal install: pip install -e "."
+# For full install:    pip install -e ".[all]"
+# For CI/CD:           pip install -r requirements.txt
 
-# =============================================================================
-# Core Dependencies (REQUIRED)
-# =============================================================================
-
-# Configuration management
+# === Core (base install) ===
 python-dotenv>=1.0.0
-
-# Data validation and settings
 pydantic>=2.0.0
-
-# Rich console output (tables, progress, syntax highlighting)
+email-validator>=2.0.0
 rich>=13.7.0
-
-# Interactive REPL with history and completion
 prompt-toolkit>=3.0.43
-
-# Token counting for budget tracking
 tiktoken>=0.5.2
-
-# =============================================================================
-# Phase 10e: BM25S Sparse Retrieval (Project Memory RAG)
-# =============================================================================
-# BM25S: 500x faster than rank-bm25, pure Python + Scipy sparse matrices
-# Used for: ProjectMemory.retrieve() - better recall than TF-IDF (+15%)
 bm25s>=0.2.0
-
-# PyStemmer: Snowball stemming for better term matching
-# Optional but recommended for +5% recall improvement
 PyStemmer>=2.2.0
 
-# =============================================================================
-# Phase 10g: Dense Embeddings (Semantic Retrieval) [OPTIONAL]
-# =============================================================================
-# LanceDB: Embedded vector database, serverless, hybrid search support
-# Used for: DenseBackend - semantic similarity search
+# === Dense Retrieval [dense] ===
 lancedb>=0.4.0
-
-# Sentence-Transformers: State-of-the-art text embeddings
-# Model: all-MiniLM-L6-v2 (22MB, 384 dim, ~5k sent/sec CPU)
-# Provides ~+10% recall vs BM25S for semantic queries
-# V10 MEMORY FORGE: Updated for ONNX backend support (2-3x faster CPU)
 sentence-transformers>=3.2.0
-
-# ONNX Runtime: Optimized inference for embeddings
-# V10 MEMORY FORGE: CPU acceleration for embedding model
-# Install with: pip install sentence-transformers[onnx] for full support
 onnxruntime>=1.19.0
 
-# =============================================================================
-# V10 SaaS: Multi-Tenant Data Layer (OPERATION PRISM)
-# =============================================================================
-# SQLModel: Pydantic + SQLAlchemy integration for type-safe ORM
-sqlmodel>=0.0.14
-
-# SQLAlchemy: Database toolkit (required by SQLModel)
-sqlalchemy>=2.0
-
-# =============================================================================
-# V10 CEREBRO: Redis Event Bus & API (OPERATION CEREBRO: GENESIS)
-# =============================================================================
-# Redis: Async pub/sub for external UI observation
-redis>=5.0.0
-
-# FastAPI: High-performance ASGI framework for WebSocket API
-fastapi>=0.115.0
-
-# Uvicorn: ASGI server with WebSocket support
-uvicorn[standard]>=0.32.0
-
-# WebSockets: Low-level WebSocket implementation
-websockets>=13.0
-
-# Python-Jose: JWT encoding/decoding for API auth
-python-jose[cryptography]>=3.3.0
-
-# Passlib: Password hashing (bcrypt backend)
-# Note: Requires passlib>=1.7.5 for bcrypt 4.x compatibility
-passlib[bcrypt]>=1.7.4
-
-# SlowAPI: Rate limiting for FastAPI (Redis or in-memory backend)
-# V12.1 RETINA: Brute-force and DoS protection
-slowapi>=0.1.9
-
-# =============================================================================
-# Development Dependencies (REQUIRED for tests)
-# =============================================================================
-pytest>=7.0.0
-pytest-cov>=4.0.0
-pytest-asyncio>=0.21.0
-
-# =============================================================================
-# V13.0 MEMORIA UNIVERSALIS: Multi-Format Document Ingestion
-# =============================================================================
-# Docling: IBM's universal document converter
-# Supports: PDF, DOCX, PPTX, XLSX, HTML, images, audio
-# 100% local processing, no cloud API required
-# MIT License
+# === Document Ingestion [ingest] ===
 docling>=2.15.0
 
-# Python-multipart: File upload support for FastAPI
-python-multipart>=0.0.9
+# === Database & Redis [db] ===
+sqlmodel>=0.0.14
+sqlalchemy>=2.0
+redis>=5.0.0
 
-# =============================================================================
-# Notes
-# =============================================================================
-# Standard library modules used (no install needed):
-# - json, pathlib, re, enum, dataclasses, typing
-# - threading, subprocess, hashlib, uuid
-# - datetime, logging, functools
-#
-# System tools required (install separately):
-# - gemini CLI (Google AI)
-# - claude CLI (Anthropic)
+# === CEREBRO API [api] ===
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+websockets>=13.0
+python-jose[cryptography]>=3.3.0
+python-multipart>=0.0.9
+slowapi>=0.1.9
+argon2-cffi>=23.1.0
+
+# === LLM SDKs [sdk] ===
+anthropic>=0.70.0
+google-genai>=1.0.0
+
+# === MCP Server [mcp] ===
+# mcp>=1.0.0
+
+# === OpenTelemetry [otel] ===
+opentelemetry-api>=1.25.0
+opentelemetry-sdk>=1.25.0
+opentelemetry-exporter-otlp>=1.25.0
+opentelemetry-instrumentation-anthropic>=0.1.0
+opentelemetry-instrumentation-google-genai>=0.1b0
+
+# === Development [dev] ===
+pytest>=8.0.0
+pytest-cov>=5.0.0
+pytest-asyncio>=0.23.0
+pytest-timeout>=2.2.0
+ruff>=0.8.0
+mypy>=1.13.0
+httpx>=0.27.0

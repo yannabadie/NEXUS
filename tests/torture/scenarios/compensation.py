@@ -6,15 +6,15 @@ Torture Protocol V8 - Compensation Failure Tests
 Test IDs: CF-001 to CF-008
 """
 
-import pytest
 import asyncio
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
-from core.hive_mind.saga_manager import SagaManager
-from tests.torture.base import TortureBase
+from core.intelligence.hive_mind.saga_manager import SagaManager
 
 
 @pytest.fixture
@@ -28,6 +28,7 @@ def saga_dir(tmp_path):
 # ============================================================================
 # CF-001: Exception in compensation function
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_saga
@@ -64,6 +65,7 @@ async def test_cf001_compensation_exception(saga_dir):
 # ============================================================================
 # CF-002: Partial compensation chain
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_saga
@@ -107,6 +109,7 @@ async def test_cf002_partial_compensation_chain(saga_dir):
 # ============================================================================
 # CF-003: File deletion race during compensation
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_saga
@@ -152,6 +155,7 @@ async def test_cf003_file_deletion_race(saga_dir, tmp_path):
 # CF-004: Async compensation timeout
 # ============================================================================
 
+
 @pytest.mark.torture
 @pytest.mark.torture_saga
 @pytest.mark.asyncio
@@ -175,7 +179,7 @@ async def test_cf004_compensation_timeout(saga_dir):
     # Rollback with slow compensation
     start = asyncio.get_event_loop().time()
     await saga.rollback_to("analysis")
-    elapsed = asyncio.get_event_loop().time() - start
+    asyncio.get_event_loop().time() - start
 
     # Should complete (compensation ran)
     assert "start" in compensation_started
@@ -184,6 +188,7 @@ async def test_cf004_compensation_timeout(saga_dir):
 # ============================================================================
 # CF-005: Compensation that creates new files
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_saga
@@ -220,6 +225,7 @@ async def test_cf005_compensation_creates_files(saga_dir, tmp_path):
 # CF-006: Sync compensation in async context
 # ============================================================================
 
+
 @pytest.mark.torture
 @pytest.mark.torture_saga
 @pytest.mark.asyncio
@@ -250,6 +256,7 @@ async def test_cf006_sync_compensation(saga_dir):
 # CF-007: Missing compensation for phase
 # ============================================================================
 
+
 @pytest.mark.torture
 @pytest.mark.torture_saga
 @pytest.mark.asyncio
@@ -270,7 +277,7 @@ async def test_cf007_missing_compensation(saga_dir):
     await saga.checkpoint_phase("architecture", {}, "S3", 15)  # No compensation
 
     # Rollback should work without error
-    result = await saga.rollback_to("analysis")
+    await saga.rollback_to("analysis")
 
     # Should complete
     assert saga._recovery_point == "analysis"
@@ -279,6 +286,7 @@ async def test_cf007_missing_compensation(saga_dir):
 # ============================================================================
 # CF-008: Compensation modifies shared state
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_saga
@@ -322,6 +330,7 @@ async def test_cf008_compensation_shared_state(saga_dir):
 # ============================================================================
 # Run All Tests (Standalone Mode)
 # ============================================================================
+
 
 def run_all(metrics_collector=None):
     """Run all compensation failure tests."""

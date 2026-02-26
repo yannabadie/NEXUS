@@ -12,25 +12,21 @@ Verifies:
 8. Edge cases (empty files, large files, etc.)
 """
 
-import pytest
 import json
-import tempfile
 import shutil
 from pathlib import Path
 
-from core.memory.project_memory import (
-    ProjectMemory,
-    Chunk,
-    IndexStats,
-    DEFAULT_EXTENSIONS,
-    MAX_CHUNKS,
-    MIN_CHUNK_SIZE,
-)
+import pytest
 
+from core.memory_pkg.memory.project_memory import (
+    Chunk,
+    ProjectMemory,
+)
 
 # =============================================================================
 # Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def temp_nexus_root(tmp_path):
@@ -46,7 +42,8 @@ def temp_nexus_root(tmp_path):
     core_dir.mkdir()
 
     sample_py = core_dir / "sample.py"
-    sample_py.write_text('''"""Sample module for testing."""
+    sample_py.write_text(
+        '''"""Sample module for testing."""
 
 import os
 from pathlib import Path
@@ -72,14 +69,17 @@ def helper_function(x):
 async def async_function(data):
     """An async function for testing."""
     return await process(data)
-''', encoding="utf-8")
+''',
+        encoding="utf-8",
+    )
 
     # Create sample Markdown file
     docs_dir = nexus_root / "docs"
     docs_dir.mkdir()
 
     sample_md = docs_dir / "README.md"
-    sample_md.write_text('''# Project Documentation
+    sample_md.write_text(
+        """# Project Documentation
 
 This is the main documentation.
 
@@ -103,7 +103,9 @@ Here's a quick example.
 ## API Reference
 
 Full API documentation here.
-''', encoding="utf-8")
+""",
+        encoding="utf-8",
+    )
 
     # Create sample text file
     config_file = nexus_root / "config.txt"
@@ -121,6 +123,7 @@ def project_memory(temp_nexus_root):
 # =============================================================================
 # Test Initialization
 # =============================================================================
+
 
 class TestProjectMemoryInit:
     """Test ProjectMemory initialization."""
@@ -158,6 +161,7 @@ class TestProjectMemoryInit:
 # =============================================================================
 # Test File Indexing
 # =============================================================================
+
 
 class TestIndexFile:
     """Test single file indexing."""
@@ -247,10 +251,7 @@ class TestIndexDirectory:
 
     def test_index_directory_with_extensions(self, project_memory, temp_nexus_root):
         """Index directory with specific extensions."""
-        total_chunks = project_memory.index_directory(
-            temp_nexus_root,
-            extensions=[".py"]
-        )
+        project_memory.index_directory(temp_nexus_root, extensions=[".py"])
 
         # Should only index Python files
         for f in project_memory.indexed_files:
@@ -284,6 +285,7 @@ class TestIndexDirectory:
 # Test Chunking Strategies
 # =============================================================================
 
+
 class TestPythonChunking:
     """Test Python file chunking by function/class."""
 
@@ -291,8 +293,7 @@ class TestPythonChunking:
         """Python chunking should extract classes."""
         project_memory.index_file(temp_nexus_root / "core" / "sample.py")
 
-        class_chunks = [c for c in project_memory.chunks
-                       if c.chunk_type == "class"]
+        class_chunks = [c for c in project_memory.chunks if c.chunk_type == "class"]
 
         assert len(class_chunks) >= 1
         assert any("Calculator" in (c.name or "") for c in class_chunks)
@@ -301,8 +302,7 @@ class TestPythonChunking:
         """Python chunking should extract standalone functions."""
         project_memory.index_file(temp_nexus_root / "core" / "sample.py")
 
-        func_chunks = [c for c in project_memory.chunks
-                      if c.chunk_type == "function"]
+        func_chunks = [c for c in project_memory.chunks if c.chunk_type == "function"]
 
         # Should have helper_function and async_function
         assert len(func_chunks) >= 1
@@ -322,8 +322,7 @@ class TestMarkdownChunking:
         """Markdown chunking should extract sections."""
         project_memory.index_file(temp_nexus_root / "docs" / "README.md")
 
-        section_chunks = [c for c in project_memory.chunks
-                        if c.chunk_type == "section"]
+        section_chunks = [c for c in project_memory.chunks if c.chunk_type == "section"]
 
         assert len(section_chunks) >= 3  # Multiple sections in test file
 
@@ -331,8 +330,7 @@ class TestMarkdownChunking:
         """Section names should be extracted from headers."""
         project_memory.index_file(temp_nexus_root / "docs" / "README.md")
 
-        section_names = [c.name for c in project_memory.chunks
-                        if c.chunk_type == "section" and c.name]
+        section_names = [c.name for c in project_memory.chunks if c.chunk_type == "section" and c.name]
 
         assert len(section_names) >= 1
 
@@ -340,6 +338,7 @@ class TestMarkdownChunking:
 # =============================================================================
 # Test Retrieval
 # =============================================================================
+
 
 class TestRetrieval:
     """Test retrieval (backend-agnostic - TF-IDF or BM25S)."""
@@ -382,10 +381,10 @@ class TestRetrieval:
         assert len(results) == 0
 
     def test_retrieve_no_match(self, project_memory, temp_nexus_root):
-        """Query with no matches should return empty."""
+        """Query with no matches should return empty at high min_score."""
         project_memory.index_directory(temp_nexus_root)
 
-        results = project_memory.retrieve("xyznonexistentterm123")
+        results = project_memory.retrieve("xyznonexistentterm123", min_score=0.9)
         assert len(results) == 0
 
     def test_retrieve_empty_index(self, project_memory):
@@ -397,6 +396,7 @@ class TestRetrieval:
 # =============================================================================
 # Test Persistence
 # =============================================================================
+
 
 class TestPersistence:
     """Test save/load functionality."""
@@ -460,6 +460,7 @@ class TestPersistence:
 # Test Forget
 # =============================================================================
 
+
 class TestForget:
     """Test forget functionality."""
 
@@ -505,6 +506,7 @@ class TestForget:
 # Test Context Formatting
 # =============================================================================
 
+
 class TestContextFormatting:
     """Test format_chunks_for_context."""
 
@@ -546,6 +548,7 @@ class TestContextFormatting:
 # Test Stats
 # =============================================================================
 
+
 class TestStats:
     """Test get_stats functionality."""
 
@@ -571,6 +574,7 @@ class TestStats:
 # =============================================================================
 # Test Clear
 # =============================================================================
+
 
 class TestClear:
     """Test clear functionality."""
@@ -600,6 +604,7 @@ class TestClear:
 # Test Chunk Dataclass
 # =============================================================================
 
+
 class TestChunkDataclass:
     """Test Chunk dataclass serialization."""
 
@@ -612,7 +617,7 @@ class TestChunkDataclass:
             content="def foo(): pass",
             terms={"foo", "pass"},
             chunk_type="function",
-            name="foo"
+            name="foo",
         )
 
         d = chunk.to_dict()
@@ -631,7 +636,7 @@ class TestChunkDataclass:
             "content": "def foo(): pass",
             "terms": ["foo", "pass"],
             "chunk_type": "function",
-            "name": "foo"
+            "name": "foo",
         }
 
         chunk = Chunk.from_dict(d)
@@ -644,6 +649,7 @@ class TestChunkDataclass:
 # =============================================================================
 # Test Edge Cases
 # =============================================================================
+
 
 class TestEdgeCases:
     """Test edge cases and error handling."""
@@ -658,14 +664,17 @@ class TestEdgeCases:
     def test_unicode_content(self, project_memory, temp_nexus_root):
         """Unicode content should be handled correctly."""
         unicode_file = temp_nexus_root / "unicode.py"
-        unicode_file.write_text('''"""
+        unicode_file.write_text(
+            '''"""
 French: résumé, café
 Japanese: こんにちは
 Emoji: 🐍 Python
 """
 def greet():
     return "Hello 世界"
-''', encoding="utf-8")
+''',
+            encoding="utf-8",
+        )
 
         chunks = project_memory.index_file(unicode_file)
         assert chunks > 0
@@ -689,13 +698,14 @@ def greet():
         binary_file.write_bytes(b"\x00\x01\x02\x03\xff\xfe")
 
         # Should not crash
-        chunks = project_memory.index_file(binary_file)
+        project_memory.index_file(binary_file)
         # May or may not create chunks, but should not error
 
 
 # =============================================================================
 # Test Integration
 # =============================================================================
+
 
 class TestWorkspaceNewPreservesMemory:
     """

@@ -15,12 +15,12 @@ References:
 - https://docs.python.org/3/library/unittest.mock.html
 """
 
+import asyncio
 import os
 import sys
-import asyncio
 import time
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 # Ensure NEXUS root is in path
 NEXUS_ROOT = Path(__file__).parent.parent.parent
@@ -37,7 +37,8 @@ def test_1_interaction_provider_headless():
     print("=" * 60)
 
     # Reset provider to pick up env var
-    from core.interaction import reset_interaction_provider, get_interaction_provider
+    from core.security_pkg.interaction import get_interaction_provider, reset_interaction_provider
+
     reset_interaction_provider()
 
     provider = get_interaction_provider()
@@ -57,7 +58,7 @@ def test_2_headless_confirm_no_block():
     print("TEST 2: HeadlessProvider.confirm() Non-Blocking")
     print("=" * 60)
 
-    from core.interaction import HeadlessProvider
+    from core.security_pkg.interaction import HeadlessProvider
 
     provider = HeadlessProvider(strict=False)
 
@@ -86,7 +87,7 @@ def test_3_headless_ask_no_block():
     print("TEST 3: HeadlessProvider.ask() Non-Blocking")
     print("=" * 60)
 
-    from core.interaction import HeadlessProvider
+    from core.security_pkg.interaction import HeadlessProvider
 
     provider = HeadlessProvider(strict=False)
 
@@ -114,7 +115,7 @@ def test_4_headless_strict_raises():
     print("TEST 4: HeadlessProvider Strict Mode")
     print("=" * 60)
 
-    from core.interaction import HeadlessProvider, InteractionRequiredError
+    from core.security_pkg.interaction import HeadlessProvider, InteractionRequiredError
 
     provider = HeadlessProvider(strict=True)
 
@@ -137,8 +138,8 @@ def test_5_bootstrap_service_headless():
     print("TEST 5: BootstrapService Headless Compatibility")
     print("=" * 60)
 
-    from core.interaction import HeadlessProvider
-    from core.bootstrap.service import BootstrapService
+    from core.infrastructure.bootstrap.service import BootstrapService
+    from core.security_pkg.interaction import HeadlessProvider
 
     # Mock console
     mock_console = MagicMock()
@@ -168,8 +169,8 @@ def test_6_budget_service_headless():
     print("TEST 6: BudgetService Headless Compatibility")
     print("=" * 60)
 
-    from core.interaction import HeadlessProvider
-    from core.telemetry.service import BudgetService
+    from core.observability.telemetry.service import BudgetService
+    from core.security_pkg.interaction import HeadlessProvider
 
     # Mock console and config
     mock_console = MagicMock()
@@ -179,10 +180,7 @@ def test_6_budget_service_headless():
     # Create service with headless provider
     provider = HeadlessProvider(strict=False)
     service = BudgetService(
-        workspace_path=NEXUS_ROOT / "workspace",
-        console=mock_console,
-        config=mock_config,
-        interaction=provider
+        workspace_path=NEXUS_ROOT / "workspace", console=mock_console, config=mock_config, interaction=provider
     )
 
     # Test _confirm_reset (should return False by default in headless)
@@ -206,18 +204,13 @@ def test_7_user_interaction_headless():
     print("TEST 7: UserInteractionHandler Headless Compatibility")
     print("=" * 60)
 
-    from core.interaction import HeadlessProvider
-    from core.hive_mind.user_interaction import UserInteractionHandler
-    from core.hive_mind.types import UserBreakpoint, BreakpointOption
+    from core.intelligence.hive_mind.types import BreakpointOption, UserBreakpoint
+    from core.intelligence.hive_mind.user_interaction import UserInteractionHandler
+    from core.security_pkg.interaction import HeadlessProvider
 
     # Create handler with headless provider
     provider = HeadlessProvider(strict=False)
-    handler = UserInteractionHandler(
-        default_timeout=5,
-        enable_rich=False,
-        auto_accept=False,
-        interaction=provider
-    )
+    handler = UserInteractionHandler(default_timeout=5, enable_rich=False, auto_accept=False, interaction=provider)
 
     # Test breakpoint request
     start = time.time()
@@ -228,7 +221,7 @@ def test_7_user_interaction_headless():
         options=[
             BreakpointOption("accept", "Accept", "Proceed", is_recommended=True),
             BreakpointOption("reject", "Reject", "Cancel"),
-        ]
+        ],
     )
     elapsed = time.time() - start
 
@@ -250,20 +243,21 @@ def test_8_spinoff_service_no_input():
     print("=" * 60)
 
     import inspect
-    from core.bootstrap.service import SpinoffService
+
+    from core.infrastructure.bootstrap.service import SpinoffService
 
     # Get source code
     source = inspect.getsource(SpinoffService)
 
     # Check for raw input() calls (not in comments)
-    lines = source.split('\n')
+    lines = source.split("\n")
     input_calls = []
     for i, line in enumerate(lines, 1):
         # Skip comments
         stripped = line.strip()
-        if stripped.startswith('#'):
+        if stripped.startswith("#"):
             continue
-        if 'input(' in line and 'provider' not in line.lower():
+        if "input(" in line and "provider" not in line.lower():
             input_calls.append((i, line.strip()))
 
     if input_calls:
@@ -304,6 +298,7 @@ def main():
         except Exception as e:
             print(f"  [ERROR] {e}")
             import traceback
+
             traceback.print_exc()
             results.append((test.__name__, False))
 

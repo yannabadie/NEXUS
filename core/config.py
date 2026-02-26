@@ -1,15 +1,77 @@
 """
-Configuration Management - NEXUS V7
+Configuration Management - NEXUS V12.4
 
 Load configuration from:
-1. .env file (if present)
-2. Environment variables
-3. Default values
+1. pyproject.toml (version source of truth)
+2. .env file (runtime overrides)
+3. Environment variables
+4. Default values
 """
+
 import os
+from dataclasses import dataclass
 from pathlib import Path
+
 from dotenv import load_dotenv
-from typing import Optional
+
+# =============================================================================
+# Feature Flags - Safe toggles for experimental/dangerous features
+# =============================================================================
+
+
+@dataclass
+class FeatureFlags:
+    """
+    Feature flags for safe progressive rollout.
+
+    All flags default to safe production values.
+    Override via NEXUS_FF_<FLAG_NAME>=true|false in env.
+    """
+
+    # RAG Pipeline
+    rag_datamarking: bool = True  # Spotlighter datamarking on RAG results (OWASP LLM01 defense)
+    rag_hybrid_backend: bool = True  # Enable Dense+BM25 hybrid retrieval
+    rag_dense_backend: bool = True  # Enable dense (semantic) backend
+
+    # Security
+    sandbox_enabled: bool = False  # OS-level code sandbox (E2B/Docker)
+    kernel_fail_closed: bool = True  # KERNEL exits on missing hash (fail-closed)
+
+    # Execution
+    headless_mode: bool = False  # Deterministic JSON output, no TTY
+    streaming_enabled: bool = True  # Real-time token streaming
+    prompt_caching: bool = True  # Anthropic prompt caching (90% savings on cache hits)
+
+    # Observability
+    otel_enabled: bool = False  # OpenTelemetry export
+    telemetry_jsonl: bool = True  # Legacy JSONL telemetry
+
+    # Evolution
+    evolution_llm_judge: bool = False  # LLM-as-judge for mutations (deprecated)
+    evolution_deterministic: bool = True  # Deterministic fitness (AST+pytest only)
+
+    # Experimental
+    rust_acceleration: bool = False  # Use Rust native extensions if compiled
+    slm_triage: bool = False  # Route trivial tasks to local SLM
+
+    @classmethod
+    def from_env(cls) -> "FeatureFlags":
+        """Load feature flags from environment variables."""
+        flags = cls()
+        for flag_name in flags.__dataclass_fields__:
+            env_key = f"NEXUS_FF_{flag_name.upper()}"
+            env_val = os.getenv(env_key)
+            if env_val is not None:
+                setattr(flags, flag_name, env_val.lower() in ("true", "1", "yes"))
+        return flags
+
+
+# =============================================================================
+# Version - Single Source of Truth from pyproject.toml
+# =============================================================================
+
+_PROJECT_VERSION = "12.4.0"
+_PROJECT_CODENAME = "COGNITIVE BOOST"
 
 
 class Config:
@@ -20,10 +82,15 @@ class Config:
         load_dotenv()
 
         # ====================================================================
-        # VERSION (Single Source of Truth - defined in .env)
+        # VERSION (pyproject.toml is canonical; env overrides for dev only)
         # ====================================================================
-        self.nexus_version: str = os.getenv("NEXUS_VERSION", "8.3.1")
-        self.nexus_codename: str = os.getenv("NEXUS_CODENAME", "TRUE HIVE MIND")
+        self.nexus_version: str = os.getenv("NEXUS_VERSION", _PROJECT_VERSION)
+        self.nexus_codename: str = os.getenv("NEXUS_CODENAME", _PROJECT_CODENAME)
+
+        # ====================================================================
+        # FEATURE FLAGS
+        # ====================================================================
+        self.features: FeatureFlags = FeatureFlags.from_env()
 
         # CLI Paths
         self.gemini_cli_path: str = os.getenv("GEMINI_CLI_PATH", "gemini")
@@ -35,14 +102,10 @@ class Config:
         self.cfl_timeout: int = int(os.getenv("CFL_TIMEOUT", "60"))  # CFL validation timeout (fast)
 
         # Stagnation Detection
-        self.stagnation_similarity_threshold: float = float(
-            os.getenv("STAGNATION_SIMILARITY_THRESHOLD", "0.8")
-        )
+        self.stagnation_similarity_threshold: float = float(os.getenv("STAGNATION_SIMILARITY_THRESHOLD", "0.8"))
 
         # Memory
-        self.compression_threshold_tokens: int = int(
-            os.getenv("COMPRESSION_THRESHOLD_TOKENS", "100000")
-        )
+        self.compression_threshold_tokens: int = int(os.getenv("COMPRESSION_THRESHOLD_TOKENS", "100000"))
 
         # Workspace
         self.workspace_path: Path = Path(os.getenv("WORKSPACE_PATH", "./workspace"))
@@ -68,12 +131,7 @@ class Config:
         self.stable_mode_threshold: int = int(os.getenv("STABLE_MODE_THRESHOLD", "5"))
 
         # Q2C: Fitness Metrics (4 axes with scalability)
-        self.fitness_metrics = {
-            "coding": 0.30,
-            "reasoning": 0.30,
-            "creativity": 0.25,
-            "scalability": 0.15
-        }
+        self.fitness_metrics = {"coding": 0.30, "reasoning": 0.30, "creativity": 0.25, "scalability": 0.15}
 
         # Q3B: Rate Limiting (3 gen/day)
         # Note: 8h limit was too restrictive for development - reduced to 0.1h (6 min)
@@ -108,17 +166,17 @@ class Config:
         # NOTIFICATION SYSTEM
         # ====================================================================
 
-        # Email (Outlook SMTP - DEFAULT ENABLED)
-        self.email_enabled: bool = os.getenv("EMAIL_ENABLED", "True").lower() == "true"
-        self.smtp_server: str = os.getenv("SMTP_SERVER", "smtp-mail.outlook.com")
+        # Email (SMTP - disabled by default, requires configuration)
+        self.email_enabled: bool = os.getenv("EMAIL_ENABLED", "False").lower() == "true"
+        self.smtp_server: str = os.getenv("SMTP_SERVER", "")
         self.smtp_port: int = int(os.getenv("SMTP_PORT", "587"))
-        self.email_from: str = os.getenv("EMAIL_FROM", "yann.abadie@outlook.com")
-        self.email_to: str = os.getenv("EMAIL_TO", "yann.abadie@outlook.com")
-        self.email_password: Optional[str] = os.getenv("NEXUS_EMAIL_PASSWORD")
+        self.email_from: str = os.getenv("EMAIL_FROM", "")
+        self.email_to: str = os.getenv("EMAIL_TO", "")
+        self.email_password: str | None = os.getenv("NEXUS_EMAIL_PASSWORD")
 
         # Other Notifications
         self.desktop_notifications: bool = os.getenv("DESKTOP_NOTIF", "False").lower() == "true"
-        self.webhook_url: Optional[str] = os.getenv("WEBHOOK_URL")
+        self.webhook_url: str | None = os.getenv("WEBHOOK_URL")
 
         # ====================================================================
         # SECURITY & GOVERNANCE
@@ -144,8 +202,18 @@ class Config:
         # MODEL ROUTING (V7 Chrysalis - Claude Opus/Sonnet + Gemini 3 Pro/Flash)
         # ====================================================================
 
+        # API Keys (V12.4: SDK-native drivers prefer API keys over CLI)
+        # When set, the factory creates SDK drivers instead of CLI subprocess drivers
+        self.anthropic_api_key: str | None = os.getenv("ANTHROPIC_API_KEY")
+        self.google_api_key: str | None = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
+        self.deepseek_api_key: str | None = os.getenv("DEEPSEEK_API_KEY")
+        self.kimi_api_key: str | None = os.getenv("KIMI_API_KEY")
+
+        # Driver mode: "auto" (SDK when key available, else CLI), "sdk", "cli"
+        self.driver_mode: str = os.getenv("NEXUS_DRIVER_MODE", "auto")
+
         # Claude models
-        self.claude_opus_model: str = "claude-opus-4-5-20251101"
+        self.claude_opus_model: str = "claude-opus-4-6-20250116"
         self.claude_sonnet_model: str = "claude-sonnet-4-5-20250929"
 
         # Gemini models (V7 Sprint 6: Gemini 3 Pro with task routing)
@@ -234,17 +302,13 @@ class Config:
         self.hive_mind_min_debate_turns: int = int(os.getenv("HIVE_MIND_MIN_DEBATE", "3"))
 
         # Enable user breakpoints (pause for approval at key decisions)
-        self.hive_mind_breakpoints_enabled: bool = os.getenv(
-            "HIVE_MIND_BREAKPOINTS", "True"
-        ).lower() == "true"
+        self.hive_mind_breakpoints_enabled: bool = os.getenv("HIVE_MIND_BREAKPOINTS", "True").lower() == "true"
 
         # Maximum retry attempts before escalation
         self.hive_mind_max_retries: int = int(os.getenv("HIVE_MIND_MAX_RETRIES", "3"))
 
         # Agreement threshold to skip debate (0.0-1.0)
-        self.hive_mind_agreement_threshold: float = float(
-            os.getenv("HIVE_MIND_AGREEMENT_THRESHOLD", "0.85")
-        )
+        self.hive_mind_agreement_threshold: float = float(os.getenv("HIVE_MIND_AGREEMENT_THRESHOLD", "0.85"))
 
         # NOTE: PTY mode removed in V7.6 (never worked)
         # See: docs/archive/pty_mode_v7_archived.py
@@ -263,6 +327,17 @@ class Config:
         self.budget_warning_threshold: float = float(os.getenv("BUDGET_WARNING_PCT", "0.80"))
         self.budget_critical_threshold: float = float(os.getenv("BUDGET_CRITICAL_PCT", "0.90"))
 
+        # V12.4: Response cache (shared across SDK drivers)
+        self.response_cache_size: int = int(os.getenv("RESPONSE_CACHE_SIZE", "500"))
+        self.response_cache_ttl: float = float(os.getenv("RESPONSE_CACHE_TTL", "300"))
+
+        # V12.4: Routing policy (balanced | cost_optimized | quality_optimized)
+        self.routing_policy: str = os.getenv("ROUTING_POLICY", "balanced")
+
+        # V12.4: Memory backend (auto | dense | bm25 | tfidf)
+        self.project_memory_backend: str = os.getenv("PROJECT_MEMORY_BACKEND", "auto")
+        self.project_memory_max_chunks: int = int(os.getenv("PROJECT_MEMORY_MAX_CHUNKS", "5000"))
+
         # ====================================================================
         # GEMINI SESSION PERSISTENCE (V7 Sprint 12)
         # ====================================================================
@@ -271,17 +346,13 @@ class Config:
         # Benefits: ~14k cached tokens, reduced latency on follow-up calls
 
         # Enable session resume mode (DEFAULT: True for multi-turn conversations)
-        self.gemini_persistent_mode: bool = os.getenv(
-            "GEMINI_PERSISTENT_MODE", "True"
-        ).lower() == "true"
+        self.gemini_persistent_mode: bool = os.getenv("GEMINI_PERSISTENT_MODE", "True").lower() == "true"
 
         # Approval mode for yolo (safe with restricted tools whitelist)
         self.gemini_approval_mode: str = os.getenv("GEMINI_APPROVAL_MODE", "yolo")
 
         # Use JSON output mode for structured responses
-        self.gemini_stream_json: bool = os.getenv(
-            "GEMINI_STREAM_JSON", "True"
-        ).lower() == "true"
+        self.gemini_stream_json: bool = os.getenv("GEMINI_STREAM_JSON", "True").lower() == "true"
 
         # ====================================================================
         # RESPONSE STREAMING (V7.7 Phase 15)
@@ -289,14 +360,10 @@ class Config:
         # Enable real-time token streaming during agent responses
         # When True, responses stream character-by-character to the REPL
         # When False, responses appear only after completion (default V7.6 behavior)
-        self.streaming_enabled: bool = os.getenv(
-            "STREAMING_ENABLED", "True"
-        ).lower() == "true"
+        self.streaming_enabled: bool = os.getenv("STREAMING_ENABLED", "True").lower() == "true"
 
         # Session timeout (seconds)
-        self.gemini_persistent_timeout: float = float(
-            os.getenv("GEMINI_PERSISTENT_TIMEOUT", "300")
-        )
+        self.gemini_persistent_timeout: float = float(os.getenv("GEMINI_PERSISTENT_TIMEOUT", "300"))
 
         # ====================================================================
         # V12.3 SCALE-OUT - Multi-Instance Support
@@ -306,14 +373,10 @@ class Config:
         self.redis_url: str = os.getenv("REDIS_URL", "redis://localhost:6379")
 
         # Use Redis for workflow registry (enables multi-instance)
-        self.use_redis_workflows: bool = os.getenv(
-            "USE_REDIS_WORKFLOWS", "True"
-        ).lower() == "true"
+        self.use_redis_workflows: bool = os.getenv("USE_REDIS_WORKFLOWS", "True").lower() == "true"
 
         # Use Redis for hibernation state (opt-in, SQLite default)
-        self.use_redis_hibernation: bool = os.getenv(
-            "USE_REDIS_HIBERNATION", "False"
-        ).lower() == "true"
+        self.use_redis_hibernation: bool = os.getenv("USE_REDIS_HIBERNATION", "False").lower() == "true"
 
         # TTL for completed/failed workflows (hours)
         self.workflow_ttl_hours: int = int(os.getenv("WORKFLOW_TTL_HOURS", "24"))
@@ -330,7 +393,7 @@ class Config:
             "workspace_path": str(self.workspace_path),
             "log_level": self.log_level,
             "ui_verbose": self.ui_verbose,
-            "benchmark_mode": self.benchmark_mode
+            "benchmark_mode": self.benchmark_mode,
         }
 
 
@@ -342,3 +405,42 @@ def load_config() -> Config:
         Config instance
     """
     return Config()
+
+
+class OrchestratorConfig:
+    """
+    Lightweight orchestrator configuration for SDK driver factory.
+
+    Accepts keyword arguments to override individual settings.
+    Used primarily in tests and programmatic instantiation where
+    the full Config class is not needed.
+
+    Example:
+        config = OrchestratorConfig(driver_mode="sdk", kimi_api_key="sk-...")
+        factory = AsyncDriverFactory(config, workspace_path=Path("."))
+    """
+
+    def __init__(self, **kwargs):
+        # API keys
+        self.anthropic_api_key: str | None = kwargs.get("anthropic_api_key", os.getenv("ANTHROPIC_API_KEY"))
+        self.google_api_key: str | None = kwargs.get(
+            "google_api_key", os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
+        )
+        self.deepseek_api_key: str | None = kwargs.get("deepseek_api_key", os.getenv("DEEPSEEK_API_KEY"))
+        self.kimi_api_key: str | None = kwargs.get("kimi_api_key", os.getenv("KIMI_API_KEY"))
+
+        # Driver mode
+        self.driver_mode: str = kwargs.get("driver_mode", os.getenv("NEXUS_DRIVER_MODE", "auto"))
+
+        # Common settings
+        self.timeout: float = float(kwargs.get("timeout", os.getenv("TIMEOUT", "300")))
+        self.max_tokens: int = int(kwargs.get("max_tokens", 8192))
+        self.response_cache_size: int = int(kwargs.get("response_cache_size", 500))
+        self.response_cache_ttl: float = float(kwargs.get("response_cache_ttl", 300.0))
+        self.routing_policy: str = kwargs.get("routing_policy", "balanced")
+        self.workspace_path: Path = Path(kwargs.get("workspace_path", "./workspace"))
+
+        # Apply any remaining kwargs as attributes
+        for key, value in kwargs.items():
+            if not hasattr(self, key):
+                setattr(self, key, value)

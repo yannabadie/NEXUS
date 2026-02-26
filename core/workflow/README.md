@@ -225,7 +225,13 @@ print(stats)
 
 ### Future Enhancements
 
-- **Workflow DAGs**: Support for complex multi-step workflows
 - **Event Streaming**: Publish workflow events to Redis Streams
 - **Distributed Tracing**: OpenTelemetry integration
 - **Workflow Recovery**: Automatic retry on instance failure
+
+## V12.4 COGNITIVE BOOST Additions
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `workflow_performance_analyzer.py` | Runtime workflow execution analytics tracking execution times, step completion rates, bottleneck detection, workflow throughput, and parallel efficiency with per-workflow profiles | `get_workflow_analyzer`, `WorkflowPerformanceAnalyzer` |
+| `dependency_graph.py` | DAG topology analysis for workflow steps with cycle detection, topological sort for execution order, parallelizable group identification, and critical path computation | `get_dependency_graph`, `DependencyGraph` |

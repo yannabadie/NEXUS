@@ -5,18 +5,18 @@ Provides TortureBase class and common fixtures for all torture scenarios.
 """
 
 import asyncio
+import json
+import os
+import sys
 import threading
 import time
-import json
-import sys
-import os
-from pathlib import Path
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional
 from datetime import datetime
+from pathlib import Path
+from typing import Any
 
 # Add project root to path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 from .metrics_collector import MetricsCollector
 
@@ -24,6 +24,7 @@ from .metrics_collector import MetricsCollector
 @dataclass
 class TortureResultV8:
     """Result of a single torture test."""
+
     scenario: str
     test_id: str
     success: bool
@@ -31,8 +32,8 @@ class TortureResultV8:
     recovery_attempted: bool = False
     recovery_succeeded: bool = False
     panic_occurred: bool = False
-    error: Optional[str] = None
-    metrics: Dict[str, Any] = field(default_factory=dict)
+    error: str | None = None
+    metrics: dict[str, Any] = field(default_factory=dict)
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
 
 
@@ -52,7 +53,7 @@ class TortureBase:
         (self.workspace / "logs").mkdir(parents=True, exist_ok=True)
         (self.workspace / "agents").mkdir(parents=True, exist_ok=True)
 
-        self.results: List[TortureResultV8] = []
+        self.results: list[TortureResultV8] = []
         self.metrics = MetricsCollector()
         self.lock = threading.Lock()
 
@@ -77,7 +78,7 @@ class TortureBase:
                 recovery_attempted=result.recovery_attempted,
                 recovery_succeeded=result.recovery_succeeded,
                 panic_occurred=result.panic_occurred,
-                error=result.error
+                error=result.error,
             )
 
             # Append to JSONL log
@@ -90,13 +91,7 @@ class TortureBase:
             if result.error:
                 print(f"   ERROR: {result.error[:100]}")
 
-    def run_test(
-        self,
-        scenario: str,
-        test_id: str,
-        test_func,
-        expect_recovery: bool = False
-    ) -> TortureResultV8:
+    def run_test(self, scenario: str, test_id: str, test_func, expect_recovery: bool = False) -> TortureResultV8:
         """
         Run a single test and capture result.
 
@@ -156,7 +151,7 @@ class TortureBase:
             recovery_attempted=recovery_attempted,
             recovery_succeeded=recovery_succeeded,
             panic_occurred=panic_occurred,
-            error=error
+            error=error,
         )
 
         self.log_result(result)
@@ -188,19 +183,20 @@ class TortureBase:
         success_target: float = 95.0,
         recovery_target: float = 90.0,
         panic_target: float = 1.0,
-        hot_swap_target: float = 80.0
+        hot_swap_target: float = 80.0,
     ):
         """Assert metrics meet targets."""
         self.metrics.assert_targets(
             success_target=success_target,
             recovery_target=recovery_target,
             panic_target=panic_target,
-            hot_swap_target=hot_swap_target
+            hot_swap_target=hot_swap_target,
         )
 
     def cleanup(self):
         """Clean up workspace after tests."""
         import shutil
+
         if self.workspace.exists():
             shutil.rmtree(self.workspace, ignore_errors=True)
 
@@ -208,6 +204,7 @@ class TortureBase:
 # ============================================================================
 # Pytest Fixtures
 # ============================================================================
+
 
 def pytest_configure(config):
     """Register custom markers."""

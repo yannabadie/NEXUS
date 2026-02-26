@@ -8,28 +8,24 @@ Verifies:
 4. ModeSelector uses session-aware scoring for agent ranking
 """
 
-import pytest
 import sys
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+
+import pytest
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.memory.success_memory import SuccessMemory, SuccessEntry
-from core.swarm.agent_metrics import (
-    AgentPool,
-    AgentProfile,
-    AgentInvocationResult,
-    create_default_pool
-)
-from core.swarm.mode_selector import ModeSelector, ModeProposal
-from core.swarm.task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
-
+from core.intelligence.swarm.agent_metrics import AgentInvocationResult, AgentPool, create_default_pool
+from core.intelligence.swarm.mode_selector import ModeSelector
+from core.intelligence.swarm.task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
+from core.memory_pkg.memory import SuccessEntry, SuccessMemory  # V2 via backward compat alias
 
 # =============================================================================
 # Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def workspace_path(tmp_path):
@@ -41,9 +37,11 @@ def workspace_path(tmp_path):
 
 
 @pytest.fixture
-def success_memory(workspace_path):
-    """Create a SuccessMemory instance."""
-    return SuccessMemory(workspace_path)
+def success_memory(tmp_path):
+    """Create a SuccessMemory instance with isolated storage."""
+    ws = tmp_path / "workspace"
+    ws.mkdir(exist_ok=True)
+    return SuccessMemory(workspace_path=ws, nexus_root=tmp_path)
 
 
 @pytest.fixture
@@ -53,14 +51,16 @@ def agent_pool():
 
 
 @pytest.fixture
-def populated_success_memory(workspace_path):
+def populated_success_memory(tmp_path):
     """
     Create SuccessMemory with pre-populated session data.
 
     - gemini_primary: 5 sessions, 4 high quality (80% success)
     - claude_opus: 5 sessions, 2 high quality (40% success)
     """
-    memory = SuccessMemory(workspace_path)
+    ws = tmp_path / "workspace"
+    ws.mkdir(exist_ok=True)
+    memory = SuccessMemory(workspace_path=ws, nexus_root=tmp_path)
 
     # Gemini sessions - mostly successful
     for i in range(4):
@@ -74,7 +74,7 @@ def populated_success_memory(workspace_path):
             complexity="MODERATE",
             domains=["coding", "architecture"],
             quality_score=0.75 + (i * 0.05),  # 0.75, 0.80, 0.85, 0.90
-            timestamp=datetime.now().isoformat()
+            timestamp=datetime.now().isoformat(),
         )
         memory._append_entry(entry)
 
@@ -89,7 +89,7 @@ def populated_success_memory(workspace_path):
         complexity="COMPLEX",
         domains=["coding"],
         quality_score=0.4,
-        timestamp=datetime.now().isoformat()
+        timestamp=datetime.now().isoformat(),
     )
     memory._append_entry(entry)
 
@@ -106,7 +106,7 @@ def populated_success_memory(workspace_path):
             complexity="SIMPLE",
             domains=["research"],
             quality_score=quality,
-            timestamp=datetime.now().isoformat()
+            timestamp=datetime.now().isoformat(),
         )
         memory._append_entry(entry)
 
@@ -116,6 +116,7 @@ def populated_success_memory(workspace_path):
 # =============================================================================
 # SuccessMemory.get_agent_success_rate Tests
 # =============================================================================
+
 
 class TestGetAgentSuccessRate:
     """Tests for SuccessMemory.get_agent_success_rate()."""
@@ -140,7 +141,7 @@ class TestGetAgentSuccessRate:
                 complexity="SIMPLE",
                 domains=["coding"],
                 quality_score=0.9,
-                timestamp=datetime.now().isoformat()
+                timestamp=datetime.now().isoformat(),
             )
             success_memory._append_entry(entry)
 
@@ -161,9 +162,7 @@ class TestGetAgentSuccessRate:
     def test_domain_filter(self, populated_success_memory):
         """Filters by domain correctly."""
         # Claude has 3 sessions in "research" domain
-        rate, count = populated_success_memory.get_agent_success_rate(
-            "claude_opus", domain="research"
-        )
+        rate, count = populated_success_memory.get_agent_success_rate("claude_opus", domain="research")
 
         assert count == 3
         # Only 1 high quality session in research
@@ -203,6 +202,7 @@ class TestGetAgentSessionStats:
 # AgentPool.update_from_session_metrics Tests
 # =============================================================================
 
+
 class TestUpdateFromSessionMetrics:
     """Tests for AgentPool.update_from_session_metrics()."""
 
@@ -215,7 +215,7 @@ class TestUpdateFromSessionMetrics:
             agents_used=["gemini_primary"],
             quality_score=0.9,  # High quality
             domains=["coding"],
-            task_type="session"
+            task_type="session",
         )
 
         assert "gemini_primary" in bonuses
@@ -230,7 +230,7 @@ class TestUpdateFromSessionMetrics:
             agents_used=["claude_opus"],
             quality_score=0.7,
             domains=["research"],
-            task_type="session"
+            task_type="session",
         )
 
         assert bonuses["claude_opus"] == AgentPool.SESSION_BONUS_MEDIUM
@@ -242,7 +242,7 @@ class TestUpdateFromSessionMetrics:
             agents_used=["gemini_primary"],
             quality_score=0.3,  # Below threshold
             domains=["coding"],
-            task_type="session"
+            task_type="session",
         )
 
         assert len(bonuses) == 0
@@ -254,7 +254,7 @@ class TestUpdateFromSessionMetrics:
             agents_used=["gemini_primary", "claude_opus"],
             quality_score=0.85,
             domains=["coding"],
-            task_type="session"
+            task_type="session",
         )
 
         assert "gemini_primary" in bonuses
@@ -267,7 +267,7 @@ class TestUpdateFromSessionMetrics:
             agents_used=["unknown_agent", "gemini_primary"],
             quality_score=0.9,
             domains=["coding"],
-            task_type="session"
+            task_type="session",
         )
 
         assert "unknown_agent" not in bonuses
@@ -277,6 +277,7 @@ class TestUpdateFromSessionMetrics:
 # =============================================================================
 # AgentPool.get_session_aware_score Tests
 # =============================================================================
+
 
 class TestGetSessionAwareScore:
     """Tests for AgentPool.get_session_aware_score()."""
@@ -290,15 +291,11 @@ class TestGetSessionAwareScore:
             success=True,
             quality_score=0.8,
             tokens_used=100,
-            time_seconds=1.0
+            time_seconds=1.0,
         )
         agent_pool.record_invocation(result)
 
-        score = agent_pool.get_session_aware_score(
-            agent_id="gemini_primary",
-            task_type="coding",
-            success_memory=None
-        )
+        score = agent_pool.get_session_aware_score(agent_id="gemini_primary", task_type="coding", success_memory=None)
 
         # Without memory, formula is: dylan * 0.7 + 0.5 * 0.3 (neutral session)
         dylan_score = agent_pool.agents["gemini_primary"].get_task_importance("coding")
@@ -314,15 +311,12 @@ class TestGetSessionAwareScore:
             success=True,
             quality_score=0.6,
             tokens_used=100,
-            time_seconds=1.0
+            time_seconds=1.0,
         )
         agent_pool.record_invocation(result)
 
         score = agent_pool.get_session_aware_score(
-            agent_id="gemini_primary",
-            task_type="coding",
-            success_memory=populated_success_memory,
-            dylan_weight=0.7
+            agent_id="gemini_primary", task_type="coding", success_memory=populated_success_memory, dylan_weight=0.7
         )
 
         # Score should be between 0 and 1
@@ -332,16 +326,12 @@ class TestGetSessionAwareScore:
         """Agent with high session success gets higher score."""
         # Gemini has 80% session success in coding
         gemini_score = agent_pool.get_session_aware_score(
-            agent_id="gemini_primary",
-            task_type="coding",
-            success_memory=populated_success_memory
+            agent_id="gemini_primary", task_type="coding", success_memory=populated_success_memory
         )
 
         # Claude has lower session success in coding
         claude_score = agent_pool.get_session_aware_score(
-            agent_id="claude_opus",
-            task_type="coding",
-            success_memory=populated_success_memory
+            agent_id="claude_opus", task_type="coding", success_memory=populated_success_memory
         )
 
         # Gemini should have higher or equal score due to session history
@@ -353,22 +343,20 @@ class TestGetSessionAwareScore:
 # ModeSelector Session-Aware Integration Tests
 # =============================================================================
 
+
 class TestModeSelectorSessionAware:
     """Tests for ModeSelector using session-aware agent selection."""
 
     def test_uses_session_aware_scoring(self, agent_pool, populated_success_memory):
         """ModeSelector uses session-aware scoring when memory available."""
-        selector = ModeSelector(
-            agent_pool=agent_pool,
-            success_memory=populated_success_memory
-        )
+        selector = ModeSelector(agent_pool=agent_pool, success_memory=populated_success_memory)
 
         analysis = TaskAnalysis(
             complexity=TaskComplexity.MODERATE,
             domains=[TaskDomain.CODING],
             primary_domain=TaskDomain.CODING,
             raw_input="Fix the authentication bug",
-            requires_deep_reasoning=True
+            requires_deep_reasoning=True,
         )
 
         proposal = selector.select_mode(analysis)
@@ -380,17 +368,14 @@ class TestModeSelectorSessionAware:
 
     def test_session_aware_agent_ranking(self, agent_pool, populated_success_memory):
         """Agents are ranked by session-aware score."""
-        selector = ModeSelector(
-            agent_pool=agent_pool,
-            success_memory=populated_success_memory
-        )
+        selector = ModeSelector(agent_pool=agent_pool, success_memory=populated_success_memory)
 
         analysis = TaskAnalysis(
             complexity=TaskComplexity.MODERATE,
             domains=[TaskDomain.CODING],
             primary_domain=TaskDomain.CODING,
             raw_input="Implement new feature",
-            requires_iteration=True
+            requires_iteration=True,
         )
 
         proposal = selector.select_mode(analysis)
@@ -407,7 +392,7 @@ class TestModeSelectorSessionAware:
         """Falls back to capability-based selection without memory."""
         selector = ModeSelector(
             agent_pool=agent_pool,
-            success_memory=None  # No memory
+            success_memory=None,  # No memory
         )
 
         analysis = TaskAnalysis(
@@ -415,7 +400,7 @@ class TestModeSelectorSessionAware:
             domains=[TaskDomain.RESEARCH],
             primary_domain=TaskDomain.RESEARCH,
             raw_input="Research topic",
-            requires_web=True
+            requires_web=True,
         )
 
         proposal = selector.select_mode(analysis)
@@ -429,14 +414,17 @@ class TestModeSelectorSessionAware:
 # Integration Test: Session History Influences Selection
 # =============================================================================
 
+
 class TestSessionHistoryInfluence:
     """End-to-end tests verifying session history influences agent selection."""
 
-    def test_agent_with_high_session_success_favored(self, workspace_path):
+    def test_agent_with_high_session_success_favored(self, tmp_path):
         """Agent with high session success rate is favored over one with low rate."""
         # Create fresh pool and memory
         pool = create_default_pool()
-        memory = SuccessMemory(workspace_path)
+        ws = tmp_path / "workspace"
+        ws.mkdir(exist_ok=True)
+        memory = SuccessMemory(workspace_path=ws, nexus_root=tmp_path)
 
         # Add session history: Agent A has 100% success, Agent B has 0%
         for i in range(5):
@@ -451,7 +439,7 @@ class TestSessionHistoryInfluence:
                 complexity="MODERATE",
                 domains=["coding"],
                 quality_score=0.9,  # High quality
-                timestamp=datetime.now().isoformat()
+                timestamp=datetime.now().isoformat(),
             )
             memory._append_entry(entry_good)
 
@@ -466,7 +454,7 @@ class TestSessionHistoryInfluence:
                 complexity="MODERATE",
                 domains=["coding"],
                 quality_score=0.3,  # Low quality
-                timestamp=datetime.now().isoformat()
+                timestamp=datetime.now().isoformat(),
             )
             memory._append_entry(entry_bad)
 
@@ -478,15 +466,11 @@ class TestSessionHistoryInfluence:
         assert claude_rate == 0.0  # 0% success
 
         # Create selector with memory
-        selector = ModeSelector(agent_pool=pool, success_memory=memory)
+        ModeSelector(agent_pool=pool, success_memory=memory)
 
         # Session-aware score should favor Gemini
-        gemini_score = pool.get_session_aware_score(
-            "gemini_primary", "coding", memory
-        )
-        claude_score = pool.get_session_aware_score(
-            "claude_opus", "coding", memory
-        )
+        gemini_score = pool.get_session_aware_score("gemini_primary", "coding", memory)
+        claude_score = pool.get_session_aware_score("claude_opus", "coding", memory)
 
         # Gemini's session component: 1.0 * 0.3 = 0.3
         # Claude's session component: 0.0 * 0.3 = 0.0

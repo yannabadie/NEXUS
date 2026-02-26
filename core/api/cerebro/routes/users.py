@@ -18,14 +18,13 @@ Date: 2025-12-16
 
 import logging
 from datetime import datetime
-from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
 
 from ..deps import AuthenticatedUser
-from ..rbac import require_permission, Permission
+from ..rbac import Permission, require_permission
 
 logger = logging.getLogger(__name__)
 
@@ -36,33 +35,38 @@ router = APIRouter()
 # Request/Response Models
 # =============================================================================
 
+
 class UserResponse(BaseModel):
     """User information response."""
+
     id: str
     username: str
     email: str
     role: str
     is_active: bool
-    created_at: Optional[datetime] = None
-    last_login: Optional[datetime] = None
+    created_at: datetime | None = None
+    last_login: datetime | None = None
 
 
 class UserListResponse(BaseModel):
     """List of users response."""
-    users: List[UserResponse]
+
+    users: list[UserResponse]
     total: int
 
 
 class InviteUserRequest(BaseModel):
     """Request to invite a new user."""
+
     username: str
     email: EmailStr
     role: str = "member"  # Default role
-    password: Optional[str] = None  # Optional, will generate if not provided
+    password: str | None = None  # Optional, will generate if not provided
 
 
 class ChangeRoleRequest(BaseModel):
     """Request to change user role."""
+
     role: str
 
 
@@ -70,10 +74,12 @@ class ChangeRoleRequest(BaseModel):
 # Helper Functions
 # =============================================================================
 
-def _get_users(tenant_id: UUID) -> List[dict]:
+
+def _get_users(tenant_id: UUID) -> list[dict]:
     """Get all users for a tenant (sync, for thread pool)."""
     from sqlmodel import select
-    from core.db import get_session, User
+
+    from core.infrastructure.db import User, get_session
 
     with get_session() as session:
         statement = select(User).where(User.tenant_id == tenant_id)
@@ -84,7 +90,7 @@ def _get_users(tenant_id: UUID) -> List[dict]:
                 "id": str(u.id),
                 "username": u.username,
                 "email": u.email,
-                "role": u.role.value if hasattr(u.role, 'value') else str(u.role),
+                "role": u.role.value if hasattr(u.role, "value") else str(u.role),
                 "is_active": u.is_active,
                 "created_at": u.created_at,
                 "last_login": u.last_login,
@@ -102,8 +108,9 @@ def _create_user(
 ) -> dict:
     """Create a new user (sync, for thread pool)."""
     from sqlmodel import select
-    from core.db import get_session, User, UserRole
-    from core.security.password import hash_password
+
+    from core.infrastructure.db import User, UserRole, get_session
+    from core.security_pkg.security.password import hash_password
 
     with get_session() as session:
         # Check if username already exists in tenant
@@ -126,7 +133,7 @@ def _create_user(
         try:
             user_role = UserRole(role)
         except ValueError:
-            raise ValueError(f"Invalid role: {role}")
+            raise ValueError(f"Invalid role: {role}") from None
 
         # Create user
         user = User(
@@ -146,7 +153,7 @@ def _create_user(
             "id": str(user.id),
             "username": user.username,
             "email": user.email,
-            "role": user.role.value if hasattr(user.role, 'value') else str(user.role),
+            "role": user.role.value if hasattr(user.role, "value") else str(user.role),
             "is_active": user.is_active,
             "created_at": user.created_at,
         }
@@ -155,7 +162,8 @@ def _create_user(
 def _delete_user(tenant_id: UUID, user_id: UUID) -> bool:
     """Delete a user (sync, for thread pool)."""
     from sqlmodel import select
-    from core.db import get_session, User
+
+    from core.infrastructure.db import User, get_session
 
     with get_session() as session:
         statement = select(User).where(
@@ -172,10 +180,11 @@ def _delete_user(tenant_id: UUID, user_id: UUID) -> bool:
         return True
 
 
-def _change_role(tenant_id: UUID, user_id: UUID, new_role: str) -> Optional[dict]:
+def _change_role(tenant_id: UUID, user_id: UUID, new_role: str) -> dict | None:
     """Change user role (sync, for thread pool)."""
     from sqlmodel import select
-    from core.db import get_session, User, UserRole
+
+    from core.infrastructure.db import User, UserRole, get_session
 
     with get_session() as session:
         statement = select(User).where(
@@ -191,7 +200,7 @@ def _change_role(tenant_id: UUID, user_id: UUID, new_role: str) -> Optional[dict
         try:
             user.role = UserRole(new_role)
         except ValueError:
-            raise ValueError(f"Invalid role: {new_role}")
+            raise ValueError(f"Invalid role: {new_role}") from None
 
         session.add(user)
         session.commit()
@@ -200,13 +209,14 @@ def _change_role(tenant_id: UUID, user_id: UUID, new_role: str) -> Optional[dict
         return {
             "id": str(user.id),
             "username": user.username,
-            "role": user.role.value if hasattr(user.role, 'value') else str(user.role),
+            "role": user.role.value if hasattr(user.role, "value") else str(user.role),
         }
 
 
 # =============================================================================
 # Endpoints
 # =============================================================================
+
 
 @router.get("", response_model=UserListResponse)
 async def list_users(
@@ -268,7 +278,8 @@ async def invite_user(
 
         # Audit log
         try:
-            from core.audit import AuditLogger, AuditAction
+            from core.observability.audit import AuditAction, AuditLogger
+
             await AuditLogger.log(
                 tenant_id=UUID(user.tenant_id),
                 user_id=UUID(user.user_id),
@@ -284,7 +295,7 @@ async def invite_user(
         return UserResponse(**result)
 
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
 
 @router.delete("/{user_id}")
@@ -318,8 +329,8 @@ async def remove_user(
 
     try:
         target_uuid = UUID(user_id)
-    except ValueError:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid user ID")
+    except ValueError as err:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid user ID") from err
 
     deleted = await asyncio.to_thread(
         _delete_user,
@@ -332,7 +343,8 @@ async def remove_user(
 
     # Audit log
     try:
-        from core.audit import AuditLogger, AuditAction
+        from core.observability.audit import AuditAction, AuditLogger
+
         await AuditLogger.log(
             tenant_id=UUID(user.tenant_id),
             user_id=UUID(user.user_id),
@@ -375,8 +387,8 @@ async def change_role(
 
     try:
         target_uuid = UUID(user_id)
-    except ValueError:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid user ID")
+    except ValueError as err:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid user ID") from err
 
     try:
         result = await asyncio.to_thread(
@@ -386,14 +398,15 @@ async def change_role(
             body.role,
         )
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
     if not result:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     # Audit log
     try:
-        from core.audit import AuditLogger, AuditAction
+        from core.observability.audit import AuditAction, AuditLogger
+
         await AuditLogger.log(
             tenant_id=UUID(user.tenant_id),
             user_id=UUID(user.user_id),

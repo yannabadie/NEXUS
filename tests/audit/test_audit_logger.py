@@ -12,16 +12,15 @@ Date: 2025-12-16
 """
 
 import asyncio
-import pytest
-import tempfile
-from datetime import datetime
-from pathlib import Path
-from uuid import UUID, uuid4
-
 import sys
+from pathlib import Path
+from uuid import uuid4
+
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from core.db.engine import init_db, get_session, reset_engine
+from core.infrastructure.db.engine import init_db, reset_engine
 
 
 class TestAuditLoggerUnit:
@@ -38,7 +37,7 @@ class TestAuditLoggerUnit:
 
     def test_audit_log_model_fields(self):
         """Test AuditLog model has required fields."""
-        from core.audit.models import AuditLog
+        from core.observability.audit.models import AuditLog
 
         log = AuditLog(
             tenant_id=uuid4(),
@@ -56,7 +55,7 @@ class TestAuditLoggerUnit:
 
     def test_audit_log_defaults(self):
         """Test AuditLog default values."""
-        from core.audit.models import AuditLog
+        from core.observability.audit.models import AuditLog
 
         log = AuditLog(
             tenant_id=uuid4(),
@@ -71,7 +70,7 @@ class TestAuditLoggerUnit:
 
     def test_audit_action_enum(self):
         """Test AuditAction enum values."""
-        from core.audit.models import AuditAction
+        from core.observability.audit.models import AuditAction
 
         assert AuditAction.FILE_READ == "file:read"
         assert AuditAction.FILE_WRITE == "file:write"
@@ -95,7 +94,7 @@ class TestAuditLoggerAsync:
     @pytest.mark.asyncio
     async def test_log_creates_entry(self):
         """Test AuditLogger.log creates a database entry."""
-        from core.audit import AuditLogger, AuditAction
+        from core.observability.audit import AuditAction, AuditLogger
 
         tenant_id = uuid4()
         user_id = uuid4()
@@ -116,7 +115,7 @@ class TestAuditLoggerAsync:
     @pytest.mark.asyncio
     async def test_log_with_details(self):
         """Test AuditLogger.log with additional details."""
-        from core.audit import AuditLogger, AuditAction
+        from core.observability.audit import AuditAction, AuditLogger
 
         result = await AuditLogger.log(
             tenant_id=uuid4(),
@@ -134,7 +133,7 @@ class TestAuditLoggerAsync:
     @pytest.mark.asyncio
     async def test_log_permission_denied(self):
         """Test logging permission denied events."""
-        from core.audit import AuditLogger, AuditAction
+        from core.observability.audit import AuditAction, AuditLogger
 
         result = await AuditLogger.log(
             tenant_id=uuid4(),
@@ -152,7 +151,7 @@ class TestAuditLoggerAsync:
     @pytest.mark.asyncio
     async def test_concurrent_logging(self):
         """Test multiple concurrent log operations."""
-        from core.audit import AuditLogger, AuditAction
+        from core.observability.audit import AuditAction, AuditLogger
 
         tenant_id = uuid4()
         user_id = uuid4()
@@ -187,7 +186,7 @@ class TestAuditLoggerQueries:
     @pytest.mark.asyncio
     async def test_query_logs_for_tenant(self):
         """Test querying logs by tenant."""
-        from core.audit import AuditLogger, AuditAction
+        from core.observability.audit import AuditAction, AuditLogger
 
         tenant_id = uuid4()
         other_tenant = uuid4()
@@ -214,7 +213,7 @@ class TestAuditLoggerQueries:
     @pytest.mark.asyncio
     async def test_query_logs_with_action_filter(self):
         """Test filtering logs by action type."""
-        from core.audit import AuditLogger, AuditAction
+        from core.observability.audit import AuditAction, AuditLogger
 
         tenant_id = uuid4()
         user_id = uuid4()
@@ -258,7 +257,7 @@ class TestAuditLogImmutability:
     @pytest.mark.asyncio
     async def test_no_update_method(self):
         """Verify AuditLogger has no update method."""
-        from core.audit import AuditLogger
+        from core.observability.audit import AuditLogger
 
         assert not hasattr(AuditLogger, "update")
         assert not hasattr(AuditLogger, "update_log")
@@ -267,7 +266,7 @@ class TestAuditLogImmutability:
     @pytest.mark.asyncio
     async def test_no_delete_method(self):
         """Verify AuditLogger has no delete method."""
-        from core.audit import AuditLogger
+        from core.observability.audit import AuditLogger
 
         assert not hasattr(AuditLogger, "delete")
         assert not hasattr(AuditLogger, "delete_log")

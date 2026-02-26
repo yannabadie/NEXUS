@@ -5,14 +5,12 @@ Validates unified health monitoring for all V9.5 components.
 """
 
 import pytest
-import asyncio
-from pathlib import Path
 
-from core.resilience.system_health import (
-    SystemHealth,
-    HealthStatus,
+from core.infrastructure.resilience.system_health import (
     ComponentHealth,
     HealthReport,
+    HealthStatus,
+    SystemHealth,
     get_system_health,
     reset_system_health,
 )
@@ -47,31 +45,18 @@ class TestComponentHealth:
 
     def test_create_healthy_component(self):
         """Should create healthy component."""
-        health = ComponentHealth(
-            name="TestComponent",
-            status=HealthStatus.HEALTHY,
-            message="All good"
-        )
+        health = ComponentHealth(name="TestComponent", status=HealthStatus.HEALTHY, message="All good")
         assert health.name == "TestComponent"
         assert health.status == HealthStatus.HEALTHY
 
     def test_component_with_details(self):
         """Should store details."""
-        health = ComponentHealth(
-            name="Test",
-            status=HealthStatus.HEALTHY,
-            message="OK",
-            details={"count": 42}
-        )
+        health = ComponentHealth(name="Test", status=HealthStatus.HEALTHY, message="OK", details={"count": 42})
         assert health.details["count"] == 42
 
     def test_to_dict(self):
         """Should convert to dictionary."""
-        health = ComponentHealth(
-            name="Test",
-            status=HealthStatus.HEALTHY,
-            message="OK"
-        )
+        health = ComponentHealth(name="Test", status=HealthStatus.HEALTHY, message="OK")
         data = health.to_dict()
         assert data["name"] == "Test"
         assert data["status"] == "healthy"
@@ -86,10 +71,7 @@ class TestHealthReport:
             ComponentHealth("A", HealthStatus.HEALTHY, "OK"),
             ComponentHealth("B", HealthStatus.HEALTHY, "OK"),
         ]
-        report = HealthReport(
-            components=components,
-            overall_status=HealthStatus.HEALTHY
-        )
+        report = HealthReport(components=components, overall_status=HealthStatus.HEALTHY)
         assert len(report.components) == 2
         assert report.overall_status == HealthStatus.HEALTHY
 
@@ -215,9 +197,6 @@ class TestV95Integration:
         """All V9.5 components should be importable."""
         # This tests that all Sprint 1-4 components integrate
         from core.constants import CONSTANTS_VERSION
-        from core.async_primitives import SafeTaskManager, EventBus
-        from core.execution import ToolRegistry, ExecutionEngine
-        from core.resilience import CircuitBreaker, SystemHealth
 
         # All imports succeeded
         # V11.4: Accept any 9.x or higher version

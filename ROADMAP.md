@@ -1,7 +1,7 @@
 # NEXUS V12.4 "COGNITIVE BOOST" - Roadmap
 
-**Version**: 12.4.0 | **Status**: Active | **Last Updated**: 2025-12-16
-**Maintainer**: Yann Abadie | **Branch**: NX
+**Version**: 12.4.0 | **Status**: Active | **Last Updated**: 2026-02-15
+**Maintainer**: Yann Abadie | **Branch**: NX-CG
 **Focus**: Proactive Intelligence, RAG Enhancement, Multi-Instance Scale
 
 ---
@@ -11,18 +11,37 @@
 | Metric | Value |
 |--------|-------|
 | Architecture | FSM + HiveMind + Hybrid Swarm |
-| Backend | 253 Python files, 36 modules |
+| Backend | 355 Python files, 39 modules |
 | Frontend | React 19 + TypeScript (CEREBRO) |
 | Security | IRONCLAD (JWT, RBAC, Guards) |
-| Tests | 667+ (unit, integration, E2E) |
+| Tests | 2500+ (200 test files) |
 
 ---
 
 ## V12 Series - Production Ready
 
-### V12.4 - COGNITIVE BOOST (2025-12-16)
+### V12.4 - COGNITIVE BOOST (2025-12-16 -> 2026-02-15)
 
-**Objective**: Proactive intelligence and enhanced RAG capabilities.
+**Objective**: Massive expansion adding 125+ modules across 30+ domains.
+Proactive intelligence, enhanced RAG, full observability, SDK drivers,
+security hardening, and infrastructure maturity.
+
+| Category | Modules Added | Status |
+|----------|--------------|--------|
+| Observability & Analytics | command_analytics, session_analytics, error_pattern_analyzer, performance_profiler, health_aggregator, endpoint_analytics, event_analytics, startup_analytics | COMPLETE |
+| Performance Tracking | handler_performance_tracker, routing_effectiveness_analyzer, reliability_pattern_tracker, workflow_performance_analyzer, strategy_performance_tracker, inference_latency_analyzer, query_performance_tracker | COMPLETE |
+| Message Infrastructure | message_protocol, message_deduplicator, message_router, message_reliability_tracker | COMPLETE |
+| Cognitive Pipeline | phase_audit_logger, phase_coordinator, consensus_tracker, call_graph_tracer, reasoning_quality_scorer, thought_evaluator, graph_of_thought | COMPLETE |
+| Quality & Interaction | interaction_quality_tracker, session_efficiency_scorecard, tool_observer | COMPLETE |
+| SDK & Drivers | anthropic_sdk_driver, google_genai_sdk_driver, ollama_driver, driver_health_monitor, failover_manager, response_cache | COMPLETE |
+| Security & Governance | security_event_journal, access_control, encryption, alignment_journal, decision_logger, ethics | COMPLETE |
+| Infrastructure | dependency_graph, dependency_injector, task_scheduler, workflow_engine, timeout_manager, retry_handler | COMPLETE |
+| Memory & Context | context_window_tracker, memory_pressure_monitor, cache_manager, context_compressor, conversation_store | COMPLETE |
+| Evolution | mutation_tracker, auto_specializer, agent_reaper, agent_lifecycle, capability_profiler | COMPLETE |
+| Utilities | schema_registry, config_manager, feature_flags, event_bus, output_validator, template_optimizer, versioned_registry | COMPLETE |
+| Resilience | resilience_event_tracker, request_deduplicator, checkpoint_manager, rate_limiter | COMPLETE |
+
+**Foundational V12.4 Features (Phase 0)**:
 
 | Feature | Status | Description |
 |---------|--------|-------------|
@@ -119,36 +138,84 @@
 
 ---
 
-## Roadmap V13 - Next Horizon (Planned)
+## Roadmap V13 - Next Horizon
 
-### V13.1 - Observability (OTLP) [P2]
+### V13.1 - Observability (OTLP)
 
 *Replace proprietary JSONL logs with industry standard.*
 
 | Task | Status | Description |
 |------|--------|-------------|
-| **OTLP Exporter** | PLANNED | OpenTelemetry in `core/telemetry/` |
+| **OTLP Exporter** | COMPLETE | OpenTelemetry in `core/telemetry/otel_provider.py` (full OTel SDK) |
 | **Langfuse Integration** | PLANNED | Distributed tracing for CoT and costs |
 | **Waterfall Visualization** | PLANNED | Swarm interaction visualization |
 
-### V13.2 - Enterprise Security [P3]
+### V13.2 - Enterprise Security
 
 *Beyond Python-level security.*
 
 | Task | Status | Description |
 |------|--------|-------------|
-| **Docker Sandbox** | PLANNED | Ephemeral containers for Bash/Python |
+| **Docker Sandbox** | COMPLETE | Ephemeral containers via `core/execution/handlers/sandbox_handler.py`, feature-flagged |
 | **Resource Limits** | PLANNED | CPU/RAM limits per agent |
-| **Multi-Tenancy** | PLANNED | Full tenant isolation |
+| **Multi-Tenancy** | COMPLETE | Full tenant isolation via `core/db/` and `core/context/` |
 
-### V13.3 - Advanced Cognition [P3]
+### V13.3 - Advanced Cognition
 
 *Visionary features.*
 
 | Task | Status | Description |
 |------|--------|-------------|
-| **Graph of Thought** | PLANNED | Graph reasoning for EXPERT tasks |
-| **Skill Crystallization** | PLANNED | Auto-compile repeated tool sequences |
+| **Graph of Thought** | COMPLETE | Graph reasoning in `core/reasoning/graph_of_thought.py` |
+| **Skill Crystallization** | COMPLETE | Auto-compile repeated tool sequences via `core/skills/crystallizer.py` |
+
+---
+
+## Plan Directeur (todo3.md) Status
+
+All 14 epics from the master plan have been implemented.
+
+### Phase 0: Package Management + Quality Gates
+
+| Epic | Status | Evidence |
+|------|--------|----------|
+| Package Management | DONE | pyproject.toml, uv lock |
+| Quality Gates | DONE | .github/workflows/ci.yml, pre-commit hooks |
+
+### Phase 1: Context Compression + Structured Outputs + Sagas + Persistence
+
+| Epic | Status | Evidence |
+|------|--------|----------|
+| Context Compression | DONE | core/memory/context_compressor.py |
+| Structured Outputs | DONE | core/synapse/protocol_v7.py, schema_registry |
+| Saga Manager | DONE | core/workflow/, compensation patterns |
+| Persistence Layer | DONE | core/db/engine.py, SQLite backend |
+
+### Phase 2: RAG Chunk Fix + Python 3.14 + KERNEL Fail-Closed
+
+| Epic | Status | Evidence |
+|------|--------|----------|
+| RAG Chunk Fix | DONE | core/memory/backends/tfidf.py, HybridBackend |
+| Python 3.14 Compat | DONE | Async migration (V11.4), get_running_loop fixes |
+| KERNEL Fail-Closed | DONE | core/security/execution_policy.py, integrity_monitor |
+
+### Phase 3: SDK Drivers + Sandboxing
+
+| Epic | Status | Evidence |
+|------|--------|----------|
+| Anthropic SDK Driver | DONE | core/drivers/anthropic_sdk_driver |
+| Google GenAI SDK Driver | DONE | core/drivers/google_genai_sdk_driver |
+| Ollama Driver | DONE | core/drivers/ollama_driver.py |
+| Docker Sandboxing | DONE | core/execution/handlers/sandbox_handler.py |
+
+### Phase 4: A2A/MCP + Deterministic Fitness + OpenTelemetry
+
+| Epic | Status | Evidence |
+|------|--------|----------|
+| MCP Client | DONE | core/mcp/client.py |
+| A2A Protocol | DONE | core/mcp/protocol.py |
+| Deterministic Fitness | DONE | core/evolution/evaluator.py |
+| OpenTelemetry | DONE | core/telemetry/otel_provider.py |
 
 ---
 
@@ -156,33 +223,38 @@
 
 *Ideas extracted from legacy documentation (V7-V10) for future consideration.*
 
-### High Feasibility
+### Completed (moved from backlog)
+
+| Feature | Source | Delivered In |
+|---------|--------|-------------|
+| Agent Reaper | V9.7.2 | V12.4 (`core/evolution/agent_reaper.py`) |
+| Auto-Specialization | V9.3 vision | V12.4 (`core/evolution/auto_specializer.py`) |
+| Ollama Driver | V9 risk analysis | V12.4 (`core/drivers/ollama_driver.py`) |
+| MCP Client | V9.6 | V12.4 (`core/mcp/client.py`) |
+| Encryption at Rest | V9 audit | V12.4 (`core/security/encryption.py`) |
+| CI/CD Pipeline | V9 risk analysis | V12.4 (`.github/workflows/ci.yml`) |
+
+### High Feasibility (Remaining)
 
 | Feature | Source | Notes |
 |---------|--------|-------|
-| Agent Reaper | V9.7.2 | Garbage collection for spawned agents based on DyLAN scores |
 | N-Agent Agnosticism | Gemini proposal | Extend spawned agents to ALL 6 modes |
 | Intelligence Hub | V9 Singularity | Central brain connecting 4 memory systems |
-| Auto-Specialization | V9.3 vision | Data-driven agent spawning (trigger: 85% success in domain) |
-| Ollama Driver | V9 risk analysis | Local LLM support to reduce vendor lock-in |
 
-### Medium Feasibility
+### Medium Feasibility (Remaining)
 
 | Feature | Source | Notes |
 |---------|--------|-------|
-| MCP Client | V9.6 | Client-side MCP integration |
 | Hot-Swap Actuation | V9.7.1 | Connect StagnationPredictor to ModeExecutors for real-time swap |
 | Self-Healing Swarm | Gemini proposal | Mode-level fallback beyond current chain |
 | Unified Memory Layer | V9.4 vision | Consolidate SuccessMemory + AutoMemory + ProjectMemory |
 | Closed-Loop Refinement | V9.2 vision | Monotonic improvement guarantee with hypothesis testing |
-| Encryption at Rest | V9 audit | AES-256 for blackboard.json, birth certificates |
 
-### Low Feasibility
+### Low Feasibility (Remaining)
 
 | Feature | Source | Notes |
 |---------|--------|-------|
 | Chaos Testing | audit/ | Requires dedicated infrastructure |
-| CI/CD Pipeline | V9 risk analysis | Full test automation (currently manual) |
 | EPHEMERAL Sessions | V9 Phase 7b | One-shot sessions without persistence for TRIVIAL tasks |
 
 ---

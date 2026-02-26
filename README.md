@@ -15,7 +15,7 @@
 
 [![Version](https://img.shields.io/badge/version-12.4-blue.svg)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.11+-green.svg)](https://python.org)
-[![Claude](https://img.shields.io/badge/Claude-Opus_4.5-orange.svg)](https://anthropic.com)
+[![Claude](https://img.shields.io/badge/Claude-Opus_4.6-orange.svg)](https://anthropic.com)
 [![Gemini](https://img.shields.io/badge/Gemini-3_Pro-blue.svg)](https://ai.google.dev)
 [![License](https://img.shields.io/badge/license-MIT-purple.svg)](LICENSE)
 
@@ -38,7 +38,7 @@ NEXUS is not just a tool - it's a **deployable intelligence core** designed to b
 │                                                             │
 │    ┌─────────────┐              ┌─────────────┐            │
 │    │   GEMINI    │◄────────────►│   CLAUDE    │            │
-│    │   3 Pro     │  Collaborate │  Opus 4.5   │            │
+│    │   3 Pro     │  Collaborate │  Opus 4.6   │            │
 │    └─────────────┘              └─────────────┘            │
 │           │                            │                    │
 │           └──────────┬─────────────────┘                    │
@@ -60,13 +60,16 @@ NEXUS is not just a tool - it's a **deployable intelligence core** designed to b
 ## Quick Start
 
 ```bash
-# Clone NEXUS into your project
-git clone https://github.com/your-org/nexus.git
+# Clone NEXUS
+git clone https://github.com/yannabadie/NEXUS.git
+cd NEXUS
+git checkout NX-CG
 
 # Install dependencies
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 
-# Launch NEXUS
+# Verify + launch
+python nexus7.py --verify
 python nexus7.py
 ```
 
@@ -77,17 +80,40 @@ nexus7> Hello! Analyze this project and help me understand it.
 
 ---
 
+## Products (NX-CG)
+
+### Flagship: Research CLI + Evidence Pack
+Local-first research that turns a question into traceable artifacts.
+```bash
+python nexus_research.py "How does ProjectMemory index files?" --mode mock --path core/memory/project_memory.py
+```
+Outputs: `report.md`, `sources.json`, `trace.jsonl`, `reasoning_graph.mmd`, `metrics.json`, `manifest.sha256`
+
+### Companion: MCP Server
+MCP server exposing research + evidence pack generation.
+```bash
+python -m pip install mcp
+python -m core.mcp.server
+```
+
+Release guide: `PRODUCTS/RELEASE.md`  
+Demo scripts: `scripts/demo_flagship.ps1`, `scripts/demo_companion.ps1`
+
+---
+
 ## V12.4 Features
 
 ### COGNITIVE BOOST (Current)
 
 | Component | Description |
 |-----------|-------------|
-| **StagnationPredictor** | Detects task stagnation (thresholds 0.15/0.25/0.40) with auto-recovery |
-| **HybridBackend RRF** | Reciprocal Rank Fusion (Dense + BM25S) for +15% RAG recall |
-| **MemoryCoordinator** | Adaptive domain weights with EMA learning |
-| **OutputGuard DialogueAct** | Dialogue act classification to reduce false positives |
-| **SSRF Protection** | OWASP blocklist for web_fetch security |
+| **125+ New Modules** | Cross-domain observability, analytics, and performance tracking |
+| **SDK Drivers** | Native Anthropic + Google GenAI SDKs with Prompt Caching |
+| **Message Infrastructure** | Protocol, deduplicator, router, reliability tracker |
+| **Cognitive Pipeline** | Phase coordination, consensus tracking, reasoning quality |
+| **Security & Governance** | Event journal, access control, encryption, alignment journal |
+| **StagnationPredictor** | Detects task stagnation with auto-recovery |
+| **HybridBackend RRF** | Reciprocal Rank Fusion for +15% RAG recall |
 
 ### Previous Releases
 
@@ -120,8 +146,8 @@ nexus7> Hello! Analyze this project and help me understand it.
 │                    │  │ Phase 3: ARCHITECTURE  (Plan)        │   │   │
 │                    │  │ Phase 4: EXECUTION     (SwarmBridge) │──►│   │
 │                    │  │ Phase 5: DIAGNOSIS     (On failure)  │   │   │
-│                    │  │ Phase 6: CONSOLIDATION (Merge)       │   │   │
-│                    │  │ Phase 7: COMPLETION    (Final)       │   │   │
+│                    │  │ Phase 6: RETRY         (Adaptive)    │   │   │
+│                    │  │ Phase 7: CONSOLIDATION (Merge)       │   │   │
 │                    │  └──────────────────────────────────────┘   │   │
 │                    └─────────────────────────────────────────────┘   │
 │                                                  │                   │
@@ -210,30 +236,39 @@ Agents:
 
 ```
 NEXUS/
-├── core/                        # Core orchestration
-│   ├── orchestration_v7.py      # Main FSM orchestrator
-│   ├── drivers/                 # Gemini & Claude drivers
-│   ├── execution/               # Tool execution layer
-│   ├── fsm/                     # State machine (11 states)
-│   ├── hive_mind/               # 7-phase pipeline
-│   ├── swarm/                   # 6 collaboration modes
-│   ├── memory/                  # RAG + SuccessMemory
-│   ├── security/                # 7 security layers
-│   ├── evolution/               # Agent spawning
-│   └── api/                     # REST API (CEREBRO)
-├── interface/                   # User interfaces
-│   ├── ui/cerebro/              # React dashboard
-│   └── cli/                     # REPL components
-├── prompts/                     # System prompts
-├── workspace/                   # Runtime data
-│   ├── agents/                  # Spawned agents
-│   ├── logs/                    # Event logs
-│   └── .nexus/                  # RAG database
-├── tests/                       # 1200+ tests
-├── docs/                        # Documentation
-├── nexus7.py                    # Entry point
-├── KERNEL.py                    # Immutable alignment
-└── MISSION.md                   # Project mission
+├── core/                                # Core orchestration
+│   ├── orchestration_v7.py              # Main FSM orchestrator
+│   ├── drivers/                         # Gemini & Claude drivers
+│   ├── execution_pkg/                   # Tool execution layer + routing
+│   ├── fsm/                             # State machine (12 states)
+│   ├── intelligence/
+│   │   ├── hive_mind/                   # 7-phase pipeline
+│   │   ├── swarm/                       # 6 collaboration modes
+│   │   └── evolution/                   # Agent spawning
+│   ├── memory_pkg/memory/               # RAG + SuccessMemory
+│   ├── security_pkg/security/           # 7 security layers
+│   ├── foundation/                      # Agents, async primitives
+│   ├── synapse/                         # Message protocol & reliability
+│   ├── infrastructure/                  # Bootstrap, session, events, db
+│   ├── observability/                   # Telemetry, metrics, OTel, profiling
+│   ├── interface_pkg/                   # HITL, interaction, context
+│   ├── metagraph/                       # AST-based codebase intelligence
+│   ├── meta/                            # System introspection
+│   └── ui/                              # Display components
+├── interface/                           # User interfaces
+│   ├── ui/cerebro/                      # React dashboard
+│   └── cli/                             # REPL components
+├── prompts/                             # System prompts
+├── workspace/                           # Runtime data
+│   ├── agents/                          # Spawned agents
+│   ├── logs/                            # Event logs
+│   └── .nexus/                          # RAG database
+├── tests/                               # 2500+ tests
+├── docs/                                # Documentation
+├── PRODUCTS/                            # Delivery logs + product docs
+├── nexus7.py                            # Entry point
+├── KERNEL.py                            # Immutable alignment
+└── MISSION.md                           # Project mission
 ```
 
 ---
@@ -294,7 +329,9 @@ Additional protections:
 ## Requirements
 
 - Python 3.11+
-- API Keys: `ANTHROPIC_API_KEY`, `GOOGLE_AI_API_KEY` OR your own subscription
+- Optional: Gemini/Claude CLIs + API keys for online usage
+- Optional: Node.js 22+ for Cerebro UI
+- Optional: MCP SDK (`python -m pip install mcp`) for the companion server
 - Optional: Redis (for multi-instance), PostgreSQL (for persistence)
 
 ```bash
@@ -306,9 +343,10 @@ pip install -r requirements.txt
 ## Test Status
 
 ```
-Tests: 1200+
-Coverage: ~85%
-Critical paths: 100% covered
+Latest full run: 2026-02-15
+Tests collected: 2500+
+Test files: 200
+Results: All passing
 ```
 
 ```bash
@@ -323,7 +361,8 @@ pytest tests/ --cov=core --cov-report=html
 1. Read [MISSION.md](MISSION.md) to understand the vision
 2. Check [ROADMAP.md](ROADMAP.md) for current priorities
 3. Follow code style in [CLAUDE.md](CLAUDE.md)
-4. All PRs require tests
+4. See [AGENTS.md](AGENTS.md) for repo guidelines and commands
+5. All PRs require tests
 
 ---
 
@@ -339,6 +378,6 @@ MIT License - See [LICENSE](LICENSE) for details.
 
 *Collaborative Intelligence for Real-World Problems*
 
-Built with Gemini 3 Pro + Claude Opus 4.5
+Built with Gemini 3 Pro + Claude Opus 4.6
 
 </div>

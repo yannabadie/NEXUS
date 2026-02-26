@@ -15,11 +15,12 @@ V8.0 Integration: Feeds into StrategyBlacklist
 - Blacklist uses STAGNATION category
 - Helps prevent same conversation loops across retries
 """
-from typing import List, Optional, TYPE_CHECKING
+
 from difflib import SequenceMatcher
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
-    from core.hive_mind.strategy_blacklist import StrategyBlacklist
+    from core.intelligence.hive_mind.strategy_blacklist import StrategyBlacklist
 
 
 class StagnationDetector:
@@ -38,14 +39,31 @@ class StagnationDetector:
     # V11 FIX F5: Action verbs that indicate progress
     _PROGRESS_INDICATORS = {
         # Tool usage (strong progress)
-        "<tool_use", "</tool_use>", "tool_use",
+        "<tool_use",
+        "</tool_use>",
+        "tool_use",
         # Action verbs
-        "executing", "running", "reading", "writing", "editing",
-        "created", "modified", "deleted", "found", "result:",
+        "executing",
+        "running",
+        "reading",
+        "writing",
+        "editing",
+        "created",
+        "modified",
+        "deleted",
+        "found",
+        "result:",
         # Decision markers
-        "decided", "agreed", "confirmed", "proceeding", "done",
+        "decided",
+        "agreed",
+        "confirmed",
+        "proceeding",
+        "done",
         # Artifact indicators
-        "output:", "response:", "error:", "success:",
+        "output:",
+        "response:",
+        "error:",
+        "success:",
     }
 
     def __init__(
@@ -53,7 +71,7 @@ class StagnationDetector:
         similarity_threshold: float = 0.8,
         window_size: int = 3,
         strategy_blacklist: Optional["StrategyBlacklist"] = None,
-        semantic_progress_threshold: float = 0.2  # V11 F5
+        semantic_progress_threshold: float = 0.2,  # V11 F5
     ):
         """
         Initialize detector
@@ -67,14 +85,14 @@ class StagnationDetector:
         """
         self.similarity_threshold = similarity_threshold
         self.window_size = window_size
-        self.message_history: List[str] = []
+        self.message_history: list[str] = []
         self._stagnation_count = 0  # V8.0: Track stagnation occurrences
 
         # V11 FIX F5: Semantic progress tracking
         self.semantic_progress_threshold = semantic_progress_threshold
 
         # V8.0: StrategyBlacklist integration
-        self._strategy_blacklist: Optional["StrategyBlacklist"] = strategy_blacklist
+        self._strategy_blacklist: StrategyBlacklist | None = strategy_blacklist
 
     def set_strategy_blacklist(self, blacklist: "StrategyBlacklist"):
         """
@@ -98,7 +116,7 @@ class StagnationDetector:
 
         # Keep only last N messages
         if len(self.message_history) > self.window_size:
-            self.message_history = self.message_history[-self.window_size:]
+            self.message_history = self.message_history[-self.window_size :]
 
     def is_stagnant(self) -> bool:
         """
@@ -126,7 +144,7 @@ class StagnationDetector:
             return False
 
         # Compare last N messages pairwise
-        recent = self.message_history[-self.window_size:]
+        recent = self.message_history[-self.window_size :]
 
         similarities = []
         for i in range(len(recent)):
@@ -180,7 +198,7 @@ class StagnationDetector:
         if len(self.message_history) < 2:
             return 1.0  # Not enough history, assume progress
 
-        recent = self.message_history[-self.window_size:]
+        recent = self.message_history[-self.window_size :]
         progress_score = 0.0
 
         # 1. Check for progress indicators (strong signal)
@@ -206,9 +224,9 @@ class StagnationDetector:
             lengths = [len(msg) for msg in recent]
             avg_length = sum(lengths) / len(lengths)
             if avg_length > 0:
-                variance = sum((l - avg_length) ** 2 for l in lengths) / len(lengths)
+                variance = sum((ln - avg_length) ** 2 for ln in lengths) / len(lengths)
                 # High variance = evolving discussion
-                normalized_variance = min(variance / (avg_length ** 2), 1.0)
+                normalized_variance = min(variance / (avg_length**2), 1.0)
                 progress_score += normalized_variance * 0.2
 
         # Cap at 1.0
@@ -261,7 +279,7 @@ class StagnationDetector:
                 "is_stagnant": bool
             }
         """
-        recent = self.message_history[-self.window_size:] if len(self.message_history) >= self.window_size else []
+        recent = self.message_history[-self.window_size :] if len(self.message_history) >= self.window_size else []
 
         similarities = []
         if len(recent) >= 2:
@@ -274,7 +292,7 @@ class StagnationDetector:
             "recent_messages": recent,
             "similarity_scores": similarities,
             "is_stagnant": self.is_stagnant(),
-            "stagnation_count": self._stagnation_count
+            "stagnation_count": self._stagnation_count,
         }
 
     # =========================================================================
@@ -294,7 +312,7 @@ class StagnationDetector:
         if len(self.message_history) < 2:
             return "Unknown discussion topic"
 
-        recent = self.message_history[-self.window_size:]
+        recent = self.message_history[-self.window_size :]
 
         # Find common words across messages
         word_sets = [set(msg.split()) for msg in recent]
@@ -308,15 +326,62 @@ class StagnationDetector:
 
         # Remove stop words
         stop_words = {
-            "je", "tu", "il", "nous", "vous", "ils",
-            "le", "la", "les", "un", "une", "des",
-            "de", "du", "à", "au", "aux", "en",
-            "et", "ou", "mais", "donc", "car", "ni",
-            "que", "qui", "quoi", "dont", "où",
-            "the", "a", "an", "to", "for", "of", "in", "on",
-            "is", "are", "was", "were", "be", "been",
-            "i", "you", "he", "she", "we", "they",
-            "this", "that", "it", "my", "your", "his", "her"
+            "je",
+            "tu",
+            "il",
+            "nous",
+            "vous",
+            "ils",
+            "le",
+            "la",
+            "les",
+            "un",
+            "une",
+            "des",
+            "de",
+            "du",
+            "à",
+            "au",
+            "aux",
+            "en",
+            "et",
+            "ou",
+            "mais",
+            "donc",
+            "car",
+            "ni",
+            "que",
+            "qui",
+            "quoi",
+            "dont",
+            "où",
+            "the",
+            "a",
+            "an",
+            "to",
+            "for",
+            "of",
+            "in",
+            "on",
+            "is",
+            "are",
+            "was",
+            "were",
+            "be",
+            "been",
+            "i",
+            "you",
+            "he",
+            "she",
+            "we",
+            "they",
+            "this",
+            "that",
+            "it",
+            "my",
+            "your",
+            "his",
+            "her",
         }
         meaningful_words = [w for w in common_words if w not in stop_words and len(w) > 2]
 
@@ -349,14 +414,13 @@ class StagnationDetector:
 
         # Import here to avoid circular imports
         try:
-            from core.hive_mind.strategy_blacklist import FailureCategory
+            from core.intelligence.hive_mind.strategy_blacklist import FailureCategory
         except ImportError:
             return False
 
         strategy = self.extract_stagnant_strategy()
         diagnosis = (
-            f"Detected {self._stagnation_count} stagnation(s). "
-            f"Messages: {self.message_history[-self.window_size:]}"
+            f"Detected {self._stagnation_count} stagnation(s). Messages: {self.message_history[-self.window_size :]}"
         )
 
         self._strategy_blacklist.add_failed_strategy(
@@ -364,7 +428,7 @@ class StagnationDetector:
             failure_reason="Agents stuck in circular discussion without action",
             diagnosis=diagnosis,
             failure_category=FailureCategory.STAGNATION,
-            tags=["stagnation", "circular", f"count_{self._stagnation_count}"]
+            tags=["stagnation", "circular", f"count_{self._stagnation_count}"],
         )
 
         return True
@@ -413,11 +477,7 @@ class StagnationDetector:
             Dict with swap recommendation and reason
         """
         if not self.should_swap_lead(current_lead):
-            return {
-                "should_swap": False,
-                "reason": "No swap needed",
-                "new_lead": None
-            }
+            return {"should_swap": False, "reason": "No swap needed", "new_lead": None}
 
         new_lead = "claude" if current_lead.lower() == "gemini" else "gemini"
 
@@ -426,7 +486,7 @@ class StagnationDetector:
             "reason": f"Agent '{current_lead}' stagnated {self._stagnation_count} times. Swapping to '{new_lead}'.",
             "new_lead": new_lead,
             "stagnation_count": self._stagnation_count,
-            "stagnant_strategy": self.extract_stagnant_strategy()
+            "stagnant_strategy": self.extract_stagnant_strategy(),
         }
 
     def record_agent_failure(self, agent_id: str):

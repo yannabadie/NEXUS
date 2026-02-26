@@ -1,10 +1,11 @@
-"""NEXUS Core Module - TRUE HIVE MIND"""
-import os
-from dotenv import load_dotenv
+"""NEXUS Core Module - COGNITIVE BOOST"""
 
-# Load .env to get version
-load_dotenv()
+# Version: single source of truth is pyproject.toml via importlib.metadata
+try:
+    from importlib.metadata import version as _get_version
 
-# Version from .env (single source of truth)
-__version__ = os.getenv("NEXUS_VERSION", "8.3.2")
-__codename__ = os.getenv("NEXUS_CODENAME", "TRUE HIVE MIND")
+    __version__ = _get_version("nexus-swarm-os")
+except Exception:
+    __version__ = "12.4.0"
+
+__codename__ = "COGNITIVE BOOST"

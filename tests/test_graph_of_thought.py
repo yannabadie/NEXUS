@@ -7,38 +7,39 @@ NOTE: These tests require the GoT module to be implemented.
 If graph_of_thought.py doesn't exist, all tests will be skipped.
 """
 
-import pytest
-from pathlib import Path
 import sys
+from pathlib import Path
+
+import pytest
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Check if GoT is available before importing
-from core.reasoning import GOT_AVAILABLE
+from core.intelligence.reasoning import GOT_AVAILABLE
 
 if not GOT_AVAILABLE:
     # Skip entire module if GoT not implemented
     pytest.skip(
         "Graph of Thought module not implemented yet (core/reasoning/graph_of_thought.py missing)",
-        allow_module_level=True
+        allow_module_level=True,
     )
 
 # Only import if available (pytest.skip above will prevent reaching here if not available)
-from core.reasoning.graph_of_thought import (
-    ThoughtNode,
-    ThoughtGraph,
+from core.intelligence.reasoning.graph_of_thought import (
     GraphOfThought,
+    ThoughtGraph,
+    ThoughtNode,
     ThoughtStatus,
     ThoughtType,
+    create_parallel_exploration,
     create_simple_chain,
-    create_parallel_exploration
 )
-
 
 # ============================================================================
 # ThoughtNode Tests
 # ============================================================================
+
 
 class TestThoughtNode:
     """Test ThoughtNode dataclass."""
@@ -56,11 +57,7 @@ class TestThoughtNode:
 
     def test_create_with_values(self):
         """Node should accept custom values."""
-        node = ThoughtNode(
-            name="test_node",
-            question="What is 2+2?",
-            thought_type=ThoughtType.ANALYZE
-        )
+        node = ThoughtNode(name="test_node", question="What is 2+2?", thought_type=ThoughtType.ANALYZE)
 
         assert node.name == "test_node"
         assert node.question == "What is 2+2?"
@@ -69,17 +66,17 @@ class TestThoughtNode:
     def test_is_ready_no_dependencies(self):
         """Node with no dependencies is always ready."""
         node = ThoughtNode()
-        assert node.is_ready(set()) == True
-        assert node.is_ready({"other"}) == True
+        assert node.is_ready(set())
+        assert node.is_ready({"other"})
 
     def test_is_ready_with_dependencies(self):
         """Node with dependencies needs them completed."""
         node = ThoughtNode(dependencies=["dep1", "dep2"])
 
-        assert node.is_ready(set()) == False
-        assert node.is_ready({"dep1"}) == False
-        assert node.is_ready({"dep1", "dep2"}) == True
-        assert node.is_ready({"dep1", "dep2", "dep3"}) == True
+        assert not node.is_ready(set())
+        assert not node.is_ready({"dep1"})
+        assert node.is_ready({"dep1", "dep2"})
+        assert node.is_ready({"dep1", "dep2", "dep3"})
 
     def test_mark_completed(self):
         """Mark completed should update status and answer."""
@@ -102,11 +99,7 @@ class TestThoughtNode:
 
     def test_to_dict(self):
         """Serialization should work."""
-        node = ThoughtNode(
-            name="test",
-            question="What?",
-            answer="42"
-        )
+        node = ThoughtNode(name="test", question="What?", answer="42")
         d = node.to_dict()
 
         assert d["name"] == "test"
@@ -118,6 +111,7 @@ class TestThoughtNode:
 # ============================================================================
 # ThoughtGraph Tests
 # ============================================================================
+
 
 class TestThoughtGraph:
     """Test ThoughtGraph class."""
@@ -146,11 +140,7 @@ class TestThoughtGraph:
     def test_create_node(self):
         """Create node convenience method."""
         graph = ThoughtGraph()
-        node = graph.create_node(
-            question="What is X?",
-            name="analyze_x",
-            thought_type=ThoughtType.ANALYZE
-        )
+        node = graph.create_node(question="What is X?", name="analyze_x", thought_type=ThoughtType.ANALYZE)
 
         assert node.name == "analyze_x"
         assert node.id in graph.nodes
@@ -208,13 +198,13 @@ class TestThoughtGraph:
         node1 = graph.create_node("Step 1")
         node2 = graph.create_node("Step 2", dependencies=[node1.id])
 
-        assert graph.is_complete() == False
+        assert not graph.is_complete()
 
         node1.status = ThoughtStatus.COMPLETED
-        assert graph.is_complete() == False
+        assert not graph.is_complete()
 
         node2.status = ThoughtStatus.COMPLETED
-        assert graph.is_complete() == True
+        assert graph.is_complete()
 
     def test_is_complete_with_failed(self):
         """Failed nodes count as complete."""
@@ -223,7 +213,7 @@ class TestThoughtGraph:
         node = graph.create_node("Step 1")
         node.status = ThoughtStatus.FAILED
 
-        assert graph.is_complete() == True
+        assert graph.is_complete()
 
     def test_get_final_answer(self):
         """Should aggregate leaf node answers."""
@@ -243,7 +233,7 @@ class TestThoughtGraph:
         graph = ThoughtGraph("test")
 
         node1 = graph.create_node("Step 1", name="step1")
-        node2 = graph.create_node("Step 2", name="step2", dependencies=[node1.id])
+        graph.create_node("Step 2", name="step2", dependencies=[node1.id])
 
         viz = graph.visualize_ascii()
 
@@ -267,6 +257,7 @@ class TestThoughtGraph:
 # GraphOfThought Tests
 # ============================================================================
 
+
 class TestGraphOfThought:
     """Test main GraphOfThought class."""
 
@@ -275,13 +266,7 @@ class TestGraphOfThought:
         got = GraphOfThought()
 
         graph = got.decompose_problem(
-            main_problem="Fix the bug",
-            sub_problems=[
-                "Read the code",
-                "Identify issue",
-                "Design fix",
-                "Implement fix"
-            ]
+            main_problem="Fix the bug", sub_problems=["Read the code", "Identify issue", "Design fix", "Implement fix"]
         )
 
         # Should have: root + 4 steps + aggregation = 6 nodes
@@ -297,13 +282,8 @@ class TestGraphOfThought:
 
         graph = got.decompose_problem(
             main_problem="Analyze codebase",
-            sub_problems=[
-                "Read frontend code",
-                "Read backend code",
-                "Analyze architecture",
-                "Write report"
-            ],
-            parallel_groups=[[0, 1]]  # First two steps parallel
+            sub_problems=["Read frontend code", "Read backend code", "Analyze architecture", "Write report"],
+            parallel_groups=[[0, 1]],  # First two steps parallel
         )
 
         # Get step nodes
@@ -327,7 +307,7 @@ class TestGraphOfThought:
         graph = got.create_decision_tree(
             question="Which framework?",
             options=["React", "Vue", "Angular"],
-            evaluation_criteria="Performance and learning curve"
+            evaluation_criteria="Performance and learning curve",
         )
 
         # Should have: root + 3 evaluations + final decision = 5 nodes
@@ -347,10 +327,7 @@ class TestGraphOfThought:
         """Should execute graph with executor function."""
         got = GraphOfThought()
 
-        graph = got.decompose_problem(
-            main_problem="Calculate sum",
-            sub_problems=["Get number 1", "Get number 2"]
-        )
+        graph = got.decompose_problem(main_problem="Calculate sum", sub_problems=["Get number 1", "Get number 2"])
 
         # Simple executor that returns canned answers
         def executor(node: ThoughtNode) -> str:
@@ -371,10 +348,7 @@ class TestGraphOfThought:
         """Should handle executor failures."""
         got = GraphOfThought()
 
-        graph = got.decompose_problem(
-            main_problem="Test failure",
-            sub_problems=["Failing step"]
-        )
+        graph = got.decompose_problem(main_problem="Test failure", sub_problems=["Failing step"])
 
         call_count = 0
 
@@ -403,35 +377,27 @@ class TestGraphOfThought:
 # Convenience Function Tests
 # ============================================================================
 
+
 class TestConvenienceFunctions:
     """Test convenience functions."""
 
     def test_create_simple_chain(self):
         """Should create sequential chain."""
-        graph = create_simple_chain([
-            "Main task",
-            "Step 1",
-            "Step 2",
-            "Step 3"
-        ])
+        graph = create_simple_chain(["Main task", "Step 1", "Step 2", "Step 3"])
 
         assert len(graph.nodes) >= 3
 
     def test_create_parallel_exploration(self):
         """Should create parallel branches."""
         graph = create_parallel_exploration(
-            question="How to optimize?",
-            approaches=["Caching", "Indexing", "Parallelization"]
+            question="How to optimize?", approaches=["Caching", "Indexing", "Parallelization"]
         )
 
         # Should have: root + 3 approaches + aggregate = 5 nodes
         assert len(graph.nodes) == 5
 
         # All approaches should depend on root
-        approach_nodes = [
-            n for n in graph.nodes.values()
-            if n.thought_type == ThoughtType.GENERATE
-        ]
+        approach_nodes = [n for n in graph.nodes.values() if n.thought_type == ThoughtType.GENERATE]
         assert len(approach_nodes) == 3
 
         # All should have same parent (root)
@@ -445,16 +411,14 @@ class TestConvenienceFunctions:
 # Parallel Execution Tests
 # ============================================================================
 
+
 class TestParallelExecution:
     """Test parallel execution features."""
 
     def test_execute_parallel_basic(self):
         """Should execute graph in parallel."""
         got = GraphOfThought()
-        graph = got.decompose_problem(
-            "Test parallel",
-            sub_problems=["Step 1", "Step 2", "Step 3"]
-        )
+        graph = got.decompose_problem("Test parallel", sub_problems=["Step 1", "Step 2", "Step 3"])
 
         def mock_executor(node: ThoughtNode) -> str:
             return f"Result for {node.name}"
@@ -467,10 +431,7 @@ class TestParallelExecution:
     def test_execute_parallel_with_callback(self):
         """Should call progress callback."""
         got = GraphOfThought()
-        graph = got.decompose_problem(
-            "Test callbacks",
-            sub_problems=["Step 1"]
-        )
+        graph = got.decompose_problem("Test callbacks", sub_problems=["Step 1"])
 
         events = []
 
@@ -489,10 +450,7 @@ class TestParallelExecution:
     def test_execute_parallel_handles_failure(self):
         """Should handle node failures gracefully."""
         got = GraphOfThought()
-        graph = got.decompose_problem(
-            "Test failure",
-            sub_problems=["Failing step"]
-        )
+        graph = got.decompose_problem("Test failure", sub_problems=["Failing step"])
 
         def failing_executor(node: ThoughtNode) -> str:
             if "Failing" in node.question:
@@ -507,10 +465,7 @@ class TestParallelExecution:
     def test_get_execution_progress(self):
         """Should return progress metrics."""
         got = GraphOfThought()
-        graph = got.decompose_problem(
-            "Test progress",
-            sub_problems=["Step 1", "Step 2"]
-        )
+        graph = got.decompose_problem("Test progress", sub_problems=["Step 1", "Step 2"])
 
         # Before execution
         progress = got.get_execution_progress(graph)
@@ -526,16 +481,12 @@ class TestParallelExecution:
         progress = got.get_execution_progress(graph)
 
         assert progress["completed"] > 0
-        assert progress["is_complete"] == True
+        assert progress["is_complete"]
 
     def test_visualize_progress(self):
         """Should generate progress visualization."""
         got = GraphOfThought()
-        graph = got.decompose_problem(
-            "Test viz",
-            sub_problems=["Step 1"],
-            name="test_graph"
-        )
+        graph = got.decompose_problem("Test viz", sub_problems=["Step 1"], name="test_graph")
 
         viz = got.visualize_progress(graph)
 
@@ -548,6 +499,7 @@ class TestParallelExecution:
 # ============================================================================
 # Integration Tests
 # ============================================================================
+
 
 class TestIntegration:
     """Integration tests for complex scenarios."""
@@ -566,9 +518,9 @@ class TestIntegration:
                 "Implement token generation",
                 "Implement token validation",
                 "Add unit tests",
-                "Update documentation"
+                "Update documentation",
             ],
-            parallel_groups=[[3, 4], [5, 6]]  # Implement parallel, then test/doc parallel
+            parallel_groups=[[3, 4], [5, 6]],  # Implement parallel, then test/doc parallel
         )
 
         # 2. Verify graph structure
@@ -583,7 +535,7 @@ class TestIntegration:
             "validation": "Token validation implemented",
             "tests": "15 tests added, all passing",
             "documentation": "README updated",
-            "Aggregate": "Refactoring complete"
+            "Aggregate": "Refactoring complete",
         }
 
         def mock_executor(node: ThoughtNode) -> str:

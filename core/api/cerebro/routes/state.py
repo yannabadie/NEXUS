@@ -25,9 +25,9 @@ Date: 2025-12-15
 
 import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
 from ..deps import AuthenticatedUser, require_auth
 
@@ -39,7 +39,7 @@ router = APIRouter()
 @router.get("/snapshot")
 async def get_state_snapshot(
     user: AuthenticatedUser = Depends(require_auth),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Get state snapshot for UI hydration (F5 recovery).
 
@@ -72,7 +72,8 @@ async def get_state_snapshot(
     workspace_id = user.workspace_id
 
     try:
-        from core.events.redis_bus import get_redis_bus
+        from core.observability.events.redis_bus import get_redis_bus
+
         bus = get_redis_bus()
     except Exception as e:
         logger.error(f"Failed to get Redis bus: {e}")
@@ -87,7 +88,7 @@ async def get_state_snapshot(
         return _get_snapshot_from_memory(bus, tenant_id, workspace_id)
 
 
-def _empty_snapshot(tenant_id: str, workspace_id: str) -> Dict[str, Any]:
+def _empty_snapshot(tenant_id: str, workspace_id: str) -> dict[str, Any]:
     """Return empty snapshot structure."""
     return {
         "phase": None,
@@ -99,7 +100,7 @@ def _empty_snapshot(tenant_id: str, workspace_id: str) -> Dict[str, Any]:
     }
 
 
-def _get_snapshot_from_memory(bus, tenant_id: str, workspace_id: str) -> Dict[str, Any]:
+def _get_snapshot_from_memory(bus, tenant_id: str, workspace_id: str) -> dict[str, Any]:
     """Get snapshot from in-memory state (V13.0 fallback)."""
     try:
         state = bus.get_full_state(tenant_id, workspace_id)
@@ -126,7 +127,7 @@ def _get_snapshot_from_memory(bus, tenant_id: str, workspace_id: str) -> Dict[st
         return _empty_snapshot(tenant_id, workspace_id)
 
 
-async def _get_snapshot_from_redis(bus, tenant_id: str, workspace_id: str) -> Dict[str, Any]:
+async def _get_snapshot_from_redis(bus, tenant_id: str, workspace_id: str) -> dict[str, Any]:
     """Get snapshot from Redis (original implementation)."""
     redis = bus._redis
     base_key = f"nexus:{tenant_id}:{workspace_id}:state"
@@ -177,12 +178,13 @@ async def _get_snapshot_from_redis(bus, tenant_id: str, workspace_id: str) -> Di
         return _get_snapshot_from_memory(bus, tenant_id, workspace_id)
 
 
-def _get_pending_interactions() -> List[Dict[str, Any]]:
+def _get_pending_interactions() -> list[dict[str, Any]]:
     """Get pending interactions from HeadlessProvider."""
     try:
-        from core.interaction import get_interaction_provider
+        from core.security_pkg.interaction import get_interaction_provider
+
         provider = get_interaction_provider()
-        if hasattr(provider, 'get_pending_requests'):
+        if hasattr(provider, "get_pending_requests"):
             return provider.get_pending_requests()
     except Exception as e:
         logger.debug(f"Could not get pending interactions: {e}")
@@ -192,7 +194,7 @@ def _get_pending_interactions() -> List[Dict[str, Any]]:
 @router.delete("/snapshot")
 async def clear_state_snapshot(
     user: AuthenticatedUser = Depends(require_auth),
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Clear state snapshot (for testing/debugging).
 
@@ -217,7 +219,8 @@ async def clear_state_snapshot(
     workspace_id = user.workspace_id
 
     try:
-        from core.events.redis_bus import get_redis_bus
+        from core.observability.events.redis_bus import get_redis_bus
+
         bus = get_redis_bus()
     except Exception as e:
         logger.error(f"Failed to get Redis bus: {e}")
@@ -232,11 +235,7 @@ async def clear_state_snapshot(
         base_key = f"nexus:{tenant_id}:{workspace_id}:state"
 
         try:
-            await redis.delete(
-                f"{base_key}:phase",
-                f"{base_key}:nodes",
-                f"{base_key}:logs"
-            )
+            await redis.delete(f"{base_key}:phase", f"{base_key}:nodes", f"{base_key}:logs")
         except Exception as e:
             logger.warning(f"Redis clear failed (continuing): {e}")
 

@@ -39,25 +39,27 @@ Usage:
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import shutil
-import platform
-import uuid as uuid_module
 import sys
-from pathlib import Path
-from datetime import datetime
-from typing import AsyncIterator, Optional, Dict, Any, Callable
+import uuid as uuid_module
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
+from datetime import datetime
+from pathlib import Path
+from typing import Any
 
-from core.async_primitives import CancellationToken, AsyncProcessHandle, create_safe_task
-from core.async_primitives.process_handle import get_process_registry
-from core.agents.unified_registry import get_registry
+from core.foundation.agents.unified_registry import get_registry
+from core.foundation.async_primitives import AsyncProcessHandle, CancellationToken, create_safe_task
+from core.foundation.async_primitives.process_handle import get_process_registry
 from core.utils.json_extractor import extract_json_safe as robust_extract_json
 
 
 @dataclass
 class AsyncGeminiDriverConfig:
     """Configuration for AsyncGeminiDriver."""
+
     cli_path: str = "gemini"
     timeout: float = 300.0
     model: str = "gemini-3-pro-preview"
@@ -65,7 +67,9 @@ class AsyncGeminiDriverConfig:
     verbose: bool = False
     use_session_resume: bool = True
     approval_mode: str = "yolo"
-    allowed_tools: str = "read_file,list_directory,grep,glob,read_many_files,google_web_search,web_fetch,write_file,edit_file"
+    allowed_tools: str = (
+        "read_file,list_directory,grep,glob,read_many_files,google_web_search,web_fetch,write_file,edit_file"
+    )
 
 
 class AsyncGeminiDriver:
@@ -97,7 +101,7 @@ class AsyncGeminiDriver:
         self.io_buffer.mkdir(exist_ok=True)
 
         # Track active processes by UUID
-        self._active_handles: Dict[str, AsyncProcessHandle] = {}
+        self._active_handles: dict[str, AsyncProcessHandle] = {}
 
         # Session state for --resume latest
         self._session_active = False
@@ -109,11 +113,11 @@ class AsyncGeminiDriver:
         self,
         context: str,
         *,
-        session_uuid: Optional[str] = None,
-        token: Optional[CancellationToken] = None,
-        task_id: Optional[str] = None,
-        isolated_env: Optional[Dict[str, str]] = None,
-    ) -> Dict[str, Any]:
+        session_uuid: str | None = None,
+        token: CancellationToken | None = None,
+        task_id: str | None = None,
+        isolated_env: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
         """
         Non-blocking invoke that collects full response.
 
@@ -147,11 +151,11 @@ class AsyncGeminiDriver:
         self,
         context: str,
         *,
-        session_uuid: Optional[str] = None,
-        token: Optional[CancellationToken] = None,
-        task_id: Optional[str] = None,
-        on_token: Optional[Callable[[str], None]] = None,
-        isolated_env: Optional[Dict[str, str]] = None,
+        session_uuid: str | None = None,
+        token: CancellationToken | None = None,
+        task_id: str | None = None,
+        on_token: Callable[[str], None] | None = None,
+        isolated_env: dict[str, str] | None = None,
     ) -> AsyncIterator[str]:
         """
         TRUE Non-blocking streaming invoke.
@@ -200,10 +204,14 @@ class AsyncGeminiDriver:
         # Build command parts
         cmd = [
             cli_executable,
-            "-m", self.config.model,
-            "--approval-mode", self.config.approval_mode,
-            "--allowed-tools", self.config.allowed_tools,
-            "--include-directories", str(nexus_root),
+            "-m",
+            self.config.model,
+            "--approval-mode",
+            self.config.approval_mode,
+            "--allowed-tools",
+            self.config.allowed_tools,
+            "--include-directories",
+            str(nexus_root),
         ]
 
         # V9.7.1: HOME spoofing replaces V9.7 CWD isolation (which caused ghost files)
@@ -214,16 +222,16 @@ class AsyncGeminiDriver:
             # Isolated HOME: --resume latest is SAFE (no context bleeding)
             cmd.extend(["--resume", "latest"])
             if self.config.verbose:
-                print(f"[AsyncGeminiDriver] V9.7.1: Isolated HOME, using --resume latest", file=sys.stderr)
+                print("[AsyncGeminiDriver] V9.7.1: Isolated HOME, using --resume latest", file=sys.stderr)
         else:
             # Shared HOME: start fresh (no --resume to prevent context leakage)
             if self.config.verbose:
-                print(f"[AsyncGeminiDriver] V9.7.1: Shared HOME, starting fresh session", file=sys.stderr)
+                print("[AsyncGeminiDriver] V9.7.1: Shared HOME, starting fresh session", file=sys.stderr)
 
         # Add prompt file and output format
         cmd.extend(["-p", f"@{context_file_relative}", "-o", "json"])
 
-        handle: Optional[AsyncProcessHandle] = None
+        handle: AsyncProcessHandle | None = None
 
         try:
             # TRUE ASYNC: create_subprocess_exec
@@ -238,11 +246,7 @@ class AsyncGeminiDriver:
 
             # Track by UUID
             handle = AsyncProcessHandle(
-                proc=proc,
-                session_uuid=unique_id,
-                task_id=task_id,
-                agent_id="gemini",
-                created_at=datetime.now()
+                proc=proc, session_uuid=unique_id, task_id=task_id, agent_id="gemini", created_at=datetime.now()
             )
             self._active_handles[unique_id] = handle
             await self._registry.register(handle)
@@ -267,7 +271,7 @@ class AsyncGeminiDriver:
                 """Background task to drain stderr and prevent buffer fill deadlock."""
                 try:
                     async for line_bytes in proc.stderr:
-                        stderr_buffer.append(line_bytes.decode('utf-8', errors='replace'))
+                        stderr_buffer.append(line_bytes.decode("utf-8", errors="replace"))
                 except asyncio.CancelledError:
                     pass  # Expected on cleanup
 
@@ -286,7 +290,7 @@ class AsyncGeminiDriver:
                         await handle.terminate_gracefully()
                         raise TimeoutError(f"Gemini CLI timed out after {self.config.timeout}s")
 
-                    line = line_bytes.decode('utf-8', errors='replace')
+                    line = line_bytes.decode("utf-8", errors="replace")
                     if line:
                         yield line
                         if on_token:
@@ -295,18 +299,16 @@ class AsyncGeminiDriver:
                 # Wait for process completion with timeout
                 try:
                     await asyncio.wait_for(proc.wait(), timeout=10.0)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     await handle.terminate_gracefully()
 
                 # Cancel stderr task (should be done by now)
                 stderr_task.cancel()
-                try:
+                with contextlib.suppress(asyncio.CancelledError):
                     await stderr_task
-                except asyncio.CancelledError:
-                    pass
 
                 if proc.returncode != 0:
-                    stderr_content = ''.join(stderr_buffer)
+                    stderr_content = "".join(stderr_buffer)
                     raise RuntimeError(f"Gemini CLI failed (code {proc.returncode}): {stderr_content}")
 
             except asyncio.CancelledError:
@@ -322,7 +324,7 @@ class AsyncGeminiDriver:
 
         except asyncio.CancelledError:
             if self.config.verbose:
-                print(f"[AsyncGeminiDriver] Cancelled, cleaning up...", file=sys.stderr)
+                print("[AsyncGeminiDriver] Cancelled, cleaning up...", file=sys.stderr)
             raise
 
         finally:
@@ -365,7 +367,7 @@ class AsyncGeminiDriver:
         """Get count of active processes."""
         return sum(1 for h in self._active_handles.values() if h.is_running)
 
-    def list_active_processes(self) -> list[Dict[str, Any]]:
+    def list_active_processes(self) -> list[dict[str, Any]]:
         """List all active processes."""
         return [h.to_dict() for h in self._active_handles.values() if h.is_running]
 
@@ -380,7 +382,7 @@ class AsyncGeminiDriver:
             return grandparent.parent
         return grandparent
 
-    def _extract_and_parse_json(self, output_text: str) -> Dict[str, Any]:
+    def _extract_and_parse_json(self, output_text: str) -> dict[str, Any]:
         """
         Extract and parse JSON from Gemini output.
 
@@ -415,7 +417,7 @@ class AsyncGeminiDriver:
             "_json_extraction_failed": True,
         }
 
-    def _normalize_response(self, data: Any) -> Dict[str, Any]:
+    def _normalize_response(self, data: Any) -> dict[str, Any]:
         """Normalize response to standard NEXUS format."""
         registry = get_registry()
 
@@ -450,15 +452,14 @@ class AsyncGeminiDriver:
             "next_agent": registry.get_alternate("gemini"),
         }
 
-
     def invoke_sync(
         self,
         context: str,
         *,
-        session_uuid: Optional[str] = None,
-        task_id: Optional[str] = None,
-        isolated_env: Optional[Dict[str, str]] = None,
-    ) -> Dict[str, Any]:
+        session_uuid: str | None = None,
+        task_id: str | None = None,
+        isolated_env: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
         """
         Synchronous invoke for backward compatibility.
 
@@ -480,26 +481,24 @@ class AsyncGeminiDriver:
             Use `await driver.invoke()` in async code.
         """
         import warnings
+
         warnings.warn(
-            "invoke_sync() is deprecated since V8.4.4. "
-            "Use `await driver.invoke()` in async code.",
+            "invoke_sync() is deprecated since V8.4.4. Use `await driver.invoke()` in async code.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
-        return asyncio.run(self.invoke(
-            context,
-            session_uuid=session_uuid,
-            task_id=task_id,
-            isolated_env=isolated_env,
-        ))
+        return asyncio.run(
+            self.invoke(
+                context,
+                session_uuid=session_uuid,
+                task_id=task_id,
+                isolated_env=isolated_env,
+            )
+        )
 
 
 # Factory function
-def create_async_gemini_driver(
-    config: Any,
-    workspace_path: Path,
-    model: Optional[str] = None
-) -> AsyncGeminiDriver:
+def create_async_gemini_driver(config: Any, workspace_path: Path, model: str | None = None) -> AsyncGeminiDriver:
     """
     Create an AsyncGeminiDriver from a NEXUS config object.
 
@@ -511,11 +510,13 @@ def create_async_gemini_driver(
     Returns:
         Configured AsyncGeminiDriver
     """
-    return AsyncGeminiDriver(AsyncGeminiDriverConfig(
-        cli_path=getattr(config, 'gemini_cli_path', 'gemini'),
-        timeout=getattr(config, 'timeout', 300.0),
-        model=model or getattr(config, 'gemini_default_model', 'gemini-3-pro-preview'),
-        workspace_path=workspace_path,
-        verbose=getattr(config, 'verbose', False),
-        use_session_resume=getattr(config, 'gemini_persistent_mode', True),
-    ))
+    return AsyncGeminiDriver(
+        AsyncGeminiDriverConfig(
+            cli_path=getattr(config, "gemini_cli_path", "gemini"),
+            timeout=getattr(config, "timeout", 300.0),
+            model=model or getattr(config, "gemini_default_model", "gemini-3-pro-preview"),
+            workspace_path=workspace_path,
+            verbose=getattr(config, "verbose", False),
+            use_session_resume=getattr(config, "gemini_persistent_mode", True),
+        )
+    )

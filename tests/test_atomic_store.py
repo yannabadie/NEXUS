@@ -15,19 +15,18 @@ Date: 2025-12-04
 """
 
 import json
-import os
+
+# Add parent to path for imports
+import sys
 import tempfile
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import List
 from unittest import TestCase, main
 
 import pytest
 
-# Add parent to path for imports
-import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.utils.atomic_store import (
@@ -48,6 +47,7 @@ class TestAtomicJsonStoreBasic(TestCase):
     def tearDown(self):
         """Clean up temporary files."""
         import shutil
+
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_init_creates_store(self):
@@ -76,7 +76,7 @@ class TestAtomicJsonStoreBasic(TestCase):
             "bool": True,
             "null": None,
             "list": [1, 2, 3],
-            "nested": {"a": 1, "b": 2}
+            "nested": {"a": 1, "b": 2},
         }
 
         store.save(original_data)
@@ -151,8 +151,8 @@ class TestAtomicJsonStoreBasic(TestCase):
         data = {
             "french": "Caf\u00e9 cr\u00e8me",
             "japanese": "\u3053\u3093\u306b\u3061\u306f",
-            "emoji": "\U0001F41D HIVE MIND \U0001F41D",
-            "chinese": "\u4e2d\u6587\u6d4b\u8bd5"
+            "emoji": "\U0001f41d HIVE MIND \U0001f41d",
+            "chinese": "\u4e2d\u6587\u6d4b\u8bd5",
         }
 
         store.save(data)
@@ -178,6 +178,7 @@ class TestAtomicJsonStoreAtomicity(TestCase):
 
     def tearDown(self):
         import shutil
+
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_no_temp_files_after_save(self):
@@ -222,6 +223,7 @@ class TestAtomicJsonStoreConcurrency(TestCase):
 
     def tearDown(self):
         import shutil
+
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_concurrent_reads(self):
@@ -255,8 +257,7 @@ class TestAtomicJsonStoreConcurrency(TestCase):
         store = AtomicJsonStore(self.test_file)
         store.save({"counter": 0})
 
-        errors: List[Exception] = []
-        write_count = 100
+        errors: list[Exception] = []
 
         def increment_counter(thread_id: int):
             try:
@@ -291,7 +292,7 @@ class TestAtomicJsonStoreConcurrency(TestCase):
         store = AtomicJsonStore(self.test_file)
         store.save({"items": []})
 
-        errors: List[Exception] = []
+        errors: list[Exception] = []
         items_added = []
         lock = threading.Lock()
 
@@ -328,6 +329,7 @@ class TestAtomicJsonStoreManager(TestCase):
 
     def tearDown(self):
         import shutil
+
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_get_store_returns_same_instance(self):
@@ -385,6 +387,7 @@ class TestModuleLevelFunction(TestCase):
 
     def tearDown(self):
         import shutil
+
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_get_store_function(self):
@@ -406,6 +409,7 @@ class TestAtomicJsonStoreErrorHandling(TestCase):
 
     def tearDown(self):
         import shutil
+
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_load_invalid_json_raises(self):

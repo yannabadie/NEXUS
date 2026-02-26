@@ -5,13 +5,14 @@ Tests the intelligent model selection routing for:
 - Claude: Opus (complex) vs Sonnet (simple)
 - Gemini: 3-Pro (complex) vs Flash (simple)
 """
+
 import sys
 from pathlib import Path
 
 # Add parent to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.routing.model_router import ModelRouter, TaskType, RoutingDecision
+from core.execution_pkg.routing.model_router import ModelRouter, RoutingDecision, TaskType
 
 
 class TestTaskType:
@@ -49,10 +50,10 @@ class TestModelRouterInit:
         """Test router initializes with defaults when no config"""
         router = ModelRouter()
 
-        assert router.opus_model == "claude-opus-4-5-20251101"
+        assert router.opus_model == "claude-opus-4-6-20250116"
         assert router.sonnet_model == "claude-sonnet-4-5-20250929"
         assert router.gemini_pro_model == "gemini-3-pro-preview"
-        assert router.gemini_flash_model == "gemini-3-pro-preview"
+        assert router.gemini_flash_model == "gemini-2.5-flash"
 
     def test_default_task_mappings(self):
         """Test default task type mappings"""
@@ -274,4 +275,5 @@ class TestRoutingStats:
 # Pytest entry point
 if __name__ == "__main__":
     import pytest
+
     pytest.main([__file__, "-v"])

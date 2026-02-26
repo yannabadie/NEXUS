@@ -6,27 +6,26 @@ Torture Protocol V8 - Saga Crash Recovery Tests
 Test IDs: CR-001 to CR-015
 """
 
-import pytest
-import asyncio
+import contextlib
 import json
-import time
-import os
 import sys
+import time
 from pathlib import Path
-from unittest.mock import patch, MagicMock, AsyncMock
+
+import pytest
 
 # Add project root
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
-from core.hive_mind.saga_manager import SagaManager
+from core.intelligence.hive_mind.saga_manager import SagaManager
 from core.utils.atomic_store import AtomicJsonStore
-from tests.torture.base import TortureBase, TortureResultV8
-from tests.torture.chaos_injectors import CrashInjector, CorruptionInjector
-
+from tests.torture.base import TortureBase
+from tests.torture.chaos_injectors import CorruptionInjector, CrashInjector
 
 # ============================================================================
 # Pytest Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def saga_dir(tmp_path):
@@ -51,6 +50,7 @@ def corruption_injector():
 # ============================================================================
 # CR-001: Partial checkpoint write (crash mid-persist)
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_saga
@@ -97,6 +97,7 @@ async def test_cr001_partial_checkpoint_write(saga_dir):
 # ============================================================================
 # CR-002: Corrupted saga JSON on disk
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_saga
@@ -145,6 +146,7 @@ async def test_cr002b_truncated_saga_json(saga_dir, corruption_injector):
 # CR-003: Resume with incomplete checkpoint chain
 # ============================================================================
 
+
 @pytest.mark.torture
 @pytest.mark.torture_saga
 @pytest.mark.asyncio
@@ -172,6 +174,7 @@ async def test_cr003_incomplete_checkpoint_chain(saga_dir, corruption_injector):
 # ============================================================================
 # CR-004: AtomicJsonStore lock contention under crash
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_saga
@@ -201,6 +204,7 @@ def test_cr004_atomic_store_lock_contention(saga_dir):
             results.append({"thread": thread_id, "success": False, "error": str(e)})
 
     import threading
+
     threads = [
         threading.Thread(target=writer, args=(0, False)),
         threading.Thread(target=writer, args=(1, True)),  # Will crash
@@ -224,6 +228,7 @@ def test_cr004_atomic_store_lock_contention(saga_dir):
 # ============================================================================
 # CR-005: Crash between checkpoint_phase() and update_context()
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_saga
@@ -258,6 +263,7 @@ async def test_cr005_crash_between_checkpoint_and_context(saga_dir):
 # ============================================================================
 # CR-006: Multiple sagas same task_id (rapid create/crash)
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_saga
@@ -295,6 +301,7 @@ async def test_cr006_multiple_sagas_same_task_id(saga_dir):
 # CR-007: Saga file locked by another process
 # ============================================================================
 
+
 @pytest.mark.torture
 @pytest.mark.torture_saga
 @pytest.mark.asyncio
@@ -319,11 +326,8 @@ async def test_cr007_saga_file_locked(saga_dir, corruption_injector):
 
         # Try to access locked file - should handle gracefully
         # Note: AtomicJsonStore may retry or timeout
-        try:
-            recovered = await SagaManager.resume_from(saga_dir, task_id)
-            # If we get here, lock didn't block (depends on platform)
-        except (OSError, IOError, PermissionError):
-            pass  # Expected on some platforms
+        with contextlib.suppress(OSError, PermissionError):
+            await SagaManager.resume_from(saga_dir, task_id)
 
     finally:
         if lock_handle:
@@ -333,6 +337,7 @@ async def test_cr007_saga_file_locked(saga_dir, corruption_injector):
 # ============================================================================
 # CR-008: Empty saga file (0 bytes)
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_saga
@@ -359,6 +364,7 @@ async def test_cr008_empty_saga_file(saga_dir, corruption_injector):
 # CR-009: Future timestamp in checkpoint
 # ============================================================================
 
+
 @pytest.mark.torture
 @pytest.mark.torture_saga
 @pytest.mark.asyncio
@@ -384,6 +390,7 @@ async def test_cr009_future_timestamp(saga_dir, corruption_injector):
 # CR-010: Unknown phase name in saga
 # ============================================================================
 
+
 @pytest.mark.torture
 @pytest.mark.torture_saga
 @pytest.mark.asyncio
@@ -400,13 +407,14 @@ async def test_cr010_unknown_phase_name(saga_dir, corruption_injector):
     corruption_injector.create_saga_with_unknown_phase(saga_dir, task_id)
 
     # Should resume (unknown phases ignored or handled)
-    recovered = await SagaManager.resume_from(saga_dir, task_id)
+    await SagaManager.resume_from(saga_dir, task_id)
     # May be None or have unknown phase - both are acceptable
 
 
 # ============================================================================
 # CR-011: Crash during fsync
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_saga
@@ -424,24 +432,22 @@ def test_cr011_crash_during_fsync(saga_dir, crash_injector):
     store.save({"version": 1})
 
     # Second save crashes during fsync
-    with crash_injector.crash_during_fsync():
-        try:
-            store.save({"version": 2})
-        except OSError:
-            pass  # Expected
+    with crash_injector.crash_during_fsync(), contextlib.suppress(OSError):
+        store.save({"version": 2})
 
     # Original data should be intact
     data = store.load()
     assert data.get("version") == 1
 
     # No temp files should remain
-    temp_files = list(saga_dir.glob("*.tmp"))
+    list(saga_dir.glob("*.tmp"))
     # AtomicJsonStore should clean up temp files
 
 
 # ============================================================================
 # CR-012: Saga older than 24h
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_saga
@@ -466,11 +472,11 @@ async def test_cr012_old_saga_resumable(saga_dir):
                 "result": {},
                 "state": "ANALYSIS_COMPLETE",
                 "timestamp": old_timestamp,
-                "context_index": 5
+                "context_index": 5,
             }
         },
         "context": {"analysis_complete": True},
-        "recovery_point": "analysis"
+        "recovery_point": "analysis",
     }
     saga_file.write_text(json.dumps(saga_data), encoding="utf-8")
 
@@ -482,6 +488,7 @@ async def test_cr012_old_saga_resumable(saga_dir):
 # ============================================================================
 # CR-013: Saga directory missing
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_saga
@@ -503,6 +510,7 @@ async def test_cr013_saga_directory_missing(tmp_path):
 # ============================================================================
 # CR-014: Extra fields in saga JSON
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_saga
@@ -535,12 +543,12 @@ async def test_cr014_extra_fields_in_json(saga_dir, corruption_injector):
                 "timestamp": "2025-01-01T00:00:00",
                 "context_index": 5,
                 "extra_field_1": "ignored",
-                "extra_field_2": 12345
+                "extra_field_2": 12345,
             }
         },
         "context": {"analysis_complete": True},
         "recovery_point": "analysis",
-        "unknown_section": {"nested": "data"}
+        "unknown_section": {"nested": "data"},
     }
     saga_file.write_text(json.dumps(saga_data), encoding="utf-8")
 
@@ -553,6 +561,7 @@ async def test_cr014_extra_fields_in_json(saga_dir, corruption_injector):
 # ============================================================================
 # CR-015: Crash during atomic rename
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_saga
@@ -570,11 +579,8 @@ def test_cr015_crash_during_rename(saga_dir, crash_injector):
     store.save({"version": 1})
 
     # Second save crashes during rename
-    with crash_injector.crash_during_rename():
-        try:
-            store.save({"version": 2})
-        except OSError:
-            pass  # Expected
+    with crash_injector.crash_during_rename(), contextlib.suppress(OSError):
+        store.save({"version": 2})
 
     # File should exist and be valid JSON
     assert store_file.exists()
@@ -587,9 +593,9 @@ def test_cr015_crash_during_rename(saga_dir, crash_injector):
 # Run All Tests (Standalone Mode)
 # ============================================================================
 
+
 def run_all(metrics_collector=None):
     """Run all saga crash recovery tests."""
-    from tests.torture.base import TortureBase
 
     base = TortureBase("saga_crash_tests")
     if metrics_collector:
@@ -624,7 +630,7 @@ def run_all(metrics_collector=None):
             scenario="saga_crash",
             test_id=test_id,
             test_func=lambda f=test_func: f(base.sagas_dir),
-            expect_recovery=True
+            expect_recovery=True,
         )
 
     return base.metrics
@@ -632,5 +638,6 @@ def run_all(metrics_collector=None):
 
 if __name__ == "__main__":
     from tests.torture.metrics_collector import MetricsCollector
+
     metrics = run_all(MetricsCollector())
     print(metrics.summary())

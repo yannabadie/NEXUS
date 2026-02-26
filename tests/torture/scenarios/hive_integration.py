@@ -6,45 +6,45 @@ Torture Protocol V8 - HiveMind Integration Tests
 Test IDs: HM-001 to HM-030
 """
 
-import pytest
 import asyncio
 import sys
 import time
-from pathlib import Path
-from unittest.mock import MagicMock, AsyncMock, patch
 from dataclasses import dataclass
-from typing import Optional, Any
+from pathlib import Path
+from typing import Any
+from unittest.mock import MagicMock
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
-from core.hive_mind.types import (
-    HiveMindState,
-    IndependentAnalysis,
-    AnalysisComparison,
-    Disagreement,
-    DebateResult,
-    DebateArgument,
+from core.intelligence.hive_mind.saga_manager import SagaManager
+from core.intelligence.hive_mind.types import (
     AgentArchitecture,
+    AnalysisComparison,
+    DebateResult,
+    Disagreement,
     ExecutionPlan,
     ExecutionStep,
-    RAGConfig,
-    MonitoredStepResult,
     FailureDiagnosis,
     FailureType,
-    RetryDecision,
+    HiveMindState,
+    IndependentAnalysis,
     KnowledgeConsolidation,
+    MonitoredStepResult,
+    RAGConfig,
+    RetryDecision,
 )
-from core.hive_mind.saga_manager import SagaManager
-from tests.torture.base import TortureBase
-
 
 # ============================================================================
 # Mock Components
 # ============================================================================
 
+
 @dataclass
 class MockConfig:
     """Mock NEXUS config."""
+
     hive_mind_budget_limit: int = 50000
     hive_mind_breakpoint_timeout: int = 60
 
@@ -116,18 +116,18 @@ def create_mock_analysis_result(needs_debate: bool = False):
         required_capabilities=["coding"],
         potential_risks=["none"],
         confidence=0.9,
-        reasoning="Mock reasoning"
+        reasoning="Mock reasoning",
     )
     comparison = AnalysisComparison(
         gemini_analysis=analysis,
         claude_analysis=analysis,
-        disagreements=[] if not needs_debate else [
-            Disagreement(topic="approach", gemini_position="A", claude_position="B")
-        ],
+        disagreements=[]
+        if not needs_debate
+        else [Disagreement(topic="approach", gemini_position="A", claude_position="B")],
         agreement_score=0.95 if not needs_debate else 0.5,
         needs_debate=needs_debate,
         merged_capabilities=["coding"],
-        merged_risks=["none"]
+        merged_risks=["none"],
     )
 
     class AnalysisResult:
@@ -151,7 +151,7 @@ def create_mock_debate_result():
         unresolved_disagreements=[],
         consensus_confidence=0.9,
         gemini_satisfaction=0.85,
-        claude_satisfaction=0.85
+        claude_satisfaction=0.85,
     )
 
     class DebatePhaseResult:
@@ -175,17 +175,18 @@ def create_mock_architecture():
             strategy="sequential",
             steps=[
                 ExecutionStep(name="step1", agent_id="gemini", action="analyze"),
-                ExecutionStep(name="step2", agent_id="claude", action="implement")
+                ExecutionStep(name="step2", agent_id="claude", action="implement"),
             ],
             estimated_total_duration=60.0,
-            estimated_total_tokens=5000
+            estimated_total_tokens=5000,
         ),
-        reasoning="Mock architecture"
+        reasoning="Mock architecture",
     )
 
 
 def create_mock_execution_result(success: bool = True):
     """Create mock execution result."""
+
     class ExecutionResult:
         def __init__(self):
             self.success = success
@@ -198,7 +199,7 @@ def create_mock_execution_result(success: bool = True):
                     output="Step 1 output",
                     duration=10.0,
                     expected_duration=30.0,
-                    tokens_used=1000
+                    tokens_used=1000,
                 )
             ]
             self.total_duration = 60.0
@@ -225,15 +226,13 @@ def mock_config():
 @pytest.fixture
 def mock_drivers():
     """Create mock drivers."""
-    return {
-        "gemini": MockDriver("gemini"),
-        "claude": MockDriver("claude")
-    }
+    return {"gemini": MockDriver("gemini"), "claude": MockDriver("claude")}
 
 
 # ============================================================================
 # HM-001: Crash between checkpoint_phase() and update_context()
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_hive
@@ -265,6 +264,7 @@ async def test_hm001_crash_between_checkpoint_and_context(saga_dir):
 # HM-002: Phase 1 (Analysis) failure with retry
 # ============================================================================
 
+
 @pytest.mark.torture
 @pytest.mark.torture_hive
 @pytest.mark.asyncio
@@ -286,13 +286,13 @@ async def test_hm002_analysis_failure_retry(saga_dir):
 
     # First attempt fails
     try:
-        result = await analysis_with_retry()
+        await analysis_with_retry()
     except RuntimeError:
         # Record failure
         saga.update_context(analysis_failed=True, retry_count=1)
 
     # Retry succeeds
-    result = await analysis_with_retry()
+    await analysis_with_retry()
     await saga.checkpoint_phase("analysis", {"success": True}, "S1", 5)
 
     assert retry_count[0] == 2
@@ -302,6 +302,7 @@ async def test_hm002_analysis_failure_retry(saga_dir):
 # ============================================================================
 # HM-003: Phase 2 (Debate) deadlock
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_hive
@@ -328,11 +329,7 @@ async def test_hm003_debate_deadlock(saga_dir):
         await debate_turn()
 
     # Force resolution after deadlock
-    debate_result = {
-        "status": "FORCED_VOTE",
-        "turns": turns,
-        "consensus": False
-    }
+    debate_result = {"status": "FORCED_VOTE", "turns": turns, "consensus": False}
     await saga.checkpoint_phase("debate", debate_result, "S2", 10)
 
     assert turns == max_turns
@@ -342,6 +339,7 @@ async def test_hm003_debate_deadlock(saga_dir):
 # ============================================================================
 # HM-004: Phase 3 (Architecture) spawn failure
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_hive
@@ -367,12 +365,7 @@ async def test_hm004_architecture_spawn_failure(saga_dir):
         fallback_used = True
         architecture.agents_to_use = ["gemini", "claude"]  # Fallback
 
-    await saga.checkpoint_phase(
-        "architecture",
-        {"status": "FALLBACK_USED", "fallback_agent": "claude"},
-        "S3",
-        15
-    )
+    await saga.checkpoint_phase("architecture", {"status": "FALLBACK_USED", "fallback_agent": "claude"}, "S3", 15)
 
     assert fallback_used
     assert "claude" in architecture.agents_to_use
@@ -381,6 +374,7 @@ async def test_hm004_architecture_spawn_failure(saga_dir):
 # ============================================================================
 # HM-005: Full 7-phase success with all checkpoints
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_hive
@@ -396,7 +390,7 @@ async def test_hm005_full_pipeline_success(saga_dir):
     phases = ["analysis", "debate", "architecture", "execution", "diagnosis", "retry", "consolidation"]
 
     for i, phase in enumerate(phases):
-        await saga.checkpoint_phase(phase, {f"{phase}_result": "ok"}, f"S{i+1}", i * 5)
+        await saga.checkpoint_phase(phase, {f"{phase}_result": "ok"}, f"S{i + 1}", i * 5)
         saga.update_context(**{f"{phase}_complete": True})
 
     # Verify all checkpoints
@@ -411,6 +405,7 @@ async def test_hm005_full_pipeline_success(saga_dir):
 # ============================================================================
 # HM-006: Phase 4 (Execution) fail, rollback to Phase 3
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_hive
@@ -433,10 +428,7 @@ async def test_hm006_execution_fail_rollback(saga_dir):
     saga.update_context(analysis_complete=True)
     await saga.checkpoint_phase("architecture", {}, "S3", 15)
     saga.update_context(architecture_complete=True)
-    await saga.checkpoint_phase(
-        "execution", {}, "S4", 20,
-        compensation=execution_compensation
-    )
+    await saga.checkpoint_phase("execution", {}, "S4", 20, compensation=execution_compensation)
 
     # Execution fails - rollback to architecture
     await saga.rollback_to("architecture")
@@ -448,6 +440,7 @@ async def test_hm006_execution_fail_rollback(saga_dir):
 # ============================================================================
 # HM-007: Hot-swap during stagnation
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_hive
@@ -468,19 +461,14 @@ async def test_hm007_hot_swap_stagnation(saga_dir):
 
     def detect_stagnation(outputs):
         # Simple similarity check
-        if len(outputs) >= 3 and outputs[-1] == outputs[-2] == outputs[-3]:
-            return True
-        return False
+        return bool(len(outputs) >= 3 and outputs[-1] == outputs[-2] == outputs[-3])
 
     if detect_stagnation(outputs):
         current_lead = "claude" if current_lead == "gemini" else "gemini"
         swap_count += 1
 
     await saga.checkpoint_phase(
-        "execution",
-        {"lead_swapped": True, "new_lead": current_lead, "swap_count": swap_count},
-        "S4",
-        20
+        "execution", {"lead_swapped": True, "new_lead": current_lead, "swap_count": swap_count}, "S4", 20
     )
 
     assert current_lead == "claude"
@@ -490,6 +478,7 @@ async def test_hm007_hot_swap_stagnation(saga_dir):
 # ============================================================================
 # HM-008: Phase 5 (Diagnosis) identifies hallucination
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_hive
@@ -513,15 +502,10 @@ async def test_hm008_diagnosis_hallucination(saga_dir):
         contributing_factors=["Insufficient context", "No file verification"],
         evidence=[execution_error],
         recommended_changes=["Add file existence check", "Use RAG for valid paths"],
-        confidence=0.85
+        confidence=0.85,
     )
 
-    await saga.checkpoint_phase(
-        "diagnosis",
-        diagnosis.to_dict(),
-        "S5",
-        25
-    )
+    await saga.checkpoint_phase("diagnosis", diagnosis.to_dict(), "S5", 25)
 
     assert diagnosis.failure_type == FailureType.HALLUCINATION
     assert "hallucinated" in diagnosis.root_cause.lower() or "non-existent" in diagnosis.root_cause.lower()
@@ -530,6 +514,7 @@ async def test_hm008_diagnosis_hallucination(saga_dir):
 # ============================================================================
 # HM-009: Phase 6 (Retry) with new architecture
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_hive
@@ -552,7 +537,7 @@ async def test_hm009_retry_new_architecture(saga_dir):
         action="RETRY",
         reason="Parallel execution caused race condition",
         changes_made=["Changed mode to SEQUENTIAL"],
-        expected_improvement=0.7
+        expected_improvement=0.7,
     )
 
     # New architecture
@@ -565,10 +550,10 @@ async def test_hm009_retry_new_architecture(saga_dir):
         {
             "action": retry_decision.action,
             "changes": retry_decision.changes_made,
-            "new_mode": new_arch.collaboration_mode
+            "new_mode": new_arch.collaboration_mode,
         },
         "S6",
-        30
+        30,
     )
 
     assert retry_decision.action == "RETRY"
@@ -578,6 +563,7 @@ async def test_hm009_retry_new_architecture(saga_dir):
 # ============================================================================
 # HM-010: Phase 7 (Consolidation) agent retention
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_hive
@@ -602,17 +588,14 @@ async def test_hm010_consolidation_retention(saga_dir):
         task_success=True,
         confidence_in_decisions=0.9,
         gemini_reflection="Good collaboration",
-        claude_reflection="Agreed"
+        claude_reflection="Agreed",
     )
 
     await saga.checkpoint_phase(
         "consolidation",
-        {
-            "patterns_learned": len(consolidation.learned_patterns),
-            "task_success": consolidation.task_success
-        },
+        {"patterns_learned": len(consolidation.learned_patterns), "task_success": consolidation.task_success},
         "S7",
-        35
+        35,
     )
 
     assert consolidation.task_success
@@ -622,6 +605,7 @@ async def test_hm010_consolidation_retention(saga_dir):
 # ============================================================================
 # HM-011: Concurrent phase execution (parallel analysis)
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_hive
@@ -644,10 +628,7 @@ async def test_hm011_concurrent_analysis(saga_dir):
         return {"agent": "claude", "approach": "B"}
 
     # Run in parallel
-    gemini_result, claude_result = await asyncio.gather(
-        gemini_analysis(),
-        claude_analysis()
-    )
+    gemini_result, claude_result = await asyncio.gather(gemini_analysis(), claude_analysis())
 
     results["gemini"] = gemini_result
     results["claude"] = claude_result
@@ -661,6 +642,7 @@ async def test_hm011_concurrent_analysis(saga_dir):
 # HM-012: Concurrent HiveMind tasks (5 parallel)
 # ============================================================================
 
+
 @pytest.mark.torture
 @pytest.mark.torture_hive
 @pytest.mark.torture_slow
@@ -672,6 +654,7 @@ async def test_hm012_concurrent_hive_tasks(saga_dir):
     Scenario: 5 tasks run in parallel, each with own saga.
     Expected: No interference, all complete independently.
     """
+
     async def run_task(task_id: str) -> dict:
         task_saga_dir = saga_dir / task_id
         task_saga_dir.mkdir(parents=True, exist_ok=True)
@@ -696,6 +679,7 @@ async def test_hm012_concurrent_hive_tasks(saga_dir):
 # ============================================================================
 # HM-013: Budget exceeded mid-pipeline
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_hive
@@ -723,7 +707,7 @@ async def test_hm013_budget_exceeded(saga_dir):
             budget_exceeded_at = phase_name
             break
 
-        await saga.checkpoint_phase(phase_name, {"tokens": tokens_used}, f"S{i+1}", i*5)
+        await saga.checkpoint_phase(phase_name, {"tokens": tokens_used}, f"S{i + 1}", i * 5)
 
     assert budget_exceeded_at == "execution"
     assert tokens_used > budget_limit
@@ -734,6 +718,7 @@ async def test_hm013_budget_exceeded(saga_dir):
 # ============================================================================
 # HM-014: Context manager truncation during phase
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_hive
@@ -751,19 +736,11 @@ async def test_hm014_context_truncation(saga_dir):
     context_items = 100
     truncated_to = 50
 
-    await saga.checkpoint_phase(
-        "analysis",
-        {"context_items": context_items},
-        "S1",
-        context_index=context_items
-    )
+    await saga.checkpoint_phase("analysis", {"context_items": context_items}, "S1", context_index=context_items)
 
     # Context truncated
     await saga.checkpoint_phase(
-        "execution",
-        {"context_items": truncated_to, "truncated": True},
-        "S4",
-        context_index=truncated_to
+        "execution", {"context_items": truncated_to, "truncated": True}, "S4", context_index=truncated_to
     )
 
     assert saga._checkpoints["analysis"]["context_index"] == context_items
@@ -773,6 +750,7 @@ async def test_hm014_context_truncation(saga_dir):
 # ============================================================================
 # HM-015: User breakpoint timeout
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_hive
@@ -797,12 +775,7 @@ async def test_hm015_breakpoint_timeout(saga_dir):
 
     action = await asyncio.wait_for(wait_for_user(), timeout=1.0)
 
-    await saga.checkpoint_phase(
-        "debate_breakpoint",
-        {"action": action, "was_timeout": True},
-        "S2b",
-        10
-    )
+    await saga.checkpoint_phase("debate_breakpoint", {"action": action, "was_timeout": True}, "S2b", 10)
 
     assert action == "accept"
 
@@ -810,6 +783,7 @@ async def test_hm015_breakpoint_timeout(saga_dir):
 # ============================================================================
 # HM-016: Strategy blacklist after repeated failure
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_hive
@@ -825,12 +799,10 @@ async def test_hm016_strategy_blacklist(saga_dir):
 
     blacklist = []
     strategy = "PARALLEL"
-    failure_count = 0
     max_failures = 3
 
-    for attempt in range(4):
+    for failure_count, _attempt in enumerate(range(4), start=1):
         # Simulate failure
-        failure_count += 1
 
         if failure_count >= max_failures and strategy not in blacklist:
             blacklist.append(strategy)
@@ -839,12 +811,7 @@ async def test_hm016_strategy_blacklist(saga_dir):
             # Switch strategy
             strategy = "SEQUENTIAL"
 
-    await saga.checkpoint_phase(
-        "retry",
-        {"blacklist": blacklist, "final_strategy": strategy},
-        "S6",
-        30
-    )
+    await saga.checkpoint_phase("retry", {"blacklist": blacklist, "final_strategy": strategy}, "S6", 30)
 
     assert "PARALLEL" in blacklist
     assert strategy == "SEQUENTIAL"
@@ -853,6 +820,7 @@ async def test_hm016_strategy_blacklist(saga_dir):
 # ============================================================================
 # HM-017: Stagnation detector + hot-swap + checkpoint
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_hive
@@ -875,19 +843,10 @@ async def test_hm017_stagnation_hotswap_checkpoint(saga_dir):
 
     if stagnation_detected:
         new_lead = "claude"
-        saga.update_context(
-            current_lead=new_lead,
-            hot_swap_occurred=True,
-            swap_reason="stagnation"
-        )
+        saga.update_context(current_lead=new_lead, hot_swap_occurred=True, swap_reason="stagnation")
 
         # Update checkpoint
-        await saga.checkpoint_phase(
-            "execution",
-            {"lead": new_lead, "step": 2, "hot_swapped": True},
-            "S4",
-            25
-        )
+        await saga.checkpoint_phase("execution", {"lead": new_lead, "step": 2, "hot_swapped": True}, "S4", 25)
 
     assert saga._saga_context["current_lead"] == "claude"
     assert saga._saga_context["hot_swap_occurred"] is True
@@ -896,6 +855,7 @@ async def test_hm017_stagnation_hotswap_checkpoint(saga_dir):
 # ============================================================================
 # HM-018: Phase skip (debate not needed)
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_hive
@@ -913,12 +873,7 @@ async def test_hm018_phase_skip(saga_dir):
     agreement_score = 0.95
     needs_debate = agreement_score < 0.9
 
-    await saga.checkpoint_phase(
-        "analysis",
-        {"agreement_score": agreement_score, "needs_debate": needs_debate},
-        "S1",
-        5
-    )
+    await saga.checkpoint_phase("analysis", {"agreement_score": agreement_score, "needs_debate": needs_debate}, "S1", 5)
 
     # Skip debate if not needed
     if not needs_debate:
@@ -936,6 +891,7 @@ async def test_hm018_phase_skip(saga_dir):
 # ============================================================================
 # HM-019: RAG integration failure
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_hive
@@ -959,12 +915,7 @@ async def test_hm019_rag_failure(saga_dir):
     architecture = create_mock_architecture()
     architecture.rag_config = rag_config
 
-    await saga.checkpoint_phase(
-        "architecture",
-        {"rag_enabled": rag_config.enabled, "rag_failed": True},
-        "S3",
-        15
-    )
+    await saga.checkpoint_phase("architecture", {"rag_enabled": rag_config.enabled, "rag_failed": True}, "S3", 15)
 
     assert rag_config.enabled is False
 
@@ -972,6 +923,7 @@ async def test_hm019_rag_failure(saga_dir):
 # ============================================================================
 # HM-020: Execution step timeout
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_hive
@@ -985,12 +937,7 @@ async def test_hm020_execution_step_timeout(saga_dir):
     """
     saga = SagaManager(saga_dir, "hm020-test", auto_persist=True)
 
-    step = ExecutionStep(
-        name="slow_step",
-        agent_id="gemini",
-        action="complex_analysis",
-        expected_duration=1.0
-    )
+    step = ExecutionStep(name="slow_step", agent_id="gemini", action="complex_analysis", expected_duration=1.0)
 
     # Simulate timeout
     actual_duration = 2.5
@@ -1003,14 +950,11 @@ async def test_hm020_execution_step_timeout(saga_dir):
         output="Partial output",
         duration=actual_duration,
         expected_duration=step.expected_duration,
-        tokens_used=3000
+        tokens_used=3000,
     )
 
     await saga.checkpoint_phase(
-        "execution",
-        {"step": step.name, "status": result.status, "timeout": timeout_occurred},
-        "S4",
-        20
+        "execution", {"step": step.name, "status": result.status, "timeout": timeout_occurred}, "S4", 20
     )
 
     assert result.status == "timeout"
@@ -1020,6 +964,7 @@ async def test_hm020_execution_step_timeout(saga_dir):
 # ============================================================================
 # HM-021: Multi-retry exhaustion
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_hive
@@ -1038,10 +983,7 @@ async def test_hm021_multi_retry_exhaustion(saga_dir):
         saga.update_context(retry_attempt=attempt + 1)
         # Simulate failure
         await saga.checkpoint_phase(
-            f"retry_{attempt}",
-            {"attempt": attempt + 1, "success": False},
-            f"S_retry_{attempt}",
-            30 + attempt * 5
+            f"retry_{attempt}", {"attempt": attempt + 1, "success": False}, f"S_retry_{attempt}", 30 + attempt * 5
         )
 
     # Max retries exhausted
@@ -1055,6 +997,7 @@ async def test_hm021_multi_retry_exhaustion(saga_dir):
 # ============================================================================
 # HM-022: Resume from Phase 3 (architecture)
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_hive
@@ -1089,6 +1032,7 @@ async def test_hm022_resume_from_architecture(saga_dir):
 # HM-023: Resume from Phase 5 (diagnosis)
 # ============================================================================
 
+
 @pytest.mark.torture
 @pytest.mark.torture_hive
 @pytest.mark.asyncio
@@ -1104,7 +1048,7 @@ async def test_hm023_resume_from_diagnosis(saga_dir):
     # Checkpoints up to diagnosis
     phases = ["analysis", "debate", "architecture", "execution", "diagnosis"]
     for i, phase in enumerate(phases):
-        await saga.checkpoint_phase(phase, {f"{phase}_data": "ok"}, f"S{i+1}", i*5)
+        await saga.checkpoint_phase(phase, {f"{phase}_data": "ok"}, f"S{i + 1}", i * 5)
         saga.update_context(**{f"{phase}_complete": True})
 
     # Simulate crash and resume
@@ -1121,6 +1065,7 @@ async def test_hm023_resume_from_diagnosis(saga_dir):
 # ============================================================================
 # HM-024: Partial step completion
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_hive
@@ -1145,14 +1090,7 @@ async def test_hm024_partial_step_completion(saga_dir):
             break
 
     await saga.checkpoint_phase(
-        "execution",
-        {
-            "total_steps": len(steps),
-            "completed_steps": completed_steps,
-            "failed_at": "step4"
-        },
-        "S4",
-        20
+        "execution", {"total_steps": len(steps), "completed_steps": completed_steps, "failed_at": "step4"}, "S4", 20
     )
 
     assert len(completed_steps) == 3
@@ -1162,6 +1100,7 @@ async def test_hm024_partial_step_completion(saga_dir):
 # ============================================================================
 # HM-025: Agent capability mismatch
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_hive
@@ -1187,15 +1126,10 @@ async def test_hm025_capability_mismatch(saga_dir):
         evidence=["Task requires quantum simulation"],
         recommended_changes=["Spawn quantum_specialist agent"],
         confidence=0.95,
-        missing_capability=required_capability
+        missing_capability=required_capability,
     )
 
-    await saga.checkpoint_phase(
-        "diagnosis",
-        diagnosis.to_dict(),
-        "S5",
-        25
-    )
+    await saga.checkpoint_phase("diagnosis", diagnosis.to_dict(), "S5", 25)
 
     assert not capability_available
     assert diagnosis.missing_capability == required_capability
@@ -1204,6 +1138,7 @@ async def test_hm025_capability_mismatch(saga_dir):
 # ============================================================================
 # HM-026: Context bleeding between phases
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_hive
@@ -1218,20 +1153,10 @@ async def test_hm026_context_isolation(saga_dir):
     saga = SagaManager(saga_dir, "hm026-test", auto_persist=True)
 
     # Phase 1: Analysis context
-    await saga.checkpoint_phase(
-        "analysis",
-        {"phase_data": "analysis_only"},
-        "S1",
-        5
-    )
+    await saga.checkpoint_phase("analysis", {"phase_data": "analysis_only"}, "S1", 5)
 
     # Phase 2: Debate context (should not contain analysis_only)
-    await saga.checkpoint_phase(
-        "debate",
-        {"phase_data": "debate_only"},
-        "S2",
-        10
-    )
+    await saga.checkpoint_phase("debate", {"phase_data": "debate_only"}, "S2", 10)
 
     # Verify isolation
     analysis_result = saga._checkpoints["analysis"]["result"]
@@ -1244,6 +1169,7 @@ async def test_hm026_context_isolation(saga_dir):
 # ============================================================================
 # HM-027: Artifact verification failure
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_hive
@@ -1273,15 +1199,10 @@ async def test_hm027_artifact_verification_failure(saga_dir, tmp_path):
         expected_duration=10.0,
         tokens_used=500,
         artifacts_created=[str(artifact_path)],
-        artifacts_verified=artifacts_verified
+        artifacts_verified=artifacts_verified,
     )
 
-    await saga.checkpoint_phase(
-        "execution",
-        {"step": result.step_name, "verified": artifacts_verified},
-        "S4",
-        20
-    )
+    await saga.checkpoint_phase("execution", {"step": result.step_name, "verified": artifacts_verified}, "S4", 20)
 
     assert not artifacts_verified
     assert result.status == "error"
@@ -1290,6 +1211,7 @@ async def test_hm027_artifact_verification_failure(saga_dir, tmp_path):
 # ============================================================================
 # HM-028: Knowledge consolidation conflict
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_hive
@@ -1315,10 +1237,10 @@ async def test_hm028_consolidation_conflict(saga_dir):
             "gemini_vote": gemini_decision,
             "claude_vote": claude_decision,
             "conflict": has_conflict,
-            "needs_user_decision": has_conflict
+            "needs_user_decision": has_conflict,
         },
         "S7",
-        35
+        35,
     )
 
     assert has_conflict
@@ -1328,6 +1250,7 @@ async def test_hm028_consolidation_conflict(saga_dir):
 # ============================================================================
 # HM-029: Cascading phase failures
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_hive
@@ -1346,12 +1269,7 @@ async def test_hm029_cascading_failures(saga_dir):
     await saga.checkpoint_phase("debate", {"ok": True}, "S2", 10)
 
     # Bad architecture (root cause)
-    await saga.checkpoint_phase(
-        "architecture",
-        {"has_bug": True, "bug": "wrong_agent_assignment"},
-        "S3",
-        15
-    )
+    await saga.checkpoint_phase("architecture", {"has_bug": True, "bug": "wrong_agent_assignment"}, "S3", 15)
 
     # Cascading failures
     failures = []
@@ -1364,10 +1282,10 @@ async def test_hm029_cascading_failures(saga_dir):
         {
             "root_cause_phase": "architecture",
             "root_cause": "wrong_agent_assignment",
-            "cascading_failures": len(failures)
+            "cascading_failures": len(failures),
         },
         "S5",
-        25
+        25,
     )
 
     assert saga._checkpoints["diagnosis"]["result"]["root_cause_phase"] == "architecture"
@@ -1376,6 +1294,7 @@ async def test_hm029_cascading_failures(saga_dir):
 # ============================================================================
 # HM-030: Full pipeline stress (10 iterations)
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_hive
@@ -1388,7 +1307,6 @@ async def test_hm030_full_pipeline_stress(saga_dir):
     Scenario: Run 10 complete tasks sequentially.
     Expected: All complete, no saga corruption.
     """
-    import time
 
     results = []
     start_time = time.time()
@@ -1403,7 +1321,7 @@ async def test_hm030_full_pipeline_stress(saga_dir):
         # Full pipeline
         phases = ["analysis", "debate", "architecture", "execution", "consolidation"]
         for j, phase in enumerate(phases):
-            await saga.checkpoint_phase(phase, {"task": i, "phase": phase}, f"S{j+1}", j*5)
+            await saga.checkpoint_phase(phase, {"task": i, "phase": phase}, f"S{j + 1}", j * 5)
 
         results.append({"task_id": task_id, "phases": len(saga._checkpoints)})
 
@@ -1419,6 +1337,7 @@ async def test_hm030_full_pipeline_stress(saga_dir):
 # ============================================================================
 # Run All Tests (Standalone Mode)
 # ============================================================================
+
 
 def run_all(metrics_collector=None):
     """Run all HiveMind integration tests."""

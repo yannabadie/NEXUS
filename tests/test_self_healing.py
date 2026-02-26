@@ -11,35 +11,33 @@ Author: Claude (NEXUS V7.5)
 Date: 2025-12-04
 """
 
-import tempfile
 import shutil
-from pathlib import Path
-from unittest import TestCase, main
-from unittest.mock import MagicMock, patch
-from dataclasses import dataclass
-
-import pytest
 
 # Add parent to path for imports
 import sys
+import tempfile
+from pathlib import Path
+from unittest import TestCase, main
+from unittest.mock import MagicMock, patch
+
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.swarm.collaboration_modes import CollaborationMode
-from core.swarm.session_manager import SwarmSessionManager, generate_task_id, SessionStatus
-from core.swarm.mode_executors import (
+from core.intelligence.swarm.collaboration_modes import CollaborationMode
+from core.intelligence.swarm.mode_executors import (
+    EXECUTOR_REGISTRY,
+    AgentResponse,
     ExecutionContext,
+    ExecutionError,
     ExecutionResult,
     ExecutionStatus,
-    AgentResponse,
-    ModeExecutor,
     ParallelExecutor,
     SequentialExecutor,
     SpecialistExecutor,
-    ExecutionError,
-    EXECUTOR_REGISTRY,
-    get_executor,
 )
-from core.swarm.mode_selector import AgentAssignment
+from core.intelligence.swarm.mode_selector import AgentAssignment
+from core.intelligence.swarm.session_manager import SwarmSessionManager, generate_task_id
 
 
 class TestFallbackModeProperty(TestCase):
@@ -141,7 +139,7 @@ class TestSessionManagerCheckpoints(TestCase):
         """Test checkpoint restoration."""
         task_id = generate_task_id()
         self.session_manager.create_task(task_id, "PARALLEL")
-        uuid1 = self.session_manager.get_or_create_session(task_id, "worker_0", "gemini")
+        self.session_manager.get_or_create_session(task_id, "worker_0", "gemini")
 
         # Create checkpoint
         checkpoint_id = self.session_manager.create_checkpoint(task_id)
@@ -167,6 +165,7 @@ class TestSessionManagerCheckpoints(TestCase):
     def test_list_checkpoints(self):
         """Test listing checkpoints."""
         import time
+
         task_id = generate_task_id()
         self.session_manager.create_task(task_id, "LEAD_SUPPORT")
 
@@ -201,33 +200,30 @@ class TestExecuteWithFallback(TestCase):
         """Clean up temporary files."""
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
-    def _create_context(
-        self,
-        task_id: str,
-        invoke_fn=None,
-        fail_on_modes=None
-    ) -> ExecutionContext:
+    def _create_context(self, task_id: str, invoke_fn=None, fail_on_modes=None) -> ExecutionContext:
         """Helper to create ExecutionContext."""
         self.session_manager.create_task(task_id, "PARALLEL")
         fail_on_modes = fail_on_modes or []
 
-        def mock_invoke(agent_id: str, task_type: str, context_str: str) -> AgentResponse:
-            return AgentResponse(
-                agent_id=agent_id,
-                content=f"Mock response from {agent_id}",
-                status="success"
-            )
+        def mock_invoke(
+            agent_id: str,
+            task_type: str,
+            context_str: str,
+            session_uuid=None,
+            isolated_env=None,
+        ) -> AgentResponse:
+            return AgentResponse(agent_id=agent_id, content=f"Mock response from {agent_id}", status="success")
 
         return ExecutionContext(
             task_input="Test task",
             agent_assignments=[
                 AgentAssignment(agent_id="gemini", role="first"),
-                AgentAssignment(agent_id="claude", role="second")
+                AgentAssignment(agent_id="claude", role="second"),
             ],
             blackboard={"workspace_path": self.workspace},
             task_id=task_id,
             session_manager=self.session_manager,
-            invoke_agent=invoke_fn or mock_invoke
+            invoke_agent=invoke_fn or mock_invoke,
         )
 
     def test_successful_execution_no_fallback(self):
@@ -246,31 +242,24 @@ class TestExecuteWithFallback(TestCase):
         task_id = generate_task_id()
         call_count = {"parallel": 0, "sequential": 0}
 
-        def mock_invoke_with_failure(agent_id: str, task_type: str, context_str: str) -> AgentResponse:
+        def mock_invoke_with_failure(
+            agent_id: str,
+            task_type: str,
+            context_str: str,
+            session_uuid=None,
+            isolated_env=None,
+        ) -> AgentResponse:
             # Fail on parallel mode - return FAILED status
             if "PARALLEL MODE" in context_str:
                 call_count["parallel"] += 1
-                return AgentResponse(
-                    agent_id=agent_id,
-                    content="",
-                    status="error",
-                    error="Simulated PARALLEL failure"
-                )
+                return AgentResponse(agent_id=agent_id, content="", status="error", error="Simulated PARALLEL failure")
 
             # Succeed on sequential
             if "SEQUENTIAL MODE" in context_str:
                 call_count["sequential"] += 1
-                return AgentResponse(
-                    agent_id=agent_id,
-                    content=f"Sequential success from {agent_id}",
-                    status="success"
-                )
+                return AgentResponse(agent_id=agent_id, content=f"Sequential success from {agent_id}", status="success")
 
-            return AgentResponse(
-                agent_id=agent_id,
-                content=f"Response from {agent_id}",
-                status="success"
-            )
+            return AgentResponse(agent_id=agent_id, content=f"Response from {agent_id}", status="success")
 
         context = self._create_context(task_id, invoke_fn=mock_invoke_with_failure)
 
@@ -307,15 +296,17 @@ class TestExecuteWithFallback(TestCase):
         task_id = generate_task_id()
         failure_count = [0]
 
-        def failing_invoke(agent_id: str, task_type: str, context_str: str) -> AgentResponse:
+        def failing_invoke(
+            agent_id: str,
+            task_type: str,
+            context_str: str,
+            session_uuid=None,
+            isolated_env=None,
+        ) -> AgentResponse:
             if failure_count[0] < 2:  # Fail first 2 calls
                 failure_count[0] += 1
                 raise RuntimeError("Simulated failure")
-            return AgentResponse(
-                agent_id=agent_id,
-                content=f"Success from {agent_id}",
-                status="success"
-            )
+            return AgentResponse(agent_id=agent_id, content=f"Success from {agent_id}", status="success")
 
         context = self._create_context(task_id, invoke_fn=failing_invoke)
 
@@ -326,7 +317,7 @@ class TestExecuteWithFallback(TestCase):
         assert result.status == ExecutionStatus.COMPLETED
 
         # Check task metadata shows restoration
-        task = self.session_manager.get_task(task_id)
+        self.session_manager.get_task(task_id)
         # Note: restore happens but may not be reflected if execution succeeds
 
     def test_max_fallbacks_exceeded(self):
@@ -335,7 +326,6 @@ class TestExecuteWithFallback(TestCase):
 
         # To trigger max fallbacks, we need execute() to return FAILED status
         # Since executors catch errors internally, we patch the execute method
-        from unittest.mock import patch
 
         context = self._create_context(task_id)
 
@@ -350,22 +340,26 @@ class TestExecuteWithFallback(TestCase):
                 agent_outputs=[],
                 total_rounds=0,
                 total_tokens=0,
-                total_time_seconds=0.0
+                total_time_seconds=0.0,
             )
 
         # Patch all executors to return FAILED
-        with patch.dict(EXECUTOR_REGISTRY, {
-            CollaborationMode.PARALLEL: MagicMock(mode=CollaborationMode.PARALLEL, execute=mock_execute),
-            CollaborationMode.SEQUENTIAL: MagicMock(mode=CollaborationMode.SEQUENTIAL, execute=mock_execute),
-            CollaborationMode.SPECIALIST: MagicMock(mode=CollaborationMode.SPECIALIST, execute=mock_execute),
-        }):
-            with pytest.raises(ExecutionError):
-                executor.execute_with_fallback(context, max_fallbacks=2)
+        with (
+            patch.dict(
+                EXECUTOR_REGISTRY,
+                {
+                    CollaborationMode.PARALLEL: MagicMock(mode=CollaborationMode.PARALLEL, execute=mock_execute),
+                    CollaborationMode.SEQUENTIAL: MagicMock(mode=CollaborationMode.SEQUENTIAL, execute=mock_execute),
+                    CollaborationMode.SPECIALIST: MagicMock(mode=CollaborationMode.SPECIALIST, execute=mock_execute),
+                },
+            ),
+            pytest.raises(ExecutionError),
+        ):
+            executor.execute_with_fallback(context, max_fallbacks=2)
 
     def test_specialist_no_fallback_raises_immediately(self):
         """Test SPECIALIST mode with no fallback raises ExecutionError."""
         task_id = generate_task_id()
-        from unittest.mock import patch
 
         context = self._create_context(task_id)
 
@@ -380,20 +374,24 @@ class TestExecuteWithFallback(TestCase):
                 agent_outputs=[],
                 total_rounds=0,
                 total_tokens=0,
-                total_time_seconds=0.0
+                total_time_seconds=0.0,
             )
 
-        with patch.dict(EXECUTOR_REGISTRY, {
-            CollaborationMode.SPECIALIST: MagicMock(mode=CollaborationMode.SPECIALIST, execute=mock_execute),
-        }):
+        with (
+            patch.dict(
+                EXECUTOR_REGISTRY,
+                {
+                    CollaborationMode.SPECIALIST: MagicMock(mode=CollaborationMode.SPECIALIST, execute=mock_execute),
+                },
+            ),
+            pytest.raises(ExecutionError, match="FAILED status"),
+        ):
             # SPECIALIST has no fallback, so it should raise immediately
-            with pytest.raises(ExecutionError, match="FAILED status"):
-                executor.execute_with_fallback(context, max_fallbacks=2)
+            executor.execute_with_fallback(context, max_fallbacks=2)
 
     def test_recovered_metadata_contains_fallback_path(self):
         """Test that RECOVERED result contains full fallback path when properly triggered."""
         task_id = generate_task_id()
-        from unittest.mock import patch
 
         context = self._create_context(task_id)
         execution_count = {"parallel": 0, "sequential": 0, "specialist": 0}
@@ -408,7 +406,7 @@ class TestExecuteWithFallback(TestCase):
                 agent_outputs=[],
                 total_rounds=0,
                 total_tokens=0,
-                total_time_seconds=0.0
+                total_time_seconds=0.0,
             )
 
         def mock_sequential_execute(ctx):
@@ -420,7 +418,7 @@ class TestExecuteWithFallback(TestCase):
                 agent_outputs=[],
                 total_rounds=0,
                 total_tokens=0,
-                total_time_seconds=0.0
+                total_time_seconds=0.0,
             )
 
         def mock_specialist_execute(ctx):
@@ -432,16 +430,23 @@ class TestExecuteWithFallback(TestCase):
                 agent_outputs=[],
                 total_rounds=1,
                 total_tokens=100,
-                total_time_seconds=1.0
+                total_time_seconds=1.0,
             )
 
         executor = ParallelExecutor()
 
-        with patch.dict(EXECUTOR_REGISTRY, {
-            CollaborationMode.PARALLEL: MagicMock(mode=CollaborationMode.PARALLEL, execute=mock_parallel_execute),
-            CollaborationMode.SEQUENTIAL: MagicMock(mode=CollaborationMode.SEQUENTIAL, execute=mock_sequential_execute),
-            CollaborationMode.SPECIALIST: MagicMock(mode=CollaborationMode.SPECIALIST, execute=mock_specialist_execute),
-        }):
+        with patch.dict(
+            EXECUTOR_REGISTRY,
+            {
+                CollaborationMode.PARALLEL: MagicMock(mode=CollaborationMode.PARALLEL, execute=mock_parallel_execute),
+                CollaborationMode.SEQUENTIAL: MagicMock(
+                    mode=CollaborationMode.SEQUENTIAL, execute=mock_sequential_execute
+                ),
+                CollaborationMode.SPECIALIST: MagicMock(
+                    mode=CollaborationMode.SPECIALIST, execute=mock_specialist_execute
+                ),
+            },
+        ):
             result = executor.execute_with_fallback(context, max_fallbacks=3)
 
         assert result.status == ExecutionStatus.COMPLETED
@@ -470,7 +475,7 @@ class TestHybridSwarmEngineSelfHealing(TestCase):
 
     def test_engine_uses_execute_with_fallback_when_enabled(self):
         """Test HybridSwarmEngine uses execute_with_fallback when self_healing=True."""
-        from core.swarm.hybrid_swarm_engine import HybridSwarmEngine
+        from core.intelligence.swarm.hybrid_swarm_engine import HybridSwarmEngine
 
         # Create mock config with self-healing enabled
         mock_config = MagicMock()
@@ -479,14 +484,16 @@ class TestHybridSwarmEngineSelfHealing(TestCase):
         mock_config.swarm_negotiation_enabled = False
         mock_config.swarm_max_rounds = 4
 
-        def mock_invoke(agent_id: str, task_type: str, context: str) -> str:
+        def mock_invoke(
+            agent_id: str,
+            task_type: str,
+            context: str,
+            session_uuid=None,
+            isolated_env=None,
+        ) -> str:
             return f"Mock response from {agent_id}"
 
-        engine = HybridSwarmEngine(
-            config=mock_config,
-            invoke_agent=mock_invoke,
-            workspace_path=self.workspace
-        )
+        engine = HybridSwarmEngine(config=mock_config, invoke_agent=mock_invoke, workspace_path=self.workspace)
 
         # Process a simple task
         result = engine.process_task("Test task", skip_negotiation=True)

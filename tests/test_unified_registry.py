@@ -5,15 +5,13 @@ Tests the centralized agent management system that replaces
 hardcoded if/else chains throughout the codebase.
 """
 
-import pytest
 from pathlib import Path
 
-from core.agents.unified_registry import (
-    UnifiedAgentRegistry,
+from core.foundation.agents.unified_registry import (
+    AgentCapability,
     AgentDescriptor,
     AgentProvider,
-    AgentCapability,
-    DriverProtocol,
+    UnifiedAgentRegistry,
     get_registry,
     reset_registry,
 )
@@ -114,11 +112,13 @@ class TestUnifiedAgentRegistry:
     def test_get_alternate_spawned_returns_none(self):
         """Spawned agents don't have a default alternate"""
         registry = UnifiedAgentRegistry()
-        registry.register(AgentDescriptor(
-            id="expert",
-            provider=AgentProvider.SPAWNED,
-            display_name="Expert",
-        ))
+        registry.register(
+            AgentDescriptor(
+                id="expert",
+                provider=AgentProvider.SPAWNED,
+                display_name="Expert",
+            )
+        )
 
         assert registry.get_alternate("expert") is None
 
@@ -147,11 +147,13 @@ class TestUnifiedAgentRegistry:
         assert registry.is_builtin("gemini") is True
         assert registry.is_builtin("claude") is True
 
-        registry.register(AgentDescriptor(
-            id="spawned_agent",
-            provider=AgentProvider.SPAWNED,
-            display_name="Spawned",
-        ))
+        registry.register(
+            AgentDescriptor(
+                id="spawned_agent",
+                provider=AgentProvider.SPAWNED,
+                display_name="Spawned",
+            )
+        )
         assert registry.is_builtin("spawned_agent") is False
 
     def test_register_spawned_agent(self):
@@ -178,11 +180,13 @@ class TestUnifiedAgentRegistry:
         """Should remove agents from registry"""
         registry = UnifiedAgentRegistry()
 
-        registry.register(AgentDescriptor(
-            id="temp_agent",
-            provider=AgentProvider.SPAWNED,
-            display_name="Temp",
-        ))
+        registry.register(
+            AgentDescriptor(
+                id="temp_agent",
+                provider=AgentProvider.SPAWNED,
+                display_name="Temp",
+            )
+        )
 
         assert registry.get("temp_agent") is not None
         assert registry.unregister("temp_agent") is True
@@ -197,12 +201,14 @@ class TestUnifiedAgentRegistry:
         assert len(available) == 2  # Gemini + Claude
 
         # Add unavailable agent
-        registry.register(AgentDescriptor(
-            id="offline",
-            provider=AgentProvider.OLLAMA,
-            display_name="Offline",
-            is_available=False,
-        ))
+        registry.register(
+            AgentDescriptor(
+                id="offline",
+                provider=AgentProvider.OLLAMA,
+                display_name="Offline",
+                is_available=False,
+            )
+        )
 
         available = registry.list_available()
         assert len(available) == 2  # Still only 2
@@ -211,11 +217,13 @@ class TestUnifiedAgentRegistry:
         """Should list only builtin agents"""
         registry = UnifiedAgentRegistry()
 
-        registry.register(AgentDescriptor(
-            id="spawned",
-            provider=AgentProvider.SPAWNED,
-            display_name="Spawned",
-        ))
+        registry.register(
+            AgentDescriptor(
+                id="spawned",
+                provider=AgentProvider.SPAWNED,
+                display_name="Spawned",
+            )
+        )
 
         builtins = registry.list_builtins()
         assert len(builtins) == 2
@@ -227,16 +235,20 @@ class TestUnifiedAgentRegistry:
 
         assert len(registry.list_spawned()) == 0
 
-        registry.register(AgentDescriptor(
-            id="spawned1",
-            provider=AgentProvider.SPAWNED,
-            display_name="Spawned 1",
-        ))
-        registry.register(AgentDescriptor(
-            id="spawned2",
-            provider=AgentProvider.SPAWNED,
-            display_name="Spawned 2",
-        ))
+        registry.register(
+            AgentDescriptor(
+                id="spawned1",
+                provider=AgentProvider.SPAWNED,
+                display_name="Spawned 1",
+            )
+        )
+        registry.register(
+            AgentDescriptor(
+                id="spawned2",
+                provider=AgentProvider.SPAWNED,
+                display_name="Spawned 2",
+            )
+        )
 
         spawned = registry.list_spawned()
         assert len(spawned) == 2
@@ -255,11 +267,13 @@ class TestUnifiedAgentRegistry:
 
         assert len(registry) == 2  # Gemini + Claude
 
-        registry.register(AgentDescriptor(
-            id="new",
-            provider=AgentProvider.SPAWNED,
-            display_name="New",
-        ))
+        registry.register(
+            AgentDescriptor(
+                id="new",
+                provider=AgentProvider.SPAWNED,
+                display_name="New",
+            )
+        )
         assert len(registry) == 3
 
 
@@ -294,11 +308,13 @@ class TestDriverRegistration:
             async def invoke(self, prompt: str, **kwargs) -> str:
                 return ""
 
-        registry.register(AgentDescriptor(
-            id="temp",
-            provider=AgentProvider.SPAWNED,
-            display_name="Temp",
-        ))
+        registry.register(
+            AgentDescriptor(
+                id="temp",
+                provider=AgentProvider.SPAWNED,
+                display_name="Temp",
+            )
+        )
         registry.register_driver("temp", MockDriver())
 
         assert registry.get_driver("temp") is not None
@@ -342,10 +358,7 @@ class TestCapabilitySelection:
         claude.capabilities.append(AgentCapability.RESEARCH)
 
         # Exclude Gemini
-        best = registry.select_for_capability(
-            AgentCapability.RESEARCH,
-            exclude=["gemini"]
-        )
+        best = registry.select_for_capability(AgentCapability.RESEARCH, exclude=["gemini"])
         assert best.id == "claude"
 
     def test_select_for_capability_no_match(self):
@@ -410,11 +423,13 @@ class TestGlobalSingleton:
         reset_registry()
 
         registry = get_registry()
-        registry.register(AgentDescriptor(
-            id="persistent",
-            provider=AgentProvider.SPAWNED,
-            display_name="Persistent",
-        ))
+        registry.register(
+            AgentDescriptor(
+                id="persistent",
+                provider=AgentProvider.SPAWNED,
+                display_name="Persistent",
+            )
+        )
 
         # Get again and verify
         registry2 = get_registry()

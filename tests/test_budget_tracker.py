@@ -13,36 +13,30 @@ Author: Claude (NEXUS V7.6)
 Date: 2025-12-05
 """
 
-import json
+# Add parent to path for imports
+import sys
 import tempfile
-import shutil
+from datetime import date
 from pathlib import Path
-from datetime import date, datetime
-from unittest import TestCase, main
-from unittest.mock import Mock, patch
+from unittest import main
 
 import pytest
 
-# Add parent to path for imports
-import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.telemetry.budget_tracker import (
-    BudgetTracker,
-    BudgetExceededError,
-    BudgetWarning,
-    BudgetState,
+from core.observability.telemetry.budget_tracker import (
     PRICING,
-    BUDGET_WARNING_THRESHOLD,
-    BUDGET_CRITICAL_THRESHOLD,
+    BudgetExceededError,
+    BudgetState,
+    BudgetTracker,
     get_budget_tracker,
     reset_budget_tracker,
 )
 
-
 # =============================================================================
 # FIXTURES
 # =============================================================================
+
 
 class MockConfig:
     """Mock config for testing."""
@@ -85,36 +79,37 @@ def budget_tracker(temp_workspace):
 # TEST: Pricing Constants
 # =============================================================================
 
+
 class TestPricingConstants:
     """Tests for pricing data."""
 
     def test_claude_opus_pricing_exists(self):
-        """Test Claude Opus pricing is defined."""
-        assert "claude-opus-4-5-20251101" in PRICING
-        pricing = PRICING["claude-opus-4-5-20251101"]
-        assert pricing["input"] == 15.00
-        assert pricing["output"] == 75.00
+        """Test Claude Opus pricing is defined (Feb 2026 official rates)."""
+        assert "claude-opus-4-6-20250116" in PRICING
+        pricing = PRICING["claude-opus-4-6-20250116"]
+        assert pricing["input"] == 5.00  # CORRECTED from 15.00
+        assert pricing["output"] == 25.00  # CORRECTED from 75.00
 
     def test_claude_sonnet_pricing_exists(self):
-        """Test Claude Sonnet pricing is defined."""
+        """Test Claude Sonnet pricing is defined (Feb 2026 official rates)."""
         assert "claude-sonnet-4-5-20250929" in PRICING
         pricing = PRICING["claude-sonnet-4-5-20250929"]
-        assert pricing["input"] == 3.00
-        assert pricing["output"] == 15.00
+        assert pricing["input"] == 3.00  # $3/MTok (platform.claude.com)
+        assert pricing["output"] == 15.00  # $15/MTok (platform.claude.com)
 
     def test_gemini_pro_pricing_exists(self):
-        """Test Gemini Pro pricing is defined."""
+        """Test Gemini Pro pricing is defined (Feb 2026 official rates)."""
         assert "gemini-3-pro-preview" in PRICING
         pricing = PRICING["gemini-3-pro-preview"]
-        assert pricing["input"] == 1.25
-        assert pricing["output"] == 5.00
+        assert pricing["input"] == 2.00  # CORRECTED from 1.25
+        assert pricing["output"] == 12.00  # CORRECTED from 5.00
 
     def test_gemini_flash_pricing_exists(self):
-        """Test Gemini Flash pricing is defined."""
+        """Test Gemini Flash pricing is defined (Feb 2026 official rates)."""
         assert "gemini-3-flash" in PRICING
         pricing = PRICING["gemini-3-flash"]
-        assert pricing["input"] == 0.075
-        assert pricing["output"] == 0.30
+        assert pricing["input"] == 0.50  # CORRECTED from 0.075
+        assert pricing["output"] == 3.00  # CORRECTED from 0.30
 
     def test_default_pricing_exists(self):
         """Test default fallback pricing is defined."""
@@ -124,6 +119,7 @@ class TestPricingConstants:
 # =============================================================================
 # TEST: Token Estimation
 # =============================================================================
+
 
 class TestTokenEstimation:
     """Tests for token estimation from text."""
@@ -158,39 +154,40 @@ class TestTokenEstimation:
 # TEST: Cost Calculation
 # =============================================================================
 
+
 class TestCostCalculation:
     """Tests for cost calculation per model."""
 
     def test_calculate_opus_cost(self, budget_tracker):
-        """Test Claude Opus cost calculation."""
+        """Test Claude Opus cost calculation (Feb 2026 rates)."""
         # 1M input + 100k output
         cost = budget_tracker.calculate_cost(
-            model="claude-opus-4-5-20251101",
+            model="claude-opus-4-6-20250116",
             input_tokens=1_000_000,
             output_tokens=100_000,
         )
-        # $15 for input + $7.50 for output = $22.50
-        assert abs(cost - 22.50) < 0.01
+        # $5 for input + $2.50 for output = $7.50 (CORRECTED from $22.50)
+        assert abs(cost - 7.50) < 0.01
 
     def test_calculate_sonnet_cost(self, budget_tracker):
-        """Test Claude Sonnet cost calculation."""
+        """Test Claude Sonnet cost calculation (Feb 2026 rates)."""
         cost = budget_tracker.calculate_cost(
             model="claude-sonnet-4-5-20250929",
             input_tokens=1_000_000,
             output_tokens=100_000,
         )
-        # $3 for input + $1.50 for output = $4.50
+        # $3 for input + $1.50 for output = $4.50 (platform.claude.com)
         assert abs(cost - 4.50) < 0.01
 
     def test_calculate_gemini_pro_cost(self, budget_tracker):
-        """Test Gemini Pro cost calculation."""
+        """Test Gemini Pro cost calculation (Feb 2026 rates)."""
         cost = budget_tracker.calculate_cost(
             model="gemini-3-pro-preview",
             input_tokens=1_000_000,
             output_tokens=100_000,
         )
-        # $1.25 for input + $0.50 for output = $1.75
-        assert abs(cost - 1.75) < 0.01
+        # $2 for input + $1.20 for output = $3.20 (CORRECTED from $1.75)
+        assert abs(cost - 3.20) < 0.01
 
     def test_calculate_zero_tokens(self, budget_tracker):
         """Test zero tokens returns zero cost."""
@@ -212,6 +209,7 @@ class TestCostCalculation:
 # TEST: Cost Tracking
 # =============================================================================
 
+
 class TestCostTracking:
     """Tests for track_cost method."""
 
@@ -229,14 +227,14 @@ class TestCostTracking:
         assert budget_tracker._state.api_calls_today == 1
 
     def test_track_cost_returns_cost(self, budget_tracker):
-        """Test that track_cost returns the calculated cost."""
+        """Test that track_cost returns the calculated cost (Feb 2026 rates)."""
         cost = budget_tracker.track_cost(
             model="gemini-3-pro-preview",
             input_tokens=1_000_000,
             output_tokens=0,
         )
-        # $1.25 for 1M input tokens
-        assert abs(cost - 1.25) < 0.01
+        # $2.00 for 1M input tokens (CORRECTED from $1.25)
+        assert abs(cost - 2.00) < 0.01
 
     def test_track_cost_with_text_estimation(self, budget_tracker):
         """Test cost tracking with text estimation."""
@@ -263,6 +261,7 @@ class TestCostTracking:
 # =============================================================================
 # TEST: Budget Enforcement
 # =============================================================================
+
 
 class TestBudgetEnforcement:
     """Tests for budget limit enforcement."""
@@ -312,6 +311,7 @@ class TestBudgetEnforcement:
 # TEST: Warning Levels
 # =============================================================================
 
+
 class TestWarningLevels:
     """Tests for budget warning levels."""
 
@@ -347,6 +347,7 @@ class TestWarningLevels:
 # =============================================================================
 # TEST: Daily Reset
 # =============================================================================
+
 
 class TestDailyReset:
     """Tests for daily reset logic."""
@@ -389,6 +390,7 @@ class TestDailyReset:
 # =============================================================================
 # TEST: Persistence
 # =============================================================================
+
 
 class TestPersistence:
     """Tests for JSON state persistence."""
@@ -442,6 +444,7 @@ class TestPersistence:
 # TEST: Stats
 # =============================================================================
 
+
 class TestStats:
     """Tests for get_stats method."""
 
@@ -473,6 +476,7 @@ class TestStats:
 # TEST: Add Credit
 # =============================================================================
 
+
 class TestAddCredit:
     """Tests for emergency credit addition."""
 
@@ -489,23 +493,24 @@ class TestAddCredit:
 # TEST: Model Pricing Resolution
 # =============================================================================
 
+
 class TestModelPricingResolution:
     """Tests for get_model_pricing method."""
 
     def test_exact_match(self, budget_tracker):
-        """Test exact model name match."""
-        pricing = budget_tracker.get_model_pricing("claude-opus-4-5-20251101")
-        assert pricing["input"] == 15.00
+        """Test exact model name match (Feb 2026 rates)."""
+        pricing = budget_tracker.get_model_pricing("claude-opus-4-6-20250116")
+        assert pricing["input"] == 5.00  # CORRECTED from 15.00
 
     def test_alias_match(self, budget_tracker):
-        """Test alias model name match."""
+        """Test alias model name match (Feb 2026 rates)."""
         pricing = budget_tracker.get_model_pricing("claude-opus")
-        assert pricing["input"] == 15.00
+        assert pricing["input"] == 5.00  # CORRECTED from 15.00
 
     def test_partial_match(self, budget_tracker):
-        """Test partial model name match."""
+        """Test partial model name match (Feb 2026 rates)."""
         pricing = budget_tracker.get_model_pricing("gemini-3-pro")
-        assert pricing["input"] == 1.25
+        assert pricing["input"] == 2.00  # CORRECTED from 1.25
 
     def test_fallback_to_default(self, budget_tracker):
         """Test fallback to default pricing."""
@@ -516,6 +521,7 @@ class TestModelPricingResolution:
 # =============================================================================
 # TEST: BudgetState Dataclass
 # =============================================================================
+
 
 class TestBudgetState:
     """Tests for BudgetState dataclass."""
@@ -555,6 +561,7 @@ class TestBudgetState:
 # TEST: Exception
 # =============================================================================
 
+
 class TestBudgetExceededError:
     """Tests for BudgetExceededError exception."""
 
@@ -577,6 +584,7 @@ class TestBudgetExceededError:
 # =============================================================================
 # TEST: Singleton
 # =============================================================================
+
 
 class TestSingleton:
     """Tests for get_budget_tracker singleton."""

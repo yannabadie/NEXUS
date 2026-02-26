@@ -9,8 +9,8 @@ Usage:
 """
 
 from .base import TortureBase, TortureResultV8
+from .chaos_injectors import CorruptionInjector, CrashInjector, RaceInjector
 from .metrics_collector import MetricsCollector, ScenarioMetrics
-from .chaos_injectors import CrashInjector, RaceInjector, CorruptionInjector
 
 __all__ = [
     "TortureBase",

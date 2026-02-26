@@ -11,6 +11,7 @@ FSM States - États de la Machine à États NEXUS V7
 - PANIC: Erreur fatale (doit redémarrer la session)
 - HIBERNATE: V12.2 IRONCLAD - État dormant (WebSocket déconnecté pendant workflow actif)
 """
+
 from enum import Enum, auto
 
 
@@ -144,11 +145,7 @@ class TransitionGuard:
     @staticmethod
     def can_execute_tool(message: dict) -> bool:
         """Message contient une requête d'outil valide"""
-        return (
-            message.get("action_type") == "TOOL_USE" and
-            "tool_use" in message and
-            message["tool_use"] is not None
-        )
+        return message.get("action_type") == "TOOL_USE" and "tool_use" in message and message["tool_use"] is not None
 
     @staticmethod
     def is_task_finished(message: dict) -> bool:
@@ -169,33 +166,28 @@ class TransitionGuard:
 
 # Matrice de transitions (pour référence)
 TRANSITION_MATRIX = {
-    OrchestratorState.IDLE: {
-        "user_input": OrchestratorState.BRAINSTORMING
-    },
+    OrchestratorState.IDLE: {"user_input": OrchestratorState.BRAINSTORMING},
     OrchestratorState.BRAINSTORMING: {
         "tool_use": OrchestratorState.EXECUTING_TOOL,
         "finished": OrchestratorState.WAITING_USER,
         "stagnation": OrchestratorState.ERROR,
-        "ws_disconnect": OrchestratorState.HIBERNATE  # V12.2 IRONCLAD
+        "ws_disconnect": OrchestratorState.HIBERNATE,  # V12.2 IRONCLAD
     },
     OrchestratorState.EXECUTING_TOOL: {
         "tool_completed": OrchestratorState.VALIDATING_CFL,
-        "ws_disconnect": OrchestratorState.HIBERNATE  # V12.2 IRONCLAD
+        "ws_disconnect": OrchestratorState.HIBERNATE,  # V12.2 IRONCLAD
     },
     OrchestratorState.VALIDATING_CFL: {
         "success": OrchestratorState.IDLE,
         "failure": OrchestratorState.BRAINSTORMING,
         "stalemate": OrchestratorState.ERROR,
-        "ws_disconnect": OrchestratorState.HIBERNATE  # V12.2 IRONCLAD
+        "ws_disconnect": OrchestratorState.HIBERNATE,  # V12.2 IRONCLAD
     },
     OrchestratorState.WAITING_USER: {
         "user_input": OrchestratorState.BRAINSTORMING,
-        "ws_disconnect": OrchestratorState.HIBERNATE  # V12.2 IRONCLAD
+        "ws_disconnect": OrchestratorState.HIBERNATE,  # V12.2 IRONCLAD
     },
-    OrchestratorState.ERROR: {
-        "reset": OrchestratorState.IDLE,
-        "timeout": OrchestratorState.PANIC
-    },
+    OrchestratorState.ERROR: {"reset": OrchestratorState.IDLE, "timeout": OrchestratorState.PANIC},
     OrchestratorState.PANIC: {
         # V9.3 ISSUE-002: Recovery path via /reset command
         # Before V9.3: No transitions - user must restart entire session (bad UX)
@@ -209,19 +201,19 @@ TRANSITION_MATRIX = {
         "analysis_complete": OrchestratorState.SWARM_NEGOTIATING,
         "skip_negotiation": OrchestratorState.SWARM_EXECUTING,
         "error": OrchestratorState.ERROR,
-        "ws_disconnect": OrchestratorState.HIBERNATE  # V12.2 IRONCLAD
+        "ws_disconnect": OrchestratorState.HIBERNATE,  # V12.2 IRONCLAD
     },
     OrchestratorState.SWARM_NEGOTIATING: {
         "consensus": OrchestratorState.SWARM_EXECUTING,
         "timeout": OrchestratorState.SWARM_EXECUTING,  # Fallback to initial mode
         "error": OrchestratorState.ERROR,
-        "ws_disconnect": OrchestratorState.HIBERNATE  # V12.2 IRONCLAD
+        "ws_disconnect": OrchestratorState.HIBERNATE,  # V12.2 IRONCLAD
     },
     OrchestratorState.SWARM_EXECUTING: {
         "execution_complete": OrchestratorState.VALIDATING_CFL,
         "continue": OrchestratorState.SWARM_EXECUTING,
         "error": OrchestratorState.ERROR,
-        "ws_disconnect": OrchestratorState.HIBERNATE  # V12.2 IRONCLAD
+        "ws_disconnect": OrchestratorState.HIBERNATE,  # V12.2 IRONCLAD
     },
     # ====================================================================
     # V12.2 IRONCLAD - HIBERNATE TRANSITIONS
@@ -230,7 +222,7 @@ TRANSITION_MATRIX = {
         "ws_reconnect": None,  # Returns to previous_state (dynamic)
         "timeout": OrchestratorState.IDLE,
         "user_cancel": OrchestratorState.IDLE,
-    }
+    },
 }
 
 # V12.2 IRONCLAD: States that can enter HIBERNATE on WebSocket disconnect

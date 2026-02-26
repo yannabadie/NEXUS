@@ -13,16 +13,15 @@ Run with:
 Note: Tests are designed to work without Redis (mock RedisEventBus).
 """
 
-import asyncio
 import json
-import pytest
-from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 
 # =============================================================================
 # TestTelemetryBridge - Singleton and correlation tracking
 # =============================================================================
+
 
 class TestTelemetryBridge:
     """Test TelemetryBridge singleton and behavior."""
@@ -30,14 +29,15 @@ class TestTelemetryBridge:
     @pytest.fixture(autouse=True)
     def reset_singleton(self):
         """Reset singleton between tests."""
-        from core.events.telemetry_bridge import reset_telemetry_bridge
+        from core.observability.events.telemetry_bridge import reset_telemetry_bridge
+
         reset_telemetry_bridge()
         yield
         reset_telemetry_bridge()
 
     def test_singleton_pattern(self):
         """Multiple calls to get_telemetry_bridge return same instance."""
-        from core.events.telemetry_bridge import get_telemetry_bridge
+        from core.observability.events.telemetry_bridge import get_telemetry_bridge
 
         bridge1 = get_telemetry_bridge()
         bridge2 = get_telemetry_bridge()
@@ -47,7 +47,7 @@ class TestTelemetryBridge:
 
     def test_start_trace_returns_id(self):
         """start_trace returns a trace ID."""
-        from core.events.telemetry_bridge import get_telemetry_bridge
+        from core.observability.events.telemetry_bridge import get_telemetry_bridge
 
         bridge = get_telemetry_bridge()
         trace_id = bridge.start_trace()
@@ -58,7 +58,7 @@ class TestTelemetryBridge:
 
     def test_start_trace_custom_id(self):
         """start_trace with custom ID uses that ID."""
-        from core.events.telemetry_bridge import get_telemetry_bridge
+        from core.observability.events.telemetry_bridge import get_telemetry_bridge
 
         bridge = get_telemetry_bridge()
         trace_id = bridge.start_trace(trace_id="custom123")
@@ -67,7 +67,7 @@ class TestTelemetryBridge:
 
     def test_get_correlation_id_before_trace(self):
         """get_correlation_id returns None when no trace active."""
-        from core.events.telemetry_bridge import get_telemetry_bridge
+        from core.observability.events.telemetry_bridge import get_telemetry_bridge
 
         bridge = get_telemetry_bridge()
 
@@ -75,7 +75,7 @@ class TestTelemetryBridge:
 
     def test_get_correlation_id_during_trace(self):
         """get_correlation_id returns trace ID during trace."""
-        from core.events.telemetry_bridge import get_telemetry_bridge
+        from core.observability.events.telemetry_bridge import get_telemetry_bridge
 
         bridge = get_telemetry_bridge()
         trace_id = bridge.start_trace()
@@ -84,7 +84,7 @@ class TestTelemetryBridge:
 
     def test_end_trace_clears_correlation(self):
         """end_trace clears the correlation ID."""
-        from core.events.telemetry_bridge import get_telemetry_bridge
+        from core.observability.events.telemetry_bridge import get_telemetry_bridge
 
         bridge = get_telemetry_bridge()
         bridge.start_trace()
@@ -94,7 +94,7 @@ class TestTelemetryBridge:
 
     def test_sequence_numbers_increment(self):
         """Sequence numbers increment within a trace."""
-        from core.events.telemetry_bridge import get_telemetry_bridge
+        from core.observability.events.telemetry_bridge import get_telemetry_bridge
 
         bridge = get_telemetry_bridge()
         bridge.start_trace()
@@ -109,7 +109,7 @@ class TestTelemetryBridge:
 
     def test_sequence_resets_on_new_trace(self):
         """Sequence numbers reset when starting a new trace."""
-        from core.events.telemetry_bridge import get_telemetry_bridge
+        from core.observability.events.telemetry_bridge import get_telemetry_bridge
 
         bridge = get_telemetry_bridge()
 
@@ -125,7 +125,7 @@ class TestTelemetryBridge:
 
     def test_payload_truncation_small(self):
         """Small payloads are not truncated."""
-        from core.events.telemetry_bridge import get_telemetry_bridge
+        from core.observability.events.telemetry_bridge import get_telemetry_bridge
 
         bridge = get_telemetry_bridge()
         payload = {"message": "Hello"}
@@ -137,7 +137,7 @@ class TestTelemetryBridge:
 
     def test_payload_truncation_large(self):
         """Large payloads are truncated."""
-        from core.events.telemetry_bridge import get_telemetry_bridge, MAX_PAYLOAD_SIZE
+        from core.observability.events.telemetry_bridge import MAX_PAYLOAD_SIZE, get_telemetry_bridge
 
         bridge = get_telemetry_bridge()
         # Create payload larger than MAX_PAYLOAD_SIZE
@@ -152,9 +152,9 @@ class TestTelemetryBridge:
     @pytest.mark.asyncio
     async def test_emit_async_with_mock_bus(self):
         """Async emit works with mocked bus."""
-        from core.events.telemetry_bridge import get_telemetry_bridge
-        from core.events.types import CerebroEventType
-        from core.events import redis_bus
+        from core.observability.events import redis_bus
+        from core.observability.events.telemetry_bridge import get_telemetry_bridge
+        from core.observability.events.types import CerebroEventType
 
         bridge = get_telemetry_bridge()
 
@@ -163,10 +163,7 @@ class TestTelemetryBridge:
         mock_bus.publish = AsyncMock(return_value=True)
 
         with patch.object(redis_bus, "get_redis_bus", return_value=mock_bus):
-            result = await bridge.emit(
-                CerebroEventType.HIVE_STATE_CHANGE,
-                {"state": "test"}
-            )
+            result = await bridge.emit(CerebroEventType.HIVE_STATE_CHANGE, {"state": "test"})
 
             assert result is True
             mock_bus.publish.assert_called_once()
@@ -174,9 +171,9 @@ class TestTelemetryBridge:
     @pytest.mark.asyncio
     async def test_emit_includes_correlation_id(self):
         """Emit includes correlation ID when trace is active."""
-        from core.events.telemetry_bridge import get_telemetry_bridge
-        from core.events.types import CerebroEventType
-        from core.events import redis_bus
+        from core.observability.events import redis_bus
+        from core.observability.events.telemetry_bridge import get_telemetry_bridge
+        from core.observability.events.types import CerebroEventType
 
         bridge = get_telemetry_bridge()
         trace_id = bridge.start_trace()
@@ -185,10 +182,7 @@ class TestTelemetryBridge:
         mock_bus.publish = AsyncMock(return_value=True)
 
         with patch.object(redis_bus, "get_redis_bus", return_value=mock_bus):
-            await bridge.emit(
-                CerebroEventType.HIVE_STATE_CHANGE,
-                {"state": "test"}
-            )
+            await bridge.emit(CerebroEventType.HIVE_STATE_CHANGE, {"state": "test"})
 
             # Check the event passed to publish
             call_args = mock_bus.publish.call_args[0][0]
@@ -197,9 +191,9 @@ class TestTelemetryBridge:
 
     def test_emit_sync_without_loop(self):
         """emit_sync works when no event loop is running."""
-        from core.events.telemetry_bridge import get_telemetry_bridge
-        from core.events.types import CerebroEventType
-        from core.events import redis_bus
+        from core.observability.events import redis_bus
+        from core.observability.events.telemetry_bridge import get_telemetry_bridge
+        from core.observability.events.types import CerebroEventType
 
         bridge = get_telemetry_bridge()
 
@@ -207,10 +201,7 @@ class TestTelemetryBridge:
         mock_bus.publish = AsyncMock(return_value=False)
 
         with patch.object(redis_bus, "get_redis_bus", return_value=mock_bus):
-            result = bridge.emit_sync(
-                CerebroEventType.HIVE_STATE_CHANGE,
-                {"state": "test"}
-            )
+            result = bridge.emit_sync(CerebroEventType.HIVE_STATE_CHANGE, {"state": "test"})
 
             # Should return False (mocked bus returns False)
             assert result is False
@@ -220,12 +211,13 @@ class TestTelemetryBridge:
 # TestEventTypesSynapse - New SYNAPSE event types
 # =============================================================================
 
+
 class TestEventTypesSynapse:
     """Test new SYNAPSE event types."""
 
     def test_hive_event_types_exist(self):
         """HiveMind SYNAPSE event types are defined."""
-        from core.events.types import CerebroEventType
+        from core.observability.events.types import CerebroEventType
 
         assert hasattr(CerebroEventType, "HIVE_STATE_CHANGE")
         assert hasattr(CerebroEventType, "HIVE_PHASE_START")
@@ -237,7 +229,7 @@ class TestEventTypesSynapse:
 
     def test_graph_event_types_exist(self):
         """Graph (React Flow) SYNAPSE event types are defined."""
-        from core.events.types import CerebroEventType
+        from core.observability.events.types import CerebroEventType
 
         assert hasattr(CerebroEventType, "GRAPH_NODE_SPAWN")
         assert hasattr(CerebroEventType, "GRAPH_NODE_UPDATE")
@@ -249,7 +241,7 @@ class TestEventTypesSynapse:
 
     def test_swarm_phase_change_exists(self):
         """Swarm phase change event type is defined."""
-        from core.events.types import CerebroEventType
+        from core.observability.events.types import CerebroEventType
 
         assert hasattr(CerebroEventType, "SWARM_PHASE_CHANGE")
         assert CerebroEventType.SWARM_PHASE_CHANGE.value == "swarm.phase_change"
@@ -259,12 +251,13 @@ class TestEventTypesSynapse:
 # TestCerebroEventCorrelation - Correlation fields
 # =============================================================================
 
+
 class TestCerebroEventCorrelation:
     """Test CerebroEvent correlation fields."""
 
     def test_cerebro_event_has_correlation_fields(self):
         """CerebroEvent has correlation_id and sequence_number fields."""
-        from core.events.types import CerebroEvent, CerebroEventType
+        from core.observability.events.types import CerebroEvent, CerebroEventType
 
         event = CerebroEvent(
             event_type=CerebroEventType.HIVE_STATE_CHANGE,
@@ -272,7 +265,7 @@ class TestCerebroEventCorrelation:
             workspace_id="default",
             payload={"test": True},
             correlation_id="trace123",
-            sequence_number=5
+            sequence_number=5,
         )
 
         assert event.correlation_id == "trace123"
@@ -280,13 +273,13 @@ class TestCerebroEventCorrelation:
 
     def test_cerebro_event_correlation_defaults_to_none(self):
         """Correlation fields default to None."""
-        from core.events.types import CerebroEvent, CerebroEventType
+        from core.observability.events.types import CerebroEvent, CerebroEventType
 
         event = CerebroEvent(
             event_type=CerebroEventType.HIVE_STATE_CHANGE,
             tenant_id="test",
             workspace_id="default",
-            payload={"test": True}
+            payload={"test": True},
         )
 
         assert event.correlation_id is None
@@ -294,7 +287,7 @@ class TestCerebroEventCorrelation:
 
     def test_to_json_includes_correlation(self):
         """to_json includes correlation fields when present."""
-        from core.events.types import CerebroEvent, CerebroEventType
+        from core.observability.events.types import CerebroEvent, CerebroEventType
 
         event = CerebroEvent(
             event_type=CerebroEventType.HIVE_STATE_CHANGE,
@@ -302,7 +295,7 @@ class TestCerebroEventCorrelation:
             workspace_id="default",
             payload={"test": True},
             correlation_id="trace123",
-            sequence_number=5
+            sequence_number=5,
         )
 
         json_str = event.to_json()
@@ -313,13 +306,13 @@ class TestCerebroEventCorrelation:
 
     def test_to_json_excludes_none_correlation(self):
         """to_json excludes correlation fields when None."""
-        from core.events.types import CerebroEvent, CerebroEventType
+        from core.observability.events.types import CerebroEvent, CerebroEventType
 
         event = CerebroEvent(
             event_type=CerebroEventType.HIVE_STATE_CHANGE,
             tenant_id="test",
             workspace_id="default",
-            payload={"test": True}
+            payload={"test": True},
         )
 
         json_str = event.to_json()
@@ -330,18 +323,20 @@ class TestCerebroEventCorrelation:
 
     def test_from_json_parses_correlation(self):
         """from_json parses correlation fields."""
-        from core.events.types import CerebroEvent, CerebroEventType
+        from core.observability.events.types import CerebroEvent
 
-        json_str = json.dumps({
-            "event_type": "hive.state_change",
-            "tenant_id": "test",
-            "workspace_id": "default",
-            "payload": {"test": True},
-            "timestamp": "2025-12-15T10:00:00Z",
-            "event_id": "abc123",
-            "correlation_id": "trace456",
-            "sequence_number": 10
-        })
+        json_str = json.dumps(
+            {
+                "event_type": "hive.state_change",
+                "tenant_id": "test",
+                "workspace_id": "default",
+                "payload": {"test": True},
+                "timestamp": "2025-12-15T10:00:00Z",
+                "event_id": "abc123",
+                "correlation_id": "trace456",
+                "sequence_number": 10,
+            }
+        )
 
         event = CerebroEvent.from_json(json_str)
 
@@ -350,14 +345,16 @@ class TestCerebroEventCorrelation:
 
     def test_from_json_without_correlation(self):
         """from_json works without correlation fields."""
-        from core.events.types import CerebroEvent, CerebroEventType
+        from core.observability.events.types import CerebroEvent
 
-        json_str = json.dumps({
-            "event_type": "hive.state_change",
-            "tenant_id": "test",
-            "workspace_id": "default",
-            "payload": {"test": True}
-        })
+        json_str = json.dumps(
+            {
+                "event_type": "hive.state_change",
+                "tenant_id": "test",
+                "workspace_id": "default",
+                "payload": {"test": True},
+            }
+        )
 
         event = CerebroEvent.from_json(json_str)
 
@@ -366,7 +363,7 @@ class TestCerebroEventCorrelation:
 
     def test_to_dict_includes_correlation(self):
         """to_dict includes correlation fields when present."""
-        from core.events.types import CerebroEvent, CerebroEventType
+        from core.observability.events.types import CerebroEvent, CerebroEventType
 
         event = CerebroEvent(
             event_type=CerebroEventType.HIVE_STATE_CHANGE,
@@ -374,7 +371,7 @@ class TestCerebroEventCorrelation:
             workspace_id="default",
             payload={"test": True},
             correlation_id="trace789",
-            sequence_number=15
+            sequence_number=15,
         )
 
         data = event.to_dict()
@@ -387,36 +384,34 @@ class TestCerebroEventCorrelation:
 # TestSyncBridgeTelemetry - SyncBridge telemetry hook
 # =============================================================================
 
+
 class TestSyncBridgeTelemetry:
     """Test SyncBridge telemetry integration."""
 
     def test_sync_bridge_has_setup_telemetry(self):
         """SyncBridge has _setup_telemetry method."""
         # Import directly to avoid circular dependency
+        import ast
         import importlib.util
-        spec = importlib.util.spec_from_file_location(
-            "sync_bridge",
-            "core/orchestration/sync_bridge.py"
-        )
-        sync_bridge_module = importlib.util.module_from_spec(spec)
+
+        sync_bridge_path = "core/execution_pkg/orchestration/sync_bridge.py"
+        spec = importlib.util.spec_from_file_location("sync_bridge", sync_bridge_path)
+        importlib.util.module_from_spec(spec)
 
         # Check if the method exists in the source
-        import ast
-        with open("core/orchestration/sync_bridge.py", "r", encoding="utf-8") as f:
+        with open(sync_bridge_path, encoding="utf-8") as f:
             source = f.read()
 
         tree = ast.parse(source)
-        methods = [
-            node.name for node in ast.walk(tree)
-            if isinstance(node, ast.FunctionDef)
-        ]
+        methods = [node.name for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)]
 
         assert "_setup_telemetry" in methods
 
     def test_sync_bridge_setup_telemetry_in_init(self):
         """SyncBridge.__init__ calls _setup_telemetry."""
         # Check that __init__ contains the call
-        with open("core/orchestration/sync_bridge.py", "r", encoding="utf-8") as f:
+        sync_bridge_path = "core/execution_pkg/orchestration/sync_bridge.py"
+        with open(sync_bridge_path, encoding="utf-8") as f:
             source = f.read()
 
         # Verify the call exists in the file
@@ -428,14 +423,16 @@ class TestSyncBridgeTelemetry:
 # TestIntegration - End-to-end integration tests
 # =============================================================================
 
+
 class TestIntegration:
     """Integration tests for telemetry pipeline."""
 
     @pytest.fixture(autouse=True)
     def reset_singletons(self):
         """Reset singletons between tests."""
-        from core.events.telemetry_bridge import reset_telemetry_bridge
-        from core.events.redis_bus import reset_redis_bus
+        from core.observability.events.redis_bus import reset_redis_bus
+        from core.observability.events.telemetry_bridge import reset_telemetry_bridge
+
         reset_telemetry_bridge()
         reset_redis_bus()
         yield
@@ -445,9 +442,9 @@ class TestIntegration:
     @pytest.mark.asyncio
     async def test_full_trace_lifecycle(self):
         """Test complete trace lifecycle with events."""
-        from core.events.telemetry_bridge import get_telemetry_bridge
-        from core.events.types import CerebroEventType
-        from core.events import redis_bus
+        from core.observability.events import redis_bus
+        from core.observability.events.telemetry_bridge import get_telemetry_bridge
+        from core.observability.events.types import CerebroEventType
 
         bridge = get_telemetry_bridge()
 
@@ -488,9 +485,9 @@ class TestIntegration:
     @pytest.mark.asyncio
     async def test_emit_graceful_degradation(self):
         """Test emit doesn't raise when bus fails."""
-        from core.events.telemetry_bridge import get_telemetry_bridge
-        from core.events.types import CerebroEventType
-        from core.events import redis_bus
+        from core.observability.events import redis_bus
+        from core.observability.events.telemetry_bridge import get_telemetry_bridge
+        from core.observability.events.types import CerebroEventType
 
         bridge = get_telemetry_bridge()
 
@@ -499,10 +496,7 @@ class TestIntegration:
 
         with patch.object(redis_bus, "get_redis_bus", return_value=mock_bus):
             # Should not raise
-            result = await bridge.emit(
-                CerebroEventType.HIVE_STATE_CHANGE,
-                {"state": "test"}
-            )
+            result = await bridge.emit(CerebroEventType.HIVE_STATE_CHANGE, {"state": "test"})
 
             # Should return False
             assert result is False

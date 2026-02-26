@@ -18,16 +18,17 @@ Security Features:
 - Path validation for learn/forget operations
 """
 
+import contextlib
 import logging
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel, Field
 
 from ..deps import AuthenticatedUser
-from ..rbac import require_permission, Permission
+from ..rbac import Permission, require_permission
 
 logger = logging.getLogger(__name__)
 
@@ -44,40 +45,46 @@ MAX_UPLOAD_SIZE = 10_000_000  # 10MB for document uploads
 # Request/Response Models
 # =============================================================================
 
+
 class NamespaceCreateRequest(BaseModel):
     """Request body for creating an agent namespace."""
+
     name: str = Field(..., min_length=1, max_length=50, description="Namespace name")
-    metadata: Optional[Dict[str, Any]] = Field(default=None, description="Optional metadata")
+    metadata: dict[str, Any] | None = Field(default=None, description="Optional metadata")
 
 
 class LearnRequest(BaseModel):
     """Request body for learning from path."""
+
     path: str = Field(..., description="Path to file or directory")
     recursive: bool = Field(default=True, description="Include subdirectories")
-    namespace: Optional[str] = Field(default=None, description="Target namespace (default: project)")
+    namespace: str | None = Field(default=None, description="Target namespace (default: project)")
 
 
 class ForgetRequest(BaseModel):
     """Request body for forgetting a file."""
+
     path: str = Field(..., description="Path to file to forget")
-    namespace: Optional[str] = Field(default=None, description="Target namespace (default: project)")
+    namespace: str | None = Field(default=None, description="Target namespace (default: project)")
 
 
 class QueryRequest(BaseModel):
     """Request body for RAG query."""
+
     query: str = Field(..., min_length=1, description="Search query")
     limit: int = Field(default=5, ge=1, le=20, description="Max results")
-    namespace: Optional[str] = Field(default=None, description="Target namespace (default: project)")
+    namespace: str | None = Field(default=None, description="Target namespace (default: project)")
 
 
 class ChunkResponse(BaseModel):
     """Response model for a retrieved chunk."""
+
     file_path: str
     start_line: int
     end_line: int
     content: str
     chunk_type: str
-    name: Optional[str]
+    name: str | None
     score: float = 0.0
 
 
@@ -85,21 +92,22 @@ class ChunkResponse(BaseModel):
 # Helper Functions
 # =============================================================================
 
+
 def _get_namespace_manager():
     """Get RAGNamespaceManager instance."""
     try:
         from core.config import Config
-        from core.memory import RAGNamespaceManager
+        from core.memory_pkg.memory import RAGNamespaceManager
 
         config = Config()
         nexus_root = Path(config.nexus_root)
         return RAGNamespaceManager(nexus_root)
     except Exception as e:
         logger.error(f"Failed to get namespace manager: {e}")
-        raise HTTPException(500, f"Memory system error: {e}")
+        raise HTTPException(500, f"Memory system error: {e}") from e
 
 
-def _get_rag_for_namespace(manager, namespace: Optional[str]):
+def _get_rag_for_namespace(manager, namespace: str | None):
     """Get the appropriate RAG for a namespace."""
     if namespace is None or namespace == "project":
         return manager.get_project_rag()
@@ -114,11 +122,12 @@ def _get_rag_for_namespace(manager, namespace: Optional[str]):
 # Endpoints
 # =============================================================================
 
+
 @router.get("/stats")
 async def memory_stats(
-    namespace: Optional[str] = Query(None, description="Namespace to get stats for"),
+    namespace: str | None = Query(None, description="Namespace to get stats for"),
     user: AuthenticatedUser = Depends(require_permission(Permission.FILE_READ, "memory")),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Get memory statistics.
 
@@ -153,7 +162,7 @@ async def memory_stats(
 @router.get("/namespaces")
 async def list_namespaces(
     user: AuthenticatedUser = Depends(require_permission(Permission.FILE_READ, "memory")),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     List all available namespaces.
 
@@ -173,7 +182,7 @@ async def list_namespaces(
 async def create_namespace(
     body: NamespaceCreateRequest,
     user: AuthenticatedUser = Depends(require_permission(Permission.FILE_WRITE, "memory")),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Create a new agent namespace.
 
@@ -192,7 +201,7 @@ async def create_namespace(
         raise HTTPException(409, f"Namespace already exists: {body.name}")
 
     # Create namespace
-    rag = manager.create_agent_rag(body.name, metadata=body.metadata)
+    manager.create_agent_rag(body.name, metadata=body.metadata)
     info = manager.get_namespace_info(body.name)
 
     logger.info(f"[MEMORIA] Created namespace: {body.name} by user={user.user_id}")
@@ -207,7 +216,7 @@ async def create_namespace(
 async def delete_namespace(
     name: str,
     user: AuthenticatedUser = Depends(require_permission(Permission.FILE_WRITE, "memory")),
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Delete an agent namespace.
 
@@ -234,9 +243,9 @@ async def delete_namespace(
 @router.post("/ingest")
 async def ingest_file(
     file: UploadFile = File(..., description="File to ingest"),
-    namespace: Optional[str] = Form(None, description="Target namespace"),
+    namespace: str | None = Form(None, description="Target namespace"),
     user: AuthenticatedUser = Depends(require_permission(Permission.FILE_WRITE, "memory")),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Upload and ingest a file into memory.
 
@@ -281,17 +290,15 @@ async def ingest_file(
 
     finally:
         # Clean up temp file
-        try:
+        with contextlib.suppress(Exception):
             tmp_path.unlink()
-        except Exception:
-            pass
 
 
 @router.post("/learn")
 async def learn_path(
     body: LearnRequest,
     user: AuthenticatedUser = Depends(require_permission(Permission.FILE_WRITE, "memory")),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Learn from a path (file or directory).
 
@@ -305,16 +312,23 @@ async def learn_path(
     manager = _get_namespace_manager()
     rag = _get_rag_for_namespace(manager, body.namespace)
 
+    # Security: Validate path with PathGuardian (prevents path traversal)
+    from core.config import Config
+    from core.security_pkg.security.path_guardian import PathGuardian
+
+    config = Config()
+    nexus_root = Path(config.nexus_root).resolve()
+    guardian = PathGuardian(Path(config.workspace_path).resolve(), nexus_root)
+
     path = Path(body.path)
     if not path.is_absolute():
-        # Resolve relative to nexus root
-        try:
-            from core.config import Config
-            config = Config()
-            path = Path(config.nexus_root) / path
-        except Exception:
-            pass
+        path = nexus_root / path
 
+    is_valid, resolved_path, message = guardian.validate_read(str(path))
+    if not is_valid:
+        raise HTTPException(403, f"Path access denied: {message}")
+
+    path = Path(resolved_path)
     if not path.exists():
         raise HTTPException(404, f"Path not found: {body.path}")
 
@@ -339,7 +353,7 @@ async def learn_path(
 async def forget_path(
     body: ForgetRequest,
     user: AuthenticatedUser = Depends(require_permission(Permission.FILE_WRITE, "memory")),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Forget a file from memory.
 
@@ -353,15 +367,23 @@ async def forget_path(
     manager = _get_namespace_manager()
     rag = _get_rag_for_namespace(manager, body.namespace)
 
+    # Security: Validate path with PathGuardian (prevents path traversal)
+    from core.config import Config
+    from core.security_pkg.security.path_guardian import PathGuardian
+
+    config = Config()
+    nexus_root = Path(config.nexus_root).resolve()
+    guardian = PathGuardian(Path(config.workspace_path).resolve(), nexus_root)
+
     path = Path(body.path)
     if not path.is_absolute():
-        try:
-            from core.config import Config
-            config = Config()
-            path = Path(config.nexus_root) / path
-        except Exception:
-            pass
+        path = nexus_root / path
 
+    is_valid, resolved_path, message = guardian.validate_read(str(path))
+    if not is_valid:
+        raise HTTPException(403, f"Path access denied: {message}")
+
+    path = Path(resolved_path)
     chunks_removed = rag.forget(path)
 
     logger.info(f"[MEMORIA] Forgot {body.path}: {chunks_removed} chunks by user={user.user_id}")
@@ -378,7 +400,7 @@ async def forget_path(
 async def query_memory(
     body: QueryRequest,
     user: AuthenticatedUser = Depends(require_permission(Permission.FILE_READ, "memory")),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Query the RAG memory.
 
@@ -417,7 +439,7 @@ async def merge_to_project(
     namespace: str = Query(..., description="Agent namespace to merge"),
     clear_agent: bool = Query(False, description="Clear agent namespace after merge"),
     user: AuthenticatedUser = Depends(require_permission(Permission.FILE_WRITE, "memory")),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Merge an agent namespace to the project namespace.
 

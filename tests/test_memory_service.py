@@ -4,10 +4,11 @@ Tests for MemoryService (V9.1 Service Layer)
 These tests verify the MemoryService extracted from repl.py works correctly.
 """
 
-import pytest
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 
 class TestMemoryService:
@@ -20,10 +21,7 @@ class TestMemoryService:
         pm.nexus_root = Path("/fake/nexus/root")
         pm.indexed_files = []
         pm.get_stats.return_value = MagicMock(
-            total_files=0,
-            total_chunks=0,
-            total_terms=0,
-            storage_path="/fake/storage"
+            total_files=0, total_chunks=0, total_terms=0, storage_path="/fake/storage"
         )
         pm.get_backend_info.return_value = {"backend": "tfidf"}
         return pm
@@ -48,12 +46,9 @@ class TestMemoryService:
     @pytest.fixture
     def memory_service(self, mock_project_memory, temp_workspace, mock_console):
         """Create a MemoryService instance."""
-        from core.memory.service import MemoryService
-        return MemoryService(
-            project_memory=mock_project_memory,
-            workspace_path=temp_workspace,
-            console=mock_console
-        )
+        from core.memory_pkg.memory.service import MemoryService
+
+        return MemoryService(project_memory=mock_project_memory, workspace_path=temp_workspace, console=mock_console)
 
     def test_learn_default_path(self, memory_service, mock_project_memory, mock_console):
         """Test learn with no path uses default."""
@@ -61,9 +56,11 @@ class TestMemoryService:
         mock_project_memory.nexus_root = Path("/fake/root")
 
         # Mock path exists
-        with patch('core.memory.service.Path.exists', return_value=True):
-            with patch('core.memory.service.Path.is_file', return_value=False):
-                result = memory_service.learn("")
+        with (
+            patch("core.memory_pkg.memory.service.Path.exists", return_value=True),
+            patch("core.memory_pkg.memory.service.Path.is_file", return_value=False),
+        ):
+            memory_service.learn("")
 
         # Should use default path "core"
         mock_console.print.assert_any_call("[dim]No path specified, indexing default: core[/dim]")
@@ -130,10 +127,7 @@ class TestMemoryService:
         """Test get_status returns proper stats."""
         mock_project_memory.indexed_files = ["file1.py", "file2.py"]
         mock_project_memory.get_stats.return_value = MagicMock(
-            total_files=2,
-            total_chunks=10,
-            total_terms=100,
-            storage_path="/path/to/storage"
+            total_files=2, total_chunks=10, total_terms=100, storage_path="/path/to/storage"
         )
 
         status = memory_service.get_status()
@@ -144,12 +138,9 @@ class TestMemoryService:
 
     def test_get_status_no_project_memory(self, temp_workspace, mock_console):
         """Test get_status when project memory is None."""
-        from core.memory.service import MemoryService
-        service = MemoryService(
-            project_memory=None,
-            workspace_path=temp_workspace,
-            console=mock_console
-        )
+        from core.memory_pkg.memory.service import MemoryService
+
+        service = MemoryService(project_memory=None, workspace_path=temp_workspace, console=mock_console)
         status = service.get_status()
         assert status is None
         mock_console.print_error.assert_called()
@@ -195,12 +186,9 @@ class TestMemoryService:
 
     def test_clear_no_project_memory(self, temp_workspace, mock_console):
         """Test clear when project memory is None."""
-        from core.memory.service import MemoryService
-        service = MemoryService(
-            project_memory=None,
-            workspace_path=temp_workspace,
-            console=mock_console
-        )
+        from core.memory_pkg.memory.service import MemoryService
+
+        service = MemoryService(project_memory=None, workspace_path=temp_workspace, console=mock_console)
         result = service.clear()
         assert result is False
 
@@ -232,8 +220,8 @@ class TestMemoryServiceIntegration:
 
     def test_command_uses_service(self):
         """Test that MemoryCommand uses MemoryService."""
-        from core.interface.commands.memory import LearnCommand, _get_memory_service
-        from core.interface.commands.registry import CommandContext
+        from core.interface_pkg.interface.commands.memory import _get_memory_service
+        from core.interface_pkg.interface.commands.registry import CommandContext
 
         mock_orchestrator = MagicMock()
         mock_orchestrator.project_memory = MagicMock()
@@ -243,12 +231,10 @@ class TestMemoryServiceIntegration:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             context = CommandContext(
-                orchestrator=mock_orchestrator,
-                console=mock_console,
-                config={},
-                extras={"workspace_path": Path(tmpdir)}
+                orchestrator=mock_orchestrator, console=mock_console, config={}, extras={"workspace_path": Path(tmpdir)}
             )
 
             service = _get_memory_service(context)
-            from core.memory.service import MemoryService
+            from core.memory_pkg.memory.service import MemoryService
+
             assert isinstance(service, MemoryService)

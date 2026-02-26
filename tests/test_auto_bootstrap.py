@@ -4,22 +4,23 @@ Tests for AutoBootstrap - NEXUS V7
 Tests automatic NEXUS.md generation for new projects.
 """
 
-import pytest
-import tempfile
-import shutil
 import json
-from pathlib import Path
+import shutil
 import sys
+import tempfile
+from pathlib import Path
+
+import pytest
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.bootstrap.auto_bootstrap import AutoBootstrap, ProjectAnalysis, bootstrap_project
-
+from core.infrastructure.bootstrap.auto_bootstrap import AutoBootstrap, ProjectAnalysis, bootstrap_project
 
 # ============================================================================
 # Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def temp_project():
@@ -92,20 +93,22 @@ def node_project(temp_project):
     (temp_project / "__tests__").mkdir()
 
     # Create package.json
-    (temp_project / "package.json").write_text(json.dumps({
-        "name": "test-node-project",
-        "version": "1.0.0",
-        "scripts": {
-            "start": "node src/index.js",
-            "test": "jest",
-            "build": "webpack --mode production",
-            "lint": "eslint src/"
-        },
-        "dependencies": {
-            "express": "^4.18.0",
-            "react": "^18.0.0"
-        }
-    }, indent=2))
+    (temp_project / "package.json").write_text(
+        json.dumps(
+            {
+                "name": "test-node-project",
+                "version": "1.0.0",
+                "scripts": {
+                    "start": "node src/index.js",
+                    "test": "jest",
+                    "build": "webpack --mode production",
+                    "lint": "eslint src/",
+                },
+                "dependencies": {"express": "^4.18.0", "react": "^18.0.0"},
+            },
+            indent=2,
+        )
+    )
 
     # Create JS files
     (temp_project / "src" / "index.js").write_text("""
@@ -153,6 +156,7 @@ deploy:
 # ProjectAnalysis Tests
 # ============================================================================
 
+
 class TestProjectAnalysis:
     """Test ProjectAnalysis dataclass."""
 
@@ -169,9 +173,9 @@ class TestProjectAnalysis:
         assert analysis.commands == {}
         assert analysis.indentation == "unknown"
         assert analysis.naming_style == "unknown"
-        assert analysis.has_tests == False
-        assert analysis.has_docs == False
-        assert analysis.has_ci == False
+        assert not analysis.has_tests
+        assert not analysis.has_docs
+        assert not analysis.has_ci
         assert analysis.project_name == "Unknown Project"
 
     def test_analysis_date_set(self):
@@ -185,6 +189,7 @@ class TestProjectAnalysis:
 # AutoBootstrap Initialization Tests
 # ============================================================================
 
+
 class TestAutoBootstrapInit:
     """Test AutoBootstrap initialization."""
 
@@ -197,19 +202,20 @@ class TestAutoBootstrapInit:
     def test_needs_bootstrap_no_nexus_md(self, temp_project):
         """Should need bootstrap when no NEXUS.md exists."""
         bootstrap = AutoBootstrap(temp_project)
-        assert bootstrap.needs_bootstrap() == True
+        assert bootstrap.needs_bootstrap()
 
     def test_needs_bootstrap_with_nexus_md(self, temp_project):
         """Should not need bootstrap when NEXUS.md exists."""
         (temp_project / "NEXUS.md").write_text("# Existing")
 
         bootstrap = AutoBootstrap(temp_project)
-        assert bootstrap.needs_bootstrap() == False
+        assert not bootstrap.needs_bootstrap()
 
 
 # ============================================================================
 # Language Detection Tests
 # ============================================================================
+
 
 class TestLanguageDetection:
     """Test programming language detection."""
@@ -240,6 +246,7 @@ class TestLanguageDetection:
 # Framework Detection Tests
 # ============================================================================
 
+
 class TestFrameworkDetection:
     """Test framework detection."""
 
@@ -268,6 +275,7 @@ class TestFrameworkDetection:
 # ============================================================================
 # Tool Detection Tests
 # ============================================================================
+
 
 class TestToolDetection:
     """Test development tool detection."""
@@ -305,6 +313,7 @@ class TestToolDetection:
 # Command Discovery Tests
 # ============================================================================
 
+
 class TestCommandDiscovery:
     """Test command discovery."""
 
@@ -338,6 +347,7 @@ class TestCommandDiscovery:
 # Structure Analysis Tests
 # ============================================================================
 
+
 class TestStructureAnalysis:
     """Test project structure analysis."""
 
@@ -364,26 +374,27 @@ class TestStructureAnalysis:
         bootstrap = AutoBootstrap(python_project)
         analysis = bootstrap.analyze()
 
-        assert analysis.has_tests == True
+        assert analysis.has_tests
 
     def test_has_docs(self, python_project):
         """Should detect docs directory."""
         bootstrap = AutoBootstrap(python_project)
         analysis = bootstrap.analyze()
 
-        assert analysis.has_docs == True
+        assert analysis.has_docs
 
     def test_has_ci(self, python_project):
         """Should detect CI configuration."""
         bootstrap = AutoBootstrap(python_project)
         analysis = bootstrap.analyze()
 
-        assert analysis.has_ci == True
+        assert analysis.has_ci
 
 
 # ============================================================================
 # NEXUS.md Generation Tests
 # ============================================================================
+
 
 class TestNexusMdGeneration:
     """Test NEXUS.md content generation."""
@@ -446,6 +457,7 @@ class TestNexusMdGeneration:
 # Save Tests
 # ============================================================================
 
+
 class TestSave:
     """Test NEXUS.md saving."""
 
@@ -477,6 +489,7 @@ class TestSave:
 # ============================================================================
 # Convenience Function Tests
 # ============================================================================
+
 
 class TestBootstrapProject:
     """Test bootstrap_project convenience function."""
@@ -511,6 +524,7 @@ class TestBootstrapProject:
 # ============================================================================
 # Edge Cases
 # ============================================================================
+
 
 class TestEdgeCases:
     """Test edge cases and error handling."""

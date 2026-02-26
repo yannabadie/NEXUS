@@ -8,15 +8,12 @@ Provides controlled failure injection for stress testing:
 """
 
 import asyncio
-import os
 import json
-import random
-import threading
+import os
 import time
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Optional, Callable, Any
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 
 class CrashInjector:
@@ -46,8 +43,6 @@ class CrashInjector:
         self.crash_count = 0
         self.crash_at = n
 
-        original_checkpoint = None
-
         def crashing_checkpoint(original_func):
             async def wrapper(*args, **kwargs):
                 result = await original_func(*args, **kwargs)
@@ -55,6 +50,7 @@ class CrashInjector:
                 if self.crash_count >= self.crash_at:
                     raise RuntimeError(f"CrashInjector: Crash after checkpoint {self.crash_count}")
                 return result
+
             return wrapper
 
         try:
@@ -66,15 +62,17 @@ class CrashInjector:
     @contextmanager
     def crash_during_persist(self):
         """Crash during _persist() call."""
+
         async def crashing_persist(*args, **kwargs):
             raise RuntimeError("CrashInjector: Crash during persist")
 
-        with patch("core.hive_mind.saga_manager.SagaManager._persist", crashing_persist):
+        with patch("core.intelligence.hive_mind.saga_manager.SagaManager._persist", crashing_persist):
             yield
 
     @contextmanager
     def crash_during_fsync(self):
         """Crash during os.fsync() call."""
+
         def crashing_fsync(fd):
             raise OSError("CrashInjector: fsync failed")
 
@@ -84,6 +82,7 @@ class CrashInjector:
     @contextmanager
     def crash_during_rename(self):
         """Crash during os.replace() atomic rename."""
+
         def crashing_replace(src, dst):
             raise OSError("CrashInjector: rename failed")
 
@@ -93,11 +92,13 @@ class CrashInjector:
     @contextmanager
     def crash_at_phase(self, phase: str):
         """Crash when specific phase is checkpointed."""
+
         async def phase_crashing_checkpoint(original_func):
             async def wrapper(self_saga, phase_name, *args, **kwargs):
                 if phase_name == phase:
                     raise RuntimeError(f"CrashInjector: Crash at phase {phase}")
                 return await original_func(self_saga, phase_name, *args, **kwargs)
+
             return wrapper
 
         yield phase_crashing_checkpoint
@@ -143,43 +144,29 @@ class RaceInjector:
         if elapsed < delay_ms:
             time.sleep((delay_ms - elapsed) / 1000)
 
-    async def concurrent_checkpoints(
-        self,
-        saga,
-        phases: list,
-        delay_between_ms: int = 0
-    ):
+    async def concurrent_checkpoints(self, saga, phases: list, delay_between_ms: int = 0):
         """
         Execute multiple checkpoints concurrently.
 
         Returns:
             List of results (success/exception) for each checkpoint
         """
+
         async def checkpoint_with_delay(phase, index):
             if delay_between_ms > 0 and index > 0:
                 await asyncio.sleep((delay_between_ms * index) / 1000)
             try:
                 await saga.checkpoint_phase(
-                    phase=phase,
-                    result={"test": True},
-                    state=f"STATE_{phase.upper()}",
-                    context_index=index * 5
+                    phase=phase, result={"test": True}, state=f"STATE_{phase.upper()}", context_index=index * 5
                 )
                 return {"phase": phase, "success": True}
             except Exception as e:
                 return {"phase": phase, "success": False, "error": str(e)}
 
-        tasks = [
-            checkpoint_with_delay(phase, i)
-            for i, phase in enumerate(phases)
-        ]
+        tasks = [checkpoint_with_delay(phase, i) for i, phase in enumerate(phases)]
         return await asyncio.gather(*tasks, return_exceptions=True)
 
-    async def concurrent_operations(
-        self,
-        operations: list,
-        stagger_ms: int = 0
-    ):
+    async def concurrent_operations(self, operations: list, stagger_ms: int = 0):
         """
         Execute multiple async operations concurrently.
 
@@ -190,6 +177,7 @@ class RaceInjector:
         Returns:
             List of results
         """
+
         async def run_with_stagger(op, index):
             if stagger_ms > 0 and index > 0:
                 await asyncio.sleep((stagger_ms * index) / 1000)
@@ -226,7 +214,7 @@ class CorruptionInjector:
         "wrong_encoding",
         "missing_fields",
         "extra_fields",
-        "wrong_types"
+        "wrong_types",
     ]
 
     def corrupt_json(self, filepath: Path, corruption_type: str = "invalid_json"):
@@ -245,7 +233,7 @@ class CorruptionInjector:
         elif corruption_type == "truncated":
             if filepath.exists():
                 content = filepath.read_text(encoding="utf-8")
-                filepath.write_text(content[:len(content)//2], encoding="utf-8")
+                filepath.write_text(content[: len(content) // 2], encoding="utf-8")
             else:
                 filepath.write_text('{"truncated": true', encoding="utf-8")
 
@@ -253,7 +241,7 @@ class CorruptionInjector:
             filepath.write_text("", encoding="utf-8")
 
         elif corruption_type == "wrong_encoding":
-            filepath.write_bytes(b'\xff\xfe invalid unicode \x00\x01')
+            filepath.write_bytes(b"\xff\xfe invalid unicode \x00\x01")
 
         elif corruption_type == "missing_fields":
             filepath.write_text('{"task_id": "test"}', encoding="utf-8")
@@ -264,16 +252,13 @@ class CorruptionInjector:
                     data = json.loads(filepath.read_text(encoding="utf-8"))
                     data["unknown_field_12345"] = "unexpected"
                     filepath.write_text(json.dumps(data), encoding="utf-8")
-                except:
+                except Exception:
                     filepath.write_text('{"extra": "field"}', encoding="utf-8")
             else:
                 filepath.write_text('{"extra": "field"}', encoding="utf-8")
 
         elif corruption_type == "wrong_types":
-            filepath.write_text(
-                '{"task_id": 12345, "checkpoints": "not_a_dict"}',
-                encoding="utf-8"
-            )
+            filepath.write_text('{"task_id": 12345, "checkpoints": "not_a_dict"}', encoding="utf-8")
 
     def truncate_file(self, filepath: Path, bytes_to_keep: int = 100):
         """Truncate file to specific size."""
@@ -301,14 +286,16 @@ class CorruptionInjector:
             filepath.write_text("{}")
 
         # Platform-specific locking
-        if os.name == 'nt':  # Windows
+        if os.name == "nt":  # Windows
             import msvcrt
-            f = open(filepath, 'r+')
+
+            f = filepath.open("r+")
             msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, 1)
             return f
         else:  # Unix
             import fcntl
-            f = open(filepath, 'r+')
+
+            f = filepath.open("r+")
             fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
             return f
 
@@ -323,11 +310,11 @@ class CorruptionInjector:
                     "result": {},
                     "state": "UNKNOWN",
                     "timestamp": "2025-01-01T00:00:00",
-                    "context_index": 0
+                    "context_index": 0,
                 }
             },
             "context": {},
-            "recovery_point": "unknown_phase_xyz"
+            "recovery_point": "unknown_phase_xyz",
         }
         saga_file.write_text(json.dumps(saga_data), encoding="utf-8")
         return saga_file
@@ -343,11 +330,11 @@ class CorruptionInjector:
                     "result": {},
                     "state": "ANALYSIS_COMPLETE",
                     "timestamp": "2099-12-31T23:59:59",  # Future!
-                    "context_index": 5
+                    "context_index": 5,
                 }
             },
             "context": {"analysis_complete": True},
-            "recovery_point": "analysis"
+            "recovery_point": "analysis",
         }
         saga_file.write_text(json.dumps(saga_data), encoding="utf-8")
         return saga_file
@@ -363,7 +350,7 @@ class CorruptionInjector:
                     "result": {},
                     "state": "ANALYSIS_COMPLETE",
                     "timestamp": "2025-01-01T00:00:00",
-                    "context_index": 5
+                    "context_index": 5,
                 },
                 # NOTE: debate is missing!
                 "architecture": {
@@ -371,15 +358,15 @@ class CorruptionInjector:
                     "result": {},
                     "state": "ARCHITECTURE_APPROVED",
                     "timestamp": "2025-01-01T00:00:02",
-                    "context_index": 15
-                }
+                    "context_index": 15,
+                },
             },
             "context": {
                 "analysis_complete": True,
                 "debate_complete": False,  # Inconsistent!
-                "architecture_approved": True
+                "architecture_approved": True,
             },
-            "recovery_point": "architecture"
+            "recovery_point": "architecture",
         }
         saga_file.write_text(json.dumps(saga_data), encoding="utf-8")
         return saga_file
@@ -406,7 +393,7 @@ class TimeoutInjector:
             raise TimeoutError(f"Operation timed out after {timeout_ms}ms")
 
         # Note: signal.alarm only works on Unix
-        if hasattr(signal, 'SIGALRM'):
+        if hasattr(signal, "SIGALRM"):
             old_handler = signal.signal(signal.SIGALRM, handler)
             signal.setitimer(signal.ITIMER_REAL, timeout_ms / 1000)
             try:
@@ -422,5 +409,5 @@ class TimeoutInjector:
         """Apply timeout to async coroutine."""
         try:
             return await asyncio.wait_for(coro, timeout=timeout_ms / 1000)
-        except asyncio.TimeoutError:
-            raise TimeoutError(f"Async operation timed out after {timeout_ms}ms")
+        except TimeoutError:
+            raise TimeoutError(f"Async operation timed out after {timeout_ms}ms") from None

@@ -11,12 +11,15 @@ V7.5 Phase 7: Atomic JSON persistence via AtomicJsonStore
 - All disk writes use Write-Replace pattern (temp → fsync → rename)
 - Thread-safe for Swarm PARALLEL mode
 """
+
+import contextlib
 import json
 import subprocess
+from datetime import datetime
 from pathlib import Path
 from threading import RLock
-from typing import Dict, List, Any, Optional
-from datetime import datetime
+from typing import Any
+
 import tiktoken
 
 from core.utils.atomic_store import AtomicJsonStore
@@ -50,7 +53,7 @@ class MemoryManagerV7:
         # Load Global Memory (Inter-project Persistence)
         self.global_memory = self._load_global_memory()
 
-    def load_initial_state(self) -> Dict:
+    def load_initial_state(self) -> dict:
         """
         Load blackboard state (called ONCE at init)
 
@@ -59,7 +62,7 @@ class MemoryManagerV7:
         """
         return self.blackboard
 
-    def _load_global_memory(self) -> Dict:
+    def _load_global_memory(self) -> dict:
         """Load global memory from user home directory (Phase 7: via AtomicJsonStore)"""
         try:
             data = self._global_memory_store.load_safe()
@@ -70,16 +73,13 @@ class MemoryManagerV7:
             print(f"Warning: Could not load global memory: {e}")
             return self._create_empty_global_memory()
 
-    def _create_empty_global_memory(self) -> Dict:
+    def _create_empty_global_memory(self) -> dict:
         """Create empty global memory structure"""
         return {
-            "user_profile": {},       # Preferences, name, style
-            "learned_patterns": {},   # Cross-project coding patterns
-            "project_index": [],      # List of known projects
-            "metadata": {
-                "created": datetime.now().isoformat(),
-                "version": "1.0"
-            }
+            "user_profile": {},  # Preferences, name, style
+            "learned_patterns": {},  # Cross-project coding patterns
+            "project_index": [],  # List of known projects
+            "metadata": {"created": datetime.now().isoformat(), "version": "1.0"},
         }
 
     def save_global_memory(self):
@@ -105,11 +105,11 @@ class MemoryManagerV7:
         # save_global_memory() has its own lock (RLock allows reentrant)
         self.save_global_memory()
 
-    def get_global_context(self) -> Dict:
+    def get_global_context(self) -> dict:
         """Get the full global memory"""
         return self.global_memory
 
-    def _load_or_create_blackboard(self) -> Dict:
+    def _load_or_create_blackboard(self) -> dict:
         """
         Load blackboard from disk or create new if missing (Phase 7: via AtomicJsonStore)
 
@@ -125,7 +125,7 @@ class MemoryManagerV7:
             print(f"Warning: Could not load blackboard: {e}")
             return self._create_empty_blackboard()
 
-    def _create_empty_blackboard(self) -> Dict:
+    def _create_empty_blackboard(self) -> dict:
         """Create empty blackboard structure"""
         return {
             "objective": "",
@@ -138,16 +138,13 @@ class MemoryManagerV7:
                 "active_agent": "Gemini",
                 "stalemate_counter": 0,
                 "last_action_signature": "",
-                "pending_tool_validation": False
+                "pending_tool_validation": False,
             },
-            "metadata": {
-                "created": datetime.now().isoformat(),
-                "version": "6.0.0"
-            }
+            "metadata": {"created": datetime.now().isoformat(), "version": "6.0.0"},
         }
 
     @property
-    def history(self) -> List[Dict]:
+    def history(self) -> list[dict]:
         """
         V12.4: Property to access recent_history from blackboard.
 
@@ -157,14 +154,14 @@ class MemoryManagerV7:
         with self._lock:
             return self.blackboard.get("recent_history", [])
 
-    def get_last_message(self) -> Dict:
+    def get_last_message(self) -> dict:
         """Get last message from history"""
         with self._lock:
             if self.blackboard["recent_history"]:
                 return self.blackboard["recent_history"][-1]
             return {}
 
-    def add_to_history(self, message: Dict):
+    def add_to_history(self, message: dict):
         """
         Add message to history
 
@@ -194,7 +191,7 @@ class MemoryManagerV7:
             except Exception as e:
                 print(f"Warning: Could not save blackboard: {e}")
 
-    def update_strategic_plan(self, plan: List[Dict]):
+    def update_strategic_plan(self, plan: list[dict]):
         """Update strategic plan"""
         with self._lock:
             self.blackboard["strategic_plan"] = plan
@@ -251,13 +248,13 @@ Résumé concis (max 2000 tokens) :"""
                 # Call Haiku CLI via subprocess
                 try:
                     result = subprocess.run(
-                        ["claude", "--model", "claude-3-haiku-20240307"],
+                        ["claude", "--model", "claude-haiku-4-5-20251001"],
                         input=prompt,
                         capture_output=True,
                         text=True,
                         timeout=30,
-                        encoding='utf-8',
-                        errors='replace'
+                        encoding="utf-8",
+                        errors="replace",
                     )
 
                     if result.returncode == 0:
@@ -271,17 +268,17 @@ Résumé concis (max 2000 tokens) :"""
 
                         print(f"[Memory] ✓ Compressed to {len(history[-10:])} messages + summary")
                     else:
-                        print(f"[Memory] Warning: Compression failed (Haiku CLI error)")
+                        print("[Memory] Warning: Compression failed (Haiku CLI error)")
 
                 except subprocess.TimeoutExpired:
-                    print(f"[Memory] Warning: Compression timeout")
+                    print("[Memory] Warning: Compression timeout")
                 except FileNotFoundError:
-                    print(f"[Memory] Warning: Claude CLI not found (compression skipped)")
+                    print("[Memory] Warning: Claude CLI not found (compression skipped)")
 
         except Exception as e:
             print(f"[Memory] Warning: Compression error: {e}")
 
-    def create_backup(self, reason: str = "manual") -> Optional[Path]:
+    def create_backup(self, reason: str = "manual") -> Path | None:
         """
         Create timestamped backup of current state
         Phase 7: Atomic write via AtomicJsonStore
@@ -302,8 +299,8 @@ Résumé concis (max 2000 tokens) :"""
                     "metadata": {
                         "reason": reason,
                         "timestamp": datetime.now().isoformat(),
-                        "iteration": self.blackboard.get("current_state", {}).get("iteration", 0)
-                    }
+                        "iteration": self.blackboard.get("current_state", {}).get("iteration", 0),
+                    },
                 }
 
                 # Use AtomicJsonStore for backup file
@@ -358,7 +355,7 @@ Résumé concis (max 2000 tokens) :"""
         self.save_to_disk()
         return True
 
-    def list_backups(self) -> List[Dict]:
+    def list_backups(self) -> list[dict]:
         """
         List available backups (Phase 7: via AtomicJsonStore)
 
@@ -371,13 +368,15 @@ Résumé concis (max 2000 tokens) :"""
                 backup_store = AtomicJsonStore(backup_file)
                 data = backup_store.load_safe()
                 metadata = data.get("metadata", {})
-                backups.append({
-                    "file": backup_file.name,
-                    "path": backup_file,
-                    "reason": metadata.get("reason", "unknown"),
-                    "timestamp": metadata.get("timestamp", "unknown"),
-                    "iteration": metadata.get("iteration", 0)
-                })
+                backups.append(
+                    {
+                        "file": backup_file.name,
+                        "path": backup_file,
+                        "reason": metadata.get("reason", "unknown"),
+                        "timestamp": metadata.get("timestamp", "unknown"),
+                        "iteration": metadata.get("iteration", 0),
+                    }
+                )
             except Exception:
                 pass
         return backups
@@ -386,8 +385,6 @@ Résumé concis (max 2000 tokens) :"""
         """Keep only N most recent backups"""
         backups = sorted(self.backup_dir.glob("blackboard_*.json"), reverse=True)
         for old_backup in backups[keep:]:
-            try:
+            # V8.5.0: Ignore cleanup failures (file may be locked)
+            with contextlib.suppress(Exception):
                 old_backup.unlink()
-            except Exception:
-                # V8.5.0: Ignore cleanup failures (file may be locked)
-                pass

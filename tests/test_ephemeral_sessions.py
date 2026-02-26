@@ -11,21 +11,14 @@ This module tests:
 4. Performance: EPHEMERAL should be faster than regular sessions
 """
 
-import os
-import time
-import pytest
 import tempfile
+import time
 from pathlib import Path
-from unittest.mock import patch, MagicMock
 
-from core.swarm.session_manager import (
-    SwarmSessionManager,
-    SessionMode,
-    SessionStatus,
-    TaskSession,
-    AgentSession
-)
-from core.swarm.task_analyzer import TaskComplexity
+import pytest
+
+from core.intelligence.swarm.session_manager import SessionMode, SessionStatus, SwarmSessionManager, TaskSession
+from core.intelligence.swarm.task_analyzer import TaskComplexity
 
 
 class TestSessionModeEphemeral:
@@ -38,8 +31,7 @@ class TestSessionModeEphemeral:
 
     def test_all_modes_exist(self):
         """Verify all session modes exist."""
-        modes = [SessionMode.FRESH, SessionMode.CONTINUE,
-                 SessionMode.BRANCH, SessionMode.EPHEMERAL]
+        modes = [SessionMode.FRESH, SessionMode.CONTINUE, SessionMode.BRANCH, SessionMode.EPHEMERAL]
         assert len(modes) == 4
 
 
@@ -48,20 +40,13 @@ class TestTaskSessionEphemeral:
 
     def test_task_session_has_ephemeral_flag(self):
         """TaskSession should have is_ephemeral field."""
-        session = TaskSession(
-            task_id="test_123",
-            swarm_mode="ping_pong"
-        )
+        session = TaskSession(task_id="test_123", swarm_mode="ping_pong")
         assert hasattr(session, "is_ephemeral")
         assert session.is_ephemeral is False  # Default
 
     def test_task_session_ephemeral_true(self):
         """TaskSession can be created with is_ephemeral=True."""
-        session = TaskSession(
-            task_id="test_123",
-            swarm_mode="specialist",
-            is_ephemeral=True
-        )
+        session = TaskSession(task_id="test_123", swarm_mode="specialist", is_ephemeral=True)
         assert session.is_ephemeral is True
 
 
@@ -83,35 +68,23 @@ class TestSwarmSessionManagerEphemeral:
 
     def test_create_ephemeral_task(self, manager):
         """Creating task with is_ephemeral=True should work."""
-        task = manager.create_task(
-            task_id="trivial_task_001",
-            swarm_mode="specialist",
-            is_ephemeral=True
-        )
+        task = manager.create_task(task_id="trivial_task_001", swarm_mode="specialist", is_ephemeral=True)
 
         assert task.is_ephemeral is True
         assert task.task_id == "trivial_task_001"
 
     def test_ephemeral_task_no_file_on_create(self, manager, temp_workspace):
         """EPHEMERAL task should NOT create session file on creation."""
-        manager.create_task(
-            task_id="ephemeral_test",
-            swarm_mode="specialist",
-            is_ephemeral=True
-        )
+        manager.create_task(task_id="ephemeral_test", swarm_mode="specialist", is_ephemeral=True)
 
         # Registry file should exist but not contain ephemeral task
-        registry_file = temp_workspace / ".nexus" / "session_registry.json"
+        temp_workspace / ".nexus" / "session_registry.json"
         # Ephemeral tasks skip _save_registry(), so file may not exist
         # or task won't be in it - that's the expected behavior
 
     def test_regular_task_updates_registry(self, manager, temp_workspace):
         """Regular (non-ephemeral) task SHOULD update registry file."""
-        manager.create_task(
-            task_id="regular_test",
-            swarm_mode="ping_pong",
-            is_ephemeral=False
-        )
+        manager.create_task(task_id="regular_test", swarm_mode="ping_pong", is_ephemeral=False)
 
         # Registry file should be created
         registry_file = temp_workspace / ".nexus" / "session_registry.json"
@@ -119,11 +92,7 @@ class TestSwarmSessionManagerEphemeral:
 
     def test_ephemeral_task_in_memory(self, manager):
         """EPHEMERAL task should be accessible via get_task()."""
-        manager.create_task(
-            task_id="memory_only",
-            swarm_mode="specialist",
-            is_ephemeral=True
-        )
+        manager.create_task(task_id="memory_only", swarm_mode="specialist", is_ephemeral=True)
 
         task = manager.get_task("memory_only")
         assert task is not None
@@ -131,11 +100,7 @@ class TestSwarmSessionManagerEphemeral:
 
     def test_complete_ephemeral_no_file_write(self, manager, temp_workspace):
         """Completing EPHEMERAL task should NOT write to file."""
-        task = manager.create_task(
-            task_id="complete_ephemeral",
-            swarm_mode="specialist",
-            is_ephemeral=True
-        )
+        manager.create_task(task_id="complete_ephemeral", swarm_mode="specialist", is_ephemeral=True)
 
         # Complete the task
         manager.complete_task("complete_ephemeral", status=SessionStatus.COMPLETED)
@@ -159,7 +124,7 @@ class TestTrivialToEphemeralMapping:
             TaskComplexity.SIMPLE,
             TaskComplexity.MODERATE,
             TaskComplexity.COMPLEX,
-            TaskComplexity.EXPERT
+            TaskComplexity.EXPERT,
         ]
         # Just verify all exist
         assert len(complexities) == 5
@@ -187,22 +152,14 @@ class TestEphemeralPerformance:
         ephemeral_times = []
         for i in range(5):
             start = time.perf_counter()
-            manager.create_task(
-                task_id=f"eph_{i}",
-                swarm_mode="specialist",
-                is_ephemeral=True
-            )
+            manager.create_task(task_id=f"eph_{i}", swarm_mode="specialist", is_ephemeral=True)
             ephemeral_times.append(time.perf_counter() - start)
 
         # Create regular tasks
         regular_times = []
         for i in range(5):
             start = time.perf_counter()
-            manager.create_task(
-                task_id=f"reg_{i}",
-                swarm_mode="specialist",
-                is_ephemeral=False
-            )
+            manager.create_task(task_id=f"reg_{i}", swarm_mode="specialist", is_ephemeral=False)
             regular_times.append(time.perf_counter() - start)
 
         avg_ephemeral = sum(ephemeral_times) / len(ephemeral_times)
@@ -210,8 +167,8 @@ class TestEphemeralPerformance:
 
         # Ephemeral should be faster (no file I/O)
         # Note: This might not always hold on fast SSDs, so we just verify it runs
-        print(f"\nEphemeral avg: {avg_ephemeral*1000:.3f}ms")
-        print(f"Regular avg: {avg_regular*1000:.3f}ms")
+        print(f"\nEphemeral avg: {avg_ephemeral * 1000:.3f}ms")
+        print(f"Regular avg: {avg_regular * 1000:.3f}ms")
 
         # Both should be sub-second for creation
         assert avg_ephemeral < 1.0
@@ -223,11 +180,7 @@ class TestEphemeralPerformance:
 
         # Create 10 ephemeral tasks
         for i in range(10):
-            manager.create_task(
-                task_id=f"no_io_{i}",
-                swarm_mode="specialist",
-                is_ephemeral=True
-            )
+            manager.create_task(task_id=f"no_io_{i}", swarm_mode="specialist", is_ephemeral=True)
             manager.complete_task(f"no_io_{i}", status=SessionStatus.COMPLETED)
 
         # Check no files were created
@@ -254,18 +207,11 @@ class TestAgentSessionWithEphemeral:
 
     def test_agent_session_in_ephemeral_task(self, manager):
         """Agent sessions can be added to ephemeral tasks via get_or_create_session."""
-        task = manager.create_task(
-            task_id="eph_with_agent",
-            swarm_mode="specialist",
-            is_ephemeral=True
-        )
+        manager.create_task(task_id="eph_with_agent", swarm_mode="specialist", is_ephemeral=True)
 
         # Add agent session using get_or_create_session
         session_uuid = manager.get_or_create_session(
-            task_id="eph_with_agent",
-            agent_id="claude",
-            role="specialist",
-            mode=SessionMode.EPHEMERAL
+            task_id="eph_with_agent", agent_id="claude", role="specialist", mode=SessionMode.EPHEMERAL
         )
 
         assert session_uuid is not None
@@ -276,17 +222,10 @@ class TestAgentSessionWithEphemeral:
 
     def test_ephemeral_mode_in_agent_session(self, manager):
         """AgentSession should support EPHEMERAL mode."""
-        manager.create_task(
-            task_id="agent_eph_mode",
-            swarm_mode="specialist",
-            is_ephemeral=True
-        )
+        manager.create_task(task_id="agent_eph_mode", swarm_mode="specialist", is_ephemeral=True)
 
-        session_uuid = manager.get_or_create_session(
-            task_id="agent_eph_mode",
-            agent_id="gemini",
-            role="lead",
-            mode=SessionMode.EPHEMERAL
+        manager.get_or_create_session(
+            task_id="agent_eph_mode", agent_id="gemini", role="lead", mode=SessionMode.EPHEMERAL
         )
 
         session = manager.get_session("agent_eph_mode", "lead")
@@ -313,11 +252,7 @@ class TestEphemeralEdgeCases:
     def test_ephemeral_task_not_in_get_history(self, manager):
         """EPHEMERAL tasks should not appear in session history (no persistence)."""
         # Create and complete ephemeral task
-        manager.create_task(
-            task_id="no_history",
-            swarm_mode="specialist",
-            is_ephemeral=True
-        )
+        manager.create_task(task_id="no_history", swarm_mode="specialist", is_ephemeral=True)
         manager.complete_task("no_history", status=SessionStatus.COMPLETED)
 
         # Task should be removed from active tasks after completion
@@ -349,10 +284,7 @@ class TestEphemeralEdgeCases:
     def test_ephemeral_with_metadata(self, manager):
         """EPHEMERAL tasks should support metadata (in memory only)."""
         task = manager.create_task(
-            task_id="eph_metadata",
-            swarm_mode="specialist",
-            is_ephemeral=True,
-            metadata={"custom_key": "custom_value"}
+            task_id="eph_metadata", swarm_mode="specialist", is_ephemeral=True, metadata={"custom_key": "custom_value"}
         )
 
         # Verify metadata was set

@@ -4,23 +4,24 @@ Tests for core/execution/execution_engine.py - V9.5
 Validates centralized tool execution.
 """
 
-import pytest
-from pathlib import Path
-from unittest.mock import MagicMock, patch
 from dataclasses import dataclass
+from unittest.mock import MagicMock, patch
 
-from core.execution.execution_engine import (
+import pytest
+
+from core.execution_pkg.execution.execution_engine import (
     ExecutionEngine,
     get_execution_engine,
     reset_execution_engine,
 )
-from core.execution.handlers.base import ToolResult
-from core.execution.tool_registry import reset_tool_registry
+from core.execution_pkg.execution.handlers.base import ToolResult
+from core.execution_pkg.execution.tool_registry import reset_tool_registry
 
 
 @dataclass
 class MockToolRequest:
     """Mock tool request for testing."""
+
     tool_name: str
     arguments: dict
 
@@ -46,7 +47,7 @@ def workspace_path(tmp_path):
 @pytest.fixture
 def engine(workspace_path):
     """Create ExecutionEngine with mocked security."""
-    with patch("core.execution.execution_engine.ValidationService") as mock_vs:
+    with patch("core.execution_pkg.execution.execution_engine.ValidationService") as mock_vs:
         mock_vs_instance = MagicMock()
         mock_vs_instance.validate_path.return_value = True
         mock_vs.return_value = mock_vs_instance
@@ -61,7 +62,7 @@ class TestExecutionEngineInit:
 
     def test_creates_with_workspace(self, workspace_path):
         """Should create engine with workspace path."""
-        with patch("core.execution.execution_engine.ValidationService"):
+        with patch("core.execution_pkg.execution.execution_engine.ValidationService"):
             engine = ExecutionEngine(workspace_path)
             assert engine.workspace_path == workspace_path
 
@@ -81,6 +82,7 @@ class TestExecute:
 
     def test_execute_registered_tool(self, engine):
         """Should execute registered tool."""
+
         # Register custom handler
         def custom_handler(args):
             return ToolResult.ok("custom", f"Got: {args.get('value', 'none')}")
@@ -103,6 +105,7 @@ class TestExecute:
 
     def test_execute_by_name(self, engine):
         """Should execute tool by name and args."""
+
         def handler(args):
             return ToolResult.ok("direct", "direct call")
 
@@ -132,7 +135,7 @@ class TestToolAliases:
         engine.validation_service.validate_path.return_value = True
 
         # Execute via alias
-        result = engine.execute_by_name("read_file", {"file_path": str(test_file)})
+        engine.execute_by_name("read_file", {"file_path": str(test_file)})
         # Note: May fail if handler actually runs - we're testing routing
 
 
@@ -148,6 +151,7 @@ class TestStatistics:
 
     def test_stats_track_success(self, engine):
         """Stats should track successful executions."""
+
         def success_handler(args):
             return ToolResult.ok("test", "success")
 
@@ -160,6 +164,7 @@ class TestStatistics:
 
     def test_stats_track_failure(self, engine):
         """Stats should track failed executions."""
+
         def fail_handler(args):
             return ToolResult.fail("test", "failed")
 
@@ -172,13 +177,9 @@ class TestStatistics:
 
     def test_stats_track_blocked(self, engine):
         """Stats should track blocked executions."""
+
         def blocked_handler(args):
-            return ToolResult(
-                tool_name="test",
-                status="BLOCKED",
-                output="",
-                error="Security"
-            )
+            return ToolResult(tool_name="test", status="BLOCKED", output="", error="Security")
 
         engine.register_handler("blocked_test", blocked_handler)
         engine.execute_by_name("blocked_test", {})
@@ -188,6 +189,7 @@ class TestStatistics:
 
     def test_reset_stats(self, engine):
         """Should reset statistics."""
+
         def handler(args):
             return ToolResult.ok("test", "ok")
 
@@ -204,15 +206,11 @@ class TestRegisterHandler:
 
     def test_register_custom_handler(self, engine):
         """Should register custom handler."""
+
         def my_handler(args):
             return ToolResult.ok("my_tool", "works")
 
-        engine.register_handler(
-            "my_tool",
-            my_handler,
-            category="custom",
-            description="My custom tool"
-        )
+        engine.register_handler("my_tool", my_handler, category="custom", description="My custom tool")
 
         assert engine.has_tool("my_tool")
 
@@ -239,7 +237,7 @@ class TestGlobalEngine:
 
     def test_singleton_instance(self, workspace_path):
         """get_execution_engine should return same instance."""
-        with patch("core.execution.execution_engine.ValidationService"):
+        with patch("core.execution_pkg.execution.execution_engine.ValidationService"):
             engine1 = get_execution_engine(workspace_path)
             engine2 = get_execution_engine()
             assert engine1 is engine2
@@ -251,7 +249,7 @@ class TestGlobalEngine:
 
     def test_reset_creates_new(self, workspace_path):
         """reset_execution_engine should clear instance."""
-        with patch("core.execution.execution_engine.ValidationService"):
+        with patch("core.execution_pkg.execution.execution_engine.ValidationService"):
             engine1 = get_execution_engine(workspace_path)
             reset_execution_engine()
             engine2 = get_execution_engine(workspace_path)
@@ -263,6 +261,7 @@ class TestErrorHandling:
 
     def test_handler_exception_caught(self, engine):
         """Should catch handler exceptions."""
+
         def broken_handler(args):
             raise RuntimeError("Handler crashed")
 
@@ -274,6 +273,7 @@ class TestErrorHandling:
 
     def test_failed_executions_counted(self, engine):
         """Exception should count as failed."""
+
         def broken_handler(args):
             raise RuntimeError("Crash")
 

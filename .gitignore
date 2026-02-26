@@ -31,6 +31,13 @@ workspace_archive.tar.gz
 *.jsonl
 .nexus/
 data/
+workspace_registry.json
+
+# Temporary analysis files
+repomix-output.xml
+repomix-output.txt
+prompt.txt
+test_run_output.txt
 
 # Node.js (for Playwright/UI tests)
 node_modules/
@@ -51,3 +58,4 @@ credentials.json
 
 # Compiled
 *.pyc
+MagicMock

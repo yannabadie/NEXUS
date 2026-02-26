@@ -45,6 +45,7 @@ Date: 2025-12-15
 from __future__ import annotations
 
 import abc
+import contextlib
 import json
 import logging
 import uuid
@@ -53,10 +54,10 @@ from datetime import datetime
 from enum import Enum, auto
 from pathlib import Path
 from threading import Lock
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from .protocol import DriverProtocol
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -65,25 +66,29 @@ logger = logging.getLogger(__name__)
 # Session Types
 # =============================================================================
 
+
 class SessionMode(Enum):
     """How to handle session context."""
-    FRESH = auto()      # Start new session, no history
-    CONTINUE = auto()   # Resume existing session
-    BRANCH = auto()     # Fork from existing session
+
+    FRESH = auto()  # Start new session, no history
+    CONTINUE = auto()  # Resume existing session
+    BRANCH = auto()  # Fork from existing session
 
 
 class SessionState(Enum):
     """Session lifecycle state."""
-    CREATED = auto()    # Session created, not yet started
-    ACTIVE = auto()     # Session is active
-    PAUSED = auto()     # Session paused (resumable)
-    ENDED = auto()      # Session ended (archived)
-    ERROR = auto()      # Session in error state
+
+    CREATED = auto()  # Session created, not yet started
+    ACTIVE = auto()  # Session is active
+    PAUSED = auto()  # Session paused (resumable)
+    ENDED = auto()  # Session ended (archived)
+    ERROR = auto()  # Session in error state
 
 
 @dataclass
 class SessionMetadata:
     """Metadata about a session."""
+
     session_id: str
     provider: str  # "gemini" or "claude"
     state: SessionState = SessionState.CREATED
@@ -91,11 +96,11 @@ class SessionMetadata:
     last_active: datetime = field(default_factory=datetime.now)
     message_count: int = 0
     total_tokens: int = 0
-    parent_session_id: Optional[str] = None  # For branched sessions
-    tags: List[str] = field(default_factory=list)
-    extra: Dict[str, Any] = field(default_factory=dict)
+    parent_session_id: str | None = None  # For branched sessions
+    tags: list[str] = field(default_factory=list)
+    extra: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "session_id": self.session_id,
             "provider": self.provider,
@@ -110,7 +115,7 @@ class SessionMetadata:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "SessionMetadata":
+    def from_dict(cls, data: dict[str, Any]) -> SessionMetadata:
         return cls(
             session_id=data["session_id"],
             provider=data["provider"],
@@ -129,6 +134,7 @@ class SessionMetadata:
 # Abstract Session Manager
 # =============================================================================
 
+
 class SessionManager(abc.ABC):
     """
     Abstract base class for session management.
@@ -143,8 +149,8 @@ class SessionManager(abc.ABC):
         self,
         provider: str,
         mode: SessionMode = SessionMode.FRESH,
-        parent_id: Optional[str] = None,
-        tags: Optional[List[str]] = None,
+        parent_id: str | None = None,
+        tags: list[str] | None = None,
     ) -> SessionMetadata:
         """
         Create a new session.
@@ -161,7 +167,7 @@ class SessionManager(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def get_session(self, session_id: str) -> Optional[SessionMetadata]:
+    def get_session(self, session_id: str) -> SessionMetadata | None:
         """Get session metadata by ID."""
         ...
 
@@ -169,7 +175,7 @@ class SessionManager(abc.ABC):
     def update_session(
         self,
         session_id: str,
-        state: Optional[SessionState] = None,
+        state: SessionState | None = None,
         message_count_delta: int = 0,
         tokens_delta: int = 0,
     ) -> bool:
@@ -195,7 +201,7 @@ class SessionManager(abc.ABC):
     def get_driver_context(
         self,
         session_id: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Get session context in driver-appropriate format.
 
@@ -209,9 +215,9 @@ class SessionManager(abc.ABC):
     @abc.abstractmethod
     def list_sessions(
         self,
-        provider: Optional[str] = None,
-        state: Optional[SessionState] = None,
-    ) -> List[SessionMetadata]:
+        provider: str | None = None,
+        state: SessionState | None = None,
+    ) -> list[SessionMetadata]:
         """
         List sessions matching filters.
 
@@ -225,6 +231,7 @@ class SessionManager(abc.ABC):
 # =============================================================================
 # CLI Session Manager
 # =============================================================================
+
 
 class CLISessionManager(SessionManager):
     """
@@ -240,7 +247,7 @@ class CLISessionManager(SessionManager):
     def __init__(
         self,
         workspace_path: Path,
-        home_isolator: Optional[Any] = None,  # HomeIsolator from session module
+        home_isolator: Any | None = None,  # HomeIsolator from session module
     ):
         """
         Initialize CLI session manager.
@@ -251,7 +258,7 @@ class CLISessionManager(SessionManager):
         """
         self._workspace_path = Path(workspace_path)
         self._home_isolator = home_isolator
-        self._sessions: Dict[str, SessionMetadata] = {}
+        self._sessions: dict[str, SessionMetadata] = {}
         self._lock = Lock()
 
         # Session storage directory
@@ -266,7 +273,7 @@ class CLISessionManager(SessionManager):
         sessions_file = self._session_store / "registry.json"
         if sessions_file.exists():
             try:
-                with open(sessions_file, "r", encoding="utf-8") as f:
+                with open(sessions_file, encoding="utf-8") as f:
                     data = json.load(f)
                 for session_data in data.get("sessions", []):
                     meta = SessionMetadata.from_dict(session_data)
@@ -293,17 +300,16 @@ class CLISessionManager(SessionManager):
         self,
         provider: str,
         mode: SessionMode = SessionMode.FRESH,
-        parent_id: Optional[str] = None,
-        tags: Optional[List[str]] = None,
+        parent_id: str | None = None,
+        tags: list[str] | None = None,
     ) -> SessionMetadata:
         """Create a new CLI session."""
         with self._lock:
             session_id = f"{provider}_{uuid.uuid4().hex[:12]}"
 
             # For BRANCH mode, validate parent exists
-            if mode == SessionMode.BRANCH:
-                if not parent_id or parent_id not in self._sessions:
-                    raise ValueError(f"Parent session {parent_id} not found for BRANCH")
+            if mode == SessionMode.BRANCH and (not parent_id or parent_id not in self._sessions):
+                raise ValueError(f"Parent session {parent_id} not found for BRANCH")
 
             meta = SessionMetadata(
                 session_id=session_id,
@@ -320,14 +326,14 @@ class CLISessionManager(SessionManager):
             logger.info(f"Created session {session_id} for {provider} (mode={mode.name})")
             return meta
 
-    def get_session(self, session_id: str) -> Optional[SessionMetadata]:
+    def get_session(self, session_id: str) -> SessionMetadata | None:
         """Get session by ID."""
         return self._sessions.get(session_id)
 
     def update_session(
         self,
         session_id: str,
-        state: Optional[SessionState] = None,
+        state: SessionState | None = None,
         message_count_delta: int = 0,
         tokens_delta: int = 0,
     ) -> bool:
@@ -367,7 +373,7 @@ class CLISessionManager(SessionManager):
             logger.info(f"Ended session {session_id}")
             return True
 
-    def get_driver_context(self, session_id: str) -> Dict[str, Any]:
+    def get_driver_context(self, session_id: str) -> dict[str, Any]:
         """
         Get driver context for a CLI session.
 
@@ -379,7 +385,7 @@ class CLISessionManager(SessionManager):
         if not meta:
             return {}
 
-        context: Dict[str, Any] = {
+        context: dict[str, Any] = {
             "session_uuid": session_id,
         }
 
@@ -387,7 +393,7 @@ class CLISessionManager(SessionManager):
         if self._home_isolator:
             try:
                 # Use acquire_env for reference counting (V11 F26)
-                if hasattr(self._home_isolator, 'acquire_env'):
+                if hasattr(self._home_isolator, "acquire_env"):
                     context["isolated_env"] = self._home_isolator.acquire_env(session_id)
                 else:
                     context["isolated_env"] = self._home_isolator.get_isolated_env(session_id)
@@ -413,7 +419,7 @@ class CLISessionManager(SessionManager):
         Should be called after driver.invoke() completes to release
         reference-counted resources (V11 F26).
         """
-        if self._home_isolator and hasattr(self._home_isolator, 'release_env'):
+        if self._home_isolator and hasattr(self._home_isolator, "release_env"):
             try:
                 self._home_isolator.release_env(session_id)
             except Exception as e:
@@ -421,9 +427,9 @@ class CLISessionManager(SessionManager):
 
     def list_sessions(
         self,
-        provider: Optional[str] = None,
-        state: Optional[SessionState] = None,
-    ) -> List[SessionMetadata]:
+        provider: str | None = None,
+        state: SessionState | None = None,
+    ) -> list[SessionMetadata]:
         """List sessions matching filters."""
         results = []
         for meta in self._sessions.values():
@@ -454,10 +460,8 @@ class CLISessionManager(SessionManager):
                 del self._sessions[session_id]
                 # Cleanup HOME if applicable
                 if self._home_isolator:
-                    try:
+                    with contextlib.suppress(Exception):
                         self._home_isolator.cleanup_home(session_id)
-                    except Exception:
-                        pass
 
             if to_remove:
                 self._save_sessions()
@@ -470,6 +474,7 @@ class CLISessionManager(SessionManager):
 # Session Registry (Global)
 # =============================================================================
 
+
 class SessionRegistry:
     """
     Global registry for all session managers.
@@ -478,15 +483,15 @@ class SessionRegistry:
     Used by orchestration code to manage sessions without knowing driver details.
     """
 
-    _instance: Optional["SessionRegistry"] = None
+    _instance: SessionRegistry | None = None
     _lock = Lock()
 
-    def __new__(cls) -> "SessionRegistry":
+    def __new__(cls) -> SessionRegistry:
         with cls._lock:
             if cls._instance is None:
                 cls._instance = super().__new__(cls)
-                cls._instance._managers: Dict[str, SessionManager] = {}
-                cls._instance._default_manager: Optional[str] = None
+                cls._instance._managers: dict[str, SessionManager] = {}
+                cls._instance._default_manager: str | None = None
             return cls._instance
 
     def register_manager(
@@ -500,7 +505,7 @@ class SessionRegistry:
         if set_default or self._default_manager is None:
             self._default_manager = name
 
-    def get_manager(self, name: Optional[str] = None) -> Optional[SessionManager]:
+    def get_manager(self, name: str | None = None) -> SessionManager | None:
         """Get a session manager by name, or default if not specified."""
         if name:
             return self._managers.get(name)
@@ -512,9 +517,9 @@ class SessionRegistry:
         self,
         provider: str,
         mode: SessionMode = SessionMode.FRESH,
-        manager_name: Optional[str] = None,
+        manager_name: str | None = None,
         **kwargs: Any,
-    ) -> Optional[SessionMetadata]:
+    ) -> SessionMetadata | None:
         """Create session using specified or default manager."""
         manager = self.get_manager(manager_name)
         if manager:
@@ -524,8 +529,8 @@ class SessionRegistry:
     def get_session(
         self,
         session_id: str,
-        manager_name: Optional[str] = None,
-    ) -> Optional[SessionMetadata]:
+        manager_name: str | None = None,
+    ) -> SessionMetadata | None:
         """Get session by ID."""
         manager = self.get_manager(manager_name)
         if manager:

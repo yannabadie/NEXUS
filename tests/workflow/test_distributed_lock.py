@@ -12,12 +12,12 @@ Author: Claude (NEXUS V12.3 SCALE-OUT)
 Date: 2025-12-16
 """
 
-import asyncio
-import pytest
-from unittest.mock import AsyncMock, MagicMock
-
 import sys
 from pathlib import Path
+from unittest.mock import AsyncMock
+
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.workflow import (
@@ -38,8 +38,8 @@ class TestDistributedLockNoOp:
 
         acquired = await lock.acquire()
 
-        assert acquired == True
-        assert lock.is_acquired == True
+        assert acquired
+        assert lock.is_acquired
 
     @pytest.mark.asyncio
     async def test_release_without_redis(self):
@@ -49,16 +49,16 @@ class TestDistributedLockNoOp:
 
         released = await lock.release()
 
-        assert released == True
-        assert lock.is_acquired == False
+        assert released
+        assert not lock.is_acquired
 
     @pytest.mark.asyncio
     async def test_context_manager_without_redis(self):
         """Test async context manager without Redis."""
         async with DistributedLock(redis=None, resource="ctx:test") as lock:
-            assert lock.is_acquired == True
+            assert lock.is_acquired
 
-        assert lock.is_acquired == False
+        assert not lock.is_acquired
 
     @pytest.mark.asyncio
     async def test_multiple_locks_without_redis(self):
@@ -66,8 +66,8 @@ class TestDistributedLockNoOp:
         lock1 = DistributedLock(redis=None, resource="multi:1")
         lock2 = DistributedLock(redis=None, resource="multi:1")  # Same resource
 
-        assert await lock1.acquire() == True
-        assert await lock2.acquire() == True  # No conflict in no-op mode
+        assert await lock1.acquire()
+        assert await lock2.acquire()  # No conflict in no-op mode
 
 
 class TestDistributedLockWithMockRedis:
@@ -88,11 +88,11 @@ class TestDistributedLockWithMockRedis:
 
         acquired = await lock.acquire()
 
-        assert acquired == True
-        assert lock.is_acquired == True
+        assert acquired
+        assert lock.is_acquired
         mock_redis.set.assert_called_once()
         call_kwargs = mock_redis.set.call_args.kwargs
-        assert call_kwargs["nx"] == True
+        assert call_kwargs["nx"]
         assert call_kwargs["ex"] == 30
 
     @pytest.mark.asyncio
@@ -104,8 +104,8 @@ class TestDistributedLockWithMockRedis:
 
         acquired = await lock.acquire()
 
-        assert acquired == False
-        assert lock.is_acquired == False
+        assert not acquired
+        assert not lock.is_acquired
 
     @pytest.mark.asyncio
     async def test_release_success(self, mock_redis):
@@ -115,8 +115,8 @@ class TestDistributedLockWithMockRedis:
 
         released = await lock.release()
 
-        assert released == True
-        assert lock.is_acquired == False
+        assert released
+        assert not lock.is_acquired
         mock_redis.eval.assert_called_once()
 
     @pytest.mark.asyncio
@@ -126,7 +126,7 @@ class TestDistributedLockWithMockRedis:
 
         released = await lock.release()
 
-        assert released == False
+        assert not released
         mock_redis.eval.assert_not_called()
 
     @pytest.mark.asyncio
@@ -139,7 +139,7 @@ class TestDistributedLockWithMockRedis:
 
         released = await lock.release()
 
-        assert released == False
+        assert not released
 
     @pytest.mark.asyncio
     async def test_extend_success(self, mock_redis):
@@ -149,7 +149,7 @@ class TestDistributedLockWithMockRedis:
 
         extended = await lock.extend(additional_ttl=60)
 
-        assert extended == True
+        assert extended
         mock_redis.eval.assert_called()
 
     @pytest.mark.asyncio
@@ -159,15 +159,15 @@ class TestDistributedLockWithMockRedis:
 
         extended = await lock.extend()
 
-        assert extended == False
+        assert not extended
 
     @pytest.mark.asyncio
     async def test_context_manager_success(self, mock_redis):
         """Test context manager with Redis."""
         async with DistributedLock(mock_redis, "ctx:redis") as lock:
-            assert lock.is_acquired == True
+            assert lock.is_acquired
 
-        assert lock.is_acquired == False
+        assert not lock.is_acquired
         mock_redis.eval.assert_called()  # Release was called
 
     @pytest.mark.asyncio
@@ -202,7 +202,7 @@ class TestConvenienceFunctions:
         lock = await acquire_workflow_lock(redis=None, workflow_id="wf-123", ttl=30)
 
         assert lock is not None
-        assert lock.is_acquired == True
+        assert lock.is_acquired
         assert "workflow:wf-123" in lock.key
 
     @pytest.mark.asyncio
@@ -222,7 +222,7 @@ class TestConvenienceFunctions:
         lock = await try_acquire_workflow_lock(redis=None, workflow_id="wf-try")
 
         assert lock is not None
-        assert lock.is_acquired == True
+        assert lock.is_acquired
 
     @pytest.mark.asyncio
     async def test_try_acquire_workflow_lock_failure(self):
@@ -248,8 +248,8 @@ class TestGracefulDegradation:
         acquired = await lock.acquire()
 
         # Should succeed despite error (graceful degradation)
-        assert acquired == True
-        assert lock.is_acquired == True
+        assert acquired
+        assert lock.is_acquired
 
     @pytest.mark.asyncio
     async def test_release_on_redis_error(self):
@@ -264,8 +264,8 @@ class TestGracefulDegradation:
         released = await lock.release()
 
         # Should handle error gracefully
-        assert released == False
-        assert lock.is_acquired == False
+        assert not released
+        assert not lock.is_acquired
 
     @pytest.mark.asyncio
     async def test_extend_on_redis_error(self):
@@ -279,7 +279,7 @@ class TestGracefulDegradation:
 
         extended = await lock.extend()
 
-        assert extended == False
+        assert not extended
 
 
 class TestLockOwnership:

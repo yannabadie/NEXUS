@@ -11,16 +11,16 @@ Author: Claude (NEXUS V12.2 IRONCLAD)
 Date: 2025-12-16
 """
 
-import asyncio
-import pytest
-from datetime import datetime, timedelta
+import sys
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
-import sys
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from core.db.engine import init_db, reset_engine
+from core.infrastructure.db.engine import init_db, reset_engine
 
 
 class TestHibernateState:
@@ -58,7 +58,7 @@ class TestHibernateState:
 
     def test_active_states_can_enter_hibernate(self):
         """Verify active states can transition to HIBERNATE."""
-        from core.fsm.states import TRANSITION_MATRIX, OrchestratorState, ACTIVE_STATES
+        from core.fsm.states import ACTIVE_STATES, TRANSITION_MATRIX, OrchestratorState
 
         for state in ACTIVE_STATES:
             transitions = TRANSITION_MATRIX.get(state, {})
@@ -228,7 +228,7 @@ class TestHibernationStateModel:
         )
 
         assert state.previous_state == "BRAINSTORMING"
-        assert state.is_active == True
+        assert state.is_active
         assert state.turn_count == 0
 
     def test_is_expired(self):
@@ -239,10 +239,10 @@ class TestHibernationStateModel:
             tenant_id=uuid4(),
             workspace_id="test",
             previous_state="IDLE",
-            expires_at=datetime.utcnow() - timedelta(hours=1),
+            expires_at=datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=1),
         )
 
-        assert state.is_expired() == True
+        assert state.is_expired()
 
     def test_not_expired(self):
         """Test non-expired state."""
@@ -252,10 +252,10 @@ class TestHibernationStateModel:
             tenant_id=uuid4(),
             workspace_id="test",
             previous_state="IDLE",
-            expires_at=datetime.utcnow() + timedelta(hours=24),
+            expires_at=datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=24),
         )
 
-        assert state.is_expired() == False
+        assert not state.is_expired()
 
 
 class TestHibernationWorkspaceIsolation:

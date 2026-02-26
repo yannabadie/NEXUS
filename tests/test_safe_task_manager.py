@@ -5,13 +5,15 @@ Validates fire-and-forget task error tracking.
 """
 
 import asyncio
-import pytest
-from unittest.mock import patch, MagicMock
+import contextlib
+from unittest.mock import MagicMock, patch
 
-from core.async_primitives.safe_task_manager import (
+import pytest
+
+from core.foundation.async_primitives.safe_task_manager import (
     SafeTaskManager,
-    create_safe_task,
     TaskInfo,
+    create_safe_task,
 )
 
 
@@ -29,6 +31,7 @@ class TestSafeTaskManagerBasics:
     @pytest.mark.asyncio
     async def test_create_task_returns_task(self):
         """create_task should return an asyncio.Task."""
+
         async def dummy():
             return 42
 
@@ -40,6 +43,7 @@ class TestSafeTaskManagerBasics:
     @pytest.mark.asyncio
     async def test_task_with_name(self):
         """Task should be created with specified name."""
+
         async def dummy():
             return "hello"
 
@@ -50,6 +54,7 @@ class TestSafeTaskManagerBasics:
     @pytest.mark.asyncio
     async def test_create_safe_task_convenience(self):
         """create_safe_task should work as convenience function."""
+
         async def dummy():
             return 123
 
@@ -87,6 +92,7 @@ class TestTaskTracking:
     @pytest.mark.asyncio
     async def test_stats_updated(self):
         """Stats should track completed and failed tasks."""
+
         async def success():
             return "ok"
 
@@ -102,10 +108,8 @@ class TestTaskTracking:
 
         # Run failure
         task2 = SafeTaskManager.create_task(failure(), name="failure_task")
-        try:
+        with contextlib.suppress(ValueError):
             await task2
-        except ValueError:
-            pass  # Expected
 
         stats = SafeTaskManager.get_stats()
         assert stats["failed"] >= 1
@@ -117,11 +121,12 @@ class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_exception_logged(self):
         """Exceptions should be logged, not swallowed."""
+
         async def failing():
             raise RuntimeError("Test exception")
 
-        with patch("core.async_primitives.safe_task_manager.logger") as mock_logger:
-            task = SafeTaskManager.create_task(failing(), name="failing_task")
+        with patch("core.foundation.async_primitives.safe_task_manager.logger") as mock_logger:
+            SafeTaskManager.create_task(failing(), name="failing_task")
 
             # Wait for task to complete
             await asyncio.sleep(0.1)
@@ -142,7 +147,7 @@ class TestErrorHandling:
         async def failing():
             raise ValueError("Custom callback test")
 
-        task = SafeTaskManager.create_task(
+        SafeTaskManager.create_task(
             failing(),
             name="callback_test",
             on_error=on_error,
@@ -161,14 +166,12 @@ class TestErrorHandling:
         async def wait():
             await event.wait()
 
-        with patch("core.async_primitives.safe_task_manager.logger") as mock_logger:
+        with patch("core.foundation.async_primitives.safe_task_manager.logger") as mock_logger:
             task = SafeTaskManager.create_task(wait(), name="cancel_test")
             task.cancel()
 
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await task
-            except asyncio.CancelledError:
-                pass
 
             # Should not log error for cancellation
             # (debug is ok, error is not)
@@ -187,10 +190,7 @@ class TestCancelAll:
         async def wait(event):
             await event.wait()
 
-        tasks = [
-            SafeTaskManager.create_task(wait(e), name=f"task_{i}")
-            for i, e in enumerate(events)
-        ]
+        [SafeTaskManager.create_task(wait(e), name=f"task_{i}") for i, e in enumerate(events)]
 
         # All should be active
         assert len(SafeTaskManager.get_active_tasks()) == 3
@@ -215,6 +215,7 @@ class TestSingleton:
     @pytest.mark.asyncio
     async def test_class_methods_use_singleton(self):
         """Class methods should use the singleton instance."""
+
         async def dummy():
             return 1
 

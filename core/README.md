@@ -113,7 +113,7 @@ orch = create_orchestrator(
     workspace_path=Path("workspace"),
     config=config,
     gemini_info={"model": "gemini-3-pro-preview"},
-    claude_info={"model": "claude-opus-4-5"}
+    claude_info={"model": "claude-opus-4-6-20250116"}
 )
 ```
 

@@ -4,23 +4,23 @@ Tests for Security Modules - NEXUS V7
 Tests PathGuardian and MutationValidator for comprehensive security coverage.
 """
 
-import pytest
-import tempfile
 import shutil
-from pathlib import Path
 import sys
-import os
+import tempfile
+from pathlib import Path
+
+import pytest
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.security.path_guardian import PathGuardian
-from core.security.mutation_validator import MutationValidator
-
+from core.security_pkg.security.mutation_validator import MutationValidator
+from core.security_pkg.security.path_guardian import PathGuardian
 
 # ============================================================================
 # Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def temp_structure():
@@ -61,7 +61,7 @@ def temp_structure():
         "parent": parent,
         "workspace": workspace,
         "core": core,
-        "generation_active": generation_active
+        "generation_active": generation_active,
     }
 
     # Cleanup
@@ -74,7 +74,7 @@ def path_guardian(temp_structure):
     return PathGuardian(
         workspace_path=temp_structure["workspace"],
         parent_path=temp_structure["parent"],
-        generation_active=temp_structure["generation_active"]
+        generation_active=temp_structure["generation_active"],
     )
 
 
@@ -88,6 +88,7 @@ def mutation_validator(temp_structure):
 # PathGuardian Initialization Tests
 # ============================================================================
 
+
 class TestPathGuardianInit:
     """Test PathGuardian initialization."""
 
@@ -96,7 +97,7 @@ class TestPathGuardianInit:
         guardian = PathGuardian(
             workspace_path=temp_structure["workspace"],
             parent_path=temp_structure["parent"],
-            generation_active=temp_structure["generation_active"]
+            generation_active=temp_structure["generation_active"],
         )
 
         assert guardian.workspace.is_absolute()
@@ -105,10 +106,7 @@ class TestPathGuardianInit:
 
     def test_init_without_generation_active(self, temp_structure):
         """Should work without generation_active."""
-        guardian = PathGuardian(
-            workspace_path=temp_structure["workspace"],
-            parent_path=temp_structure["parent"]
-        )
+        guardian = PathGuardian(workspace_path=temp_structure["workspace"], parent_path=temp_structure["parent"])
 
         assert guardian.generation_active is None
 
@@ -132,6 +130,7 @@ class TestPathGuardianInit:
 # PathGuardian Read Validation Tests
 # ============================================================================
 
+
 class TestPathGuardianRead:
     """Test read path validation."""
 
@@ -139,7 +138,7 @@ class TestPathGuardianRead:
         """Should allow reading files in workspace."""
         valid, resolved, msg = path_guardian.validate_read("test.py")
 
-        assert valid == True
+        assert valid
         assert msg == "OK"
 
     def test_read_parent_file_allowed(self, path_guardian, temp_structure):
@@ -148,7 +147,7 @@ class TestPathGuardianRead:
         parent_file = temp_structure["core"] / "orchestration_v7.py"
         valid, resolved, msg = path_guardian.validate_read(str(parent_file))
 
-        assert valid == True
+        assert valid
         assert msg == "OK"
 
     def test_read_outside_zones_blocked(self, path_guardian, temp_structure):
@@ -159,20 +158,21 @@ class TestPathGuardianRead:
 
         valid, resolved, msg = path_guardian.validate_read(str(outside_path))
 
-        assert valid == False
+        assert not valid
         assert "outside allowed zones" in msg.lower()
 
     def test_read_relative_path(self, path_guardian):
         """Should resolve relative paths from workspace."""
         valid, resolved, msg = path_guardian.validate_read("test.py")
 
-        assert valid == True
+        assert valid
         assert resolved.name == "test.py"
 
 
 # ============================================================================
 # PathGuardian Write Validation Tests
 # ============================================================================
+
 
 class TestPathGuardianWrite:
     """Test write path validation."""
@@ -181,57 +181,56 @@ class TestPathGuardianWrite:
         """Should allow writing files in workspace."""
         valid, resolved, msg = path_guardian.validate_write("new_file.py")
 
-        assert valid == True
+        assert valid
         assert msg == "OK"
 
     def test_write_workspace_subdir_allowed(self, path_guardian):
         """Should allow writing files in workspace subdirectories."""
         valid, resolved, msg = path_guardian.validate_write("subdir/new_file.py")
 
-        assert valid == True
+        assert valid
 
     def test_write_absolute_path_blocked(self, path_guardian, temp_structure):
         """Should ALWAYS block absolute paths for write."""
         absolute_path = temp_structure["workspace"] / "file.py"
         valid, resolved, msg = path_guardian.validate_write(str(absolute_path))
 
-        assert valid == False
+        assert not valid
         assert "absolute" in msg.lower()
 
     def test_write_parent_blocked(self, path_guardian):
         """Should block writing to parent directory."""
         valid, resolved, msg = path_guardian.validate_write("../core/hack.py")
 
-        assert valid == False
+        assert not valid
         assert "PARENT" in msg or "outside" in msg.lower()
 
     def test_write_sacred_file_blocked(self, path_guardian):
         """Should block writing to sacred files."""
         valid, resolved, msg = path_guardian.validate_write("KERNEL.py")
 
-        assert valid == False
+        assert not valid
         assert "protected" in msg.lower() or "sacred" in msg.lower()
 
     def test_write_env_file_blocked(self, path_guardian):
         """Should block writing to .env files."""
         valid, resolved, msg = path_guardian.validate_write(".env")
-        assert valid == False
+        assert not valid
 
         valid, resolved, msg = path_guardian.validate_write(".env.local")
-        assert valid == False
+        assert not valid
 
         valid, resolved, msg = path_guardian.validate_write(".env.production")
-        assert valid == False
+        assert not valid
 
     def test_write_generation_active_blocked_without_evolution_mode(self, path_guardian):
         """Should block GENERATION_ACTIVE without evolution mode."""
         valid, resolved, msg = path_guardian.validate_write(
-            "../../GENERATION_ACTIVE/child/file.py",
-            is_evolution_mode=False
+            "../../GENERATION_ACTIVE/child/file.py", is_evolution_mode=False
         )
 
         # This path would resolve outside workspace, should be blocked
-        assert valid == False
+        assert not valid
 
     def test_write_generation_active_allowed_with_evolution_mode(self, path_guardian, temp_structure):
         """Should allow GENERATION_ACTIVE in evolution mode."""
@@ -244,15 +243,16 @@ class TestPathGuardianWrite:
         # Since PathGuardian resolves from workspace, we need the right relative path
         valid, resolved, msg = path_guardian.validate_write(
             "new_file.py",  # This stays in workspace
-            is_evolution_mode=True
+            is_evolution_mode=True,
         )
 
-        assert valid == True  # Workspace is always writable
+        assert valid  # Workspace is always writable
 
 
 # ============================================================================
 # PathGuardian Path Traversal Tests
 # ============================================================================
+
 
 class TestPathGuardianTraversal:
     """Test path traversal attack prevention."""
@@ -260,17 +260,17 @@ class TestPathGuardianTraversal:
     def test_simple_traversal_blocked(self, path_guardian):
         """Should block simple ../ traversal."""
         valid, resolved, msg = path_guardian.validate_write("../outside.py")
-        assert valid == False
+        assert not valid
 
     def test_deep_traversal_blocked(self, path_guardian):
         """Should block deep traversal."""
         valid, resolved, msg = path_guardian.validate_write("../../../etc/passwd")
-        assert valid == False
+        assert not valid
 
     def test_encoded_traversal_blocked(self, path_guardian):
         """Should block hidden traversal in path."""
         valid, resolved, msg = path_guardian.validate_write("subdir/../../../outside.py")
-        assert valid == False
+        assert not valid
 
     def test_traversal_within_workspace_allowed(self, path_guardian, temp_structure):
         """Should allow traversal that stays within workspace."""
@@ -279,12 +279,13 @@ class TestPathGuardianTraversal:
 
         # This should resolve to workspace/file.py
         valid, resolved, msg = path_guardian.validate_write("subdir/../file.py")
-        assert valid == True
+        assert valid
 
 
 # ============================================================================
 # MutationValidator Basic Tests
 # ============================================================================
+
 
 class TestMutationValidatorBasic:
     """Test basic MutationValidator functionality."""
@@ -320,6 +321,7 @@ print(result)
 # ============================================================================
 # MutationValidator Suspicious Import Tests
 # ============================================================================
+
 
 class TestMutationValidatorImports:
     """Test suspicious import detection."""
@@ -364,6 +366,7 @@ class TestMutationValidatorImports:
 # MutationValidator Suspicious Call Tests
 # ============================================================================
 
+
 class TestMutationValidatorCalls:
     """Test suspicious function call detection."""
 
@@ -405,6 +408,7 @@ subprocess.run(["ls"])
 # ============================================================================
 # MutationValidator open() Tests
 # ============================================================================
+
 
 class TestMutationValidatorOpen:
     """Test special handling of open()."""
@@ -452,6 +456,7 @@ class TestMutationValidatorOpen:
 # MutationValidator Report Tests
 # ============================================================================
 
+
 class TestMutationValidatorReport:
     """Test report formatting."""
 
@@ -483,15 +488,16 @@ class TestMutationValidatorReport:
 # Integration Tests
 # ============================================================================
 
+
 class TestSecurityIntegration:
     """Integration tests combining PathGuardian and MutationValidator."""
 
     def test_mutation_targeting_parent_detected(self, mutation_validator):
         """Should detect mutation code targeting parent."""
-        code = '''
+        code = """
 with open("../core/orchestration_v7.py", "w") as f:
     f.write("# Hacked!")
-'''
+"""
         warnings, info = mutation_validator.validate(code, "mutation.py")
 
         # Should warn about parent path in open()
@@ -499,10 +505,10 @@ with open("../core/orchestration_v7.py", "w") as f:
 
     def test_mutation_with_subprocess_detected(self, mutation_validator):
         """Should detect mutation using subprocess."""
-        code = '''
+        code = """
 import subprocess
 subprocess.run(["rm", "-rf", "../"])
-'''
+"""
         warnings, info = mutation_validator.validate(code, "mutation.py")
 
         assert any("subprocess" in w.lower() for w in warnings)
@@ -510,17 +516,17 @@ subprocess.run(["rm", "-rf", "../"])
     def test_safe_mutation_allowed(self, path_guardian, mutation_validator, temp_structure):
         """Safe mutation should pass both validators."""
         # Safe mutation code
-        code = '''
+        code = """
 def improve_function(x):
     return x * 2
-'''
+"""
         # Validate code
         warnings, info = mutation_validator.validate(code, "improvement.py")
         assert len(warnings) == 0
 
         # Validate path (writing to workspace)
         valid, resolved, msg = path_guardian.validate_write("improvement.py")
-        assert valid == True
+        assert valid
 
 
 if __name__ == "__main__":

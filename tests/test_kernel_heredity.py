@@ -5,9 +5,10 @@ Tests the lineage validation system that ensures spawned agents
 descend from a valid KERNEL state.
 """
 
-import pytest
 import sys
 from pathlib import Path
+
+import pytest
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -42,7 +43,7 @@ class TestComputeRulesHash:
         result = compute_rules_hash()
 
         # All characters should be valid hex
-        assert all(c in '0123456789abcdef' for c in result)
+        assert all(c in "0123456789abcdef" for c in result)
 
 
 class TestValidateLineage:
@@ -50,7 +51,7 @@ class TestValidateLineage:
 
     def test_valid_authority_no_hash(self):
         """Test validation passes with correct authority and no hash (legacy)."""
-        from KERNEL import validate_lineage, CREATOR
+        from KERNEL import CREATOR, validate_lineage
 
         cert = {"human_authority": CREATOR}
         is_valid, reason = validate_lineage(cert)
@@ -80,13 +81,10 @@ class TestValidateLineage:
 
     def test_matching_hash_passes(self):
         """Test validation passes with matching KERNEL hash."""
-        from KERNEL import validate_lineage, compute_rules_hash, CREATOR
+        from KERNEL import CREATOR, compute_rules_hash, validate_lineage
 
         current_hash = compute_rules_hash()
-        cert = {
-            "human_authority": CREATOR,
-            "kernel_rules_hash": current_hash
-        }
+        cert = {"human_authority": CREATOR, "kernel_rules_hash": current_hash}
 
         is_valid, reason = validate_lineage(cert)
 
@@ -95,14 +93,11 @@ class TestValidateLineage:
 
     def test_mismatched_hash_rejected(self):
         """Test validation fails with completely different hash (>5% drift)."""
-        from KERNEL import validate_lineage, CREATOR
+        from KERNEL import CREATOR, validate_lineage
 
         # Completely different hash
         fake_hash = "0000000000000000"
-        cert = {
-            "human_authority": CREATOR,
-            "kernel_rules_hash": fake_hash
-        }
+        cert = {"human_authority": CREATOR, "kernel_rules_hash": fake_hash}
 
         is_valid, reason = validate_lineage(cert)
 
@@ -111,17 +106,14 @@ class TestValidateLineage:
 
     def test_minor_drift_allowed(self):
         """Test validation passes with minor hash drift (<5%)."""
-        from KERNEL import validate_lineage, compute_rules_hash, CREATOR
+        from KERNEL import CREATOR, compute_rules_hash, validate_lineage
 
         # Create hash with 1 character different (6.25% drift at 16 chars)
         current_hash = compute_rules_hash()
         # Flip one character - this creates ~6.25% drift which exceeds default 5%
         # Use 0 characters changed for true "no drift" test
         same_hash = current_hash  # No drift
-        cert = {
-            "human_authority": CREATOR,
-            "kernel_rules_hash": same_hash
-        }
+        cert = {"human_authority": CREATOR, "kernel_rules_hash": same_hash}
 
         is_valid, reason = validate_lineage(cert)
 
@@ -129,19 +121,16 @@ class TestValidateLineage:
 
     def test_custom_drift_threshold(self):
         """Test custom drift threshold."""
-        from KERNEL import validate_lineage, compute_rules_hash, CREATOR
+        from KERNEL import CREATOR, compute_rules_hash, validate_lineage
 
         current_hash = compute_rules_hash()
         # Change 2 characters for 12.5% drift
         fake_hash = list(current_hash)
-        fake_hash[0] = '0' if fake_hash[0] != '0' else '1'
-        fake_hash[1] = '0' if fake_hash[1] != '0' else '1'
-        fake_hash = ''.join(fake_hash)
+        fake_hash[0] = "0" if fake_hash[0] != "0" else "1"
+        fake_hash[1] = "0" if fake_hash[1] != "0" else "1"
+        fake_hash = "".join(fake_hash)
 
-        cert = {
-            "human_authority": CREATOR,
-            "kernel_rules_hash": fake_hash
-        }
+        cert = {"human_authority": CREATOR, "kernel_rules_hash": fake_hash}
 
         # Should fail with default 5%
         is_valid_default, _ = validate_lineage(cert, max_drift_percent=5.0)
@@ -169,7 +158,7 @@ class TestGetHeredityStamp:
 
     def test_stamp_values(self):
         """Test heredity stamp values are correct."""
-        from KERNEL import get_heredity_stamp, compute_rules_hash, VERSION, CREATOR
+        from KERNEL import CREATOR, VERSION, compute_rules_hash, get_heredity_stamp
 
         stamp = get_heredity_stamp()
 
@@ -180,8 +169,9 @@ class TestGetHeredityStamp:
 
     def test_stamp_timestamp_is_iso(self):
         """Test heredity stamp timestamp is valid ISO format."""
-        from KERNEL import get_heredity_stamp
         from datetime import datetime
+
+        from KERNEL import get_heredity_stamp
 
         stamp = get_heredity_stamp()
 
@@ -201,10 +191,7 @@ class TestIntegration:
         stamp = get_heredity_stamp()
 
         # Create certificate from stamp
-        cert = {
-            "human_authority": stamp["human_authority"],
-            "kernel_rules_hash": stamp["kernel_rules_hash"]
-        }
+        cert = {"human_authority": stamp["human_authority"], "kernel_rules_hash": stamp["kernel_rules_hash"]}
 
         # Validate
         is_valid, reason = validate_lineage(cert)

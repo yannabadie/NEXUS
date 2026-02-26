@@ -22,16 +22,16 @@ Date: 2025-12-15
 
 import asyncio
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 from uuid import uuid4
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel
 
-from ..deps import AuthenticatedUser, require_auth
-
 # V12.3 SCALE-OUT: Redis-backed workflow registry
-from core.workflow import get_workflow_registry, WorkflowStatus
+from core.workflow import WorkflowStatus, get_workflow_registry
+
+from ..deps import AuthenticatedUser, require_auth
 
 logger = logging.getLogger(__name__)
 
@@ -43,17 +43,19 @@ _registry = get_workflow_registry()
 
 class WorkflowStartRequest(BaseModel):
     """Request body for starting a workflow."""
+
     task: str
-    complexity: Optional[str] = None
+    complexity: str | None = None
 
 
 class WorkflowResponse(BaseModel):
     """Response model for workflow operations."""
+
     workflow_id: str
     status: str
-    task: Optional[str] = None
-    result: Optional[Any] = None
-    error: Optional[str] = None
+    task: str | None = None
+    result: Any | None = None
+    error: str | None = None
 
 
 def _get_orchestrator():
@@ -63,8 +65,8 @@ def _get_orchestrator():
     Creates a new OrchestratorV7 instance with proper configuration.
     """
     try:
-        from core.orchestration_v7 import OrchestratorV7
         from core.config import Config
+        from core.orchestration_v7 import OrchestratorV7
 
         config = Config()
         gemini_info = {"model": config.gemini_pro_model, "provider": "gemini"}
@@ -80,7 +82,7 @@ async def start_workflow(
     body: WorkflowStartRequest,
     background_tasks: BackgroundTasks,
     user: AuthenticatedUser = Depends(require_auth),
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Start a workflow (non-blocking).
 
@@ -122,8 +124,9 @@ async def start_workflow(
     async def run_workflow():
         """Background task to execute the workflow."""
         import concurrent.futures
-        from core.events.telemetry_bridge import get_telemetry_bridge
-        from core.events.types import CerebroEventType
+
+        from core.observability.events.telemetry_bridge import get_telemetry_bridge
+        from core.observability.events.types import CerebroEventType
 
         bridge = get_telemetry_bridge()
 
@@ -137,21 +140,31 @@ async def start_workflow(
                 CerebroEventType.HIVE_PHASE_START,
                 {"phase": "WORKFLOW", "workflow_id": workflow_id, "task": body.task[:100]},
                 tenant_id=tenant_id,
-                workspace_id=workspace_id
+                workspace_id=workspace_id,
             )
 
             # V12.0 RETINA: Emit graph nodes for agents
             await bridge.emit(
                 CerebroEventType.GRAPH_NODE_SPAWN,
-                {"node_id": "gemini", "type": "agent", "data": {"name": "Gemini", "status": "idle"}, "position": {"x": 100, "y": 50}},
+                {
+                    "node_id": "gemini",
+                    "type": "agent",
+                    "data": {"name": "Gemini", "status": "idle"},
+                    "position": {"x": 100, "y": 50},
+                },
                 tenant_id=tenant_id,
-                workspace_id=workspace_id
+                workspace_id=workspace_id,
             )
             await bridge.emit(
                 CerebroEventType.GRAPH_NODE_SPAWN,
-                {"node_id": "claude", "type": "agent", "data": {"name": "Claude", "status": "idle"}, "position": {"x": 300, "y": 50}},
+                {
+                    "node_id": "claude",
+                    "type": "agent",
+                    "data": {"name": "Claude", "status": "idle"},
+                    "position": {"x": 300, "y": 50},
+                },
                 tenant_id=tenant_id,
-                workspace_id=workspace_id
+                workspace_id=workspace_id,
             )
 
             # Get orchestrator
@@ -162,16 +175,10 @@ async def start_workflow(
             # V12.4 FIX F19: Use get_running_loop() instead of deprecated get_event_loop()
             loop = asyncio.get_running_loop()
             with concurrent.futures.ThreadPoolExecutor() as executor:
-                result = await loop.run_in_executor(
-                    executor,
-                    orchestrator.process_turn,
-                    body.task
-                )
+                result = await loop.run_in_executor(executor, orchestrator.process_turn, body.task)
 
             # V12.3: Update status in shared registry
-            await _registry.update_status(
-                workflow_id, tenant_id, WorkflowStatus.COMPLETED.value, result=result
-            )
+            await _registry.update_status(workflow_id, tenant_id, WorkflowStatus.COMPLETED.value, result=result)
             logger.info(f"[CORTEX] Workflow {workflow_id} completed")
 
             # V12.0 RETINA: Emit workflow complete event
@@ -179,14 +186,12 @@ async def start_workflow(
                 CerebroEventType.HIVE_PHASE_END,
                 {"phase": "WORKFLOW", "workflow_id": workflow_id, "status": "completed"},
                 tenant_id=tenant_id,
-                workspace_id=workspace_id
+                workspace_id=workspace_id,
             )
 
         except Exception as e:
             # V12.3: Update status in shared registry
-            await _registry.update_status(
-                workflow_id, tenant_id, WorkflowStatus.FAILED.value, error=str(e)
-            )
+            await _registry.update_status(workflow_id, tenant_id, WorkflowStatus.FAILED.value, error=str(e))
             logger.error(f"[CORTEX] Workflow {workflow_id} failed: {e}")
 
             # V12.0 RETINA: Emit workflow failed event
@@ -194,7 +199,7 @@ async def start_workflow(
                 CerebroEventType.HIVE_PHASE_END,
                 {"phase": "WORKFLOW", "workflow_id": workflow_id, "status": "failed", "error": str(e)},
                 tenant_id=tenant_id,
-                workspace_id=workspace_id
+                workspace_id=workspace_id,
             )
 
     background_tasks.add_task(run_workflow)
@@ -207,7 +212,7 @@ async def start_workflow(
 async def get_workflow_status(
     workflow_id: str,
     user: AuthenticatedUser = Depends(require_auth),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Get workflow status.
 
@@ -250,7 +255,7 @@ async def get_workflow_status(
 async def stop_workflow(
     workflow_id: str,
     user: AuthenticatedUser = Depends(require_auth),
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Stop a running workflow.
 
@@ -285,16 +290,11 @@ async def stop_workflow(
     # V11.6.1 IRONCLAD: Tenant ownership verified by registry query
 
     if workflow["status"] not in ("pending", "running"):
-        raise HTTPException(
-            400,
-            f"Workflow {workflow_id} is {workflow['status']}, cannot stop"
-        )
+        raise HTTPException(400, f"Workflow {workflow_id} is {workflow['status']}, cannot stop")
 
     # V12.3: Mark as cancelled in shared registry
     # TODO: Integrate CancellationToken for graceful cancellation
-    await _registry.update_status(
-        workflow_id, user.tenant_id, WorkflowStatus.CANCELLED.value
-    )
+    await _registry.update_status(workflow_id, user.tenant_id, WorkflowStatus.CANCELLED.value)
     logger.info(f"[CORTEX] Workflow {workflow_id} cancelled")
 
     return {"workflow_id": workflow_id, "status": "cancelled"}
@@ -303,8 +303,8 @@ async def stop_workflow(
 @router.get("/")
 async def list_workflows(
     user: AuthenticatedUser = Depends(require_auth),
-    status: Optional[str] = Query(None, description="Filter by status"),
-) -> Dict[str, list]:
+    status: str | None = Query(None, description="Filter by status"),
+) -> dict[str, list]:
     """
     List workflows for the authenticated tenant.
 
@@ -334,11 +334,13 @@ async def list_workflows(
     workflows = []
     for wf_data in workflow_list:
         task = wf_data.get("task", "")
-        workflows.append({
-            "workflow_id": wf_data["workflow_id"],
-            "status": wf_data["status"],
-            "task": task[:50] + "..." if len(task) > 50 else task,
-            "tenant_id": wf_data.get("tenant_id"),
-        })
+        workflows.append(
+            {
+                "workflow_id": wf_data["workflow_id"],
+                "status": wf_data["status"],
+                "task": task[:50] + "..." if len(task) > 50 else task,
+                "tenant_id": wf_data.get("tenant_id"),
+            }
+        )
 
     return {"workflows": workflows}

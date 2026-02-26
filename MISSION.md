@@ -84,7 +84,7 @@ Ces principes définissent l'identité de NEXUS. Toute itération qui les viole 
 
 ---
 
-## 🐝 Architecture "HIVE MIND" (V7.5)
+## 🐝 Architecture "COGNITIVE BOOST" (V12.4)
 
 ### Modèle de Coexistence
 
@@ -179,7 +179,7 @@ Topologies supportées:
 {
   "birth_certificate": {
     "agent_id": "SQL_Expert_V1",
-    "parent_id": "NEXUS_V7.5",
+    "parent_id": "NEXUS_V12.4",
     "birth_timestamp": "2025-12-03T10:00:00Z",
     "creator": "Yann Abadie",
     "mission": "Expert SQL queries, optimization, schema design",
@@ -248,6 +248,7 @@ Topologies supportées:
 | V6.0 | 2025-11 | Évolution darwinienne |
 | V7.0 | 2025-11 | FSM + Hybrid Swarm |
 | **V7.5** | **2025-12** | **HIVE MIND: Collaborative Intelligence Core** |
+| **V12.4** | **2026-02** | **COGNITIVE BOOST: Enhanced multi-agent orchestration** |
 
 ---
 
@@ -282,5 +283,5 @@ Topologies supportées:
 ---
 
 **Document mis à jour par**: Yann Abadie
-**Date**: 2025-12-03
-**Version**: 2.0 "HIVE MIND"
+**Date**: 2026-02-25
+**Version**: 3.0 "COGNITIVE BOOST"

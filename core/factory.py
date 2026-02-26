@@ -30,7 +30,7 @@ Thread Safety:
     - Cache keys include tenant_id for isolation
 
 Usage:
-    from core.context import use_context
+    from core.infrastructure.context import use_context
     from core.factory import ServiceFactory
 
     with use_context(tenant_id="acme"):
@@ -47,15 +47,13 @@ from __future__ import annotations
 
 import threading
 from pathlib import Path
-from typing import Any, Dict, Optional, TypeVar, Type
+from typing import Any, TypeVar
 
-from .context import (
-    get_current_session,
-    get_current_session_or_none,
-    SessionContext,
+from .infrastructure.context import (
     DEFAULT_TENANT_ID,
+    SessionContext,
+    get_current_session_or_none,
 )
-
 
 T = TypeVar("T")
 
@@ -71,11 +69,11 @@ class ServiceFactory:
     """
 
     # Instance cache: {tenant_id: {service_name: instance}}
-    _instances: Dict[str, Dict[str, Any]] = {}
+    _instances: dict[str, dict[str, Any]] = {}
     _lock = threading.RLock()
 
     # NEXUS root path (set during initialization)
-    _nexus_root: Optional[Path] = None
+    _nexus_root: Path | None = None
 
     @classmethod
     def initialize(cls, nexus_root: Path) -> None:
@@ -98,7 +96,7 @@ class ServiceFactory:
         return cls._nexus_root
 
     @classmethod
-    def _get_tenant_cache(cls, tenant_id: str) -> Dict[str, Any]:
+    def _get_tenant_cache(cls, tenant_id: str) -> dict[str, Any]:
         """Get or create the instance cache for a tenant."""
         with cls._lock:
             if tenant_id not in cls._instances:
@@ -106,12 +104,7 @@ class ServiceFactory:
             return cls._instances[tenant_id]
 
     @classmethod
-    def _get_or_create(
-        cls,
-        service_name: str,
-        factory_func,
-        ctx: Optional[SessionContext] = None
-    ) -> Any:
+    def _get_or_create(cls, service_name: str, factory_func, ctx: SessionContext | None = None) -> Any:
         """
         Get or create a service instance for the current context.
 
@@ -138,7 +131,7 @@ class ServiceFactory:
         return cache[service_name]
 
     @classmethod
-    def get_tenant_workspace_path(cls, ctx: Optional[SessionContext] = None) -> Path:
+    def get_tenant_workspace_path(cls, ctx: SessionContext | None = None) -> Path:
         """
         Get the workspace path for the current tenant.
 
@@ -158,10 +151,7 @@ class ServiceFactory:
         nexus_root = cls.get_nexus_root()
 
         if ctx:
-            return (
-                nexus_root / "data" / "tenants" / ctx.tenant_id /
-                "workspaces" / ctx.workspace_id
-            )
+            return nexus_root / "data" / "tenants" / ctx.tenant_id / "workspaces" / ctx.workspace_id
 
         # Fallback to legacy workspace
         return nexus_root / "workspace"
@@ -171,50 +161,56 @@ class ServiceFactory:
     # =========================================================================
 
     @classmethod
-    def get_registry(cls, ctx: Optional[SessionContext] = None):
+    def get_registry(cls, ctx: SessionContext | None = None):
         """
         Get the agent registry for the current tenant.
 
         Returns:
             UnifiedAgentRegistry instance
         """
-        def factory(ctx: Optional[SessionContext]):
-            from .agents.unified_registry import UnifiedAgentRegistry
+
+        def factory(ctx: SessionContext | None):
+            from .foundation.agents.unified_registry import UnifiedAgentRegistry
+
             return UnifiedAgentRegistry()
 
         return cls._get_or_create("registry", factory, ctx)
 
     @classmethod
-    def get_workspace_manager(cls, ctx: Optional[SessionContext] = None):
+    def get_workspace_manager(cls, ctx: SessionContext | None = None):
         """
         Get the workspace manager for the current tenant.
 
         Returns:
             SessionWorkspaceManager instance
         """
-        def factory(ctx: Optional[SessionContext]):
-            from .session.workspace_manager import SessionWorkspaceManager
+
+        def factory(ctx: SessionContext | None):
+            from .infrastructure.session.workspace_manager import SessionWorkspaceManager
+
             workspace_path = cls.get_tenant_workspace_path(ctx)
             return SessionWorkspaceManager(workspace_path)
 
         return cls._get_or_create("workspace_manager", factory, ctx)
 
     @classmethod
-    def get_tool_registry(cls, ctx: Optional[SessionContext] = None):
+    def get_tool_registry(cls, ctx: SessionContext | None = None):
         """
         Get the tool registry for the current tenant.
 
         Returns:
             ToolRegistry instance
         """
-        def factory(ctx: Optional[SessionContext]):
-            from .execution.tool_registry import ToolRegistry
+
+        def factory(ctx: SessionContext | None):
+            from .execution_pkg.execution.tool_registry import ToolRegistry
+
             return ToolRegistry()
 
         return cls._get_or_create("tool_registry", factory, ctx)
 
     @classmethod
-    def get_rate_limiter_registry(cls, ctx: Optional[SessionContext] = None):
+    def get_rate_limiter_registry(cls, ctx: SessionContext | None = None):
         """
         Get the rate limiter registry for the current tenant.
 
@@ -224,8 +220,10 @@ class ServiceFactory:
         Returns:
             RateLimiterRegistry instance
         """
-        def factory(ctx: Optional[SessionContext]):
+
+        def factory(ctx: SessionContext | None):
             from .api.rate_limiter import RateLimiterRegistry
+
             # Create a new registry (not the global singleton)
             registry = object.__new__(RateLimiterRegistry)
             registry._limiters = {}
@@ -234,16 +232,18 @@ class ServiceFactory:
         return cls._get_or_create("rate_limiter_registry", factory, ctx)
 
     @classmethod
-    def get_interaction_provider(cls, ctx: Optional[SessionContext] = None):
+    def get_interaction_provider(cls, ctx: SessionContext | None = None):
         """
         Get the interaction provider for the current tenant.
 
         Returns:
             InteractionProvider instance
         """
-        def factory(ctx: Optional[SessionContext]):
+
+        def factory(ctx: SessionContext | None):
             import os
-            from .interaction import CLIProvider, HeadlessProvider
+
+            from .security_pkg.interaction import CLIProvider, HeadlessProvider
 
             mode = os.environ.get("NEXUS_INTERACTION_MODE", "cli").lower()
 
@@ -257,52 +257,58 @@ class ServiceFactory:
         return cls._get_or_create("interaction_provider", factory, ctx)
 
     @classmethod
-    def get_execution_engine(cls, ctx: Optional[SessionContext] = None):
+    def get_execution_engine(cls, ctx: SessionContext | None = None):
         """
         Get the execution engine for the current tenant.
 
         Returns:
             ExecutionEngine instance
         """
-        def factory(ctx: Optional[SessionContext]):
-            from .execution.execution_engine import ExecutionEngine
+
+        def factory(ctx: SessionContext | None):
+            from .execution_pkg.execution.execution_engine import ExecutionEngine
+
             workspace_path = cls.get_tenant_workspace_path(ctx)
             return ExecutionEngine(workspace_path)
 
         return cls._get_or_create("execution_engine", factory, ctx)
 
     @classmethod
-    def get_system_health(cls, ctx: Optional[SessionContext] = None):
+    def get_system_health(cls, ctx: SessionContext | None = None):
         """
         Get the system health monitor for the current tenant.
 
         Returns:
             SystemHealth instance
         """
-        def factory(ctx: Optional[SessionContext]):
-            from .resilience.system_health import SystemHealth
+
+        def factory(ctx: SessionContext | None):
+            from .infrastructure.resilience.system_health import SystemHealth
+
             workspace_path = cls.get_tenant_workspace_path(ctx)
             return SystemHealth(workspace_path)
 
         return cls._get_or_create("system_health", factory, ctx)
 
     @classmethod
-    def get_budget_tracker(cls, ctx: Optional[SessionContext] = None):
+    def get_budget_tracker(cls, ctx: SessionContext | None = None):
         """
         Get the budget tracker for the current tenant.
 
         Returns:
             BudgetTracker instance
         """
-        def factory(ctx: Optional[SessionContext]):
-            from .telemetry.budget_tracker import BudgetTracker
+
+        def factory(ctx: SessionContext | None):
+            from .observability.telemetry.budget_tracker import BudgetTracker
+
             workspace_path = cls.get_tenant_workspace_path(ctx)
             return BudgetTracker(workspace_path)
 
         return cls._get_or_create("budget_tracker", factory, ctx)
 
     @classmethod
-    def get_path_guardian(cls, ctx: Optional[SessionContext] = None):
+    def get_path_guardian(cls, ctx: SessionContext | None = None):
         """
         Get the path guardian for the current tenant.
 
@@ -311,8 +317,10 @@ class ServiceFactory:
         Returns:
             PathGuardian instance
         """
-        def factory(ctx: Optional[SessionContext]):
-            from .security.path_guardian import PathGuardian
+
+        def factory(ctx: SessionContext | None):
+            from .security_pkg.security.path_guardian import PathGuardian
+
             workspace_path = cls.get_tenant_workspace_path(ctx)
             nexus_root = cls.get_nexus_root()
             return PathGuardian(
@@ -323,7 +331,7 @@ class ServiceFactory:
         return cls._get_or_create("path_guardian", factory, ctx)
 
     @classmethod
-    def get_config(cls, ctx: Optional[SessionContext] = None):
+    def get_config(cls, ctx: SessionContext | None = None):
         """
         Get the config for the current tenant.
 
@@ -332,8 +340,10 @@ class ServiceFactory:
         Returns:
             Config instance with tenant paths
         """
-        def factory(ctx: Optional[SessionContext]):
+
+        def factory(ctx: SessionContext | None):
             from .config import Config
+
             config = Config()
 
             # Override workspace path for tenant
@@ -370,12 +380,13 @@ class ServiceFactory:
         """
         with cls._embedding_engine_lock:
             if cls._embedding_engine is None:
-                from .memory.embedding_engine import EmbeddingEngine
+                from .memory_pkg.memory.embedding_engine import EmbeddingEngine
+
                 cls._embedding_engine = EmbeddingEngine()
             return cls._embedding_engine
 
     @classmethod
-    def get_project_memory(cls, ctx: Optional[SessionContext] = None):
+    def get_project_memory(cls, ctx: SessionContext | None = None):
         """
         Get the project memory for the current tenant.
 
@@ -385,8 +396,10 @@ class ServiceFactory:
         Returns:
             ProjectMemory instance with tenant-isolated storage
         """
-        def factory(ctx: Optional[SessionContext]):
-            from .memory.project_memory import ProjectMemory
+
+        def factory(ctx: SessionContext | None):
+            from .memory_pkg.memory.project_memory import ProjectMemory
+
             nexus_root = cls.get_nexus_root()
 
             # Get shared embedding engine
@@ -398,7 +411,7 @@ class ServiceFactory:
         return cls._get_or_create("project_memory", factory, ctx)
 
     @classmethod
-    def get_auto_memory(cls, ctx: Optional[SessionContext] = None):
+    def get_auto_memory(cls, ctx: SessionContext | None = None):
         """
         Get the auto memory for the current tenant.
 
@@ -407,15 +420,17 @@ class ServiceFactory:
         Returns:
             AutoMemory instance scoped to tenant
         """
-        def factory(ctx: Optional[SessionContext]):
-            from .memory.auto_memory import AutoMemory
+
+        def factory(ctx: SessionContext | None):
+            from .memory_pkg.memory.auto_memory import AutoMemory
+
             workspace_path = cls.get_tenant_workspace_path(ctx)
             return AutoMemory(workspace_path)
 
         return cls._get_or_create("auto_memory", factory, ctx)
 
     @classmethod
-    def get_success_memory(cls, ctx: Optional[SessionContext] = None):
+    def get_success_memory(cls, ctx: SessionContext | None = None):
         """
         Get the success memory for the current tenant.
 
@@ -425,15 +440,17 @@ class ServiceFactory:
         Returns:
             SuccessMemory instance scoped to tenant
         """
-        def factory(ctx: Optional[SessionContext]):
-            from .memory.success_memory import SuccessMemory
+
+        def factory(ctx: SessionContext | None):
+            from .memory_pkg.memory.success_memory_v2 import SuccessMemoryV2 as SuccessMemory
+
             workspace_path = cls.get_tenant_workspace_path(ctx)
             return SuccessMemory(workspace_path)
 
         return cls._get_or_create("success_memory", factory, ctx)
 
     @classmethod
-    def get_spotlighter(cls, ctx: Optional[SessionContext] = None):
+    def get_spotlighter(cls, ctx: SessionContext | None = None):
         """
         Get the spotlighter for the current tenant.
 
@@ -443,8 +460,10 @@ class ServiceFactory:
         Returns:
             Spotlighter instance scoped to tenant
         """
-        def factory(ctx: Optional[SessionContext]):
-            from .memory.spotlighting import Spotlighter
+
+        def factory(ctx: SessionContext | None):
+            from .memory_pkg.memory.spotlighting import Spotlighter
+
             return Spotlighter()
 
         return cls._get_or_create("spotlighter", factory, ctx)
@@ -478,7 +497,7 @@ class ServiceFactory:
             cls._instances.clear()
 
     @classmethod
-    def get_cache_stats(cls) -> Dict[str, int]:
+    def get_cache_stats(cls) -> dict[str, int]:
         """
         Get statistics about the instance cache.
 
@@ -487,9 +506,7 @@ class ServiceFactory:
         """
         with cls._lock:
             tenant_count = len(cls._instances)
-            instance_count = sum(
-                len(services) for services in cls._instances.values()
-            )
+            instance_count = sum(len(services) for services in cls._instances.values())
             return {
                 "tenant_count": tenant_count,
                 "instance_count": instance_count,
@@ -501,6 +518,7 @@ class ServiceFactory:
 # =============================================================================
 # These functions maintain API compatibility during migration
 
+
 def get_registry():
     """
     Backward-compatible registry getter.
@@ -510,7 +528,7 @@ def get_registry():
     return ServiceFactory.get_registry()
 
 
-def get_workspace_manager(base_workspace: Optional[Path] = None):
+def get_workspace_manager(base_workspace: Path | None = None):
     """
     Backward-compatible workspace manager getter.
 

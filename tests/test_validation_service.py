@@ -4,11 +4,12 @@ Tests for core/execution/validation_service.py - V9.5
 Validates path security and evolution mode checks.
 """
 
-import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from core.execution.validation_service import ValidationService
+import pytest
+
+from core.execution_pkg.execution.validation_service import ValidationService
 
 
 @pytest.fixture
@@ -39,25 +40,27 @@ def validator(workspace_path, tmp_path):
     parent = tmp_path / "parent"
     gen_active = tmp_path / "GENERATION_ACTIVE"
 
-    with patch("core.execution.validation_service.PathGuardian") as mock_guardian:
-        with patch("core.execution.validation_service.ExecutionPolicy") as mock_policy:
-            # Mock PathGuardian
-            mock_guardian_instance = MagicMock()
-            mock_guardian_instance.validate_read.return_value = True
-            mock_guardian_instance.validate_write.return_value = True
-            mock_guardian.return_value = mock_guardian_instance
+    with (
+        patch("core.execution_pkg.execution.validation_service.PathGuardian") as mock_guardian,
+        patch("core.execution_pkg.execution.validation_service.ExecutionPolicy") as mock_policy,
+    ):
+        # Mock PathGuardian
+        mock_guardian_instance = MagicMock()
+        mock_guardian_instance.validate_read.return_value = True
+        mock_guardian_instance.validate_write.return_value = True
+        mock_guardian.return_value = mock_guardian_instance
 
-            # Mock ExecutionPolicy
-            mock_policy_instance = MagicMock()
-            mock_policy.return_value = mock_policy_instance
+        # Mock ExecutionPolicy
+        mock_policy_instance = MagicMock()
+        mock_policy.return_value = mock_policy_instance
 
-            service = ValidationService(
-                workspace_path=workspace_path,
-                parent_path=parent,
-                generation_active=gen_active,
-            )
-            service.path_guardian = mock_guardian_instance
-            return service
+        service = ValidationService(
+            workspace_path=workspace_path,
+            parent_path=parent,
+            generation_active=gen_active,
+        )
+        service.path_guardian = mock_guardian_instance
+        return service
 
 
 class TestEvolutionSafeRead:

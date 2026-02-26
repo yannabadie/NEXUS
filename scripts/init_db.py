@@ -28,38 +28,23 @@ from uuid import UUID
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from passlib.context import CryptContext
 from sqlmodel import select
 
-from core.db import (
+from core.infrastructure.db import (
     init_db,
     get_session,
     Tenant,
     User,
     Workspace,
     Quota,
-    UserRole,
     PlanTier,
     TenantStatus,
     create_quota_for_plan,
 )
+from core.infrastructure.db.models import UserRole
 
-# =============================================================================
-# Password Hashing (bcrypt)
-# =============================================================================
-
-# Configure bcrypt context
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-
-def hash_password(plain_password: str) -> str:
-    """Hash a password using bcrypt."""
-    return pwd_context.hash(plain_password)
-
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a password against its hash."""
-    return pwd_context.verify(plain_password, hashed_password)
+# V12.4: Use centralized password module (argon2-cffi)
+from core.security_pkg.security.password import hash_password, verify_password
 
 
 # =============================================================================

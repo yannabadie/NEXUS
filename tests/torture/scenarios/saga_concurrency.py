@@ -6,17 +6,19 @@ Torture Protocol V8 - Saga Concurrency Tests
 Test IDs: CC-001 to CC-012
 """
 
-import pytest
 import asyncio
-import threading
-import time
 import sys
-from pathlib import Path
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
-from core.hive_mind.saga_manager import SagaManager
+import contextlib
+
+from core.intelligence.hive_mind.saga_manager import SagaManager
 from core.utils.atomic_store import AtomicJsonStore
 from tests.torture.base import TortureBase
 from tests.torture.chaos_injectors import RaceInjector
@@ -40,6 +42,7 @@ def race_injector():
 # CC-001: Two phases checkpointing simultaneously
 # ============================================================================
 
+
 @pytest.mark.torture
 @pytest.mark.torture_concurrency
 @pytest.mark.asyncio
@@ -62,11 +65,7 @@ async def test_cc001_simultaneous_checkpoints(saga_dir):
         await saga.checkpoint_phase("debate", {"phase": "debate"}, "S2", 10)
         return "debate"
 
-    results = await asyncio.gather(
-        checkpoint_analysis(),
-        checkpoint_debate(),
-        return_exceptions=True
-    )
+    results = await asyncio.gather(checkpoint_analysis(), checkpoint_debate(), return_exceptions=True)
 
     # Both should succeed
     assert "analysis" in results or isinstance(results[0], Exception)
@@ -80,6 +79,7 @@ async def test_cc001_simultaneous_checkpoints(saga_dir):
 # ============================================================================
 # CC-002: Checkpoint during active rollback
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_concurrency
@@ -108,11 +108,7 @@ async def test_cc002_checkpoint_during_rollback(saga_dir):
         saga.update_context(architecture_approved=True)
         return await saga.checkpoint_phase("execution", {}, "S4", 20)
 
-    results = await asyncio.gather(
-        do_rollback(),
-        do_checkpoint(),
-        return_exceptions=True
-    )
+    await asyncio.gather(do_rollback(), do_checkpoint(), return_exceptions=True)
 
     # State should be consistent (either rolled back or execution checkpointed)
     recovered = await SagaManager.resume_from(saga_dir, "cc002-test")
@@ -122,6 +118,7 @@ async def test_cc002_checkpoint_during_rollback(saga_dir):
 # ============================================================================
 # CC-003: Resume during active saga
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_concurrency
@@ -163,6 +160,7 @@ async def test_cc003_resume_during_active_saga(saga_dir):
 # CC-004: Parallel compensation execution
 # ============================================================================
 
+
 @pytest.mark.torture
 @pytest.mark.torture_concurrency
 @pytest.mark.asyncio
@@ -197,6 +195,7 @@ async def test_cc004_parallel_compensation(saga_dir):
 # CC-005: Context truncation race
 # ============================================================================
 
+
 @pytest.mark.torture
 @pytest.mark.torture_concurrency
 @pytest.mark.asyncio
@@ -225,11 +224,7 @@ async def test_cc005_context_truncation_race(saga_dir):
         return await saga.rollback_to("debate")
 
     # One should succeed, one may fail or both succeed sequentially
-    results = await asyncio.gather(
-        rollback_to_analysis(),
-        rollback_to_debate(),
-        return_exceptions=True
-    )
+    await asyncio.gather(rollback_to_analysis(), rollback_to_debate(), return_exceptions=True)
 
     # Saga should be in consistent state
     assert saga._recovery_point in ["analysis", "debate", None]
@@ -238,6 +233,7 @@ async def test_cc005_context_truncation_race(saga_dir):
 # ============================================================================
 # CC-006: AtomicJsonStore concurrent ops (10 threads)
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_concurrency
@@ -286,6 +282,7 @@ def test_cc006_atomic_store_10_threads(saga_dir):
 # CC-007: Saga persist while loading
 # ============================================================================
 
+
 @pytest.mark.torture
 @pytest.mark.torture_concurrency
 @pytest.mark.asyncio
@@ -331,6 +328,7 @@ async def test_cc007_persist_while_loading(saga_dir):
 # CC-008: Multiple SagaManagers same file
 # ============================================================================
 
+
 @pytest.mark.torture
 @pytest.mark.torture_concurrency
 @pytest.mark.asyncio
@@ -345,20 +343,12 @@ async def test_cc008_multiple_managers_same_file(saga_dir):
 
     async def manager_work(manager_id):
         saga = SagaManager(saga_dir, task_id, auto_persist=True)
-        await saga.checkpoint_phase(
-            "analysis",
-            {"manager": manager_id},
-            f"S{manager_id}",
-            manager_id * 5
-        )
+        await saga.checkpoint_phase("analysis", {"manager": manager_id}, f"S{manager_id}", manager_id * 5)
         await asyncio.sleep(0.02)
         return manager_id
 
     # 5 managers concurrently
-    results = await asyncio.gather(
-        *[manager_work(i) for i in range(5)],
-        return_exceptions=True
-    )
+    await asyncio.gather(*[manager_work(i) for i in range(5)], return_exceptions=True)
 
     # Final state should be one of the managers' states
     recovered = await SagaManager.resume_from(saga_dir, task_id)
@@ -370,6 +360,7 @@ async def test_cc008_multiple_managers_same_file(saga_dir):
 # ============================================================================
 # CC-009: Cleanup during active checkpoint
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_concurrency
@@ -395,20 +386,17 @@ async def test_cc009_cleanup_during_checkpoint(saga_dir):
         saga.cleanup()
         return "cleaned"
 
-    results = await asyncio.gather(
-        do_persist(),
-        do_cleanup(),
-        return_exceptions=True
-    )
+    await asyncio.gather(do_persist(), do_cleanup(), return_exceptions=True)
 
     # File may or may not exist depending on race
-    saga_file = saga_dir / f"{task_id}.json"
+    saga_dir / f"{task_id}.json"
     # Either outcome is acceptable - no crash is the goal
 
 
 # ============================================================================
 # CC-010: Guard evaluation race
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_concurrency
@@ -427,7 +415,7 @@ async def test_cc010_guard_evaluation_race(saga_dir):
 
     async def update_context_loop():
         for i in range(10):
-            saga.update_context(analysis_complete=True if i % 2 == 0 else False)
+            saga.update_context(analysis_complete=i % 2 == 0)
             await asyncio.sleep(0.005)
 
     async def check_guards_loop():
@@ -445,6 +433,7 @@ async def test_cc010_guard_evaluation_race(saga_dir):
 # ============================================================================
 # CC-011: Concurrent rollback to different phases
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_concurrency
@@ -469,11 +458,7 @@ async def test_cc011_concurrent_different_rollbacks(saga_dir):
     async def rollback_debate():
         return await saga.rollback_to("debate")
 
-    results = await asyncio.gather(
-        rollback_analysis(),
-        rollback_debate(),
-        return_exceptions=True
-    )
+    await asyncio.gather(rollback_analysis(), rollback_debate(), return_exceptions=True)
 
     # Recovery point should be one of the targets
     assert saga._recovery_point in ["analysis", "debate", None]
@@ -482,6 +467,7 @@ async def test_cc011_concurrent_different_rollbacks(saga_dir):
 # ============================================================================
 # CC-012: High contention (20 threads)
 # ============================================================================
+
 
 @pytest.mark.torture
 @pytest.mark.torture_concurrency
@@ -509,7 +495,7 @@ def test_cc012_high_contention_20_threads(saga_dir):
                 data["ops"] = data.get("ops", 0) + 1
                 data[f"t{thread_id}"] = i
                 store.save(data)
-            except Exception as e:
+            except Exception:
                 pass  # Tolerate some failures under high contention
         completed.append(thread_id)
 
@@ -517,10 +503,8 @@ def test_cc012_high_contention_20_threads(saga_dir):
     with ThreadPoolExecutor(max_workers=NUM_THREADS) as executor:
         futures = [executor.submit(worker, i) for i in range(NUM_THREADS)]
         for future in as_completed(futures, timeout=timeout_seconds):
-            try:
+            with contextlib.suppress(Exception):
                 future.result()
-            except Exception:
-                pass
 
     elapsed = time.time() - start
 
@@ -538,9 +522,9 @@ def test_cc012_high_contention_20_threads(saga_dir):
 # Run All Tests (Standalone Mode)
 # ============================================================================
 
+
 def run_all(metrics_collector=None):
     """Run all saga concurrency tests."""
-    from tests.torture.base import TortureBase
 
     base = TortureBase("saga_concurrency_tests")
     if metrics_collector:

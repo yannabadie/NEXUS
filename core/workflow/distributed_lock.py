@@ -22,7 +22,7 @@ Date: 2025-12-16
 
 import logging
 import uuid
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -44,10 +44,10 @@ class DistributedLock:
 
     def __init__(
         self,
-        redis: Optional[Any],  # redis.asyncio.Redis
+        redis: Any | None,  # redis.asyncio.Redis
         resource: str,
         ttl: int = DEFAULT_TTL,
-        owner_id: Optional[str] = None,
+        owner_id: str | None = None,
     ):
         """
         Initialize distributed lock.
@@ -216,6 +216,7 @@ class DistributedLock:
 
 class LockAcquisitionError(Exception):
     """Raised when lock acquisition fails."""
+
     pass
 
 
@@ -223,8 +224,9 @@ class LockAcquisitionError(Exception):
 # Convenience functions
 # =============================================================================
 
+
 async def acquire_workflow_lock(
-    redis: Optional[Any],
+    redis: Any | None,
     workflow_id: str,
     ttl: int = 30,
 ) -> DistributedLock:
@@ -249,10 +251,10 @@ async def acquire_workflow_lock(
 
 
 async def try_acquire_workflow_lock(
-    redis: Optional[Any],
+    redis: Any | None,
     workflow_id: str,
     ttl: int = 30,
-) -> Optional[DistributedLock]:
+) -> DistributedLock | None:
     """
     Try to acquire a workflow lock without raising.
 

@@ -142,7 +142,7 @@ class ToolExecutorProtocol(Protocol):
 from core.drivers import create_async_claude_driver, AsyncClaudeDriverConfig
 
 config = AsyncClaudeDriverConfig(
-    model="claude-opus-4-5",
+    model="claude-opus-4-6-20250116",
     max_tokens=8192,
     temperature=0.7
 )

@@ -4,17 +4,16 @@ V9.3 ISSUE-007: Circuit Breaker Tests
 Tests for the resilience circuit breaker pattern.
 """
 
-import pytest
-import asyncio
 import time
-from unittest.mock import Mock, AsyncMock
 
-from core.resilience.circuit_breaker import (
+import pytest
+
+from core.infrastructure.resilience.circuit_breaker import (
     CircuitBreaker,
-    CircuitState,
     CircuitOpenError,
+    CircuitState,
     get_circuit_breaker,
-    reset_all_circuits
+    reset_all_circuits,
 )
 
 
@@ -72,7 +71,7 @@ class TestCircuitBreakerStates:
         breaker = CircuitBreaker(
             name="test",
             failure_threshold=1,
-            recovery_timeout=0.1  # 100ms for fast test
+            recovery_timeout=0.1,  # 100ms for fast test
         )
 
         # Trip the circuit
@@ -92,11 +91,7 @@ class TestCircuitBreakerStates:
     def test_exponential_backoff_on_repeated_failures(self):
         """Backoff increases exponentially on repeated failures."""
         breaker = CircuitBreaker(
-            name="test",
-            failure_threshold=1,
-            recovery_timeout=1.0,
-            backoff_multiplier=2.0,
-            max_backoff=10.0
+            name="test", failure_threshold=1, recovery_timeout=1.0, backoff_multiplier=2.0, max_backoff=10.0
         )
 
         def fail():

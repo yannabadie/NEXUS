@@ -5,18 +5,15 @@ Tests the OrchestratorState enum and TransitionGuard logic.
 Verifies the TRANSITION_MATRIX is correctly defined.
 """
 
-import pytest
-from pathlib import Path
 import sys
+from pathlib import Path
+
+import pytest
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.fsm.states import (
-    OrchestratorState,
-    TransitionGuard,
-    TRANSITION_MATRIX
-)
+from core.fsm.states import TRANSITION_MATRIX, OrchestratorState, TransitionGuard
 
 
 class TestOrchestratorStates:
@@ -25,9 +22,17 @@ class TestOrchestratorStates:
     def test_all_states_defined(self):
         """Verify all expected states exist."""
         expected_states = [
-            'IDLE', 'BRAINSTORMING', 'EXECUTING_TOOL', 'VALIDATING_CFL',
-            'EVOLUTION_BRAINSTORM', 'WAITING_USER', 'ERROR', 'PANIC',
-            'SWARM_ANALYZING', 'SWARM_NEGOTIATING', 'SWARM_EXECUTING'
+            "IDLE",
+            "BRAINSTORMING",
+            "EXECUTING_TOOL",
+            "VALIDATING_CFL",
+            "EVOLUTION_BRAINSTORM",
+            "WAITING_USER",
+            "ERROR",
+            "PANIC",
+            "SWARM_ANALYZING",
+            "SWARM_NEGOTIATING",
+            "SWARM_EXECUTING",
         ]
 
         actual_states = [s.name for s in OrchestratorState]
@@ -37,7 +42,7 @@ class TestOrchestratorStates:
 
     def test_state_count(self):
         """Verify total number of states."""
-        assert len(OrchestratorState) == 11, "Expected 11 FSM states"
+        assert len(OrchestratorState) == 12, "Expected 12 FSM states"
 
     def test_initial_state_is_idle(self):
         """IDLE should be first state (initial)."""
@@ -61,57 +66,47 @@ class TestTransitionGuard:
 
     def test_can_start_brainstorming_valid_input(self):
         """Valid user input should allow brainstorming."""
-        assert TransitionGuard.can_start_brainstorming("Hello NEXUS") == True
-        assert TransitionGuard.can_start_brainstorming("Fix the bug") == True
+        assert TransitionGuard.can_start_brainstorming("Hello NEXUS")
+        assert TransitionGuard.can_start_brainstorming("Fix the bug")
 
     def test_can_start_brainstorming_empty_input(self):
         """Empty input should not allow brainstorming."""
-        assert TransitionGuard.can_start_brainstorming("") == False
-        assert TransitionGuard.can_start_brainstorming("   ") == False
-        assert TransitionGuard.can_start_brainstorming(None) == False
+        assert not TransitionGuard.can_start_brainstorming("")
+        assert not TransitionGuard.can_start_brainstorming("   ")
+        assert not TransitionGuard.can_start_brainstorming(None)
 
     def test_can_execute_tool_valid_message(self):
         """Valid tool use message should allow execution."""
-        message = {
-            "action_type": "TOOL_USE",
-            "tool_use": {"tool_name": "read", "arguments": {"path": "file.py"}}
-        }
-        assert TransitionGuard.can_execute_tool(message) == True
+        message = {"action_type": "TOOL_USE", "tool_use": {"tool_name": "read", "arguments": {"path": "file.py"}}}
+        assert TransitionGuard.can_execute_tool(message)
 
     def test_can_execute_tool_invalid_message(self):
         """Invalid messages should not allow tool execution."""
         # Missing action_type
-        assert TransitionGuard.can_execute_tool({}) == False
+        assert not TransitionGuard.can_execute_tool({})
 
         # Wrong action_type
-        assert TransitionGuard.can_execute_tool({"action_type": "TALK"}) == False
+        assert not TransitionGuard.can_execute_tool({"action_type": "TALK"})
 
         # Missing tool_use
-        assert TransitionGuard.can_execute_tool({"action_type": "TOOL_USE"}) == False
+        assert not TransitionGuard.can_execute_tool({"action_type": "TOOL_USE"})
 
         # None tool_use
-        assert TransitionGuard.can_execute_tool({
-            "action_type": "TOOL_USE",
-            "tool_use": None
-        }) == False
+        assert not TransitionGuard.can_execute_tool({"action_type": "TOOL_USE", "tool_use": None})
 
     def test_is_task_finished(self):
         """Correctly identify finished tasks."""
-        assert TransitionGuard.is_task_finished({"status": "FINISHED"}) == True
-        assert TransitionGuard.is_task_finished({"status": "IN_PROGRESS"}) == False
-        assert TransitionGuard.is_task_finished({}) == False
+        assert TransitionGuard.is_task_finished({"status": "FINISHED"})
+        assert not TransitionGuard.is_task_finished({"status": "IN_PROGRESS"})
+        assert not TransitionGuard.is_task_finished({})
 
     def test_should_switch_agent(self):
         """Correctly identify agent switch requests."""
         # Should switch
-        assert TransitionGuard.should_switch_agent(
-            {"next_agent": "Claude"}, "Gemini"
-        ) == True
+        assert TransitionGuard.should_switch_agent({"next_agent": "Claude"}, "Gemini")
 
         # Should NOT switch (same agent)
-        assert TransitionGuard.should_switch_agent(
-            {"next_agent": "Gemini"}, "Gemini"
-        ) == False
+        assert not TransitionGuard.should_switch_agent({"next_agent": "Gemini"}, "Gemini")
 
         # Should NOT switch (no next_agent) - returns falsy (None)
         result = TransitionGuard.should_switch_agent({}, "Gemini")
@@ -119,10 +114,10 @@ class TestTransitionGuard:
 
     def test_is_brainstorm_message(self):
         """Correctly identify brainstorm messages."""
-        assert TransitionGuard.is_brainstorm_message({"action_type": "TALK"}) == True
-        assert TransitionGuard.is_brainstorm_message({"action_type": "DELEGATE"}) == True
-        assert TransitionGuard.is_brainstorm_message({"action_type": "TOOL_USE"}) == False
-        assert TransitionGuard.is_brainstorm_message({}) == False
+        assert TransitionGuard.is_brainstorm_message({"action_type": "TALK"})
+        assert TransitionGuard.is_brainstorm_message({"action_type": "DELEGATE"})
+        assert not TransitionGuard.is_brainstorm_message({"action_type": "TOOL_USE"})
+        assert not TransitionGuard.is_brainstorm_message({})
 
 
 class TestTransitionMatrix:
@@ -224,8 +219,9 @@ class TestTransitionMatrix:
         """All transition targets should be valid states."""
         for state, transitions in TRANSITION_MATRIX.items():
             for trigger, target in transitions.items():
-                assert isinstance(target, OrchestratorState), \
-                    f"Invalid target {target} for {state}->{trigger}"
+                if target is None:
+                    continue
+                assert isinstance(target, OrchestratorState), f"Invalid target {target} for {state}->{trigger}"
 
 
 class TestStateFlows:

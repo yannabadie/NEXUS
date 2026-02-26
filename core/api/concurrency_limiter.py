@@ -39,9 +39,8 @@ import os
 import threading
 import time
 from contextlib import asynccontextmanager, contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -50,17 +49,19 @@ logger = logging.getLogger(__name__)
 # Configuration
 # =============================================================================
 
+
 def _get_max_concurrent() -> int:
     """Get maximum concurrent agents from constants or environment."""
     # Try to import from constants
     try:
         from core.constants import EXECUTION_LIMITS
-        return getattr(EXECUTION_LIMITS, 'MAX_PARALLEL_AGENTS', 4)
+
+        return getattr(EXECUTION_LIMITS, "MAX_PARALLEL_AGENTS", 4)
     except ImportError:
         pass
 
     # Fallback to environment variable
-    env_value = os.environ.get('NEXUS_MAX_PARALLEL_AGENTS')
+    env_value = os.environ.get("NEXUS_MAX_PARALLEL_AGENTS")
     if env_value:
         try:
             return int(env_value)
@@ -75,21 +76,24 @@ def _get_max_concurrent() -> int:
 # Telemetry
 # =============================================================================
 
+
 @dataclass
 class ConcurrencyStats:
     """Statistics for concurrency limiter."""
+
     total_acquisitions: int = 0
     total_releases: int = 0
     total_timeouts: int = 0
     total_wait_time_ms: float = 0.0
     max_concurrent_observed: int = 0
     current_active: int = 0
-    last_acquisition: Optional[datetime] = None
+    last_acquisition: datetime | None = None
 
 
 # =============================================================================
 # ConcurrencyLimiter
 # =============================================================================
+
 
 class ConcurrencyLimiter:
     """
@@ -103,10 +107,10 @@ class ConcurrencyLimiter:
     - threading.Semaphore for sync paths (blocking)
     """
 
-    _instance: Optional["ConcurrencyLimiter"] = None
+    _instance: ConcurrencyLimiter | None = None
     _init_lock = threading.Lock()
 
-    def __new__(cls) -> "ConcurrencyLimiter":
+    def __new__(cls) -> ConcurrencyLimiter:
         if cls._instance is None:
             with cls._init_lock:
                 # Double-check locking pattern
@@ -118,7 +122,7 @@ class ConcurrencyLimiter:
 
     def __init__(self):
         """Initialize limiter (only runs once due to singleton)."""
-        if getattr(self, '_initialized', False):
+        if getattr(self, "_initialized", False):
             return
 
         with self._init_lock:
@@ -140,10 +144,7 @@ class ConcurrencyLimiter:
             # Current active count (for monitoring)
             self._active_count = 0
 
-            logger.info(
-                f"[SYNCHROTRON] ConcurrencyLimiter initialized: "
-                f"max_concurrent={self._max_concurrent}"
-            )
+            logger.info(f"[SYNCHROTRON] ConcurrencyLimiter initialized: max_concurrent={self._max_concurrent}")
 
             self._initialized = True
 
@@ -185,11 +186,8 @@ class ConcurrencyLimiter:
 
         try:
             # Wait for semaphore with timeout
-            await asyncio.wait_for(
-                self._async_semaphore.acquire(),
-                timeout=timeout
-            )
-        except asyncio.TimeoutError:
+            await asyncio.wait_for(self._async_semaphore.acquire(), timeout=timeout)
+        except TimeoutError:
             with self._stats_lock:
                 self._stats.total_timeouts += 1
             logger.warning(
@@ -204,18 +202,12 @@ class ConcurrencyLimiter:
             self._active_count += 1
             self._stats.total_acquisitions += 1
             self._stats.total_wait_time_ms += wait_time
-            self._stats.max_concurrent_observed = max(
-                self._stats.max_concurrent_observed,
-                self._active_count
-            )
+            self._stats.max_concurrent_observed = max(self._stats.max_concurrent_observed, self._active_count)
             self._stats.current_active = self._active_count
             self._stats.last_acquisition = datetime.now()
 
         if wait_time > 100:  # Log if waited more than 100ms
-            logger.debug(
-                f"[SYNCHROTRON] Permit acquired after {wait_time:.0f}ms wait "
-                f"(active={self._active_count})"
-            )
+            logger.debug(f"[SYNCHROTRON] Permit acquired after {wait_time:.0f}ms wait (active={self._active_count})")
 
         try:
             yield
@@ -245,7 +237,8 @@ class ConcurrencyLimiter:
                 self._stats.total_acquisitions += 1
                 self._stats.current_active = self._active_count
             return True
-        except Exception:
+        except Exception as e:
+            logger.debug("Async semaphore acquire failed: %s", e)
             return False
 
     def release_async(self):
@@ -302,9 +295,7 @@ class ConcurrencyLimiter:
         if not acquired:
             with self._stats_lock:
                 self._stats.total_timeouts += 1
-            logger.warning(
-                f"[SYNCHROTRON] Sync permit acquisition timed out after {timeout}s"
-            )
+            logger.warning(f"[SYNCHROTRON] Sync permit acquisition timed out after {timeout}s")
             return False
 
         wait_time = (time.time() - start_time) * 1000
@@ -312,10 +303,7 @@ class ConcurrencyLimiter:
             self._active_count += 1
             self._stats.total_acquisitions += 1
             self._stats.total_wait_time_ms += wait_time
-            self._stats.max_concurrent_observed = max(
-                self._stats.max_concurrent_observed,
-                self._active_count
-            )
+            self._stats.max_concurrent_observed = max(self._stats.max_concurrent_observed, self._active_count)
             self._stats.current_active = self._active_count
             self._stats.last_acquisition = datetime.now()
 
@@ -346,12 +334,12 @@ class ConcurrencyLimiter:
                 "total_wait_time_ms": round(self._stats.total_wait_time_ms, 2),
                 "avg_wait_time_ms": (
                     round(self._stats.total_wait_time_ms / self._stats.total_acquisitions, 2)
-                    if self._stats.total_acquisitions > 0 else 0
+                    if self._stats.total_acquisitions > 0
+                    else 0
                 ),
                 "max_concurrent_observed": self._stats.max_concurrent_observed,
                 "last_acquisition": (
-                    self._stats.last_acquisition.isoformat()
-                    if self._stats.last_acquisition else None
+                    self._stats.last_acquisition.isoformat() if self._stats.last_acquisition else None
                 ),
             }
 
@@ -364,6 +352,7 @@ class ConcurrencyLimiter:
 # =============================================================================
 # Module-level API
 # =============================================================================
+
 
 def get_concurrency_limiter() -> ConcurrencyLimiter:
     """
