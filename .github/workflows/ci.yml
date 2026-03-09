@@ -498,6 +498,53 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
 
+  headless-task-success-smoke:
+    name: Headless task success smoke
+    runs-on: ubuntu-latest
+    needs: [unit-tests, lint-type-check, security-scan]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install hatchling
+          pip install -e ".[all]" 2>/dev/null || pip install -r requirements.txt
+
+      - name: Run shared headless task success contract
+        run: |
+          python scripts/run_headless_stub_task.py \
+            --task "Validate orchestrated stub task" \
+            --output headless-task-success.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(Path("headless-task-success.json").read_text(encoding="utf-8"))
+          assert payload["status"] == "success", payload
+          assert payload["task"] == "Validate orchestrated stub task", payload
+          assert payload["output"] == "Stub task execution successful", payload
+          assert payload["driver"] == "anthropic_sdk", payload
+          assert payload["artifacts"], payload
+          PY
+
+      - name: Upload headless task success evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: headless-task-success-evidence
+          path: headless-task-success.json
+          retention-days: 14
+          if-no-files-found: warn
+
   headless-failure-smoke:
     name: Headless failure contract
     runs-on: ubuntu-latest
@@ -573,6 +620,7 @@ jobs:
       - interactive-bootstrap-smoke
       - research-cli-smoke
       - headless-success-smoke
+      - headless-task-success-smoke
       - headless-failure-smoke
 
     steps:
@@ -613,6 +661,7 @@ jobs:
             --job-result "interactive-bootstrap-smoke=${{ needs.interactive-bootstrap-smoke.result }}" \
             --job-result "research-cli-smoke=${{ needs.research-cli-smoke.result }}" \
             --job-result "headless-success-smoke=${{ needs.headless-success-smoke.result }}" \
+            --job-result "headless-task-success-smoke=${{ needs.headless-task-success-smoke.result }}" \
             --job-result "headless-failure-smoke=${{ needs.headless-failure-smoke.result }}" \
             --artifact "unit-test-evidence=ci-artifacts/unit-test-evidence" \
             --artifact "security-evidence=ci-artifacts/security-evidence" \
@@ -625,6 +674,7 @@ jobs:
             --provider-canaries-json "ci-artifacts/provider-canary-evidence/provider-canaries.json" \
             --artifact "research-smoke-evidence=ci-artifacts/research-smoke-evidence" \
             --artifact "headless-success-evidence=ci-artifacts/headless-success-evidence" \
+            --artifact "headless-task-success-evidence=ci-artifacts/headless-task-success-evidence" \
             --artifact "headless-evidence=ci-artifacts/headless-evidence" \
             --output-json "artifacts/evidence-ledger.json" \
             --output-markdown "artifacts/evidence-ledger.md"
