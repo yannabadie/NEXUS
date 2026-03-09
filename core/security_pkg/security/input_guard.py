@@ -87,6 +87,8 @@ CRITICAL_PATTERNS: dict[str, dict] = {
             r"ignore\s+(all\s+)?(previous|prior|above|earlier)\s+(instruction|command|rule|directive|prompt)s?",
             r"disregard\s+(all\s+)?(previous|prior|above)\s+(instruction|command|rule)s?",
             r"forget\s+(all\s+)?(previous|prior|your)\s+(instruction|command|rule|training)s?",
+            r"forget\s+everything\s+you\s+were\s+told\s+before",
+            r"everything\s+you\s+were\s+told\s+before",
             r"delete\s+(all\s+)?(previous|prior)\s+(instruction|command|rule)s?",  # V12.4 P3.3
             r"(remove|clear)\s+(all\s+)?(previous|prior)\s+(instruction|rule|directive)s?",  # V12.4 P3.3
         ],
@@ -158,6 +160,7 @@ HIGH_PATTERNS: dict[str, dict] = {
             r"(emergency|urgent|critical)\s+(override|bypass|access)",
             r"according\s+to\s+(your\s+|the\s+)?(training\s+data|documentation(\s+you\s+have\s+access\s+to)?|internal\s+policies)",  # V12.4 P3.3
             r"based\s+on\s+your\s+internal\s+policies",  # V12.4 P3.3
+            r"your\s+training\s+data\s+confirms",
             r"(you\s+must|required\s+to)\s+comply\s+with\s+(override|developer)\s+(command|request)s?",  # V12.4 P3.3
             r"(skip|bypass)\s+(all\s+)?(filter|safety\s+check)s?\s+for\s+this\s+request",  # V12.4 P3.3
             r"users?\s+can\s+ask\s+anything",  # V12.4 P3.3
@@ -172,6 +175,7 @@ HIGH_PATTERNS: dict[str, dict] = {
             r"\bgrep\s+-r\s+['\"]?(API_KEY|SECRET|PASSWORD)",  # V12.4 P3.3: Secret scanning
             r"\b(tar|zip)\s+.*\|\s*base64",  # V12.4 P3.3: Data encoding for exfil
             r"(save|write|export)\s+(all\s+)?(environment\s+variables|env|secrets?)\s+to",  # V12.4 P3.3: Env var dump
+            r"(call|use)\s+the\s+(bash|write)\s+tool",
             # Suspicious path detection pattern, not temp file creation.
             r"/tmp/leak\.|/tmp/exfil\.",  # nosec B108
             r"~/.ssh\s*\|",  # V12.4 P3.3: SSH key exfiltration
@@ -245,6 +249,15 @@ class InputGuard:
         "\u2029",  # Line/paragraph separators
         "\ufeff",  # BOM
     }
+
+    HOMOGLYPH_MAP = str.maketrans(
+        {
+            "\u2160": "I",  # Roman numeral one
+            "\uff29": "I",  # Fullwidth I
+            "\u0399": "I",  # Greek capital iota
+            "\u0406": "I",  # Cyrillic Byelorussian-Ukrainian I
+        }
+    )
 
     def __init__(self, block_threshold: float = 0.7, warn_threshold: float = 0.4, enabled: bool = True):
         """
@@ -380,6 +393,7 @@ class InputGuard:
         """
         # Unicode normalization (prevents homoglyph attacks)
         text = unicodedata.normalize("NFC", text)
+        text = text.translate(self.HOMOGLYPH_MAP)
 
         # Remove dangerous characters
         for char in self.DANGEROUS_CHARS:
