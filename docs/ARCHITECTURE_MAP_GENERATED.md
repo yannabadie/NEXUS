@@ -1,7 +1,6 @@
 # NEXUS V12.4.0 Architecture Map
 
-**Auto-Generated**: 2026-03-09 14:08
-**Git Commit**: f9ffe44
+**Generation Mode**: Deterministic output from the checked-out codebase
 **Generator**: `scripts/doc_engine.py` V2
 **Codename**: "COGNITIVE BOOST"
 
@@ -88,7 +87,7 @@ graph TD
 | Component | Files | LOC | Classes | Functions |
 |-----------|-------|-----|---------|-----------|
 | intelligence | 96 | 45,347 | 379 | 1329 |
-| execution_pkg | 41 | 16,158 | 118 | 587 |
+| execution_pkg | 41 | 16,160 | 118 | 587 |
 | memory_pkg | 32 | 14,506 | 94 | 548 |
 | infrastructure | 22 | 9,951 | 83 | 411 |
 | drivers | 20 | 9,624 | 55 | 316 |
@@ -771,7 +770,7 @@ The KERNEL.py file is the **immutable alignment core** that:
 |--------|-------|
 | **Total Components** | 21 |
 | **Total Python Files** | 359 |
-| **Total Lines of Code** | 145,053 |
+| **Total Lines of Code** | 145,055 |
 | **Total Classes** | 1128 |
 | **Total Functions** | 5,207 |
 | **Total Dataclasses** | 575 |
@@ -787,7 +786,7 @@ The KERNEL.py file is the **immutable alignment core** that:
 
 ```
 intelligence    | ############################## 45,347
-execution_pkg   | ########## 16,158
+execution_pkg   | ########## 16,160
 memory_pkg      | ######### 14,506
 infrastructure  | ###### 9,951
 drivers         | ###### 9,624

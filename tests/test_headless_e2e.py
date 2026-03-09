@@ -32,7 +32,9 @@ NO_PROVIDER_ENV = {
 }
 
 
-def run_nexus(*args: str, timeout: int = 60, stdin=None, env_updates: dict[str, str] | None = None) -> subprocess.CompletedProcess:
+def run_nexus(
+    *args: str, timeout: int = 60, stdin=None, env_updates: dict[str, str] | None = None
+) -> subprocess.CompletedProcess:
     """Run nexus7.py with deterministic environment overrides."""
     env = os.environ.copy()
     env.setdefault("PYTHONIOENCODING", "utf-8")
@@ -71,8 +73,7 @@ def build_fake_cli_env(tmp_dir: Path) -> dict[str, str]:
             encoding="utf-8",
         )
         claude_path.write_text(
-            "@echo off\n"
-            "echo Claude Code 1.0.0\n",
+            "@echo off\necho Claude Code 1.0.0\n",
             encoding="utf-8",
         )
     else:
@@ -80,11 +81,11 @@ def build_fake_cli_env(tmp_dir: Path) -> dict[str, str]:
         claude_path = cli_dir / "claude"
         gemini_path.write_text(
             "#!/usr/bin/env sh\n"
-            'if [ \"$1\" = \"--version\" ]; then\n'
+            'if [ "$1" = "--version" ]; then\n'
             "  echo gemini-cli 1.0.0\n"
             "  exit 0\n"
             "fi\n"
-            'if [ \"$1\" = \"models\" ]; then\n'
+            'if [ "$1" = "models" ]; then\n'
             "  echo gemini-3-pro-preview\n"
             "  exit 0\n"
             "fi\n"
@@ -92,8 +93,7 @@ def build_fake_cli_env(tmp_dir: Path) -> dict[str, str]:
             encoding="utf-8",
         )
         claude_path.write_text(
-            "#!/usr/bin/env sh\n"
-            "echo Claude Code 1.0.0\n",
+            "#!/usr/bin/env sh\necho Claude Code 1.0.0\n",
             encoding="utf-8",
         )
         gemini_path.chmod(0o755)

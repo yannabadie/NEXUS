@@ -142,7 +142,7 @@ PROTECTED_ROLES = frozenset({"system", "user"})
 # Patterns that indicate tool output (often large, good prune candidates)
 TOOL_OUTPUT_PATTERNS = [
     re.compile(r"^```[\s\S]{500,}```$", re.MULTILINE),
-    re.compile(r"^\s*\d+[->|]\s", re.MULTILINE),  # Line-numbered output
+    re.compile(r"^\s*\d+\s*(?:->|→|\|)\s", re.MULTILINE),  # Line-numbered output
     re.compile(r"(File|Directory|Path):\s+[/\\]"),
 ]
 

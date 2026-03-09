@@ -468,7 +468,9 @@ Documentation: https://github.com/yannabadie/NEXUS
             config = load_config()
             config.workspace_path = workspace_path
 
-            exit_code = asyncio.run(headless_main(workspace_path=workspace_path, task=args.task, output_path=args.output, config=config))
+            exit_code = asyncio.run(
+                headless_main(workspace_path=workspace_path, task=args.task, output_path=args.output, config=config)
+            )
             sys.exit(exit_code)
         except Exception as e:
             result = {

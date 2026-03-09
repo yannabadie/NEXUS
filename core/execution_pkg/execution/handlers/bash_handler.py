@@ -90,7 +90,9 @@ class BashHandler(BaseHandler):
                         self._sandbox = None
                         self._effective_mode = "validated_host"
                     else:
-                        logger.warning("BashHandler: sandbox requested but Docker not available, host execution blocked")
+                        logger.warning(
+                            "BashHandler: sandbox requested but Docker not available, host execution blocked"
+                        )
                         self._sandbox = None
         except Exception as e:
             if self._sandbox_required:

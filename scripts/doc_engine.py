@@ -58,9 +58,7 @@ import sys
 import ast
 import json
 import argparse
-import subprocess
 from pathlib import Path
-from datetime import datetime
 from dataclasses import dataclass, field
 from typing import List, Dict, Set, Optional, Tuple, Any
 from collections import defaultdict
@@ -1022,18 +1020,6 @@ class MapGeneratorV2:
         self.components = components
         self.structures = structures
         self.root = root
-        self.timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-        self.git_commit = self._get_git_commit()
-
-    def _get_git_commit(self) -> str:
-        try:
-            result = subprocess.run(
-                ["git", "rev-parse", "--short", "HEAD"],
-                capture_output=True, text=True, timeout=5, cwd=self.root
-            )
-            return result.stdout.strip() if result.returncode == 0 else "unknown"
-        except Exception:
-            return "unknown"
 
     def generate(self) -> str:
         """Generate the complete architecture map."""
@@ -1063,8 +1049,7 @@ class MapGeneratorV2:
     def _generate_header(self) -> str:
         return f"""# NEXUS V{self.version} Architecture Map
 
-**Auto-Generated**: {self.timestamp}
-**Git Commit**: {self.git_commit}
+**Generation Mode**: Deterministic output from the checked-out codebase
 **Generator**: `scripts/doc_engine.py` V2
 **Codename**: "{self.codename}"
 

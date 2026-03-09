@@ -462,7 +462,8 @@ class OrchestratorConfig:
         self.routing_policy: str = kwargs.get("routing_policy", "balanced")
         self.workspace_path: Path = Path(kwargs.get("workspace_path", "./workspace"))
         self.deepseek_model: str = kwargs.get(
-            "deepseek_model", os.getenv("DEEPSEEK_MODEL") or os.getenv("DEEPEEK_MODEL") or get_default_model("deepseek", "chat")
+            "deepseek_model",
+            os.getenv("DEEPSEEK_MODEL") or os.getenv("DEEPEEK_MODEL") or get_default_model("deepseek", "chat"),
         )
         self.kimi_model: str = kwargs.get("kimi_model", get_default_model("kimi", "thinking"))
         self.openai_model: str = kwargs.get("openai_model", get_default_model("openai", "flagship"))

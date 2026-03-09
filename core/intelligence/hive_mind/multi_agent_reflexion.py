@@ -482,7 +482,7 @@ class MultiAgentReflexion:
         # Combine all evidence and insights more aggressively
         all_fixes = [r.proposed_fix for r in reflections if r.proposed_fix]
         if len(all_fixes) > 1:
-            combined = " -> ".join(all_fixes[:3])
+            combined = " → ".join(all_fixes[:3])
             synthesis.proposed_strategy = f"Multi-step approach: {combined}"
 
         # Boost agreement slightly for constructive mode

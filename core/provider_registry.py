@@ -516,9 +516,7 @@ def _refresh_anthropic_models(*, timeout: int) -> dict[str, Any] | None:
     current = _DEFAULT_REGISTRY["providers"]["anthropic"]["models"]
     opus = "claude-opus-4-6" if "claude-opus-4-6" in text or "opus 4.6" in text else current["opus"]["default"]
     sonnet = (
-        "claude-sonnet-4-6"
-        if "claude-sonnet-4-6" in text or "sonnet 4.6" in text
-        else current["sonnet"]["default"]
+        "claude-sonnet-4-6" if "claude-sonnet-4-6" in text or "sonnet 4.6" in text else current["sonnet"]["default"]
     )
     return {
         "opus": {"default": opus, "fallback": current["opus"]["fallback"], "status": "active"},

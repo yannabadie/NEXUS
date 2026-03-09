@@ -124,10 +124,11 @@ jobs:
 
       - name: Run bandit security scan
         run: |
-          bandit -r core/ -c pyproject.toml --format json --output bandit-report.json
+          bandit -r core/ -c pyproject.toml --format json --output bandit-report.json -ll
           bandit -r core/ -c pyproject.toml --format screen -ll
 
       - name: Upload security evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: security-evidence
