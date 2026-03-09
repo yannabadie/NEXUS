@@ -204,7 +204,7 @@ class DriverProtocol(Protocol):
     @property
     def model(self) -> str:
         """
-        Model identifier (e.g., "gemini-3-pro-preview", "claude-sonnet-4-5-20250929").
+        Model identifier (e.g., "gemini-3.1-pro-preview", "claude-sonnet-4-6").
 
         Used for routing and metrics.
         """

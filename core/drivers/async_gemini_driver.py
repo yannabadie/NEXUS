@@ -62,7 +62,7 @@ class AsyncGeminiDriverConfig:
 
     cli_path: str = "gemini"
     timeout: float = 300.0
-    model: str = "gemini-3-pro-preview"
+    model: str = "gemini-3.1-pro-preview"
     workspace_path: Path = field(default_factory=Path.cwd)
     verbose: bool = False
     use_session_resume: bool = True
@@ -514,7 +514,7 @@ def create_async_gemini_driver(config: Any, workspace_path: Path, model: str | N
         AsyncGeminiDriverConfig(
             cli_path=getattr(config, "gemini_cli_path", "gemini"),
             timeout=getattr(config, "timeout", 300.0),
-            model=model or getattr(config, "gemini_default_model", "gemini-3-pro-preview"),
+            model=model or getattr(config, "gemini_default_model", "gemini-3.1-pro-preview"),
             workspace_path=workspace_path,
             verbose=getattr(config, "verbose", False),
             use_session_resume=getattr(config, "gemini_persistent_mode", True),

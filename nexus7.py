@@ -2,7 +2,7 @@
 """
 NEXUS - The Omniscient REPL
 Persistent FSM Orchestrator with Hybrid Drivers
-(Version loaded from .env: NEXUS_VERSION, NEXUS_CODENAME)
+(Version loaded from package metadata / pyproject.toml)
 
 Architecture:
 - FSM (Finite State Machine) for persistent state management
@@ -42,12 +42,9 @@ from datetime import UTC
 from dotenv import load_dotenv
 
 from core.provider_registry import build_provider_snapshot, get_replacement, refresh_provider_registry
-from core.version import NEXUS_CODENAME as DEFAULT_NEXUS_CODENAME
-from core.version import NEXUS_VERSION as DEFAULT_NEXUS_VERSION
+from core.version import NEXUS_CODENAME, NEXUS_VERSION
 
 load_dotenv()
-NEXUS_VERSION = os.getenv("NEXUS_VERSION", DEFAULT_NEXUS_VERSION)
-NEXUS_CODENAME = os.getenv("NEXUS_CODENAME", DEFAULT_NEXUS_CODENAME)
 
 # Configure logging EARLY - FORCE override any existing config
 # Default to WARNING to hide INFO messages in production

@@ -74,9 +74,11 @@ from core.version import NEXUS_CODENAME, NEXUS_VERSION
 # DATA STRUCTURES
 # =============================================================================
 
+
 @dataclass
 class Issue:
     """Documentation issue found during check."""
+
     severity: str  # ERROR, WARNING, INFO
     file: str
     message: str
@@ -93,6 +95,7 @@ class Issue:
 @dataclass
 class Change:
     """A change to be applied to a file."""
+
     file: str
     pattern: str
     old_value: str
@@ -106,6 +109,7 @@ class Change:
 @dataclass
 class ClassInfo:
     """Information about a Python class."""
+
     name: str
     file_path: str
     line_number: int
@@ -120,6 +124,7 @@ class ClassInfo:
 @dataclass
 class FunctionInfo:
     """Information about a Python function."""
+
     name: str
     file_path: str
     line_number: int
@@ -130,6 +135,7 @@ class FunctionInfo:
 @dataclass
 class ModuleInfo:
     """Information about a Python module."""
+
     path: str
     classes: List[ClassInfo] = field(default_factory=list)
     functions: List[FunctionInfo] = field(default_factory=list)
@@ -139,6 +145,7 @@ class ModuleInfo:
 @dataclass
 class ComponentInfo:
     """Information about a logical component (directory)."""
+
     name: str
     path: str
     modules: List[ModuleInfo] = field(default_factory=list)
@@ -150,6 +157,7 @@ class ComponentInfo:
 @dataclass
 class CommandInfo:
     """Information about a slash command."""
+
     name: str
     category: str
     description: str = ""
@@ -158,6 +166,7 @@ class CommandInfo:
 @dataclass
 class DataclassInfo:
     """Information about a dataclass with fields."""
+
     name: str
     file_path: str
     fields: List[Tuple[str, str, str]] = field(default_factory=list)  # (name, type, default)
@@ -167,6 +176,7 @@ class DataclassInfo:
 # =============================================================================
 # DOCUMENTATION ENGINE
 # =============================================================================
+
 
 class DocEngine:
     """
@@ -184,14 +194,14 @@ class DocEngine:
     SYNC_FILES = {
         "README.md": [
             (r'NEXUS V[\d.]+\s*"[^"]*"', 'NEXUS V{version} "{codename}"'),
-            (r'Version-[\d.]+-blue', 'Version-{version}-blue'),
-            (r'## V[\d.]+ Features', '## V{major_minor} Features'),
-            (r'NEXUS V[\d.]+ HIVE MIND', 'NEXUS V{major_minor} {codename}'),
-            (r'## Architecture \(V[\d.]+\)', '## Architecture (V{major_minor})'),
+            (r"Version-[\d.]+-blue", "Version-{version}-blue"),
+            (r"## V[\d.]+ Features", "## V{major_minor} Features"),
+            (r"NEXUS V[\d.]+ HIVE MIND", "NEXUS V{major_minor} {codename}"),
+            (r"## Architecture \(V[\d.]+\)", "## Architecture (V{major_minor})"),
         ],
         "CLAUDE.md": [
-            (r'\*\*Version\*\*: [\d.]+', '**Version**: {version}'),
-            (r'# NEXUS V[\d.]+', '# NEXUS V{major_minor}'),
+            (r"\*\*Version\*\*: [\d.]+", "**Version**: {version}"),
+            (r"# NEXUS V[\d.]+", "# NEXUS V{major_minor}"),
         ],
     }
 
@@ -203,13 +213,13 @@ class DocEngine:
         self.issues: List[Issue] = []
         self.changes: List[Change] = []
 
+    def _relative_posix(self, path: Path) -> str:
+        """Return a deterministic repo-relative path using POSIX separators."""
+        return path.relative_to(self.root).as_posix()
+
     def _format_pattern(self, pattern: str) -> str:
         """Format a pattern with version variables."""
-        return pattern.format(
-            version=self.version,
-            codename=self.codename,
-            major_minor=self.major_minor
-        )
+        return pattern.format(version=self.version, codename=self.codename, major_minor=self.major_minor)
 
     # =========================================================================
     # MODE: CHECK
@@ -218,10 +228,10 @@ class DocEngine:
     def check(self) -> List[Issue]:
         """Check documentation consistency (read-only)."""
         self.issues = []
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"NEXUS Documentation Check")
         print(f"Source of Truth: pyproject.toml -> NEXUS_VERSION={self.version}")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
 
         for filename, patterns in self.SYNC_FILES.items():
             file_path = self.root / filename
@@ -236,17 +246,20 @@ class DocEngine:
                     current = match.group(0)
                     expected_pattern = self._format_pattern(replacement)
                     expected_regex = re.escape(expected_pattern)
-                    if not re.match(expected_regex.replace(r'\{', '{').replace(r'\}', '}'), current):
-                        self.issues.append(Issue(
-                            severity="ERROR", file=filename,
-                            message=f"Version mismatch for pattern '{pattern}'",
-                            current=current, expected=expected_pattern
-                        ))
+                    if not re.match(expected_regex.replace(r"\{", "{").replace(r"\}", "}"), current):
+                        self.issues.append(
+                            Issue(
+                                severity="ERROR",
+                                file=filename,
+                                message=f"Version mismatch for pattern '{pattern}'",
+                                current=current,
+                                expected=expected_pattern,
+                            )
+                        )
                 else:
-                    self.issues.append(Issue(
-                        severity="WARNING", file=filename,
-                        message=f"Pattern not found: '{pattern}'"
-                    ))
+                    self.issues.append(
+                        Issue(severity="WARNING", file=filename, message=f"Pattern not found: '{pattern}'")
+                    )
 
         self._check_module_readmes()
         self._print_check_results()
@@ -257,24 +270,24 @@ class DocEngine:
         core_path = self.root / "core"
         if not core_path.exists():
             return
-        for module_dir in sorted(core_path.iterdir()):
+        for module_dir in sorted(core_path.iterdir(), key=lambda candidate: candidate.name):
             if not module_dir.is_dir() or module_dir.name.startswith("_"):
                 continue
             readme_path = module_dir / "README.md"
             if not readme_path.exists():
-                self.issues.append(Issue(
-                    severity="WARNING",
-                    file=f"core/{module_dir.name}/README.md",
-                    message="Missing README.md"
-                ))
+                self.issues.append(
+                    Issue(severity="WARNING", file=f"core/{module_dir.name}/README.md", message="Missing README.md")
+                )
             else:
                 content = readme_path.read_text(encoding="utf-8")
                 if "V7." in content and "V8" not in content:
-                    self.issues.append(Issue(
-                        severity="WARNING",
-                        file=f"core/{module_dir.name}/README.md",
-                        message="May be outdated (references V7 but not V8)"
-                    ))
+                    self.issues.append(
+                        Issue(
+                            severity="WARNING",
+                            file=f"core/{module_dir.name}/README.md",
+                            message="May be outdated (references V7 but not V8)",
+                        )
+                    )
 
     def _print_check_results(self):
         """Print check results."""
@@ -302,10 +315,10 @@ class DocEngine:
     def sync(self, apply: bool = False) -> List[Change]:
         """Synchronize version patterns in documentation files."""
         self.changes = []
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"NEXUS Documentation Sync {'(DRY RUN)' if not apply else '(APPLYING)'}")
-        print(f"Target Version: {self.version} \"{self.codename}\"")
-        print(f"{'='*60}\n")
+        print(f'Target Version: {self.version} "{self.codename}"')
+        print(f"{'=' * 60}\n")
 
         for filename, patterns in self.SYNC_FILES.items():
             file_path = self.root / filename
@@ -318,13 +331,18 @@ class DocEngine:
 
             for pattern, replacement in patterns:
                 expected = self._format_pattern(replacement)
+
                 def replacer(match, exp=expected, cont=content, fc=file_changes):
                     old_value = match.group(0)
                     if old_value != exp:
-                        line_num = cont[:match.start()].count('\n') + 1
-                        fc.append(Change(file=filename, pattern=pattern,
-                                        old_value=old_value, new_value=exp, line_number=line_num))
+                        line_num = cont[: match.start()].count("\n") + 1
+                        fc.append(
+                            Change(
+                                file=filename, pattern=pattern, old_value=old_value, new_value=exp, line_number=line_num
+                            )
+                        )
                     return exp
+
                 new_content = re.sub(pattern, replacer, new_content)
 
             if file_changes:
@@ -352,9 +370,9 @@ class DocEngine:
         if output_path is None:
             output_path = self.root / "docs" / "ARCHITECTURE_MAP_GENERATED.md"
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"NEXUS Architecture Map Generator V2")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
 
         scanner = CodebaseScanner(self.root)
         components = scanner.scan()
@@ -363,11 +381,7 @@ class DocEngine:
         structures = extractor.extract()
 
         generator = MapGeneratorV2(
-            version=self.version,
-            codename=self.codename,
-            components=components,
-            structures=structures,
-            root=self.root
+            version=self.version, codename=self.codename, components=components, structures=structures, root=self.root
         )
         content = generator.generate()
 
@@ -388,14 +402,14 @@ class DocEngine:
 
     def audit(self) -> Dict[str, str]:
         """Audit module READMEs for existence and currency."""
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"NEXUS Module README Audit")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
 
         results = {}
         core_path = self.root / "core"
 
-        for module_dir in sorted(core_path.iterdir()):
+        for module_dir in sorted(core_path.iterdir(), key=lambda candidate: candidate.name):
             if not module_dir.is_dir() or module_dir.name.startswith("_"):
                 continue
             readme_path = module_dir / "README.md"
@@ -427,11 +441,11 @@ class DocEngine:
 
     def full(self, apply: bool = False) -> bool:
         """Run all modes: check, sync, gen-map, audit."""
-        print(f"\n{'#'*60}")
+        print(f"\n{'#' * 60}")
         print(f"# NEXUS Documentation Engine V2 - FULL RUN")
-        print(f"# Version: {self.version} \"{self.codename}\"")
+        print(f'# Version: {self.version} "{self.codename}"')
         print(f"# Apply: {apply}")
-        print(f"{'#'*60}")
+        print(f"{'#' * 60}")
 
         issues = self.check()
         has_errors = any(i.severity == "ERROR" for i in issues)
@@ -439,9 +453,9 @@ class DocEngine:
         self.generate_map(apply=apply)
         audit_results = self.audit()
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("FINAL SUMMARY")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         print(f"  Check:  {len(issues)} issues ({sum(1 for i in issues if i.severity == 'ERROR')} errors)")
         print(f"  Sync:   {len(changes)} changes {'applied' if apply else '(dry run)'}")
         print(f"  Audit:  {sum(1 for v in audit_results.values() if v != 'OK')} modules need attention")
@@ -451,6 +465,7 @@ class DocEngine:
 # =============================================================================
 # CODEBASE SCANNER
 # =============================================================================
+
 
 class CodebaseScanner:
     """Scans the codebase and extracts structural information."""
@@ -465,7 +480,7 @@ class CodebaseScanner:
         if not core_path.exists():
             return components
 
-        for component_dir in sorted(core_path.iterdir()):
+        for component_dir in sorted(core_path.iterdir(), key=lambda candidate: candidate.name):
             if not component_dir.is_dir() or component_dir.name.startswith("_"):
                 continue
             component = self._scan_component(component_dir)
@@ -474,8 +489,8 @@ class CodebaseScanner:
 
     def _scan_component(self, path: Path) -> ComponentInfo:
         """Scan a single component directory."""
-        component = ComponentInfo(name=path.name, path=str(path.relative_to(self.root)))
-        for py_file in path.rglob("*.py"):
+        component = ComponentInfo(name=path.name, path=path.relative_to(self.root).as_posix())
+        for py_file in sorted(path.rglob("*.py"), key=lambda candidate: candidate.as_posix()):
             if py_file.name.startswith("_"):
                 continue
             module = self._scan_module(py_file)
@@ -487,7 +502,7 @@ class CodebaseScanner:
 
     def _scan_module(self, path: Path) -> ModuleInfo:
         """Scan a single Python module."""
-        module = ModuleInfo(path=str(path.relative_to(self.root)))
+        module = ModuleInfo(path=path.relative_to(self.root).as_posix())
         try:
             content = path.read_text(encoding="utf-8")
             module.lines_of_code = len(content.splitlines())
@@ -525,27 +540,43 @@ class CodeAnalyzer(ast.NodeVisitor):
                     fields.append((field_name, field_type))
 
         class_info = ClassInfo(
-            name=node.name, file_path=self.file_path, line_number=node.lineno,
-            bases=bases, docstring=ast.get_docstring(node), methods=methods,
-            fields=fields, is_dataclass=is_dataclass, is_enum=is_enum
+            name=node.name,
+            file_path=self.file_path,
+            line_number=node.lineno,
+            bases=bases,
+            docstring=ast.get_docstring(node),
+            methods=methods,
+            fields=fields,
+            is_dataclass=is_dataclass,
+            is_enum=is_enum,
         )
         self.classes.append(class_info)
         self.generic_visit(node)
 
     def visit_FunctionDef(self, node: ast.FunctionDef):
-        if not hasattr(self, '_in_class'):
-            self.functions.append(FunctionInfo(
-                name=node.name, file_path=self.file_path, line_number=node.lineno,
-                is_async=False, docstring=ast.get_docstring(node)
-            ))
+        if not hasattr(self, "_in_class"):
+            self.functions.append(
+                FunctionInfo(
+                    name=node.name,
+                    file_path=self.file_path,
+                    line_number=node.lineno,
+                    is_async=False,
+                    docstring=ast.get_docstring(node),
+                )
+            )
         self.generic_visit(node)
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef):
-        if not hasattr(self, '_in_class'):
-            self.functions.append(FunctionInfo(
-                name=node.name, file_path=self.file_path, line_number=node.lineno,
-                is_async=True, docstring=ast.get_docstring(node)
-            ))
+        if not hasattr(self, "_in_class"):
+            self.functions.append(
+                FunctionInfo(
+                    name=node.name,
+                    file_path=self.file_path,
+                    line_number=node.lineno,
+                    is_async=True,
+                    docstring=ast.get_docstring(node),
+                )
+            )
         self.generic_visit(node)
 
     def _get_name(self, node) -> str:
@@ -579,27 +610,36 @@ class CodeAnalyzer(ast.NodeVisitor):
 # STRUCTURE EXTRACTOR
 # =============================================================================
 
+
 class StructureExtractor:
     """Extracts high-level structures from the codebase."""
 
     def __init__(self, root: Path):
         self.root = root
 
+    def _relative_posix(self, path: Path) -> str:
+        """Return a deterministic repo-relative path using POSIX separators."""
+        return path.relative_to(self.root).as_posix()
+
     def extract(self) -> Dict:
         """Extract all structures."""
         return {
-            "fsm_states": self._extract_enum_values(
-                self.root / "core" / "fsm" / "states.py", "OrchestratorState"),
+            "fsm_states": self._extract_enum_values(self.root / "core" / "fsm" / "states.py", "OrchestratorState"),
             "hive_states": self._extract_enum_values(
-                self.root / "core" / "hive_mind" / "types.py", "HiveMindState"),
+                self.root / "core" / "intelligence" / "hive_mind" / "types.py", "HiveMindState"
+            ),
             "hive_phases": self._extract_enum_values(
-                self.root / "core" / "hive_mind" / "types.py", "HivePhase"),
+                self.root / "core" / "intelligence" / "hive_mind" / "types.py", "HivePhase"
+            ),
             "swarm_modes": self._extract_enum_values(
-                self.root / "core" / "swarm" / "collaboration_modes.py", "CollaborationMode"),
+                self.root / "core" / "intelligence" / "swarm" / "collaboration_modes.py", "CollaborationMode"
+            ),
             "health_states": self._extract_enum_values(
-                self.root / "core" / "fsm" / "health_state_machine.py", "HealthState"),
+                self.root / "core" / "fsm" / "health_state_machine.py", "HealthState"
+            ),
             "prediction_levels": self._extract_enum_values(
-                self.root / "core" / "fsm" / "stagnation_predictor.py", "PredictionLevel"),
+                self.root / "core" / "fsm" / "stagnation_predictor.py", "PredictionLevel"
+            ),
             "commands": self._extract_commands_detailed(),
             "enums": self._extract_all_enums(),
             "dataclasses": self._extract_all_dataclasses_detailed(),
@@ -679,7 +719,7 @@ class StructureExtractor:
             "export-telemetry": ("Monitoring", "Export session telemetry"),
         }
 
-        repl_file = self.root / "core" / "interface" / "repl.py"
+        repl_file = self.root / "core" / "interface_pkg" / "interface" / "repl.py"
         if repl_file.exists():
             content = repl_file.read_text(encoding="utf-8")
             # Find all commands
@@ -698,7 +738,7 @@ class StructureExtractor:
     def _extract_all_enums(self) -> List[Tuple[str, str]]:
         """Extract all enum names with their files."""
         enums = []
-        for py_file in (self.root / "core").rglob("*.py"):
+        for py_file in sorted((self.root / "core").rglob("*.py"), key=lambda candidate: candidate.as_posix()):
             try:
                 content = py_file.read_text(encoding="utf-8")
                 tree = ast.parse(content)
@@ -706,16 +746,16 @@ class StructureExtractor:
                     if isinstance(node, ast.ClassDef):
                         bases = [self._get_base_name(b) for b in node.bases]
                         if any(b in ("Enum", "IntEnum", "StrEnum") for b in bases):
-                            rel_path = str(py_file.relative_to(self.root))
+                            rel_path = self._relative_posix(py_file)
                             enums.append((node.name, rel_path))
             except Exception:
                 pass
-        return sorted(set(enums), key=lambda x: x[0])
+        return sorted(set(enums), key=lambda item: (item[0], item[1]))
 
     def _extract_all_dataclasses_detailed(self) -> List[DataclassInfo]:
         """Extract all dataclasses with their fields."""
         dataclasses = []
-        for py_file in (self.root / "core").rglob("*.py"):
+        for py_file in sorted((self.root / "core").rglob("*.py"), key=lambda candidate: candidate.as_posix()):
             try:
                 content = py_file.read_text(encoding="utf-8")
                 tree = ast.parse(content)
@@ -736,17 +776,19 @@ class StructureExtractor:
                                                 default = "..."
                                         fields.append((field_name, field_type, default))
 
-                                rel_path = str(py_file.relative_to(self.root))
-                                dataclasses.append(DataclassInfo(
-                                    name=node.name,
-                                    file_path=rel_path,
-                                    fields=fields,
-                                    docstring=ast.get_docstring(node)
-                                ))
+                                rel_path = self._relative_posix(py_file)
+                                dataclasses.append(
+                                    DataclassInfo(
+                                        name=node.name,
+                                        file_path=rel_path,
+                                        fields=fields,
+                                        docstring=ast.get_docstring(node),
+                                    )
+                                )
                                 break
             except Exception:
                 pass
-        return sorted(dataclasses, key=lambda x: x.name)
+        return sorted(dataclasses, key=lambda item: (item.name, item.file_path))
 
     def _get_test_stats(self) -> Dict[str, int]:
         """Get test statistics."""
@@ -754,11 +796,11 @@ class StructureExtractor:
         tests_dir = self.root / "tests"
         if tests_dir.exists():
             # Count test files and functions
-            for py_file in tests_dir.rglob("test_*.py"):
+            for py_file in sorted(tests_dir.rglob("test_*.py"), key=lambda candidate: candidate.as_posix()):
                 try:
                     content = py_file.read_text(encoding="utf-8")
                     # Count test functions
-                    test_count = len(re.findall(r'def test_', content))
+                    test_count = len(re.findall(r"def test_", content))
                     stats["total"] += test_count
                 except Exception:
                     pass
@@ -777,18 +819,19 @@ class StructureExtractor:
 
         try:
             # Try to import and instantiate ModelRouter
-            from core.routing.model_router import ModelRouter, TaskType
+            from core.execution_pkg.routing.model_router import ModelRouter, TaskType
+
             router = ModelRouter()
 
             routing["claude"]["model"] = router.opus_model
             routing["claude"]["sonnet_model"] = router.sonnet_model
-            routing["claude"]["opus_tasks"] = [t.value for t in router.opus_tasks]
-            routing["claude"]["sonnet_tasks"] = [t.value for t in router.sonnet_tasks]
+            routing["claude"]["opus_tasks"] = sorted(t.value for t in router.opus_tasks)
+            routing["claude"]["sonnet_tasks"] = sorted(t.value for t in router.sonnet_tasks)
 
             routing["gemini"]["model"] = router.gemini_pro_model
             routing["gemini"]["flash_model"] = router.gemini_flash_model
-            routing["gemini"]["pro_tasks"] = [t.value for t in router.gemini_pro_tasks]
-            routing["gemini"]["flash_tasks"] = [t.value for t in router.gemini_flash_tasks]
+            routing["gemini"]["pro_tasks"] = sorted(t.value for t in router.gemini_pro_tasks)
+            routing["gemini"]["flash_tasks"] = sorted(t.value for t in router.gemini_flash_tasks)
 
         except ImportError:
             # Fallback to static values if import fails
@@ -880,20 +923,17 @@ class StructureExtractor:
         return "Any"
 
     # =========================================================================
-        # Async/runtime extractors
+    # Async/runtime extractors
     # =========================================================================
 
     def _extract_async_primitives(self) -> Dict[str, List[str]]:
-        """Extract async primitives from core/async_primitives/."""
-        primitives = {
-            "classes": [],
-            "files": []
-        }
-        async_path = self.root / "core" / "async_primitives"
+        """Extract async primitives from core/foundation/async_primitives/."""
+        primitives = {"classes": [], "files": []}
+        async_path = self.root / "core" / "foundation" / "async_primitives"
         if not async_path.exists():
             return primitives
 
-        for py_file in async_path.glob("*.py"):
+        for py_file in sorted(async_path.glob("*.py"), key=lambda candidate: candidate.as_posix()):
             if py_file.name.startswith("_"):
                 continue
             primitives["files"].append(py_file.name)
@@ -910,14 +950,14 @@ class StructureExtractor:
     def _extract_async_handlers(self) -> List[str]:
         """Extract async handler methods from fsm_handlers.py."""
         handlers = []
-        handler_file = self.root / "core" / "orchestration" / "fsm_handlers.py"
+        handler_file = self.root / "core" / "execution_pkg" / "orchestration" / "fsm_handlers.py"
         if not handler_file.exists():
             return handlers
 
         try:
             content = handler_file.read_text(encoding="utf-8")
             # Find async def handle_*_async methods
-            pattern = r'async\s+def\s+(handle_\w+_async)'
+            pattern = r"async\s+def\s+(handle_\w+_async)"
             handlers = re.findall(pattern, content)
         except Exception:
             pass
@@ -926,14 +966,14 @@ class StructureExtractor:
     def _extract_saga_phases(self) -> List[str]:
         """Extract PHASE_ORDER from saga_manager.py."""
         phases = []
-        saga_file = self.root / "core" / "hive_mind" / "saga_manager.py"
+        saga_file = self.root / "core" / "intelligence" / "hive_mind" / "saga_manager.py"
         if not saga_file.exists():
             return phases
 
         try:
             content = saga_file.read_text(encoding="utf-8")
             # Find PHASE_ORDER list
-            match = re.search(r'PHASE_ORDER\s*=\s*\[(.*?)\]', content, re.DOTALL)
+            match = re.search(r"PHASE_ORDER\s*=\s*\[(.*?)\]", content, re.DOTALL)
             if match:
                 phase_str = match.group(1)
                 phases = re.findall(r'"(\w+)"', phase_str)
@@ -959,12 +999,7 @@ class StructureExtractor:
 
     def _extract_torture_tests(self) -> Dict[str, Any]:
         """Extract Torture Protocol V8 test statistics."""
-        torture_stats = {
-            "total_tests": 0,
-            "categories": {},
-            "files": [],
-            "markers": []
-        }
+        torture_stats = {"total_tests": 0, "categories": {}, "files": [], "markers": []}
 
         torture_dir = self.root / "tests" / "torture"
         if not torture_dir.exists():
@@ -986,7 +1021,7 @@ class StructureExtractor:
                 try:
                     content = file_path.read_text(encoding="utf-8")
                     # Count test functions
-                    test_count = len(re.findall(rf'def test_{prefix.lower()}\d+', content))
+                    test_count = len(re.findall(rf"def test_{prefix.lower()}\d+", content))
                     torture_stats["categories"][category_name] = test_count
                     torture_stats["total_tests"] += test_count
                     torture_stats["files"].append(filename)
@@ -998,7 +1033,7 @@ class StructureExtractor:
         if torture_v8.exists():
             try:
                 content = torture_v8.read_text(encoding="utf-8")
-                markers = re.findall(r'@pytest\.mark\.(\w+)', content)
+                markers = re.findall(r"@pytest\.mark\.(\w+)", content)
                 torture_stats["markers"] = list(set(m for m in markers if m.startswith("torture")))
             except Exception:
                 pass
@@ -1007,14 +1042,14 @@ class StructureExtractor:
 
 
 # =============================================================================
-        # MAP GENERATOR - enhanced with async primitives and torture protocol coverage
+# MAP GENERATOR - enhanced with async primitives and torture protocol coverage
 # =============================================================================
+
 
 class MapGeneratorV2:
     """Generates the complete architecture map document V2."""
 
-    def __init__(self, version: str, codename: str, components: List[ComponentInfo],
-                 structures: Dict, root: Path):
+    def __init__(self, version: str, codename: str, components: List[ComponentInfo], structures: Dict, root: Path):
         self.version = version
         self.codename = codename
         self.components = components
@@ -1137,12 +1172,17 @@ graph TD
 """
 
     def _generate_component_summary(self) -> str:
-        lines = ["### Component Summary", "",
-                 "| Component | Files | LOC | Classes | Functions |",
-                 "|-----------|-------|-----|---------|-----------|"]
+        lines = [
+            "### Component Summary",
+            "",
+            "| Component | Files | LOC | Classes | Functions |",
+            "|-----------|-------|-----|---------|-----------|",
+        ]
 
         for comp in sorted(self.components, key=lambda c: -c.total_loc):
-            lines.append(f"| {comp.name} | {len(comp.modules)} | {comp.total_loc:,} | {comp.total_classes} | {comp.total_functions} |")
+            lines.append(
+                f"| {comp.name} | {len(comp.modules)} | {comp.total_loc:,} | {comp.total_classes} | {comp.total_functions} |"
+            )
 
         return "\n".join(lines) + "\n"
 
@@ -1222,15 +1262,15 @@ graph TD
         # Build routing table rows dynamically
         routing_rows = []
         for task in opus_tasks:
-            routing_rows.append(f"| {task.upper()} | Claude Opus 4.5 | Complex reasoning, creativity |")
+            routing_rows.append(f"| {task.upper()} | Claude Opus 4.6 | Complex reasoning, creativity |")
         for task in sonnet_tasks:
-            routing_rows.append(f"| {task.upper()} | Claude Sonnet 4.5 | Speed, tool use |")
+            routing_rows.append(f"| {task.upper()} | Claude Sonnet 4.6 | Speed, tool use |")
         for task in pro_tasks:
             if task not in opus_tasks:  # Avoid duplicates
-                routing_rows.append(f"| {task.upper()} | Gemini 3 Pro | Large context, analysis |")
+                routing_rows.append(f"| {task.upper()} | Gemini 3.1 Pro Preview | Large context, analysis |")
         for task in flash_tasks:
             if task not in sonnet_tasks and task not in pro_tasks:
-                routing_rows.append(f"| {task.upper()} | Gemini 2.5 Flash | Quick responses |")
+                routing_rows.append(f"| {task.upper()} | Gemini 3 Flash Preview | Quick responses |")
         routing_table = "\n".join(routing_rows) if routing_rows else "| DEFAULT | Claude Sonnet | Default routing |"
 
         return f"""## 3. ZOOM: LLM Drivers & Routing
@@ -1241,12 +1281,12 @@ graph TD
 graph TD
     subgraph Routing["Model Router"]
         TASK[TaskType] --> ROUTER{{{{Model<br/>Router}}}}
-        ROUTER -->|BRAINSTORM| OPUS[Claude Opus 4.5]
-        ROUTER -->|REASONING| SONNET[Claude Sonnet 4.5]
+        ROUTER -->|BRAINSTORM| OPUS[Claude Opus 4.6]
+        ROUTER -->|REASONING| SONNET[Claude Sonnet 4.6]
         ROUTER -->|TOOL| SONNET
-        ROUTER -->|SIMPLE| HAIKU[Claude Haiku 3.5]
-        ROUTER -->|RESEARCH| PRO[Gemini 3 Pro]
-        ROUTER -->|FAST| FLASH[Gemini 2.5 Flash]
+        ROUTER -->|SIMPLE| HAIKU[Claude Haiku 4.5]
+        ROUTER -->|RESEARCH| PRO[Gemini 3.1 Pro Preview]
+        ROUTER -->|FAST| FLASH[Gemini 3 Flash Preview]
     end
 
     subgraph Drivers["LLM Drivers"]
@@ -1270,8 +1310,8 @@ graph TD
 |-----------|-------|-----------|
 {routing_table}
 
-**Claude Tasks**: Opus -> {', '.join(opus_tasks) if opus_tasks else 'N/A'} | Sonnet -> {', '.join(sonnet_tasks) if sonnet_tasks else 'N/A'}
-**Gemini Tasks**: Pro -> {', '.join(pro_tasks) if pro_tasks else 'N/A'} | Flash -> {', '.join(flash_tasks) if flash_tasks else 'N/A'}
+**Claude Tasks**: Opus -> {", ".join(opus_tasks) if opus_tasks else "N/A"} | Sonnet -> {", ".join(sonnet_tasks) if sonnet_tasks else "N/A"}
+**Gemini Tasks**: Pro -> {", ".join(pro_tasks) if pro_tasks else "N/A"} | Flash -> {", ".join(flash_tasks) if flash_tasks else "N/A"}
 
 ### Spawned Agent Provider Selection
 
@@ -1290,7 +1330,7 @@ graph TD
     end
 ```
 
-**Source**: `core/routing/model_router.py`, `core/drivers/`
+**Source**: `core/execution_pkg/routing/model_router.py`, `core/drivers/`
 
 """
 
@@ -1301,8 +1341,14 @@ graph TD
 
         # Build dynamic fallback chain for Mermaid diagram
         fallback_mermaid = []
-        mode_abbrev = {"PARALLEL": "M1", "SEQUENTIAL": "M2", "LEAD_SUPPORT": "M3",
-                       "PING_PONG": "M4", "SPECIALIST": "M5", "RED_BLUE": "M6"}
+        mode_abbrev = {
+            "PARALLEL": "M1",
+            "SEQUENTIAL": "M2",
+            "LEAD_SUPPORT": "M3",
+            "PING_PONG": "M4",
+            "SPECIALIST": "M5",
+            "RED_BLUE": "M6",
+        }
         for mode, fallback in fallbacks.items():
             if fallback:
                 src = mode_abbrev.get(mode, mode[:2])
@@ -1381,7 +1427,7 @@ graph TD
 |------|-------------|
 {fallback_table}
 
-**Source**: `core/swarm/collaboration_modes.py`, `core/swarm/mode_executors.py`
+**Source**: `core/intelligence/swarm/collaboration_modes.py`, `core/intelligence/swarm/mode_executors.py`
 
 """
 
@@ -1485,7 +1531,7 @@ graph TD
 | `AFTER_DIAGNOSIS` | After failure analysis | Review fix strategy |
 | `CONSOLIDATION` | Before knowledge archival | Review learnings |
 
-**Source**: `core/hive_mind/types.py`, `core/hive_mind/phases/`
+**Source**: `core/intelligence/hive_mind/types.py`, `core/intelligence/hive_mind/phases/`
 
 """
 
@@ -1498,7 +1544,11 @@ graph TD
 
         classes_list = ", ".join(f"`{c}`" for c in classes) if classes else "None found"
         files_list = ", ".join(f"`{f}`" for f in files) if files else "None found"
-        handlers_list = "\n".join(f"| `{h}()` | Non-blocking handler |" for h in async_handlers) if async_handlers else "| None | - |"
+        handlers_list = (
+            "\n".join(f"| `{h}()` | Non-blocking handler |" for h in async_handlers)
+            if async_handlers
+            else "| None | - |"
+        )
 
         return f"""## 6. ZOOM: Async Primitives
 
@@ -1508,7 +1558,7 @@ The current runtime exposes a complete async infrastructure for non-blocking ope
 
 ```mermaid
 graph TD
-    subgraph Primitives["core/async_primitives/"]
+    subgraph Primitives["core/foundation/async_primitives/"]
         CT[CancellationToken<br/>Hierarchical cancellation]
         PH[AsyncProcessHandle<br/>Subprocess tracking]
         RW[AsyncRWLock<br/>Reader-Writer lock]
@@ -1550,7 +1600,7 @@ graph TD
 |---------|---------|
 {handlers_list}
 
-**Source**: `core/async_primitives/`, `core/orchestration/fsm_handlers.py`
+**Source**: `core/foundation/async_primitives/`, `core/execution_pkg/orchestration/fsm_handlers.py`
 
 """
 
@@ -1647,13 +1697,13 @@ graph TD
 | Phase | Module | Lines |
 |-------|--------|-------|
 | P0 | `core/utils/serialization.py` | ~240 |
-| P1 | `core/hive_mind/async_adapter.py` | +80 |
-| P2 | `core/hive_mind/saga_manager.py` | ~640 |
+| P1 | `core/intelligence/hive_mind/async_adapter.py` | +80 |
+| P2 | `core/intelligence/hive_mind/saga_manager.py` | ~640 |
 | P3 | `core/orchestration/fsm_handlers.py` | +290 |
 | P4 | `core/fsm/health_state_machine.py` | ~549 |
 | P5 | `core/fsm/stagnation_predictor.py` | ~476 |
 
-**Source**: `core/hive_mind/saga_manager.py`, `core/fsm/health_state_machine.py`, `core/fsm/stagnation_predictor.py`
+**Source**: `core/intelligence/hive_mind/saga_manager.py`, `core/fsm/health_state_machine.py`, `core/fsm/stagnation_predictor.py`
 
 """
 
@@ -1788,7 +1838,7 @@ graph TD
 | **TF-IDF** | Term frequency-based | Fallback if Dense fails |
 | **BM25** | Probabilistic ranking | Alternative fallback |
 
-**Source**: `core/memory/`
+**Source**: `core/memory_pkg/memory/`
 
 """
 
@@ -1799,14 +1849,13 @@ graph TD
 
 ```mermaid
 graph TD
-    subgraph Alignment["Alignment Layer"]
-        INPUT[User Input] --> KERNEL[KERNEL.py<br/>Immutable]
-        KERNEL --> CHECK{{Alignment<br/>Check}}
+    subgraph Policy["Runtime Policy"]
+        INPUT[User Input] --> CHECK{{Execution<br/>Policy}}
         CHECK -->|PASS| PROCESS[Continue]
         CHECK -->|FAIL| REJECT[Reject + Log]
     end
 
-    subgraph Policy["Sandbox Policy"]
+    subgraph Sandbox["Sandbox Policy"]
         PROCESS --> SANDBOX[SandboxPolicy]
         SANDBOX --> ALLOW{{Allowed?}}
         ALLOW -->|Yes| TOOL[Tool Execution]
@@ -1825,13 +1874,13 @@ graph TD
     end
 ```
 
-### KERNEL.py (Immutable Alignment)
+### Runtime Policy
 
-The KERNEL.py file is the **immutable alignment core** that:
-- Cannot be modified by agents
-- Validates all operations against alignment rules
-- Ensures Creator authority (Yann Abadie)
-- Prevents harmful operations
+The default distributed runtime is governed by execution policy, tool capability
+checks, sandbox controls, and integrity monitoring.
+
+Legacy KERNEL/INVARIANTS artifacts still exist for backward compatibility and
+historical review, but they are **not** the default runtime authority on NX-CG.
 
 ### SandboxPolicy
 
@@ -1846,12 +1895,12 @@ The KERNEL.py file is the **immutable alignment core** that:
 
 | Layer | Protection |
 |-------|------------|
-| 1. KERNEL | Alignment validation |
+| 1. Policy | Execution and capability validation |
 | 2. Sandbox | Operation restrictions |
 | 3. Governance | Budget/rate limits |
 | 4. Audit | Full operation logging |
 
-**Source**: `core/security/`, `KERNEL.py`
+**Source**: `core/security_pkg/`, `core/execution_pkg/execution/`
 
 """
 
@@ -1883,9 +1932,17 @@ The KERNEL.py file is the **immutable alignment core** that:
 
         # Select key dataclasses
         key_names = [
-            "TaskAnalysis", "ModeProposal", "AgentProfile", "InferenceConfig",
-            "SuccessEntry", "HiveMindResult", "DebateResult", "ExecutionPlan",
-            "FailureDiagnosis", "SwarmDelegationResult", "ToolResult"
+            "TaskAnalysis",
+            "ModeProposal",
+            "AgentProfile",
+            "InferenceConfig",
+            "SuccessEntry",
+            "HiveMindResult",
+            "DebateResult",
+            "ExecutionPlan",
+            "FailureDiagnosis",
+            "SwarmDelegationResult",
+            "ToolResult",
         ]
 
         key_dc = [dc for dc in dataclasses if dc.name in key_names]
@@ -1894,13 +1951,13 @@ The KERNEL.py file is the **immutable alignment core** that:
         for dc in key_dc:
             fields_str = ", ".join(f[0] for f in dc.fields[:5])
             if len(dc.fields) > 5:
-                fields_str += f" (+{len(dc.fields)-5} more)"
+                fields_str += f" (+{len(dc.fields) - 5} more)"
             dc_table += f"| `{dc.name}` | {fields_str} | `{dc.file_path}` |\n"
 
         enums = self.structures.get("enums", [])
         enum_list = ", ".join(f"`{e[0]}`" for e in enums[:25])
         if len(enums) > 25:
-            enum_list += f" (+{len(enums)-25} more)"
+            enum_list += f" (+{len(enums) - 25} more)"
 
         return f"""## 12. KEY DATACLASSES
 
@@ -1937,7 +1994,8 @@ The KERNEL.py file is the **immutable alignment core** that:
             bar = "#" * bar_len
             loc_chart.append(f"{comp.name:<15} | {bar} {comp.total_loc:,}")
 
-        return f"""## 13. STATISTICS
+        return (
+            f"""## 13. STATISTICS
 
 ### Codebase Metrics
 
@@ -1955,7 +2013,7 @@ The KERNEL.py file is the **immutable alignment core** that:
 
 | Metric | Value |
 |--------|-------|
-| **Test Functions** | {test_stats.get('total', 'N/A')} |
+| **Test Functions** | {test_stats.get("total", "N/A")} |
 
 ### Lines of Code by Component
 
@@ -1967,10 +2025,13 @@ The KERNEL.py file is the **immutable alignment core** that:
 
 | Component | % of Codebase |
 |-----------|---------------|
-""" + "\n".join(
-            f"| {comp.name} | {comp.total_loc/total_loc*100:.1f}% |"
-            for comp in sorted(self.components, key=lambda c: -c.total_loc)[:10]
-        ) + "\n"
+"""
+            + "\n".join(
+                f"| {comp.name} | {comp.total_loc / total_loc * 100:.1f}% |"
+                for comp in sorted(self.components, key=lambda c: -c.total_loc)[:10]
+            )
+            + "\n"
+        )
 
     def _generate_torture_protocol_zoom(self) -> str:
         """Generate Torture Protocol section."""
@@ -1986,9 +2047,11 @@ The KERNEL.py file is the **immutable alignment core** that:
 
 """
 
-        category_table = "\n".join(
-            f"| {cat} | {count} |" for cat, count in categories.items()
-        ) if categories else "| N/A | 0 |"
+        category_table = (
+            "\n".join(f"| {cat} | {count} |" for cat, count in sorted(categories.items()))
+            if categories
+            else "| N/A | 0 |"
+        )
 
         markers_list = ", ".join(f"`@pytest.mark.{m}`" for m in markers) if markers else "None"
 
@@ -2088,15 +2151,15 @@ class OrchestratorState(Enum):
 #### HiveMindState (VERIFIED - {len(hive_states)} states)
 
 ```python
-# core/hive_mind/types.py - First 15 states
-{chr(10).join(f'    {s}' for s in hive_states[:15])}
-    # ... +{len(hive_states)-15} more
+# core/intelligence/hive_mind/types.py - First 15 states
+{chr(10).join(f"    {s}" for s in hive_states[:15])}
+    # ... +{len(hive_states) - 15} more
 ```
 
 #### CollaborationMode (VERIFIED)
 
 ```python
-# core/swarm/collaboration_modes.py
+# core/intelligence/swarm/collaboration_modes.py
 class CollaborationMode(Enum):
 {chr(10).join(f'    {m} = "{m.lower()}"' for m in swarm_modes)}
 ```
@@ -2149,27 +2212,21 @@ python scripts/doc_engine.py --full --apply
 # CLI
 # =============================================================================
 
+
 def main():
     parser = argparse.ArgumentParser(
         description="NEXUS Documentation Engine V2",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=__doc__
+        epilog=__doc__,
     )
 
-    parser.add_argument("--check", action="store_true",
-                       help="Check documentation consistency (read-only)")
-    parser.add_argument("--sync", action="store_true",
-                       help="Synchronize version patterns")
-    parser.add_argument("--gen-map", action="store_true",
-                       help="Generate architecture map")
-    parser.add_argument("--audit", action="store_true",
-                       help="Audit module READMEs")
-    parser.add_argument("--full", action="store_true",
-                       help="Run all modes")
-    parser.add_argument("--apply", action="store_true",
-                       help="Actually write changes (default is dry-run)")
-    parser.add_argument("--output", type=str,
-                       help="Output path for architecture map")
+    parser.add_argument("--check", action="store_true", help="Check documentation consistency (read-only)")
+    parser.add_argument("--sync", action="store_true", help="Synchronize version patterns")
+    parser.add_argument("--gen-map", action="store_true", help="Generate architecture map")
+    parser.add_argument("--audit", action="store_true", help="Audit module READMEs")
+    parser.add_argument("--full", action="store_true", help="Run all modes")
+    parser.add_argument("--apply", action="store_true", help="Actually write changes (default is dry-run)")
+    parser.add_argument("--output", type=str, help="Output path for architecture map")
 
     args = parser.parse_args()
 
@@ -2201,6 +2258,7 @@ def main():
     except Exception as e:
         print(f"\n[ERROR] {e}")
         import traceback
+
         traceback.print_exc()
         exit_code = 2
 

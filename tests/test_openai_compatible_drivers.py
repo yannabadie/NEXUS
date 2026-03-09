@@ -34,7 +34,7 @@ class MockOpenAIUsage:
 
 
 class MockOpenAIChatCompletion:
-    def __init__(self, choices: list | None = None, usage: MockOpenAIUsage | None = None, model: str = "gpt-5.2"):
+    def __init__(self, choices: list | None = None, usage: MockOpenAIUsage | None = None, model: str = "gpt-5.4"):
         self.id = "chatcmpl_test123"
         self.created = 1706832000
         self.model = model
@@ -82,19 +82,19 @@ class TestOpenAISDKDriver:
         mock_response = MockOpenAIChatCompletion(
             choices=[MockOpenAIChoice(MockOpenAIMessage("OpenAI response"))],
             usage=MockOpenAIUsage(prompt_tokens=120, completion_tokens=80),
-            model="gpt-5.2",
+            model="gpt-5.4",
         )
         mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
         with patch.dict("os.environ", {"OPENAI_API_KEY": "sk-test"}):
-            driver = OpenAISDKDriver(model="gpt-5.2")
+            driver = OpenAISDKDriver(model="gpt-5.4")
 
         result = await driver.invoke("Hello OpenAI!")
 
         assert result.status == DriverResponseStatus.SUCCESS
         assert result.content == "OpenAI response"
         assert result.provider == "openai"
-        assert result.model == "gpt-5.2"
+        assert result.model == "gpt-5.4"
 
     async def test_invoke_stream(self, mock_openai_client):
         from core.drivers.openai_sdk_driver import OpenAISDKDriver
@@ -138,19 +138,19 @@ class TestMiniMaxSDKDriver:
         mock_response = MockOpenAIChatCompletion(
             choices=[MockOpenAIChoice(MockOpenAIMessage("MiniMax response"))],
             usage=MockOpenAIUsage(prompt_tokens=140, completion_tokens=60),
-            model="MiniMax-M1",
+            model="MiniMax-M2.5",
         )
         mock_minimax_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
         with patch.dict("os.environ", {"MINIMAX_API_KEY": "sk-test"}):
-            driver = MiniMaxSDKDriver(model="MiniMax-M1")
+            driver = MiniMaxSDKDriver(model="MiniMax-M2.5")
 
         result = await driver.invoke("Hello MiniMax!")
 
         assert result.status == DriverResponseStatus.SUCCESS
         assert result.content == "MiniMax response"
         assert result.provider == "minimax"
-        assert result.model == "MiniMax-M1"
+        assert result.model == "MiniMax-M2.5"
 
     async def test_invoke_timeout(self, mock_minimax_client):
         from core.drivers.minimax_sdk_driver import MiniMaxSDKDriver

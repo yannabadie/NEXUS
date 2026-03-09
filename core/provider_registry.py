@@ -30,13 +30,18 @@ _ALLOWED_PROVIDER_HOSTS = frozenset(
     {
         "ai.google.dev",
         "api.anthropic.com",
+        "api-docs.deepseek.com",
         "api.deepseek.com",
+        "api.minimaxi.com",
         "api.minimaxi.chat",
         "api.moonshot.ai",
         "api.openai.com",
         "developers.openai.com",
         "docs.anthropic.com",
+        "platform.moonshot.ai",
+        "platform.openai.com",
         "platform.minimaxi.chat",
+        "platform.minimaxi.com",
         "www.googleapis.com",
         "generativelanguage.googleapis.com",
     }
@@ -143,7 +148,7 @@ _DEFAULT_REGISTRY: dict[str, Any] = {
         "openai": {
             "display_name": "OpenAI",
             "sdk_supported": True,
-            "docs_url": "https://developers.openai.com/resources/models",
+            "docs_url": "https://platform.openai.com/docs/models",
             "lookup": {
                 "strategy": "api+docs",
                 "requires_api_key": False,
@@ -170,11 +175,11 @@ _DEFAULT_REGISTRY: dict[str, Any] = {
         "minimax": {
             "display_name": "MiniMax",
             "sdk_supported": True,
-            "docs_url": "https://platform.minimaxi.chat/docs/guides/models/text-models",
+            "docs_url": "https://platform.minimaxi.com/docs/api-reference/text-openai-api",
             "lookup": {
                 "strategy": "api+docs",
                 "requires_api_key": False,
-                "endpoint": "https://api.minimaxi.chat/v1/models",
+                "endpoint": "https://api.minimaxi.com/v1/models",
             },
             "models": {
                 "reasoning": {
@@ -328,7 +333,7 @@ def refresh_provider_registry(
         "minimax",
         lambda: _refresh_openai_compatible_models(
             api_key=os.getenv("MINIMAX_API_KEY"),
-            endpoint="https://api.minimaxi.chat/v1/models",
+            endpoint="https://api.minimaxi.com/v1/models",
             mapping={"reasoning": "MiniMax-M2.5", "chat": "MiniMax-M2.5-HighSpeed"},
             timeout=timeout,
         ),

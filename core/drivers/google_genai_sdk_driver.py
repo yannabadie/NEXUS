@@ -14,7 +14,7 @@ Features:
 Usage:
     from core.drivers.google_genai_sdk_driver import GoogleGenAISDKDriver
 
-    driver = GoogleGenAISDKDriver(model="gemini-3-pro-preview")
+    driver = GoogleGenAISDKDriver(model="gemini-3.1-pro-preview")
     response = await driver.invoke("Analyze this code...")
 
 Requirements:
@@ -58,7 +58,7 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
 
     def __init__(
         self,
-        model: str = "gemini-3-pro-preview",
+        model: str = "gemini-3.1-pro-preview",
         api_key: str | None = None,
         timeout: float = 300.0,
         enable_thinking: bool = False,

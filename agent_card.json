@@ -1,7 +1,7 @@
 {
   "protocolVersion": "0.3.0",
   "name": "NEXUS",
-  "description": "Multi-Agent Collaborative Intelligence Orchestrator. Generates and coordinates specialized AI agents (Claude + Gemini) for complex problem-solving via 6 swarm collaboration modes.",
+  "description": "Collaborative orchestration runtime for multi-agent execution, local-first research, and MCP-connected tooling.",
   "url": "http://localhost:8080",
   "preferredTransport": "JSONRPC",
   "additionalInterfaces": [
@@ -12,7 +12,7 @@
   ],
   "provider": {
     "organization": "NEXUS Project",
-    "url": "https://github.com/nexus-swarm-os"
+    "url": "https://github.com/yannabadie/NEXUS/tree/NX-CG"
   },
   "version": "12.4.0",
   "documentationUrl": "http://localhost:8080/docs",
@@ -88,7 +88,7 @@
     {
       "id": "code-execution",
       "name": "Secure Code Execution",
-      "description": "Executes shell commands and code with security validation. Supports optional Docker sandboxing for isolation.",
+      "description": "Executes shell commands and code through validated execution policies. Docker sandboxing is the default isolation path when available; validated host execution is a local-development opt-in.",
       "tags": ["execution", "bash", "sandbox", "coding"],
       "examples": [
         "Run the test suite",

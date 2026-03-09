@@ -154,10 +154,10 @@ class MockConfig(Config):
         self.gemini_flash_model = "gemini-3-flash-preview"
         self.deepseek_model = "deepseek-chat"
         self.kimi_model = "kimi-k2-thinking"
-        self.openai_model = "gpt-5.2"
-        self.openai_fast_model = "gpt-5.2-mini"
-        self.minimax_model = "MiniMax-M1"
-        self.minimax_fast_model = "MiniMax-M2.5"
+        self.openai_model = "gpt-5.4"
+        self.openai_fast_model = "gpt-5-mini"
+        self.minimax_model = "MiniMax-M2.5"
+        self.minimax_fast_model = "MiniMax-M2.5-HighSpeed"
         self.opus_task_types = ["brainstorm", "redteam", "architect", "evolution"]
         self.sonnet_task_types = ["tool", "validation", "simple", "format"]
         self.gemini_pro_tasks = ["reasoning", "research", "analysis", "brainstorm", "evolution"]

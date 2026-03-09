@@ -78,10 +78,10 @@ class Config:
         load_dotenv()
 
         # ====================================================================
-        # VERSION (pyproject.toml is canonical; env overrides for dev only)
+        # VERSION (pyproject.toml/package metadata is canonical)
         # ====================================================================
-        self.nexus_version: str = os.getenv("NEXUS_VERSION", NEXUS_VERSION)
-        self.nexus_codename: str = os.getenv("NEXUS_CODENAME", NEXUS_CODENAME)
+        self.nexus_version: str = NEXUS_VERSION
+        self.nexus_codename: str = NEXUS_CODENAME
 
         # ====================================================================
         # FEATURE FLAGS

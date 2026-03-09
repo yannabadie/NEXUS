@@ -54,7 +54,7 @@ class AsyncClaudeDriverConfig:
 
     cli_path: str = "claude"
     timeout: float = 300.0
-    model: str = "claude-sonnet-4-5-20250929"
+    model: str = "claude-sonnet-4-6"
     workspace_path: Path = field(default_factory=Path.cwd)
     verbose: bool = False
 
@@ -448,7 +448,7 @@ def create_async_claude_driver(config: Any, workspace_path: Path, model: str | N
         AsyncClaudeDriverConfig(
             cli_path=getattr(config, "claude_cli_path", "claude"),
             timeout=getattr(config, "timeout", 300.0),
-            model=model or getattr(config, "claude_sonnet_model", "claude-sonnet-4-5-20250929"),
+            model=model or getattr(config, "claude_sonnet_model", "claude-sonnet-4-6"),
             workspace_path=workspace_path,
             verbose=getattr(config, "verbose", False),
         )

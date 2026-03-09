@@ -66,7 +66,7 @@ def build_fake_cli_env(tmp_dir: Path) -> dict[str, str]:
             "  exit /b 0\n"
             ")\n"
             'if "%1"=="models" (\n'
-            "  echo gemini-3-pro-preview\n"
+            "  echo gemini-3.1-pro-preview\n"
             "  exit /b 0\n"
             ")\n"
             "echo gemini-cli\n",
@@ -86,7 +86,7 @@ def build_fake_cli_env(tmp_dir: Path) -> dict[str, str]:
             "  exit 0\n"
             "fi\n"
             'if [ "$1" = "models" ]; then\n'
-            "  echo gemini-3-pro-preview\n"
+            "  echo gemini-3.1-pro-preview\n"
             "  exit 0\n"
             "fi\n"
             "echo gemini-cli\n",
@@ -165,6 +165,8 @@ class TestHeadlessTaskExecution:
         assert output["mode"] == "headless"
         assert output["status"] == "failure"
         assert output["error_code"] == "RUNTIMEERROR"
+        assert output["output"] is None
+        assert output["output"] != "Headless boot validation successful"
         assert "required for the selected runtime path" in output["error"]
 
     def test_headless_boot_fails_without_valid_provider(self):

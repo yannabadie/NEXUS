@@ -56,7 +56,7 @@ jobs:
         timeout-minutes: 20
 
       - name: Upload unit test evidence
-        if: matrix.python-version == '3.13'
+        if: always() && matrix.python-version == '3.13'
         uses: actions/upload-artifact@v4
         with:
           name: unit-test-evidence
@@ -64,6 +64,7 @@ jobs:
             coverage.xml
             pytest-junit.xml
           retention-days: 14
+          if-no-files-found: warn
 
       - name: Upload coverage to Codecov
         if: matrix.python-version == '3.13'
@@ -91,6 +92,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install ruff mypy hatchling
           pip install -e . 2>/dev/null || pip install -r requirements.txt
+
+      - name: Repository hygiene
+        run: python scripts/check_repo_hygiene.py
 
       - name: Ruff lint
         run: ruff check core/ tests/ nexus7.py --output-format=github
@@ -228,7 +232,7 @@ jobs:
             exit 0
           fi
           if [ "$1" = "models" ]; then
-            echo "gemini-3-pro-preview"
+            echo "gemini-3.1-pro-preview"
             exit 0
           fi
           echo "gemini-cli"
@@ -248,9 +252,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: [unit-tests, lint-type-check, security-scan]
     env:
-      NEXUS_DRIVER_MODE: sdk
-      ANTHROPIC_API_KEY: ci-smoke-key
-      GOOGLE_API_KEY: ci-smoke-key
+      NEXUS_DRIVER_MODE: cli
+      ANTHROPIC_API_KEY: ""
+      GOOGLE_API_KEY: ""
+      GEMINI_API_KEY: ""
 
     steps:
       - name: Checkout code
@@ -270,28 +275,41 @@ jobs:
 
       - name: Run strict headless contract
         run: |
-          python nexus7.py --headless --output headless-smoke.json
+          PYTHON_BIN="$(command -v python)"
+          set +e
+          PATH="/usr/bin:/bin" "$PYTHON_BIN" nexus7.py --headless --task "Validate system health" --output headless-smoke.json
+          exit_code=$?
+          set -e
+          test "$exit_code" -eq 1
           python - <<'PY'
           import json
           from pathlib import Path
 
           payload = json.loads(Path("headless-smoke.json").read_text(encoding="utf-8"))
-          assert payload["status"] == "success", payload
-          assert payload["driver"] == "anthropic_sdk", payload
+          assert payload["status"] == "failure", payload
+          assert payload["task"] == "Validate system health", payload
+          assert payload["driver"] is None, payload
+          assert payload["output"] is None, payload
+          assert payload["error_code"] == "RUNTIMEERROR", payload
+          assert "required for the selected runtime path" in payload["error"], payload
+          assert payload["output"] != "Headless boot validation successful", payload
           assert "error_code" in payload, payload
           assert "warnings" in payload, payload
           PY
 
       - name: Upload headless evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: headless-evidence
           path: headless-smoke.json
           retention-days: 14
+          if-no-files-found: warn
 
   evidence-ledger:
     name: Evidence ledger
     runs-on: ubuntu-latest
+    if: always()
     needs:
       - unit-tests
       - lint-type-check
@@ -311,6 +329,7 @@ jobs:
           python-version: "3.13"
 
       - name: Download evidence artifacts
+        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           path: ci-artifacts
@@ -342,6 +361,7 @@ jobs:
             --output-markdown "artifacts/evidence-ledger.md"
 
       - name: Upload evidence ledger
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: evidence-ledger
@@ -349,6 +369,7 @@ jobs:
           retention-days: 30
 
       - name: Append summary
+        if: always()
         run: cat artifacts/evidence-ledger.md >> "$GITHUB_STEP_SUMMARY"
 
   integration:

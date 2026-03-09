@@ -206,11 +206,11 @@ You may temporarily assume a "strategist" role **if both agents agree** it's the
 
 **AI Models (Intelligent Routing)**:
 - **Gemini (you)**:
-  - **Gemini 3 Pro** (`gemini-3-pro-preview`): Complex reasoning, research, analysis
+  - **Gemini 3.1 Pro Preview** (`gemini-3.1-pro-preview`): Complex reasoning, research, analysis
   - **Gemini 2.5 Flash** (`gemini-2.5-flash`): Quick operations, validation, formatting
 - **Claude**:
   - **Opus 4.5** (`claude-opus-4-5-20251101`): Complex reasoning, creativity, security, evolution
-  - **Sonnet 4.5** (`claude-sonnet-4-5-20250929`): Speed, tool execution, simple tasks
+  - **Sonnet 4.6** (`claude-sonnet-4-6`): Speed, tool execution, simple tasks
 
 **Model Routing** (automatic):
 | Task Type | Claude Model | Gemini Model |

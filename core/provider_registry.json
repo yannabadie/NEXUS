@@ -1,7 +1,7 @@
 {
   "schema_version": "2.0",
   "generated_by": "scripts/refresh_provider_registry.py",
-  "generated_at": "2026-03-09T12:26:56.732494+00:00",
+  "generated_at": "2026-03-09T15:44:21.054523+00:00",
   "providers": {
     "anthropic": {
       "display_name": "Anthropic",
@@ -93,7 +93,7 @@
     "openai": {
       "display_name": "OpenAI",
       "sdk_supported": true,
-      "docs_url": "https://developers.openai.com/resources/models",
+      "docs_url": "https://platform.openai.com/docs/models",
       "lookup": {
         "strategy": "api+docs",
         "requires_api_key": false,
@@ -120,11 +120,11 @@
     "minimax": {
       "display_name": "MiniMax",
       "sdk_supported": true,
-      "docs_url": "https://platform.minimaxi.chat/docs/guides/models/text-models",
+      "docs_url": "https://platform.minimaxi.com/docs/api-reference/text-openai-api",
       "lookup": {
         "strategy": "api+docs",
         "requires_api_key": false,
-        "endpoint": "https://api.minimaxi.chat/v1/models"
+        "endpoint": "https://api.minimaxi.com/v1/models"
       },
       "models": {
         "reasoning": {
@@ -155,8 +155,5 @@
     "kimi-k2-turbo-preview": "kimi-k2-thinking-turbo",
     "MiniMax-M1": "MiniMax-M2.5"
   },
-  "sync_errors": [
-    "openai: https://developers.openai.com/resources/models returned HTTP 404",
-    "minimax: Failed to reach https://platform.minimaxi.chat/docs/guides/models/text-models: [Errno 11001] getaddrinfo failed"
-  ]
+  "sync_errors": []
 }

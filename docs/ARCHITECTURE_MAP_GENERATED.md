@@ -87,10 +87,10 @@ graph TD
 | Component | Files | LOC | Classes | Functions |
 |-----------|-------|-----|---------|-----------|
 | intelligence | 96 | 45,347 | 379 | 1329 |
-| execution_pkg | 41 | 16,160 | 118 | 587 |
+| execution_pkg | 41 | 16,162 | 118 | 587 |
 | memory_pkg | 32 | 14,506 | 94 | 548 |
 | infrastructure | 22 | 9,951 | 83 | 411 |
-| drivers | 20 | 9,624 | 55 | 316 |
+| drivers | 20 | 9,626 | 55 | 316 |
 | security_pkg | 24 | 8,282 | 64 | 278 |
 | interface_pkg | 21 | 7,515 | 74 | 373 |
 | observability | 18 | 7,255 | 58 | 293 |
@@ -183,12 +183,12 @@ graph TD
 graph TD
     subgraph Routing["Model Router"]
         TASK[TaskType] --> ROUTER{{Model<br/>Router}}
-        ROUTER -->|BRAINSTORM| OPUS[Claude Opus 4.5]
-        ROUTER -->|REASONING| SONNET[Claude Sonnet 4.5]
+        ROUTER -->|BRAINSTORM| OPUS[Claude Opus 4.6]
+        ROUTER -->|REASONING| SONNET[Claude Sonnet 4.6]
         ROUTER -->|TOOL| SONNET
-        ROUTER -->|SIMPLE| HAIKU[Claude Haiku 3.5]
-        ROUTER -->|RESEARCH| PRO[Gemini 3 Pro]
-        ROUTER -->|FAST| FLASH[Gemini 2.5 Flash]
+        ROUTER -->|SIMPLE| HAIKU[Claude Haiku 4.5]
+        ROUTER -->|RESEARCH| PRO[Gemini 3.1 Pro Preview]
+        ROUTER -->|FAST| FLASH[Gemini 3 Flash Preview]
     end
 
     subgraph Drivers["LLM Drivers"]
@@ -210,20 +210,20 @@ graph TD
 
 | Task Type | Model | Reasoning |
 |-----------|-------|-----------|
-| BRAINSTORM | Claude Opus 4.5 | Complex reasoning, creativity |
-| REDTEAM | Claude Opus 4.5 | Complex reasoning, creativity |
-| ARCHITECT | Claude Opus 4.5 | Complex reasoning, creativity |
-| EVOLUTION | Claude Opus 4.5 | Complex reasoning, creativity |
-| TOOL | Claude Sonnet 4.5 | Speed, tool use |
-| VALIDATION | Claude Sonnet 4.5 | Speed, tool use |
-| SIMPLE | Claude Sonnet 4.5 | Speed, tool use |
-| FORMAT | Claude Sonnet 4.5 | Speed, tool use |
-| REASONING | Gemini 3 Pro | Large context, analysis |
-| RESEARCH | Gemini 3 Pro | Large context, analysis |
-| ANALYSIS | Gemini 3 Pro | Large context, analysis |
+| ARCHITECT | Claude Opus 4.6 | Complex reasoning, creativity |
+| BRAINSTORM | Claude Opus 4.6 | Complex reasoning, creativity |
+| EVOLUTION | Claude Opus 4.6 | Complex reasoning, creativity |
+| REDTEAM | Claude Opus 4.6 | Complex reasoning, creativity |
+| FORMAT | Claude Sonnet 4.6 | Speed, tool use |
+| SIMPLE | Claude Sonnet 4.6 | Speed, tool use |
+| TOOL | Claude Sonnet 4.6 | Speed, tool use |
+| VALIDATION | Claude Sonnet 4.6 | Speed, tool use |
+| ANALYSIS | Gemini 3.1 Pro Preview | Large context, analysis |
+| REASONING | Gemini 3.1 Pro Preview | Large context, analysis |
+| RESEARCH | Gemini 3.1 Pro Preview | Large context, analysis |
 
-**Claude Tasks**: Opus -> brainstorm, redteam, architect, evolution | Sonnet -> tool, validation, simple, format
-**Gemini Tasks**: Pro -> reasoning, research, analysis | Flash -> simple, format, validation
+**Claude Tasks**: Opus -> architect, brainstorm, evolution, redteam | Sonnet -> format, simple, tool, validation
+**Gemini Tasks**: Pro -> analysis, brainstorm, evolution, reasoning, research | Flash -> format, simple, tool, validation
 
 ### Spawned Agent Provider Selection
 
@@ -242,7 +242,7 @@ graph TD
     end
 ```
 
-**Source**: `core/routing/model_router.py`, `core/drivers/`
+**Source**: `core/execution_pkg/routing/model_router.py`, `core/drivers/`
 
 
 ## 4. ZOOM: Swarm Engine
@@ -273,7 +273,7 @@ graph TD
         AGREED --> EXEC[Execute]
     end
 
-    subgraph Modes["0 Collaboration Modes"]
+    subgraph Modes["6 Collaboration Modes"]
         EXEC --> M1[PARALLEL<br/>Independent work]
         EXEC --> M2[SEQUENTIAL<br/>Pipeline]
         EXEC --> M3[LEAD_SUPPORT<br/>80/20 split]
@@ -291,19 +291,29 @@ graph TD
     end
 ```
 
-### Collaboration Modes (0)
+### Collaboration Modes (6)
 
 | Mode | Description | Fallback |
 |------|-------------|----------|
-
+| `PARALLEL` | Both agents work simultaneously on independent subtasks | SEQUENTIAL |
+| `SEQUENTIAL` | First agent outputs, second agent refines/continues | SPECIALIST |
+| `LEAD_SUPPORT` | Lead agent (80%) drives, support agent (20%) reviews | SPECIALIST |
+| `PING_PONG` | Rapid alternation, each builds on the other's output | SEQUENTIAL |
+| `SPECIALIST` | Single expert handles everything, other observes | None (terminal) |
+| `RED_BLUE` | Blue proposes, Red attacks/critiques, iterate to consensus | LEAD_SUPPORT |
 
 ### Fallback Chain
 
 | Mode | Fallback To |
 |------|-------------|
+| `PARALLEL` | `SEQUENTIAL` |
+| `SEQUENTIAL` | `SPECIALIST` |
+| `LEAD_SUPPORT` | `SPECIALIST` |
+| `PING_PONG` | `SEQUENTIAL` |
+| `SPECIALIST` | `None` |
+| `RED_BLUE` | `LEAD_SUPPORT` |
 
-
-**Source**: `core/swarm/collaboration_modes.py`, `core/swarm/mode_executors.py`
+**Source**: `core/intelligence/swarm/collaboration_modes.py`, `core/intelligence/swarm/mode_executors.py`
 
 
 ## 5. ZOOM: Hive Mind Pipeline
@@ -360,10 +370,19 @@ graph TD
     end
 ```
 
-### HiveMind States (0 total)
+### HiveMind States (24 total)
 
 | Phase | States |
 |-------|--------|
+| Other | `HIVE_GATING`, `HIVE_COMPARING_ANALYSES`, `HIVE_APPLYING_CHANGES` |
+| Phase 1: Analysis | `HIVE_ANALYZING_GEMINI`, `HIVE_ANALYZING_CLAUDE` |
+| Phase 2: Debate | `HIVE_DEBATING`, `HIVE_CHECKING_CONSENSUS`, `HIVE_BREAKPOINT_DEBATE` |
+| Phase 3: Architecture | `HIVE_ARCHITECTING`, `HIVE_CHECKING_REGISTRY`, `HIVE_BREAKPOINT_SPAWN`, `HIVE_SPAWNING` |
+| Phase 4: Execution | `HIVE_EXECUTING`, `HIVE_MONITORING` |
+| Phase 5: Diagnosis | `HIVE_DIAGNOSING`, `HIVE_BREAKPOINT_DIAGNOSIS` |
+| Phase 6: Retry | `HIVE_DECIDING_RETRY` |
+| Phase 7: Consolidation | `HIVE_REFLECTING`, `HIVE_DECIDING_RETENTION`, `HIVE_BREAKPOINT_CONSOLIDATION`, `HIVE_CONSOLIDATING` |
+| Terminal | `HIVE_SUCCESS`, `HIVE_FAILED`, `HIVE_ESCALATE` |
 
 
 ### User Breakpoints
@@ -375,7 +394,7 @@ graph TD
 | `AFTER_DIAGNOSIS` | After failure analysis | Review fix strategy |
 | `CONSOLIDATION` | Before knowledge archival | Review learnings |
 
-**Source**: `core/hive_mind/types.py`, `core/hive_mind/phases/`
+**Source**: `core/intelligence/hive_mind/types.py`, `core/intelligence/hive_mind/phases/`
 
 
 ## 6. ZOOM: Async Primitives
@@ -386,7 +405,7 @@ The current runtime exposes a complete async infrastructure for non-blocking ope
 
 ```mermaid
 graph TD
-    subgraph Primitives["core/async_primitives/"]
+    subgraph Primitives["core/foundation/async_primitives/"]
         CT[CancellationToken<br/>Hierarchical cancellation]
         PH[AsyncProcessHandle<br/>Subprocess tracking]
         RW[AsyncRWLock<br/>Reader-Writer lock]
@@ -419,16 +438,18 @@ graph TD
 | `AsyncRWLock` | Multiple readers OR single writer |
 | `AsyncBlackboard` | Thread-safe shared state with TTL |
 
-**Files**: None found
-**Classes**: None found
+**Files**: `blackboard.py`, `cancellation.py`, `event_bus.py`, `process_handle.py`, `rwlock.py`, `safe_task_manager.py`, `task_metrics_collector.py`
+**Classes**: `BlackboardEntry`, `AsyncBlackboard`, `CancellationToken`, `CancellationTokenSource`, `EventType`, `SyncEvent`, `EventBus`, `ProcessState`, `AsyncProcessHandle`, `ProcessHandleRegistry`, `AsyncRWLock`, `AsyncRWLockWithTimeout`, `RWLockStats`, `InstrumentedAsyncRWLock`, `TaskInfo`, `SafeTaskManager`, `TaskRecord`, `TaskTypeMetrics`, `CollectorStats`, `TaskMetricsCollector`
 
 ### Async Handlers (FSMHandlers)
 
 | Handler | Purpose |
 |---------|---------|
-| None | - |
+| `handle_brainstorming_async()` | Non-blocking handler |
+| `handle_validating_cfl_async()` | Non-blocking handler |
+| `handle_fast_path_async()` | Non-blocking handler |
 
-**Source**: `core/async_primitives/`, `core/orchestration/fsm_handlers.py`
+**Source**: `core/foundation/async_primitives/`, `core/execution_pkg/orchestration/fsm_handlers.py`
 
 
 ## 7. ZOOM: Blind Spot Remediations
@@ -500,7 +521,7 @@ graph TD
 ### SagaManager Phase Order
 
 ```
-Not found
+analysis -> debate -> architecture -> execution -> diagnosis -> retry -> consolidation
 ```
 
 **Features**:
@@ -524,13 +545,13 @@ Not found
 | Phase | Module | Lines |
 |-------|--------|-------|
 | P0 | `core/utils/serialization.py` | ~240 |
-| P1 | `core/hive_mind/async_adapter.py` | +80 |
-| P2 | `core/hive_mind/saga_manager.py` | ~640 |
+| P1 | `core/intelligence/hive_mind/async_adapter.py` | +80 |
+| P2 | `core/intelligence/hive_mind/saga_manager.py` | ~640 |
 | P3 | `core/orchestration/fsm_handlers.py` | +290 |
 | P4 | `core/fsm/health_state_machine.py` | ~549 |
 | P5 | `core/fsm/stagnation_predictor.py` | ~476 |
 
-**Source**: `core/hive_mind/saga_manager.py`, `core/fsm/health_state_machine.py`, `core/fsm/stagnation_predictor.py`
+**Source**: `core/intelligence/hive_mind/saga_manager.py`, `core/fsm/health_state_machine.py`, `core/fsm/stagnation_predictor.py`
 
 
 ## 8. ZOOM: Evolution & Spawning
@@ -661,7 +682,7 @@ graph TD
 | **TF-IDF** | Term frequency-based | Fallback if Dense fails |
 | **BM25** | Probabilistic ranking | Alternative fallback |
 
-**Source**: `core/memory/`
+**Source**: `core/memory_pkg/memory/`
 
 
 ## 10. ZOOM: Security & Governance
@@ -670,14 +691,13 @@ graph TD
 
 ```mermaid
 graph TD
-    subgraph Alignment["Alignment Layer"]
-        INPUT[User Input] --> KERNEL[KERNEL.py<br/>Immutable]
-        KERNEL --> CHECK{{Alignment<br/>Check}}
+    subgraph Policy["Runtime Policy"]
+        INPUT[User Input] --> CHECK{{Execution<br/>Policy}}
         CHECK -->|PASS| PROCESS[Continue]
         CHECK -->|FAIL| REJECT[Reject + Log]
     end
 
-    subgraph Policy["Sandbox Policy"]
+    subgraph Sandbox["Sandbox Policy"]
         PROCESS --> SANDBOX[SandboxPolicy]
         SANDBOX --> ALLOW{{Allowed?}}
         ALLOW -->|Yes| TOOL[Tool Execution]
@@ -696,13 +716,13 @@ graph TD
     end
 ```
 
-### KERNEL.py (Immutable Alignment)
+### Runtime Policy
 
-The KERNEL.py file is the **immutable alignment core** that:
-- Cannot be modified by agents
-- Validates all operations against alignment rules
-- Ensures Creator authority (Yann Abadie)
-- Prevents harmful operations
+The default distributed runtime is governed by execution policy, tool capability
+checks, sandbox controls, and integrity monitoring.
+
+Legacy KERNEL/INVARIANTS artifacts still exist for backward compatibility and
+historical review, but they are **not** the default runtime authority on NX-CG.
 
 ### SandboxPolicy
 
@@ -717,12 +737,12 @@ The KERNEL.py file is the **immutable alignment core** that:
 
 | Layer | Protection |
 |-------|------------|
-| 1. KERNEL | Alignment validation |
+| 1. Policy | Execution and capability validation |
 | 2. Sandbox | Operation restrictions |
 | 3. Governance | Budget/rate limits |
 | 4. Audit | Full operation logging |
 
-**Source**: `core/security/`, `KERNEL.py`
+**Source**: `core/security_pkg/`, `core/execution_pkg/execution/`
 
 
 ## 11. FUNCTIONAL INVENTORY
@@ -738,19 +758,19 @@ The KERNEL.py file is the **immutable alignment core** that:
 
 | Dataclass | Key Fields | Source |
 |-----------|------------|--------|
-| `AgentProfile` | agent_id, provider, model, capabilities, is_active (+3 more) | `core\intelligence\swarm\agent_metrics.py` |
-| `AgentProfile` | agent_id, capabilities, total_tasks, total_successes, registered_at | `core\foundation\agents\capability_profiler.py` |
-| `DebateResult` | status, final_approach, final_capabilities, final_mode, debate_history (+6 more) | `core\intelligence\hive_mind\types.py` |
-| `ExecutionPlan` | strategy, steps, estimated_total_duration, estimated_total_tokens | `core\intelligence\hive_mind\types.py` |
-| `FailureDiagnosis` | failure_type, root_cause, contributing_factors, evidence, recommended_changes (+4 more) | `core\intelligence\hive_mind\types.py` |
-| `HiveMindResult` | success, output, state, phases_completed, total_duration (+6 more) | `core\intelligence\hive_mind\orchestrator.py` |
-| `InferenceConfig` | provider, model, reasoning | `core\infrastructure\bootstrap\agent_loader.py` |
-| `ModeProposal` | mode, confidence, agent_assignments, reasoning, alternatives (+1 more) | `core\intelligence\swarm\mode_selector.py` |
-| `SuccessEntry` | task_id, task_hash, description, swarm_mode, agents_used (+8 more) | `core\memory_pkg\memory\success_memory_v2.py` |
-| `SwarmDelegationResult` | success, result, mode_used, fallback_chain, failure_diagnostics (+2 more) | `core\intelligence\hive_mind\swarm_bridge.py` |
-| `TaskAnalysis` | complexity, domains, primary_domain, requires_web, requires_code_execution (+9 more) | `core\intelligence\swarm\task_analyzer.py` |
-| `ToolResult` | success, output, error, execution_time_ms, metadata | `core\drivers\tool_executor.py` |
-| `ToolResult` | tool_name, status, output, error | `core\execution_pkg\execution\handlers\base.py` |
+| `AgentProfile` | agent_id, capabilities, total_tasks, total_successes, registered_at | `core/foundation/agents/capability_profiler.py` |
+| `AgentProfile` | agent_id, provider, model, capabilities, is_active (+3 more) | `core/intelligence/swarm/agent_metrics.py` |
+| `DebateResult` | status, final_approach, final_capabilities, final_mode, debate_history (+6 more) | `core/intelligence/hive_mind/types.py` |
+| `ExecutionPlan` | strategy, steps, estimated_total_duration, estimated_total_tokens | `core/intelligence/hive_mind/types.py` |
+| `FailureDiagnosis` | failure_type, root_cause, contributing_factors, evidence, recommended_changes (+4 more) | `core/intelligence/hive_mind/types.py` |
+| `HiveMindResult` | success, output, state, phases_completed, total_duration (+6 more) | `core/intelligence/hive_mind/orchestrator.py` |
+| `InferenceConfig` | provider, model, reasoning | `core/infrastructure/bootstrap/agent_loader.py` |
+| `ModeProposal` | mode, confidence, agent_assignments, reasoning, alternatives (+1 more) | `core/intelligence/swarm/mode_selector.py` |
+| `SuccessEntry` | task_id, task_hash, description, swarm_mode, agents_used (+8 more) | `core/memory_pkg/memory/success_memory_v2.py` |
+| `SwarmDelegationResult` | success, result, mode_used, fallback_chain, failure_diagnostics (+2 more) | `core/intelligence/hive_mind/swarm_bridge.py` |
+| `TaskAnalysis` | complexity, domains, primary_domain, requires_web, requires_code_execution (+9 more) | `core/intelligence/swarm/task_analyzer.py` |
+| `ToolResult` | success, output, error, execution_time_ms, metadata | `core/drivers/tool_executor.py` |
+| `ToolResult` | tool_name, status, output, error | `core/execution_pkg/execution/handlers/base.py` |
 
 
 ### All Enums (119 total)
@@ -770,7 +790,7 @@ The KERNEL.py file is the **immutable alignment core** that:
 |--------|-------|
 | **Total Components** | 21 |
 | **Total Python Files** | 359 |
-| **Total Lines of Code** | 145,055 |
+| **Total Lines of Code** | 145,059 |
 | **Total Classes** | 1128 |
 | **Total Functions** | 5,207 |
 | **Total Dataclasses** | 575 |
@@ -786,10 +806,10 @@ The KERNEL.py file is the **immutable alignment core** that:
 
 ```
 intelligence    | ############################## 45,347
-execution_pkg   | ########## 16,160
+execution_pkg   | ########## 16,162
 memory_pkg      | ######### 14,506
 infrastructure  | ###### 9,951
-drivers         | ###### 9,624
+drivers         | ###### 9,626
 security_pkg    | ##### 8,282
 interface_pkg   | #### 7,515
 observability   | #### 7,255
@@ -851,11 +871,11 @@ graph TD
 
 | Category | Tests |
 |----------|-------|
-| Saga Crash Recovery | 16 |
-| Saga Concurrency | 12 |
-| Context Edge Cases | 10 |
 | Compensation Failures | 8 |
+| Context Edge Cases | 10 |
 | HiveMind Integration | 30 |
+| Saga Concurrency | 12 |
+| Saga Crash Recovery | 16 |
 
 ### Target Metrics
 
@@ -919,20 +939,39 @@ class OrchestratorState(Enum):
     HIBERNATE = "HIBERNATE"
 ```
 
-#### HiveMindState (VERIFIED - 0 states)
+#### HiveMindState (VERIFIED - 24 states)
 
 ```python
-# core/hive_mind/types.py - First 15 states
-
-    # ... +-15 more
+# core/intelligence/hive_mind/types.py - First 15 states
+    HIVE_GATING
+    HIVE_ANALYZING_GEMINI
+    HIVE_ANALYZING_CLAUDE
+    HIVE_COMPARING_ANALYSES
+    HIVE_DEBATING
+    HIVE_CHECKING_CONSENSUS
+    HIVE_BREAKPOINT_DEBATE
+    HIVE_ARCHITECTING
+    HIVE_CHECKING_REGISTRY
+    HIVE_BREAKPOINT_SPAWN
+    HIVE_SPAWNING
+    HIVE_EXECUTING
+    HIVE_MONITORING
+    HIVE_DIAGNOSING
+    HIVE_BREAKPOINT_DIAGNOSIS
+    # ... +9 more
 ```
 
 #### CollaborationMode (VERIFIED)
 
 ```python
-# core/swarm/collaboration_modes.py
+# core/intelligence/swarm/collaboration_modes.py
 class CollaborationMode(Enum):
-
+    PARALLEL = "parallel"
+    SEQUENTIAL = "sequential"
+    LEAD_SUPPORT = "lead_support"
+    PING_PONG = "ping_pong"
+    SPECIALIST = "specialist"
+    RED_BLUE = "red_blue"
 ```
 
 ### Common Hallucination Traps

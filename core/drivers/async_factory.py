@@ -358,7 +358,7 @@ class AsyncDriverFactory:
             from .openai_sdk_driver import OpenAISDKDriver
 
             self._openai_sdk = OpenAISDKDriver(
-                model=model or getattr(self.config, "openai_model", "gpt-5.2"),
+                model=model or getattr(self.config, "openai_model", "gpt-5.4"),
                 api_key=self._openai_api_key,
                 max_tokens=getattr(self.config, "max_tokens", 8192),
                 timeout=float(getattr(self.config, "timeout", 300)),
@@ -386,7 +386,7 @@ class AsyncDriverFactory:
             from .minimax_sdk_driver import MiniMaxSDKDriver
 
             self._minimax_sdk = MiniMaxSDKDriver(
-                model=model or getattr(self.config, "minimax_model", "MiniMax-M1"),
+                model=model or getattr(self.config, "minimax_model", "MiniMax-M2.5"),
                 api_key=self._minimax_api_key,
                 max_tokens=getattr(self.config, "max_tokens", 8192),
                 timeout=float(getattr(self.config, "timeout", 300)),

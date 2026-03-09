@@ -24,6 +24,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING, Optional
 
+from core.provider_registry import get_default_model
+
 if TYPE_CHECKING:
     from core.config import Config
     from core.intelligence.swarm import AgentPool
@@ -120,9 +122,9 @@ class ModelRouter:
         Opus (claude-opus-4-5): Complex reasoning, creativity, security
         Sonnet (claude-sonnet-4-5): Speed, tools, simple tasks
 
-    Gemini (V7 Sprint 6):
-        3-Pro (gemini-3-pro-preview): Complex reasoning, research, analysis
-        Flash (gemini-2.5-flash): Simple tasks, validation, formatting
+    Gemini:
+        3.1 Pro Preview (gemini-3.1-pro-preview): Complex reasoning, research, analysis
+        Flash Preview (gemini-3-flash-preview): Simple tasks, validation, formatting
     """
 
     def __init__(
@@ -141,16 +143,16 @@ class ModelRouter:
         self.policy = policy or RoutingPolicy.BALANCED
 
         # Default Claude model IDs
-        self.opus_model = "claude-opus-4-6-20250116"
-        self.sonnet_model = "claude-sonnet-4-5-20250929"
+        self.opus_model = get_default_model("anthropic", "opus")
+        self.sonnet_model = get_default_model("anthropic", "sonnet")
 
         # V12.4: SLM triage - Haiku for light tasks
         self.haiku_model = "claude-haiku-4-5-20251001"
 
-        # Default Gemini model IDs (V7 Sprint 6)
-        self.gemini_model = "gemini-3-pro-preview"
-        self.gemini_pro_model = "gemini-3-pro-preview"
-        self.gemini_flash_model = "gemini-2.5-flash"
+        # Default Gemini model IDs (current canonical snapshot on 2026-03-09)
+        self.gemini_model = get_default_model("google", "pro")
+        self.gemini_pro_model = get_default_model("google", "pro")
+        self.gemini_flash_model = get_default_model("google", "flash")
 
         # Default Claude task type mappings
         self.opus_tasks = {TaskType.BRAINSTORM, TaskType.REDTEAM, TaskType.ARCHITECT, TaskType.EVOLUTION}

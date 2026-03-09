@@ -30,17 +30,17 @@ class MiniMaxSDKDriver(BaseAsyncDriver):
     """MiniMax SDK driver using the OpenAI-compatible endpoint."""
 
     MODELS = {
-        "reasoning": "MiniMax-M1",
-        "chat": "MiniMax-M2.5",
-        "default": "MiniMax-M1",
-        "fast": "MiniMax-M2.5",
-        "latest": "MiniMax-M1",
+        "reasoning": "MiniMax-M2.5",
+        "chat": "MiniMax-M2.5-HighSpeed",
+        "default": "MiniMax-M2.5",
+        "fast": "MiniMax-M2.5-HighSpeed",
+        "latest": "MiniMax-M2.5",
     }
-    BASE_URL = "https://api.minimaxi.chat/v1"
+    BASE_URL = "https://api.minimaxi.com/v1"
 
     def __init__(
         self,
-        model: str = "MiniMax-M1",
+        model: str = "MiniMax-M2.5",
         api_key: str | None = None,
         max_tokens: int = 8192,
         timeout: float = 300.0,

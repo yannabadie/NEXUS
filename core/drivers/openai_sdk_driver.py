@@ -30,17 +30,17 @@ class OpenAISDKDriver(BaseAsyncDriver):
     """OpenAI SDK driver using the official AsyncOpenAI client."""
 
     MODELS = {
-        "flagship": "gpt-5.2",
-        "balanced": "gpt-5.2-mini",
-        "economy": "gpt-5.2-nano",
-        "default": "gpt-5.2",
-        "latest": "gpt-5.2",
-        "fast": "gpt-5.2-mini",
+        "flagship": "gpt-5.4",
+        "balanced": "gpt-5-mini",
+        "economy": "gpt-5-nano",
+        "default": "gpt-5.4",
+        "latest": "gpt-5.4",
+        "fast": "gpt-5-mini",
     }
 
     def __init__(
         self,
-        model: str = "gpt-5.2",
+        model: str = "gpt-5.4",
         api_key: str | None = None,
         max_tokens: int = 8192,
         timeout: float = 300.0,

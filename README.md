@@ -15,10 +15,10 @@
 
 [![Version](https://img.shields.io/badge/version-12.4-blue.svg)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.11+-green.svg)](https://python.org)
-[![Providers](https://img.shields.io/badge/providers-Claude%20%2B%20Gemini-orange.svg)](https://github.com/yannabadie/NEXUS)
+[![Providers](https://img.shields.io/badge/providers-multi--provider-orange.svg)](https://github.com/yannabadie/NEXUS/tree/NX-CG)
 [![License](https://img.shields.io/badge/license-MIT-purple.svg)](LICENSE)
 
-**NEXUS is a deployable collaborative intelligence that specializes based on context.**
+**NEXUS is a collaborative orchestration runtime for local-first research, MCP tooling, and multi-agent execution.**
 
 </div>
 
@@ -26,9 +26,9 @@
 
 ## Vision
 
-> **"Two AIs working together surpass what each can do alone."**
+> **"Evidence beats branding."**
 
-NEXUS is not just a tool - it's a **deployable intelligence core** designed to be cloned into any project and become its dedicated AI collaborator.
+NEXUS is a working orchestration stack. It has a real REPL, a research CLI, an MCP server, and a CEREBRO API/UI surface. Treat maturity claims as untrusted unless they are backed by the current CI evidence ledger.
 
 ```text
 +----------------------+     collaboration      +----------------------+
@@ -116,45 +116,36 @@ Demo scripts: `scripts/demo_flagship.ps1`, `scripts/demo_companion.ps1`
 
 ## Architecture
 
-```
-â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-â”‚                         NEXUS V12.4 ARCHITECTURE                    â”‚
-â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
-â”‚                                                                     â”‚
-â”‚  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”     â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”     â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”           â”‚
-â”‚  â”‚    USER     â”‚â”€â”€â”€â”€â–ºâ”‚    REPL     â”‚â”€â”€â”€â”€â–ºâ”‚    FSM      â”‚           â”‚
-â”‚  â”‚   INPUT     â”‚     â”‚  Interface  â”‚     â”‚ Orchestratorâ”‚           â”‚
-â”‚  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜     â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜     â””â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”˜           â”‚
-â”‚                                                  â”‚                   â”‚
-â”‚                    â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”   â”‚
-â”‚                    â”‚              HIVE MIND      â–¼               â”‚   â”‚
-â”‚                    â”‚  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”   â”‚   â”‚
-â”‚                    â”‚  â”‚ Phase 1: ANALYSIS      (Independent) â”‚   â”‚   â”‚
-â”‚                    â”‚  â”‚ Phase 2: DEBATE        (If needed)   â”‚   â”‚   â”‚
-â”‚                    â”‚  â”‚ Phase 3: ARCHITECTURE  (Plan)        â”‚   â”‚   â”‚
-â”‚                    â”‚  â”‚ Phase 4: EXECUTION     (SwarmBridge) â”‚â”€â”€â–ºâ”‚   â”‚
-â”‚                    â”‚  â”‚ Phase 5: DIAGNOSIS     (On failure)  â”‚   â”‚   â”‚
-â”‚                    â”‚  â”‚ Phase 6: RETRY         (Adaptive)    â”‚   â”‚   â”‚
-â”‚                    â”‚  â”‚ Phase 7: CONSOLIDATION (Merge)       â”‚   â”‚   â”‚
-â”‚                    â”‚  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜   â”‚   â”‚
-â”‚                    â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜   â”‚
-â”‚                                                  â”‚                   â”‚
-â”‚                    â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”   â”‚
-â”‚                    â”‚              SWARM ENGINE                   â”‚   â”‚
-â”‚                    â”‚  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”   â”‚   â”‚
-â”‚                    â”‚  â”‚ PARALLEL â”‚  â”‚PING_PONG â”‚  â”‚ RED_BLUE â”‚   â”‚   â”‚
-â”‚                    â”‚  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜   â”‚   â”‚
-â”‚                    â”‚  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”   â”‚   â”‚
-â”‚                    â”‚  â”‚SEQUENTIALâ”‚  â”‚LEAD_SUPP â”‚  â”‚SPECIALISTâ”‚   â”‚   â”‚
-â”‚                    â”‚  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜   â”‚   â”‚
-â”‚                    â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜   â”‚
-â”‚                                                  â”‚                   â”‚
-â”‚  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”     â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”     â”Œâ”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”           â”‚
-â”‚  â”‚   CEREBRO   â”‚â—„â”€â”€â”€â”€â”‚   MEMORY    â”‚â—„â”€â”€â”€â”€â”‚   TOOLS     â”‚           â”‚
-â”‚  â”‚  Dashboard  â”‚     â”‚ RAG+Success â”‚     â”‚  21+ Tools  â”‚           â”‚
-â”‚  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜     â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜     â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜           â”‚
-â”‚                                                                     â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+```text
++--------------------------------------------------------------------+
+|                    NEXUS V12.4 ARCHITECTURE                        |
++--------------------------------------------------------------------+
+| USER INPUT -> REPL Interface -> FSM Orchestrator                   |
+|                               |                                    |
+|                               v                                    |
+|                    HIVE MIND (7 phases)                            |
+|                    - Analysis                                       |
+|                    - Debate                                         |
+|                    - Architecture                                   |
+|                    - Execution (SwarmBridge)                        |
+|                    - Diagnosis                                      |
+|                    - Retry                                          |
+|                    - Consolidation                                  |
+|                               |                                    |
+|                               v                                    |
+|                    SWARM ENGINE (6 modes)                          |
+|                    - PARALLEL      - PING_PONG                     |
+|                    - RED_BLUE      - SEQUENTIAL                    |
+|                    - LEAD_SUPPORT  - SPECIALIST                    |
+|                               |                                    |
+|                +--------------+---------------+                    |
+|                |                              |                    |
+|                v                              v                    |
+|           MEMORY (RAG + Success)        TOOLS (21+)                |
+|                ^                              |                    |
+|                |                              v                    |
+|           CEREBRO Dashboard <------------ Runtime State            |
++--------------------------------------------------------------------+
 ```
 
 ---
@@ -222,41 +213,40 @@ Agents:
 
 ## Project Structure
 
-```
+```text
 NEXUS/
-â”œâ”€â”€ core/                                # Core orchestration
-â”‚   â”œâ”€â”€ orchestration_v7.py              # Main FSM orchestrator
-â”‚   â”œâ”€â”€ drivers/                         # Gemini & Claude drivers
-â”‚   â”œâ”€â”€ execution_pkg/                   # Tool execution layer + routing
-â”‚   â”œâ”€â”€ fsm/                             # State machine (12 states)
-â”‚   â”œâ”€â”€ intelligence/
-â”‚   â”‚   â”œâ”€â”€ hive_mind/                   # 7-phase pipeline
-â”‚   â”‚   â”œâ”€â”€ swarm/                       # 6 collaboration modes
-â”‚   â”‚   â””â”€â”€ evolution/                   # Agent spawning
-â”‚   â”œâ”€â”€ memory_pkg/memory/               # RAG + SuccessMemory
-â”‚   â”œâ”€â”€ security_pkg/security/           # 7 security layers
-â”‚   â”œâ”€â”€ foundation/                      # Agents, async primitives
-â”‚   â”œâ”€â”€ synapse/                         # Message protocol & reliability
-â”‚   â”œâ”€â”€ infrastructure/                  # Bootstrap, session, events, db
-â”‚   â”œâ”€â”€ observability/                   # Telemetry, metrics, OTel, profiling
-â”‚   â”œâ”€â”€ interface_pkg/                   # HITL, interaction, context
-â”‚   â”œâ”€â”€ metagraph/                       # AST-based codebase intelligence
-â”‚   â”œâ”€â”€ meta/                            # System introspection
-â”‚   â””â”€â”€ ui/                              # Display components
-â”œâ”€â”€ interface/                           # User interfaces
-â”‚   â”œâ”€â”€ ui/cerebro/                      # React dashboard
-â”‚   â””â”€â”€ cli/                             # REPL components
-â”œâ”€â”€ prompts/                             # System prompts
-â”œâ”€â”€ workspace/                           # Runtime data
-â”‚   â”œâ”€â”€ agents/                          # Spawned agents
-â”‚   â”œâ”€â”€ logs/                            # Event logs
-â”‚   â””â”€â”€ .nexus/                          # RAG database
-â”œâ”€â”€ tests/                               # Python test suite (see CI evidence ledger for current counts)
-â”œâ”€â”€ docs/                                # Documentation
-â”œâ”€â”€ PRODUCTS/                            # Delivery logs + product docs
-â”œâ”€â”€ nexus7.py                            # Entry point
-â”œâ”€â”€ KERNEL.py                            # Immutable alignment
-â””â”€â”€ MISSION.md                           # Project mission
++-- core/                                # Core orchestration
+|   +-- orchestration_v7.py              # Main FSM orchestrator
+|   +-- drivers/                         # Gemini, Claude, OpenAI, DeepSeek, Kimi, MiniMax
+|   +-- execution_pkg/                   # Tool execution layer + routing
+|   +-- fsm/                             # State machine
+|   +-- intelligence/
+|   |   +-- hive_mind/                   # 7-phase pipeline
+|   |   +-- swarm/                       # 6 collaboration modes
+|   |   +-- evolution/                   # Agent spawning
+|   +-- memory_pkg/memory/               # RAG + SuccessMemory
+|   +-- security_pkg/security/           # Security and policy layers
+|   +-- foundation/                      # Agents, async primitives
+|   +-- synapse/                         # Message protocol & reliability
+|   +-- infrastructure/                  # Bootstrap, session, events, db
+|   +-- observability/                   # Telemetry, metrics, OTel, profiling
+|   +-- interface_pkg/                   # REPL, MCP, HITL, interaction
+|   +-- metagraph/                       # AST-based codebase intelligence
+|   +-- meta/                            # System introspection
+|   +-- ui/                              # Display components
++-- interface/                           # Frontend surfaces
+|   +-- ui/cerebro/                      # React dashboard
++-- prompts/                             # System prompts
++-- workspace/                           # Runtime data
+|   +-- agents/                          # Spawned agents
+|   +-- logs/                            # Event logs
+|   +-- .nexus/                          # RAG database
++-- tests/                               # Python test suite
++-- docs/                                # Documentation
++-- PRODUCTS/                            # Delivery logs + product docs
++-- nexus7.py                            # Entry point
++-- KERNEL.py                            # Legacy governance artifact
++-- MISSION.md                           # Project mission
 ```
 
 ---
@@ -281,31 +271,22 @@ Additional protections:
 
 ## Memory System
 
-```
-â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-â”‚                    NEXUS RAG SYSTEM                         â”‚
-â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
-â”‚  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”    â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”                â”‚
-â”‚  â”‚  MiniLM-L6-v2   â”‚    â”‚    BM25S        â”‚                â”‚
-â”‚  â”‚  (Dense 384d)   â”‚    â”‚   (Sparse)      â”‚                â”‚
-â”‚  â””â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”˜    â””â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”˜                â”‚
-â”‚           â”‚                      â”‚                          â”‚
-â”‚           â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜                          â”‚
-â”‚                      â–¼                                      â”‚
-â”‚           â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”                          â”‚
-â”‚           â”‚ HybridBackend RRF   â”‚ See evaluation artifacts â”‚
-â”‚           â”‚ (Reciprocal Rank    â”‚                          â”‚
-â”‚           â”‚  Fusion)            â”‚                          â”‚
-â”‚           â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜                          â”‚
-â”‚                      â–¼                                      â”‚
-â”‚           â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”                          â”‚
-â”‚           â”‚  MemoryCoordinator  â”‚ Adaptive weights         â”‚
-â”‚           â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜                          â”‚
-â”‚                      â–¼                                      â”‚
-â”‚           â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”                          â”‚
-â”‚           â”‚     LanceDB         â”‚ .nexus/lancedb/          â”‚
-â”‚           â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜                          â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+```text
++------------------------------------------------------------+
+|                    NEXUS RAG SYSTEM                        |
++------------------------------------------------------------+
+| Dense Embeddings: MiniLM-L6-v2 (384d)                      |
+| Sparse Retrieval:  BM25S                                   |
+|                    |                                       |
+|                    v                                       |
+| HybridBackend RRF (see evaluation artifacts for metrics)   |
+|                    |                                       |
+|                    v                                       |
+| MemoryCoordinator (adaptive weights)                       |
+|                    |                                       |
+|                    v                                       |
+| LanceDB storage in workspace/.nexus/                       |
++------------------------------------------------------------+
 ```
 
 - **100% Local** after first model download (22MB)
@@ -336,14 +317,14 @@ Current quality, coverage, build, smoke-test, and provider-compatibility signals
 - Human summary: `artifacts/evidence-ledger.md`
 - Historical manual snapshot: `PRODUCTS/03_BASELINE.md`
 
-Use the ledger instead of hardcoded README counts for exact test totals, pass/fail/skip counts, coverage, wheel/install status, and provider compatibility.
+Use the ledger instead of hardcoded README counts for exact test totals, pass/fail/skip counts, coverage, wheel/install status, and smoke evidence. Routine CI provider compatibility is registry-backed and wiring-oriented, not a substitute for live end-to-end canaries.
 
 ---
 
 ## Contributing
 
 1. Read [MISSION.md](MISSION.md) to understand the vision
-2. Check [ROADMAP.md](ROADMAP.md) for current priorities
+2. Check [ROADMAP.md](ROADMAP.md) for strategic priorities only; use CI evidence for current status
 3. Follow code style in [CLAUDE.md](CLAUDE.md)
 4. See [AGENTS.md](AGENTS.md) for repo guidelines and commands
 5. All PRs require tests

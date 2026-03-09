@@ -117,7 +117,14 @@ def _artifact_entries(raw_artifacts: list[str]) -> list[dict[str, str]]:
             name, value = entry.split("=", 1)
         else:
             name, value = entry, entry
-        artifacts.append({"name": name.strip(), "value": value.strip()})
+        artifact_path = Path(value.strip())
+        artifacts.append(
+            {
+                "name": name.strip(),
+                "value": value.strip(),
+                "status": "present" if artifact_path.exists() else "missing",
+            }
+        )
     return artifacts
 
 
@@ -155,10 +162,13 @@ def _build_ledger(args: argparse.Namespace) -> dict[str, Any]:
     providers = _read_json(args.provider_registry) or {"providers": [], "generated_at": None}
     jobs = _job_pairs(args.job_result)
     artifacts = _artifact_entries(args.artifact)
+    non_success_jobs = [job for job in jobs if job["result"] != "success"]
+    missing_artifacts = [artifact for artifact in artifacts if artifact["status"] != "present"]
 
     return {
         "schema_version": 1,
         "generated_at": _iso_now(),
+        "evidence_status": "partial" if non_success_jobs or missing_artifacts else "complete",
         "workflow": {
             "name": args.workflow_name,
             "run_id": args.run_id,
@@ -189,6 +199,7 @@ def _write_markdown(path: Path, ledger: dict[str, Any]) -> None:
     lines = [
         "# CI Evidence Ledger",
         "",
+        f"- Evidence status: {ledger['evidence_status']}",
         f"- Workflow: {ledger['workflow']['name']}",
         f"- Branch: {ledger['workflow']['branch']}",
         f"- SHA: {ledger['workflow']['sha']}",
@@ -219,7 +230,7 @@ def _write_markdown(path: Path, ledger: dict[str, Any]) -> None:
     )
 
     for artifact in ledger["artifacts"]:
-        lines.append(f"- {artifact['name']}: {artifact['value']}")
+        lines.append(f"- {artifact['name']}: {artifact['status']} ({artifact['value']})")
 
     providers = _provider_rows(ledger["provider_compatibility"])
     lines.extend(

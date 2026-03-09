@@ -47,9 +47,11 @@ MODEL_CONTEXT_WINDOWS: dict[str, int] = {
     # Claude models
     "claude-opus-4-6-20250116": 200_000,
     "claude-opus-4-6": 200_000,
+    "claude-sonnet-4-6": 200_000,
     "claude-sonnet-4-5-20250929": 200_000,
     "claude-haiku-4-5-20251001": 200_000,
     # Gemini models
+    "gemini-3.1-pro-preview": 1_000_000,
     "gemini-3-pro-preview": 1_000_000,
     "gemini-3-pro": 1_000_000,
     "gemini-2.5-pro-preview-05-06": 1_048_576,
@@ -183,7 +185,7 @@ class ContextManager:
 
     def __init__(
         self,
-        model: str = "claude-sonnet-4-5-20250929",
+        model: str = "claude-sonnet-4-6",
         max_tokens: int | None = None,
         reserve_tokens: int = 4000,
     ):

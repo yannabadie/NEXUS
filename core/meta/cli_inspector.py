@@ -69,8 +69,8 @@ class CLIInspector:
             version = result.stdout.strip()
 
             # Try to detect model from gemini models list
-            # Default to gemini-3-pro-preview (latest flagship model, Nov 2025)
-            model = "gemini-3-pro-preview"
+            # Default to gemini-3.1-pro-preview (latest flagship preview on 2026-03-09)
+            model = "gemini-3.1-pro-preview"
             context_window = 1000000  # Gemini 3 Pro: 1M token context window
 
             try:
@@ -81,7 +81,7 @@ class CLIInspector:
 
                 # Parse output for active model (Gemini 3 -> 2.5 -> 2.0 -> 1.5)
                 if "3-pro" in output_lower or "gemini 3" in output_lower:
-                    model = "gemini-3-pro-preview"
+                    model = "gemini-3.1-pro-preview"
                     context_window = 1000000  # Gemini 3 Pro: 1M token context window
                 elif "2.5-pro" in output_lower or "gemini 2.5" in output_lower or "2.5 pro" in output_lower:
                     model = "gemini-2.5-pro"
@@ -118,10 +118,10 @@ class CLIInspector:
             # gemini --version timed out (PowerShell overhead on Windows)
             # Still consider it available, just with unknown version
             print("   Info: Gemini version detection timed out")
-            print("   Using defaults: gemini-3-pro-preview")
+            print("   Using defaults: gemini-3.1-pro-preview")
             return {
                 "available": True,
-                "model": "gemini-3-pro-preview",
+                "model": "gemini-3.1-pro-preview",
                 "context_window": 1000000,
                 "version": "unknown (timeout)",
             }

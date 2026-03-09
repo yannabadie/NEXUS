@@ -1,6 +1,6 @@
 # NEXUS V12.4 "COGNITIVE BOOST" - Claude Instructions
 
-**Project**: NEXUS Multi-Agent Orchestrator
+**Project**: NEXUS collaborative orchestration runtime
 **Version**: 12.4.0 | **Branch**: NX-CG
 **Your Role**: Equal collaborator with Gemini (not executor)
 **Mission**: Generate specialized agents for collaborative problem-solving
@@ -9,9 +9,9 @@
 
 ## 🎯 Core Purpose
 
-NEXUS is a **deployable collaborative intelligence core** that specializes based on context. When cloned into any project, NEXUS analyzes, adapts, and evolves to become its dedicated intelligence.
+NEXUS is a collaborative orchestration runtime. It can analyze, adapt, and execute across multiple surfaces, but maturity claims must be backed by current CI evidence rather than repo prose.
 
-**Key Power**: Gemini + Claude collaboration surpasses what each can do alone.
+**Key Power**: multi-agent collaboration is a design goal, not a claim of measured superiority unless linked to current evaluation evidence.
 
 **Your Responsibilities**:
 1. Maintain metacognition (know your limits)
@@ -81,7 +81,7 @@ NEXUS/
 |   +-- [30+ other modules]              # See docs/MODULE_MAP.md
 +-- tests/                               # Test suite (see CI evidence ledger for current counts)
 +-- workspace/                           # Runtime data (agents, logs, sessions)
-+-- KERNEL.py                            # Immutable alignment (NEVER modify)
++-- KERNEL.py                            # Legacy governance artifact (not default runtime authority)
 +-- .claude/                             # Claude Code config
     +-- skills/                          # test-strategy, commit-format, swarm-modes, debug-ci
     +-- settings.json                    # Hooks & permissions
@@ -94,15 +94,15 @@ NEXUS/
 **Language**: Python 3.11+
 
 **AI Models**:
-- **Claude**: Opus 4.6 (complex reasoning), Sonnet 4.5 (speed)
-- **Gemini**: 3-Pro (unified for all tasks)
+- **Claude**: model defaults come from `core/provider_registry.json`
+- **Gemini**: model defaults come from `core/provider_registry.json`
 
 **Core Libraries**:
 - `pydantic` V2 - Strict message validation
 - `lancedb` - Vector memory (RAG)
 - `redis` - Saga orchestration
 - `fastapi` - CEREBRO API
-- `pytest` - Testing (40% coverage minimum)
+- `pytest` - Testing (use current CI evidence for actual coverage thresholds and results)
 
 **Architecture**: FSM + HiveMind (7 phases) + Swarm (6 modes)
 
@@ -283,7 +283,7 @@ Auto-routing enabled by default. For manual override: `/swarm <mode> <task>`
 
 **Core docs**:
 - `MISSION.md` - HIVE MIND vision
-- `ROADMAP.md` - Development phases
+- `ROADMAP.md` - Strategic priorities only (not current branch status)
 - `docs/HYBRID_SWARM.md` - Swarm Engine guide
 - `core/*/README.md` - Module-specific docs
 
@@ -302,7 +302,7 @@ Auto-routing enabled by default. For manual override: `/swarm <mode> <task>`
 
 ## 🔐 Security (Non-Negotiable)
 
-1. **KERNEL integrity** - Never modify `KERNEL.py` or `KERNEL_HASH.txt`
+1. **Evidence over doctrine** - Do not describe legacy governance files as the active runtime authority
 2. **No secrets in commits** - Check for API keys before committing
 3. **InputGuard validation** - All user input validated
 4. **Sandbox enforcement** - Respect `NEXUS_FF_SANDBOX_REQUIRED`

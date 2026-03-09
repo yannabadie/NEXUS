@@ -16,7 +16,7 @@ Features:
 Usage:
     from core.drivers.anthropic_sdk_driver import AnthropicSDKDriver
 
-    driver = AnthropicSDKDriver(model="claude-sonnet-4-5-20250929")
+    driver = AnthropicSDKDriver(model="claude-sonnet-4-6")
     response = await driver.invoke("Hello, world!")
 
     # Structured output with Pydantic model:
@@ -68,7 +68,7 @@ class AnthropicSDKDriver(BaseAsyncDriver):
 
     def __init__(
         self,
-        model: str = "claude-sonnet-4-5-20250929",
+        model: str = "claude-sonnet-4-6",
         api_key: str | None = None,
         max_tokens: int = 8192,
         timeout: float = 300.0,
