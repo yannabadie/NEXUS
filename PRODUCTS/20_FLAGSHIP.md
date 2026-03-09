@@ -1,7 +1,7 @@
 # Flagship: Research CLI + Evidence Pack
 
 ## Overview
-The flagship delivers a local-first research workflow that turns a question into an evidence pack built from on-disk project files. It runs in mock/local mode by default, requires no external API keys, and outputs traceable artifacts for auditing and sharing.
+The flagship delivers a local-first evidence workflow that turns a question into a grounded evidence pack built from on-disk project files. It runs in mock/local mode by default, requires no external API keys, and now produces a deterministic synthesis layer: answer bullets, findings, heuristic contradiction detection, confidence scoring, and a provenance graph over retrieved sources.
 
 ## Quickstart (Mock Mode)
 ```bash
@@ -17,11 +17,11 @@ python -m nexus_research "How does ProjectMemory index files?" --mode mock --pat
 Outputs land under `WORKSPACE_PATH` (default `./workspace/research/<timestamp>`), unless you pass `--output`.
 
 ## Evidence Pack Outputs
-- `report.md`: summary report with question, mode, backend, and source list.
-- `sources.json`: structured sources with file paths, line ranges, and excerpts.
-- `trace.jsonl`: step-by-step trace (start, index, retrieve, write_outputs).
-- `reasoning_graph.mmd`: Mermaid graph linking question to sources and report.
-- `metrics.json`: structured metrics (duration, counts) for observability.
+- `report.md`: question, answer bullets, findings, contradictions, source table, and confidence score.
+- `sources.json`: structured sources with file paths, line ranges, excerpts, source IDs, and synthesis payload.
+- `trace.jsonl`: step-by-step trace (`start`, `index`, `retrieve`, `synthesize`, `write_outputs`).
+- `reasoning_graph.mmd`: Mermaid graph linking question -> findings -> sources.
+- `metrics.json`: duration, counts, finding count, contradiction count, unique files, and confidence metrics.
 - `manifest.sha256`: SHA-256 checksums for the pack files.
 
 ## Configuration Notes
@@ -39,3 +39,24 @@ powershell -ExecutionPolicy Bypass -File scripts/demo_flagship.ps1
 ```bash
 python -m pytest tests/test_research_cli.py -v
 ```
+
+## Comparative Evaluation
+
+NEXUS now ships a deterministic swarm evaluation harness for repeatable baseline comparison:
+
+```bash
+python scripts/run_swarm_eval_harness.py --output-root artifacts/swarm-eval
+```
+
+It compares:
+- `single_agent`
+- `deterministic_pipeline`
+- `swarm`
+
+Artifacts:
+- `report.json`
+- `report.md`
+
+The harness is local-first and reproducible. It exercises the real `HybridSwarmEngine`
+with a deterministic dual-agent simulator so the repo can publish comparative evidence
+without needing live provider access for every run.

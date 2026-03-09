@@ -19,6 +19,29 @@ PATH_SCANNED_METADATA = {
     "core/provider_registry.json",
     ".github/pull_request_template.md",
 }
+TRUTH_SURFACE_FILES = (
+    "README.md",
+    "START_HERE.md",
+    "core/README.md",
+    "docs/ARCHITECTURE_MAP_GENERATED.md",
+)
+STALE_PATH_MARKERS = (
+    "core/swarm/",
+    "core/hive_mind/",
+    "core/execution/",
+    "core/security/",
+    "core/memory/",
+    "core/routing/",
+    "core/evolution/",
+    "core/orchestration/",
+    "core/bootstrap/",
+    "core/interface/",
+    "nexus6.py",
+)
+UNSUPPORTED_MARKETING_PATTERNS = (
+    re.compile(r"\b\d{2,3}%\s+cheaper\b", re.IGNORECASE),
+    re.compile(r"\b\d{2,3}%\s+savings\b", re.IGNORECASE),
+)
 ABSOLUTE_PATH_PATTERNS = (
     re.compile(r"\b[A-Za-z]:\\"),
     re.compile(r"(^|[^:])//Users/"),
@@ -78,6 +101,23 @@ def main() -> int:
         for marker in MOJIBAKE_MARKERS:
             if marker in content:
                 errors.append(f"Mojibake marker {marker!r} found in public text surface: {rel_path}")
+                break
+
+    for rel_path in TRUTH_SURFACE_FILES:
+        file_path = REPO_ROOT / rel_path
+        if not file_path.exists():
+            continue
+        content = file_path.read_text(encoding="utf-8")
+        for marker in STALE_PATH_MARKERS:
+            if marker in content:
+                errors.append(f"Stale pre-consolidation path leaked into truth surface {rel_path}: {marker}")
+
+    env_example_path = REPO_ROOT / ".env.example"
+    if env_example_path.exists():
+        env_text = env_example_path.read_text(encoding="utf-8")
+        for pattern in UNSUPPORTED_MARKETING_PATTERNS:
+            if pattern.search(env_text):
+                errors.append(".env.example contains unsupported cost-marketing claims")
                 break
 
     agent_card_path = REPO_ROOT / "agent_card.json"

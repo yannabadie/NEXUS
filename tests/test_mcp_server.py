@@ -262,6 +262,37 @@ class TestMCPAnalysis:
             assert "state" in status
             assert status["state"] == "IDLE"
 
+    @pytest.mark.asyncio
+    async def test_nexus_research_returns_synthesized_summary(self):
+        """Test nexus_research surfaces answer bullets and confidence."""
+        payload = {
+            "query": "How does ProjectMemory index files?",
+            "mode": "mock",
+            "backend": "tfidf",
+            "generated_at": "2026-03-09T00:00:00+00:00",
+            "sources": [
+                {
+                    "source_id": "S1",
+                    "file_path": "core/memory_pkg/memory/project_memory.py",
+                    "start_line": 1,
+                    "end_line": 20,
+                }
+            ],
+            "synthesis": {
+                "overall_confidence": {"label": "medium", "score": 0.61},
+                "answer_bullets": ["Implementation evidence indicates local project indexing. [S1]"],
+            },
+        }
+
+        with patch("core.interface_pkg.mcp.server.build_memory_search", return_value=payload):
+            from core.interface_pkg.mcp.server import nexus_research
+
+            result = await nexus_research("How does ProjectMemory index files?")
+
+            assert "Confidence: medium" in result
+            assert "Implementation evidence indicates local project indexing. [S1]" in result
+            assert "[S1] core/memory_pkg/memory/project_memory.py" in result
+
 
 # =============================================================================
 # Test Error Handling

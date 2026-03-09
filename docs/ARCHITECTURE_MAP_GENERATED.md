@@ -37,7 +37,7 @@
 graph TD
     subgraph Entry["Entry Layer"]
         USER[User Input]
-        REPL[REPL<br/>40+ commands]
+        REPL[REPL<br/>28 commands]
     end
 
     subgraph Core["Orchestration Core"]
@@ -53,7 +53,7 @@ graph TD
 
     subgraph Support["Support Systems"]
         MEM[Memory<br/>RAG + Success]
-        SEC[Security<br/>KERNEL + Policy]
+        SEC[Security<br/>Execution Policy + Guards]
         EVOL[Evolution<br/>Spawn + Validate]
         TEL[Telemetry<br/>Budget Tracking]
     end
@@ -141,9 +141,9 @@ stateDiagram-v2
 
 ```mermaid
 graph TD
-    INPUT[User Input] --> KERNEL{KERNEL<br/>Alignment?}
-    KERNEL -->|PASS| ANALYZE{Task<br/>Complexity?}
-    KERNEL -->|FAIL| REJECT[Reject]
+    INPUT[User Input] --> GUARD{Input + Runtime<br/>Guards}
+    GUARD -->|PASS| ANALYZE{Task<br/>Complexity?}
+    GUARD -->|BLOCK| REJECT[Reject]
 
     ANALYZE -->|TRIVIAL| FAST[Fast Path<br/>Direct Response]
     ANALYZE -->|SIMPLE| SWARM[Swarm Engine]
@@ -210,20 +210,20 @@ graph TD
 
 | Task Type | Model | Reasoning |
 |-----------|-------|-----------|
-| ARCHITECT | Claude Opus 4.6 | Complex reasoning, creativity |
 | BRAINSTORM | Claude Opus 4.6 | Complex reasoning, creativity |
-| EVOLUTION | Claude Opus 4.6 | Complex reasoning, creativity |
 | REDTEAM | Claude Opus 4.6 | Complex reasoning, creativity |
-| FORMAT | Claude Sonnet 4.6 | Speed, tool use |
-| SIMPLE | Claude Sonnet 4.6 | Speed, tool use |
+| ARCHITECT | Claude Opus 4.6 | Complex reasoning, creativity |
+| EVOLUTION | Claude Opus 4.6 | Complex reasoning, creativity |
 | TOOL | Claude Sonnet 4.6 | Speed, tool use |
 | VALIDATION | Claude Sonnet 4.6 | Speed, tool use |
-| ANALYSIS | Gemini 3.1 Pro Preview | Large context, analysis |
+| SIMPLE | Claude Sonnet 4.6 | Speed, tool use |
+| FORMAT | Claude Sonnet 4.6 | Speed, tool use |
 | REASONING | Gemini 3.1 Pro Preview | Large context, analysis |
 | RESEARCH | Gemini 3.1 Pro Preview | Large context, analysis |
+| ANALYSIS | Gemini 3.1 Pro Preview | Large context, analysis |
 
-**Claude Tasks**: Opus -> architect, brainstorm, evolution, redteam | Sonnet -> format, simple, tool, validation
-**Gemini Tasks**: Pro -> analysis, brainstorm, evolution, reasoning, research | Flash -> format, simple, tool, validation
+**Claude Tasks**: Opus -> brainstorm, redteam, architect, evolution | Sonnet -> tool, validation, simple, format
+**Gemini Tasks**: Pro -> reasoning, research, analysis | Flash -> simple, format, validation
 
 ### Spawned Agent Provider Selection
 
@@ -296,11 +296,11 @@ graph TD
 | Mode | Description | Fallback |
 |------|-------------|----------|
 | `PARALLEL` | Both agents work simultaneously on independent subtasks | SEQUENTIAL |
-| `SEQUENTIAL` | First agent outputs, second agent refines/continues | SPECIALIST |
-| `LEAD_SUPPORT` | Lead agent (80%) drives, support agent (20%) reviews | SPECIALIST |
-| `PING_PONG` | Rapid alternation, each builds on the other's output | SEQUENTIAL |
-| `SPECIALIST` | Single expert handles everything, other observes | None (terminal) |
-| `RED_BLUE` | Blue proposes, Red attacks/critiques, iterate to consensus | LEAD_SUPPORT |
+| `SEQUENTIAL` | First agent outputs, second agent refines or continues | SPECIALIST |
+| `LEAD_SUPPORT` | Lead agent drives, support agent reviews and assists | SPECIALIST |
+| `PING_PONG` | Rapid alternation until convergence | SEQUENTIAL |
+| `SPECIALIST` | Single expert handles the task while the other stays idle | None (terminal) |
+| `RED_BLUE` | Adversarial propose/attack/defend review loop | LEAD_SUPPORT |
 
 ### Fallback Chain
 
@@ -547,7 +547,7 @@ analysis -> debate -> architecture -> execution -> diagnosis -> retry -> consoli
 | P0 | `core/utils/serialization.py` | ~240 |
 | P1 | `core/intelligence/hive_mind/async_adapter.py` | +80 |
 | P2 | `core/intelligence/hive_mind/saga_manager.py` | ~640 |
-| P3 | `core/orchestration/fsm_handlers.py` | +290 |
+| P3 | `core/execution_pkg/orchestration/fsm_handlers.py` | +290 |
 | P4 | `core/fsm/health_state_machine.py` | ~549 |
 | P5 | `core/fsm/stagnation_predictor.py` | ~476 |
 
@@ -617,7 +617,7 @@ graph TD
 | `/review` | Review pending children |
 | `/specialize <mission>` | Create NEXUS spinoff |
 
-**Source**: `core/evolution/`, `core/bootstrap/agent_loader.py`
+**Source**: `core/intelligence/evolution/`, `core/infrastructure/bootstrap/agent_loader.py`
 
 
 ## 9. ZOOM: Memory Systems
@@ -626,31 +626,33 @@ graph TD
 
 ```mermaid
 graph TD
-    subgraph RAG["Project Memory - RAG"]
-        LEARN["#47;learn path"] --> INDEX[Index Files]
-        INDEX --> BACKEND{{Backend}}
-        BACKEND --> DENSE[Dense<br/>LanceDB + MiniLM]
-        BACKEND --> TFIDF[TF-IDF<br/>Fallback]
-        BACKEND --> BM25[BM25<br/>Fallback]
-        QUERY["#47;rag query"] --> SEARCH[Semantic Search]
+    subgraph ProjectMemory["Project Memory"]
+        LEARN["#47;learn <path>"] --> INDEX[Index Files]
+        INDEX --> STORE["NEXUS_ROOT/.nexus/project_knowledge.json"]
+        INDEX --> BACKEND{{Backend Selection}}
+        BACKEND --> AUTO[auto]
+        BACKEND --> DENSE[dense -> lancedb/]
+        BACKEND --> BM25[bm25]
+        BACKEND --> TFIDF[tfidf]
+        QUERY["#47;rag query <text>"] --> SEARCH[retrieve()]
         SEARCH --> CHUNKS[Top-K Chunks]
     end
 
-    subgraph Success["Success Memory"]
+    subgraph Success["SuccessMemoryV2"]
         TASK_DONE[Task Complete] --> RECORD[record_success]
         RECORD --> ENTRY[SuccessEntry<br/>mode, agents, duration]
-        ENTRY --> STORE[(successes.json)]
+        ENTRY --> VIRTUAL["success_memory://task_id chunks"]
+        VIRTUAL --> STORE
 
         NEW_TASK[New Task] --> SIMILAR[search_similar]
-        SIMILAR --> STORE
         SIMILAR --> BOOST[Mode Boost<br/>0-30%]
     end
 
     subgraph Auto["Auto Memory"]
         SUCCESS[Success] --> AUTO_REC[record_success]
         FAILURE[Failure] --> AUTO_FAIL[record_failure]
-        AUTO_REC --> JSONL[(successes.jsonl)]
-        AUTO_FAIL --> JSONL_F[(failures.jsonl)]
+        AUTO_REC --> JSONL[(workspace/memory/*.jsonl)]
+        AUTO_FAIL --> JSONL
 
         SUGGEST[suggest_mode] --> JSONL
         SUGGEST --> BEST[Best Mode for Type]
@@ -670,17 +672,25 @@ graph TD
 | `/learn [path]` | Index files into RAG |
 | `/forget [path]` | Remove from RAG index |
 | `/memory-status` | Show index statistics |
-| `/rag init` | Index workspace/memory/ |
-| `/rag clear` | Clear RAG data |
-| `/rag query <text>` | Test retrieval |
+| `/rag <init|clear|query <text>>` | RAG maintenance and retrieval commands |
+
+### Storage Paths
+
+| Path | Purpose |
+|------|---------|
+| `NEXUS_ROOT/.nexus/project_knowledge.json` | ProjectMemory JSON index |
+| `NEXUS_ROOT/.nexus/lancedb/` | Optional dense retrieval storage |
+| `workspace/memory/` | AutoMemory and compatibility artifacts |
 
 ### RAG Backends
 
 | Backend | Description | When Used |
 |---------|-------------|-----------|
-| **Dense (LanceDB)** | Semantic search with MiniLM embeddings | Default, best quality |
-| **TF-IDF** | Term frequency-based | Fallback if Dense fails |
-| **BM25** | Probabilistic ranking | Alternative fallback |
+| **auto** | Select Dense, then BM25, then TF-IDF | Default selector |
+| **dense** | Semantic search with MiniLM + LanceDB | Optional best-quality path |
+| **bm25** | Sparse lexical retrieval | Fallback when dense is unavailable |
+| **tfidf** | Built-in term-based retrieval | Lowest-dependency fallback |
+| **hybrid** | Dense + BM25 implementation | Exists, but not selected by default today |
 
 **Source**: `core/memory_pkg/memory/`
 
@@ -747,9 +757,66 @@ historical review, but they are **not** the default runtime authority on NX-CG.
 
 ## 11. FUNCTIONAL INVENTORY
 
-### Slash Commands (0 total)
+### Slash Commands (28 total)
 
 
+#### Collaboration
+
+| Command | Description |
+|---------|-------------|
+| `/pool-stats` | Show agent pool statistics and usage metrics |
+| `/swarm` | Execute a task using multi-agent collaboration |
+| `/swarm-fsm` | Execute task via FSM states (debug mode) |
+| `/swarm-status` | Show Swarm Engine status and DyLAN metrics |
+
+#### Evolution
+
+| Command | Description |
+|---------|-------------|
+| `/agents` | List all registered agents and their capabilities |
+| `/evolve` | Start evolution cycle to generate improved agent variants |
+| `/evolve-status` | Show current evolution status and child variants |
+| `/review` | Review evolved children and select best variant |
+| `/spawn` | Spawn a new specialized agent with a specific role |
+| `/specialize` | Create a specialized NEXUS spinoff for a specific mission |
+
+#### Monitoring
+
+| Command | Description |
+|---------|-------------|
+| `/budget` | View or set token budget for API calls |
+| `/doctor` | Run system diagnostics and check API connectivity |
+| `/status` | Show current system status (FSM state, agents, memory) |
+| `/telemetry` | View or configure telemetry settings |
+
+#### Workspace
+
+| Command | Description |
+|---------|-------------|
+| `/bootstrap` | Generate NEXUS.md for a project directory |
+| `/workspace` | Manage workspace (show, new, list, switch) |
+
+#### Memory
+
+| Command | Description |
+|---------|-------------|
+| `/forget` | Remove file or directory from Project Memory |
+| `/learn` | Index file or directory into Project Memory (RAG) |
+| `/memory-status` | Show Project Memory (RAG) status and statistics |
+| `/rag` | RAG operations: init, clear, query |
+
+#### System
+
+| Command | Description |
+|---------|-------------|
+| `/chat` | Toggle chat mode for direct AI conversation |
+| `/clear` | Clear the console screen |
+| `/help` | Show available commands and their usage |
+| `/mode` | Change the orchestrator mode |
+| `/quickstart` | Show the NEXUS quickstart guide |
+| `/quit` | Exit NEXUS REPL |
+| `/reset` | Reset the orchestrator to IDLE state |
+| `/tutorial` | Run the interactive NEXUS tutorial |
 
 
 ## 12. KEY DATACLASSES

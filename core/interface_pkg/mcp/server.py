@@ -30,11 +30,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-try:
-    from core.memory_pkg.memory.project_memory import ProjectMemory as _ProjectMemory
-except Exception:
-    _ProjectMemory = None
-
 # Configure logging to stderr (stdout is reserved for MCP JSON-RPC)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s", stream=sys.stderr)
 logger = logging.getLogger("nexus.mcp.server")
@@ -159,20 +154,6 @@ def _resolve_output_dir(workspace: Path, output_dir: str | None) -> Path | None:
     return candidate
 
 
-def _init_memory(root: Path, backend: str):
-    if _ProjectMemory is None:
-        raise RuntimeError("ProjectMemory is unavailable in this environment.")
-    previous_backend = os.environ.get("PROJECT_MEMORY_BACKEND")
-    os.environ["PROJECT_MEMORY_BACKEND"] = backend
-    try:
-        return _ProjectMemory(root)
-    finally:
-        if previous_backend is None:
-            os.environ.pop("PROJECT_MEMORY_BACKEND", None)
-        else:
-            os.environ["PROJECT_MEMORY_BACKEND"] = previous_backend
-
-
 async def _run_blocking(func, *args, **kwargs):
     import anyio
 
@@ -192,56 +173,24 @@ def build_memory_search(
     min_score: float = 0.2,
     paths: list[str] | None = None,
 ) -> dict[str, Any]:
-    if not query or not query.strip():
-        raise ValueError("Query cannot be empty.")
-
-    mode = mode.lower()
-    if mode not in {"mock", "local"}:
-        raise ValueError(f"Unsupported mode: {mode}. Use 'mock' or 'local'.")
-
     root = _resolve_root(root_path)
-    backend = backend or ("tfidf" if mode == "mock" else "auto")
     index_paths = _resolve_index_paths(root, paths)
-    logger.info("build_memory_search init root=%s backend=%s", root, backend)
+    logger.info("build_memory_search init root=%s", root)
+    from nexus_research import build_research_payload
 
-    memory = _init_memory(root, backend)
-    indexed_chunks = 0
-    for path in index_paths:
-        if path.is_dir():
-            indexed_chunks += memory.index_directory(path)
-        elif path.is_file():
-            indexed_chunks += memory.index_file(path)
-    logger.info("build_memory_search indexed_chunks=%s", indexed_chunks)
-
-    results = memory.retrieve(query, limit=limit, min_score=min_score)
-    logger.info("build_memory_search results=%s", len(results))
-    sources = []
-    for chunk in results:
-        sources.append(
-            {
-                "file_path": chunk.file_path,
-                "start_line": chunk.start_line,
-                "end_line": chunk.end_line,
-                "chunk_type": chunk.chunk_type,
-                "name": chunk.name,
-                "terms": sorted(chunk.terms),
-                "excerpt": chunk.content.strip()[:400],
-            }
-        )
-
-    backend_info = memory.get_backend_info()
-    backend_name = backend_info.get("backend", backend)
-
-    return {
-        "query": query,
-        "mode": mode,
-        "backend": backend_name,
-        "generated_at": _iso_now(),
-        "root_path": str(root),
-        "index_paths": [str(p) for p in index_paths],
-        "indexed_chunks": indexed_chunks,
-        "sources": sources,
-    }
+    payload = build_research_payload(
+        question=query,
+        root_path=root,
+        mode=mode,
+        backend=backend,
+        limit=limit,
+        min_score=min_score,
+        paths=[str(p) for p in index_paths],
+    )
+    payload["query"] = payload.pop("question")
+    logger.info("build_memory_search indexed_chunks=%s", payload.get("indexed_chunks"))
+    logger.info("build_memory_search results=%s", len(payload.get("sources", [])))
+    return payload
 
 
 def build_evidence_pack(
@@ -460,12 +409,23 @@ if MCP_AVAILABLE:
                 f"Mode: {payload.get('mode')}",
                 f"Backend: {payload.get('backend')}",
                 f"Generated: {payload.get('generated_at')}",
+                f"Confidence: {payload.get('synthesis', {}).get('overall_confidence', {}).get('label', 'unknown')}",
                 "",
-                "Sources:",
+                "Answer:",
             ]
+            answer_bullets = payload.get("synthesis", {}).get("answer_bullets", [])
+            if answer_bullets:
+                for bullet in answer_bullets:
+                    lines.append(f"- {bullet}")
+            else:
+                lines.append("- No grounded answer could be synthesized from the current threshold.")
+            lines.extend(["", "Sources:"])
             if sources:
                 for source in sources:
-                    lines.append(f"- {source.get('file_path')} (L{source.get('start_line')}-{source.get('end_line')})")
+                    lines.append(
+                        f"- [{source.get('source_id')}] {source.get('file_path')} "
+                        f"(L{source.get('start_line')}-{source.get('end_line')})"
+                    )
             else:
                 lines.append("- No sources matched the query at the current threshold.")
             return "\n".join(lines) + "\n"

@@ -3,13 +3,19 @@
 **Version**: 1.0
 **Date**: 2025-11-21
 **Author**: Yann Abadie
-**Status**: IMMUTABLE - These rules CANNOT be modified by any NEXUS instance
+**Status**: Historical / legacy governance artifact
+
+> This document captures a historical governance model centered on `KERNEL.py`.
+> On `NX-CG`, the default runtime does **not** boot via `nexus.py`, and these rules are **not**
+> the default runtime authority for `nexus7.py` / `NexusSessionRuntime`.
+> Legacy kernel checks survive only in compatibility, heredity, bootstrap, and protected-file paths.
 
 ---
 
 ## ⚖️ The Five Immutable Laws
 
-These laws are **hardcoded in KERNEL.py** and **enforced at runtime**. Any violation results in **immediate termination**.
+These laws are documented here as historical doctrine. They remain relevant to legacy kernel-compatible
+workflows, but they should not be read as the default governance model of the current `NX-CG` runtime.
 
 ---
 

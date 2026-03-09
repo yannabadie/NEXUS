@@ -31,6 +31,13 @@ def _read_json(path: Path | None) -> dict[str, Any] | None:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _find_first_json(root: Path | None, filename: str) -> Path | None:
+    if root is None or not root.exists():
+        return None
+    matches = sorted(root.glob(f"**/{filename}"))
+    return matches[0] if matches else None
+
+
 def _parse_junit(path: Path | None) -> dict[str, Any]:
     if path is None or not path.exists():
         return {
@@ -128,6 +135,31 @@ def _artifact_entries(raw_artifacts: list[str]) -> list[dict[str, str]]:
     return artifacts
 
 
+def _categorize_jobs(jobs: list[dict[str, str]]) -> dict[str, list[dict[str, str]]]:
+    categories = {
+        "quality_gates": [],
+        "structural_smoke": [],
+        "live_provider_evidence": [],
+        "stress_or_long_running": [],
+        "other": [],
+    }
+
+    for job in jobs:
+        name = job["name"]
+        if name in {"unit-tests", "lint-type-check", "security-scan", "build-wheel"}:
+            categories["quality_gates"].append(job)
+        elif "integration" in name or "canary" in name:
+            categories["live_provider_evidence"].append(job)
+        elif "torture" in name:
+            categories["stress_or_long_running"].append(job)
+        elif "smoke" in name or name == "install-smoke":
+            categories["structural_smoke"].append(job)
+        else:
+            categories["other"].append(job)
+
+    return categories
+
+
 def _provider_rows(provider_registry: dict[str, Any]) -> list[dict[str, str]]:
     """Flatten the provider registry into markdown-friendly rows."""
     providers = provider_registry.get("providers", {})
@@ -160,6 +192,8 @@ def _build_ledger(args: argparse.Namespace) -> dict[str, Any]:
     junit = _parse_junit(args.junit_xml)
     coverage = _parse_coverage(args.coverage_xml)
     providers = _read_json(args.provider_registry) or {"providers": [], "generated_at": None}
+    shadow_redteam = _read_json(args.shadow_redteam_json)
+    swarm_eval_report = _read_json(_find_first_json(args.swarm_eval_root, "report.json"))
     jobs = _job_pairs(args.job_result)
     artifacts = _artifact_entries(args.artifact)
     non_success_jobs = [job for job in jobs if job["result"] != "success"]
@@ -181,8 +215,13 @@ def _build_ledger(args: argparse.Namespace) -> dict[str, Any]:
             "pytest": junit,
             "coverage": coverage,
             "jobs": jobs,
+            "job_categories": _categorize_jobs(jobs),
         },
         "artifacts": artifacts,
+        "security": {
+            "shadow_redteam": shadow_redteam,
+        },
+        "swarm_evaluation": swarm_eval_report,
         "provider_compatibility": providers,
         "environment": {
             "python_version": args.python_version,
@@ -196,6 +235,7 @@ def _build_ledger(args: argparse.Namespace) -> dict[str, Any]:
 def _write_markdown(path: Path, ledger: dict[str, Any]) -> None:
     pytest_data = ledger["quality"]["pytest"]
     coverage = ledger["quality"]["coverage"]
+    categorized_jobs = ledger["quality"]["job_categories"]
     lines = [
         "# CI Evidence Ledger",
         "",
@@ -214,12 +254,65 @@ def _write_markdown(path: Path, ledger: dict[str, Any]) -> None:
         f"- Skipped: {pytest_data['skipped']}",
         f"- Coverage: {coverage['line_percent']}%",
         "",
-        "## Jobs",
+        "## Quality Gates",
         "",
     ]
 
-    for job in ledger["quality"]["jobs"]:
+    for job in categorized_jobs["quality_gates"]:
         lines.append(f"- {job['name']}: {job['result']}")
+
+    lines.extend(
+        [
+            "",
+            "## Structural Smoke",
+            "",
+        ]
+    )
+
+    if categorized_jobs["structural_smoke"]:
+        for job in categorized_jobs["structural_smoke"]:
+            lines.append(f"- {job['name']}: {job['result']}")
+    else:
+        lines.append("- No structural smoke jobs recorded.")
+
+    lines.extend(
+        [
+            "",
+            "## Live Provider Evidence",
+            "",
+        ]
+    )
+
+    if categorized_jobs["live_provider_evidence"]:
+        for job in categorized_jobs["live_provider_evidence"]:
+            lines.append(f"- {job['name']}: {job['result']}")
+    else:
+        lines.append("- No live provider evidence recorded in this ledger.")
+
+    lines.extend(
+        [
+            "",
+            "## Stress / Long-Running Jobs",
+            "",
+        ]
+    )
+
+    if categorized_jobs["stress_or_long_running"]:
+        for job in categorized_jobs["stress_or_long_running"]:
+            lines.append(f"- {job['name']}: {job['result']}")
+    else:
+        lines.append("- No stress or long-running jobs recorded.")
+
+    if categorized_jobs["other"]:
+        lines.extend(
+            [
+                "",
+                "## Other Jobs",
+                "",
+            ]
+        )
+        for job in categorized_jobs["other"]:
+            lines.append(f"- {job['name']}: {job['result']}")
 
     lines.extend(
         [
@@ -231,6 +324,40 @@ def _write_markdown(path: Path, ledger: dict[str, Any]) -> None:
 
     for artifact in ledger["artifacts"]:
         lines.append(f"- {artifact['name']}: {artifact['status']} ({artifact['value']})")
+
+    shadow_redteam = ledger.get("security", {}).get("shadow_redteam")
+    lines.extend(
+        [
+            "",
+            "## Security Evidence",
+            "",
+        ]
+    )
+    if shadow_redteam:
+        lines.append(f"- Shadow Red Team total attacks: {shadow_redteam.get('total_attacks')}")
+        lines.append(f"- Shadow Red Team bypassed attacks: {shadow_redteam.get('bypassed_attacks')}")
+        lines.append(f"- Shadow Red Team attack success rate: {shadow_redteam.get('attack_success_rate'):.2%}")
+        lines.append(f"- Shadow Red Team false positive rate: {shadow_redteam.get('false_positive_rate'):.2%}")
+    else:
+        lines.append("- No Shadow Red Team snapshot available.")
+
+    swarm_eval = ledger.get("swarm_evaluation")
+    lines.extend(
+        [
+            "",
+            "## Swarm Evaluation",
+            "",
+        ]
+    )
+    if swarm_eval:
+        for summary in swarm_eval.get("strategy_summaries", []):
+            lines.append(
+                f"- {summary['strategy']}: pass_rate={summary['pass_rate']:.0%}, "
+                f"avg_score={summary['average_score']:.3f}, "
+                f"recovery_rate={summary['recovery_rate']:.0%}"
+            )
+    else:
+        lines.append("- No swarm evaluation report available.")
 
     providers = _provider_rows(ledger["provider_compatibility"])
     lines.extend(
@@ -263,6 +390,8 @@ def main() -> int:
     parser.add_argument("--junit-xml", type=Path, default=None)
     parser.add_argument("--coverage-xml", type=Path, default=None)
     parser.add_argument("--provider-registry", type=Path, default=None)
+    parser.add_argument("--shadow-redteam-json", type=Path, default=None)
+    parser.add_argument("--swarm-eval-root", type=Path, default=None)
     parser.add_argument("--output-json", type=Path, required=True)
     parser.add_argument("--output-markdown", type=Path, required=True)
     parser.add_argument("--job-result", action="append", default=[])

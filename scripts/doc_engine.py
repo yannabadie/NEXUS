@@ -716,24 +716,64 @@ class StructureExtractor:
             "tutorial": ("System", "Interactive guide"),
             "quickstart": ("System", "Quick start"),
             "exit": ("System", "Exit NEXUS"),
+            "quit": ("System", "Exit NEXUS"),
             "export-telemetry": ("Monitoring", "Export session telemetry"),
         }
 
-        repl_file = self.root / "core" / "interface_pkg" / "interface" / "repl.py"
-        if repl_file.exists():
-            content = repl_file.read_text(encoding="utf-8")
-            # Find all commands
-            pattern = r'elif\s+command\s*==\s*["\']/?([^"\']+)["\']'
-            matches = re.findall(pattern, content)
+        commands_dir = self.root / "core" / "interface_pkg" / "interface" / "commands"
+        if not commands_dir.exists():
+            return categories
 
-            for cmd in sorted(set(matches)):
-                if cmd in cmd_categories:
-                    cat, desc = cmd_categories[cmd]
-                else:
-                    cat, desc = "System", ""
-                categories[cat].append(CommandInfo(name=cmd, category=cat, description=desc))
+        for py_file in sorted(commands_dir.glob("*.py"), key=lambda candidate: candidate.as_posix()):
+            if py_file.name in {"__init__.py", "registry.py"}:
+                continue
+
+            try:
+                content = py_file.read_text(encoding="utf-8")
+                tree = ast.parse(content)
+            except Exception:
+                continue
+
+            for node in tree.body:
+                if not isinstance(node, ast.ClassDef):
+                    continue
+                if "Command" not in {self._get_base_name(base) for base in node.bases}:
+                    continue
+
+                command_name = self._extract_command_property_string(node, "name")
+                if not command_name or not command_name.startswith("/"):
+                    continue
+
+                command_desc = self._extract_command_property_string(node, "description") or ""
+                command_slug = command_name.lstrip("/")
+                category, fallback_desc = cmd_categories.get(command_slug, ("System", ""))
+                categories[category].append(
+                    CommandInfo(
+                        name=command_slug,
+                        category=category,
+                        description=command_desc or fallback_desc,
+                    )
+                )
+
+        for category in categories:
+            unique: dict[str, CommandInfo] = {}
+            for cmd in categories[category]:
+                unique[cmd.name] = cmd
+            categories[category] = [unique[name] for name in sorted(unique)]
 
         return categories
+
+    def _extract_command_property_string(self, class_node: ast.ClassDef, property_name: str) -> str | None:
+        """Extract a literal string returned by a command property method."""
+        for item in class_node.body:
+            if not isinstance(item, ast.FunctionDef) or item.name != property_name:
+                continue
+            for stmt in item.body:
+                if isinstance(stmt, ast.Return):
+                    value = stmt.value
+                    if isinstance(value, ast.Constant) and isinstance(value.value, str):
+                        return value.value
+        return None
 
     def _extract_all_enums(self) -> List[Tuple[str, str]]:
         """Extract all enum names with their files."""
@@ -833,7 +873,7 @@ class StructureExtractor:
             routing["gemini"]["pro_tasks"] = sorted(t.value for t in router.gemini_pro_tasks)
             routing["gemini"]["flash_tasks"] = sorted(t.value for t in router.gemini_flash_tasks)
 
-        except ImportError:
+        except Exception:
             # Fallback to static values if import fails
             routing["claude"]["opus_tasks"] = ["brainstorm", "redteam", "architect", "evolution"]
             routing["claude"]["sonnet_tasks"] = ["tool", "validation", "simple", "format"]
@@ -858,7 +898,7 @@ class StructureExtractor:
                 fallback = mode.fallback_mode
                 fallbacks[mode.value.upper()] = fallback.value.upper() if fallback else None
 
-        except ImportError:
+        except Exception:
             # Fallback to static values if import fails
             fallbacks = {
                 "PARALLEL": "SEQUENTIAL",
@@ -892,8 +932,27 @@ class StructureExtractor:
                     "typical_rounds": char.typical_rounds,
                 }
 
-        except ImportError:
-            pass  # Will use defaults in generator
+        except Exception:
+            characteristics = {
+                "parallel": {
+                    "description": "Both agents work simultaneously on independent subtasks",
+                },
+                "sequential": {
+                    "description": "First agent outputs, second agent refines or continues",
+                },
+                "lead_support": {
+                    "description": "Lead agent drives, support agent reviews and assists",
+                },
+                "ping_pong": {
+                    "description": "Rapid alternation until convergence",
+                },
+                "specialist": {
+                    "description": "Single expert handles the task while the other stays idle",
+                },
+                "red_blue": {
+                    "description": "Adversarial propose/attack/defend review loop",
+                },
+            }
 
         return characteristics
 
@@ -1119,13 +1178,15 @@ class MapGeneratorV2:
 """
 
     def _generate_overview(self) -> str:
-        return """## 1. HIGH-LEVEL OVERVIEW
+        commands = self.structures.get("commands", {})
+        total_commands = sum(len(cmds) for cmds in commands.values())
+        return f"""## 1. HIGH-LEVEL OVERVIEW
 
 ```mermaid
 graph TD
     subgraph Entry["Entry Layer"]
         USER[User Input]
-        REPL[REPL<br/>40+ commands]
+        REPL[REPL<br/>{total_commands} commands]
     end
 
     subgraph Core["Orchestration Core"]
@@ -1141,7 +1202,7 @@ graph TD
 
     subgraph Support["Support Systems"]
         MEM[Memory<br/>RAG + Success]
-        SEC[Security<br/>KERNEL + Policy]
+        SEC[Security<br/>Execution Policy + Guards]
         EVOL[Evolution<br/>Spawn + Validate]
         TEL[Telemetry<br/>Budget Tracking]
     end
@@ -1223,9 +1284,9 @@ stateDiagram-v2
 
 ```mermaid
 graph TD
-    INPUT[User Input] --> KERNEL{{KERNEL<br/>Alignment?}}
-    KERNEL -->|PASS| ANALYZE{{Task<br/>Complexity?}}
-    KERNEL -->|FAIL| REJECT[Reject]
+    INPUT[User Input] --> GUARD{{Input + Runtime<br/>Guards}}
+    GUARD -->|PASS| ANALYZE{{Task<br/>Complexity?}}
+    GUARD -->|BLOCK| REJECT[Reject]
 
     ANALYZE -->|TRIVIAL| FAST[Fast Path<br/>Direct Response]
     ANALYZE -->|SIMPLE| SWARM[Swarm Engine]
@@ -1699,7 +1760,7 @@ graph TD
 | P0 | `core/utils/serialization.py` | ~240 |
 | P1 | `core/intelligence/hive_mind/async_adapter.py` | +80 |
 | P2 | `core/intelligence/hive_mind/saga_manager.py` | ~640 |
-| P3 | `core/orchestration/fsm_handlers.py` | +290 |
+| P3 | `core/execution_pkg/orchestration/fsm_handlers.py` | +290 |
 | P4 | `core/fsm/health_state_machine.py` | ~549 |
 | P5 | `core/fsm/stagnation_predictor.py` | ~476 |
 
@@ -1771,7 +1832,7 @@ graph TD
 | `/review` | Review pending children |
 | `/specialize <mission>` | Create NEXUS spinoff |
 
-**Source**: `core/evolution/`, `core/bootstrap/agent_loader.py`
+**Source**: `core/intelligence/evolution/`, `core/infrastructure/bootstrap/agent_loader.py`
 
 """
 
@@ -1782,31 +1843,33 @@ graph TD
 
 ```mermaid
 graph TD
-    subgraph RAG["Project Memory - RAG"]
-        LEARN["#47;learn path"] --> INDEX[Index Files]
-        INDEX --> BACKEND{{Backend}}
-        BACKEND --> DENSE[Dense<br/>LanceDB + MiniLM]
-        BACKEND --> TFIDF[TF-IDF<br/>Fallback]
-        BACKEND --> BM25[BM25<br/>Fallback]
-        QUERY["#47;rag query"] --> SEARCH[Semantic Search]
+    subgraph ProjectMemory["Project Memory"]
+        LEARN["#47;learn <path>"] --> INDEX[Index Files]
+        INDEX --> STORE["NEXUS_ROOT/.nexus/project_knowledge.json"]
+        INDEX --> BACKEND{{Backend Selection}}
+        BACKEND --> AUTO[auto]
+        BACKEND --> DENSE[dense -> lancedb/]
+        BACKEND --> BM25[bm25]
+        BACKEND --> TFIDF[tfidf]
+        QUERY["#47;rag query <text>"] --> SEARCH[retrieve()]
         SEARCH --> CHUNKS[Top-K Chunks]
     end
 
-    subgraph Success["Success Memory"]
+    subgraph Success["SuccessMemoryV2"]
         TASK_DONE[Task Complete] --> RECORD[record_success]
         RECORD --> ENTRY[SuccessEntry<br/>mode, agents, duration]
-        ENTRY --> STORE[(successes.json)]
+        ENTRY --> VIRTUAL["success_memory://task_id chunks"]
+        VIRTUAL --> STORE
 
         NEW_TASK[New Task] --> SIMILAR[search_similar]
-        SIMILAR --> STORE
         SIMILAR --> BOOST[Mode Boost<br/>0-30%]
     end
 
     subgraph Auto["Auto Memory"]
         SUCCESS[Success] --> AUTO_REC[record_success]
         FAILURE[Failure] --> AUTO_FAIL[record_failure]
-        AUTO_REC --> JSONL[(successes.jsonl)]
-        AUTO_FAIL --> JSONL_F[(failures.jsonl)]
+        AUTO_REC --> JSONL[(workspace/memory/*.jsonl)]
+        AUTO_FAIL --> JSONL
 
         SUGGEST[suggest_mode] --> JSONL
         SUGGEST --> BEST[Best Mode for Type]
@@ -1826,17 +1889,25 @@ graph TD
 | `/learn [path]` | Index files into RAG |
 | `/forget [path]` | Remove from RAG index |
 | `/memory-status` | Show index statistics |
-| `/rag init` | Index workspace/memory/ |
-| `/rag clear` | Clear RAG data |
-| `/rag query <text>` | Test retrieval |
+| `/rag <init|clear|query <text>>` | RAG maintenance and retrieval commands |
+
+### Storage Paths
+
+| Path | Purpose |
+|------|---------|
+| `NEXUS_ROOT/.nexus/project_knowledge.json` | ProjectMemory JSON index |
+| `NEXUS_ROOT/.nexus/lancedb/` | Optional dense retrieval storage |
+| `workspace/memory/` | AutoMemory and compatibility artifacts |
 
 ### RAG Backends
 
 | Backend | Description | When Used |
 |---------|-------------|-----------|
-| **Dense (LanceDB)** | Semantic search with MiniLM embeddings | Default, best quality |
-| **TF-IDF** | Term frequency-based | Fallback if Dense fails |
-| **BM25** | Probabilistic ranking | Alternative fallback |
+| **auto** | Select Dense, then BM25, then TF-IDF | Default selector |
+| **dense** | Semantic search with MiniLM + LanceDB | Optional best-quality path |
+| **bm25** | Sparse lexical retrieval | Fallback when dense is unavailable |
+| **tfidf** | Built-in term-based retrieval | Lowest-dependency fallback |
+| **hybrid** | Dense + BM25 implementation | Exists, but not selected by default today |
 
 **Source**: `core/memory_pkg/memory/`
 
@@ -1923,7 +1994,7 @@ historical review, but they are **not** the default runtime authority on NX-CG.
 
 ### Slash Commands ({total_cmds} total)
 
-{"".join(cmd_sections)}
+{"\n".join(cmd_sections)}
 
 """
 

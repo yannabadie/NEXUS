@@ -3,7 +3,12 @@
 **Date:** 2025-12-13
 **Architecte:** NEXUS PRIME (Claude Opus 4.5)
 **Version:** 9.4 (Branch N9AF)
-**Source of Truth:** Ce document est la référence architecturale officielle.
+**Status:** Historical architecture snapshot from the pre-consolidation layout.
+
+> This document is kept for historical review only.
+> It is **not** the canonical architecture reference for `NX-CG`.
+> Use `ROADMAP.md` for governance posture, `README.md` / `START_HERE.md` for supported runtime surfaces,
+> and `docs/ARCHITECTURE_MAP_GENERATED.md` plus the live `core/` tree for the current package layout.
 
 ---
 

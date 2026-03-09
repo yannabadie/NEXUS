@@ -19,3 +19,17 @@
 - Hardening completed: added evidence pack metrics, release guide, security/architecture/troubleshooting docs, and CI branch coverage for NX/NX-CG.
 - MCP stability pass: cached tool manager/orchestrator, moved blocking calls off the event loop, preloaded ProjectMemory, added stderr drain and longer init timeout; demo companion output path aligned.
 - Baseline verify: pip deps OK; npm install OK (7 vulnerabilities); full pytest pass (2360 passed, 12 skipped, warnings logged); CLI verify OK; flagship + companion demos OK; baseline doc updated.
+
+## 2026-03-09
+- Truth-surface detox started: README, `core/README.md`, `.env.example`, and legacy governance docs were aligned with the live `NX-CG` runtime instead of the pre-consolidation package layout.
+- Documentation generator hardening started: `scripts/doc_engine.py` now targets the class-based slash-command registry, removes the fake default KERNEL gate from generated runtime diagrams, and aligns generated memory/evolution sections with current storage paths and package names.
+- CI hygiene tightened: `scripts/check_repo_hygiene.py` now fails on stale pre-consolidation paths inside active truth surfaces and on unsupported cost-marketing claims inside `.env.example`.
+- False-green reduction started: `tests/test_global_integration.py` was rewritten around real assertions instead of `[OK]/[NO]` prints.
+- CI outcome evidence strengthened: added `research-cli-smoke`, `headless-success-smoke`, preserved a separate headless failure contract, and renamed the manual provider job to match its real Gemini-only scope.
+- Evidence ledger classification improved: `scripts/generate_evidence_ledger.py` now separates quality gates, structural smoke, live-provider evidence, and long-running jobs in the generated summary.
+- Generated architecture map refined again: `scripts/doc_engine.py` now restores fallback swarm-mode descriptions when dynamic imports fail, so the generated map stays readable even in degraded local environments.
+- Flagship upgrade started: `nexus_research.py` now produces deterministic grounded synthesis (answer bullets, findings, contradiction heuristics, confidence scoring, provenance graph) instead of a plain source list.
+- Flagship proof upgraded with it: `tests/test_research_cli.py`, `PRODUCTS/20_FLAGSHIP.md`, `scripts/demo_flagship.ps1`, and the CI `research-cli-smoke` job now expect and document the richer evidence-pack contract.
+- Companion alignment improved: `core/interface_pkg/mcp/server.py` now reuses the flagship research payload and returns synthesized MCP summaries with answer bullets, confidence, and source IDs instead of only raw source-path lists.
+- Security evidence surfaced in CI: added `scripts/run_shadow_redteam_snapshot.py`, a routine `shadow-redteam-smoke` workflow job, and evidence-ledger support for publishing Shadow Red Team bypass / false-positive metrics as first-class evidence.
+- Comparative orchestration evidence started: added `core/intelligence/swarm/eval_harness.py`, `scripts/run_swarm_eval_harness.py`, deterministic swarm-vs-baseline report generation, CI `swarm-eval-smoke`, and evidence-ledger ingestion of swarm evaluation summaries.

@@ -2,7 +2,7 @@
 
 ## Synopsis
 
-The **core** module is the heart of NEXUS V12.4 "COGNITIVE BOOST" - a multi-agent orchestration system enabling collaborative intelligence between Gemini and Claude. It implements a persistent FSM (Finite State Machine) orchestrator that coordinates agent interactions through three orchestration layers: FSM (low-level state management), HiveMind (7-phase strategic pipeline), and Swarm Engine (6 collaboration modes).
+The **core** package contains the runtime modules that power NEXUS V12.4 "COGNITIVE BOOST". The live codebase is organized around `intelligence`, `execution_pkg`, `memory_pkg`, `security_pkg`, `interface_pkg`, `infrastructure`, and `observability`, with `OrchestratorV7` and `NexusSessionRuntime` acting as the main runtime facades.
 
 ## Architecture Overview
 
@@ -55,15 +55,18 @@ The **core** module is the heart of NEXUS V12.4 "COGNITIVE BOOST" - a multi-agen
 |--------|---------|-------------|
 | [drivers/](drivers/README.md) | LLM driver abstraction layer | `AsyncClaudeDriver`, `AsyncGeminiDriver`, `DriverProtocol` |
 | [fsm/](fsm/README.md) | Finite State Machine components | `OrchestratorState`, `TaskExecutionContext`, `HealthStateMachine` |
-| [hive_mind/](hive_mind/README.md) | 7-phase collaborative pipeline | `TrueHiveMind`, `HiveMindState`, `SwarmBridge` |
-| [swarm/](swarm/README.md) | 6-mode collaboration engine | `HybridSwarmEngine`, `CollaborationMode`, `TaskAnalyzer` |
-| [execution/](execution/README.md) | Tool execution layer | `ToolManager`, `AgentToolRegistry`, `ExecutionEngine` |
-| [memory/](memory/README.md) | RAG + persistent memory | `ProjectMemory`, `SuccessMemory`, `Blackboard` |
-| [synapse/](synapse/README.md) | Agent communication protocol | `LightMessageV7`, `HeavyMessageV7` |
-| [security/](security/README.md) | Governance & sandboxing | `KERNEL`, `ExecutionPolicy`, `SandboxPolicy` |
-| [routing/](routing/README.md) | Model routing intelligence | `ModelRouter`, task-based model selection |
-| [evolution/](evolution/README.md) | Agent spawning & mutation | `EvolutionEngine`, specialization |
-| [orchestration/](orchestration/README.md) | FSM handlers & invokers | `AgentInvoker`, state handlers |
+| [intelligence/hive_mind/](intelligence/hive_mind/README.md) | 7-phase strategic pipeline | `TrueHiveMind`, `HiveMindState`, `SwarmBridge` |
+| [intelligence/swarm/](intelligence/swarm/README.md) | 6-mode collaboration engine | `HybridSwarmEngine`, `CollaborationMode`, `TaskAnalyzer` |
+| [execution_pkg/execution/](execution_pkg/execution/README.md) | Tool execution layer | `ToolManager`, `AgentToolRegistry`, `ExecutionEngine` |
+| [execution_pkg/routing/](execution_pkg/routing/README.md) | Model routing intelligence | `ModelRouter`, `CascadedRouter` |
+| [execution_pkg/orchestration/](execution_pkg/orchestration/README.md) | FSM handlers, context builder, swarm bridge | `AgentInvoker`, `ContextBuilder`, `SwarmBridge` |
+| [memory_pkg/memory/](memory_pkg/memory/README.md) | Project memory, success memory, retrieval backends | `ProjectMemory`, `SuccessMemoryV2`, `MemoryService` |
+| [security_pkg/security/](security_pkg/security/README.md) | Runtime guards and execution policy | `ExecutionPolicy`, `PathGuardian`, `IntegrityMonitor` |
+| [security_pkg/governance/](security_pkg/governance/README.md) | Governance and red-team support | `SandboxPolicy`, `AlignmentJournal`, `DecisionLogger` |
+| [interface_pkg/interface/](interface_pkg/interface/README.md) | REPL and slash-command layer | `InteractiveNexusV7`, `CommandRegistry` |
+| [api/cerebro/](api/cerebro/README.md) | FastAPI control plane | `create_cerebro_app` |
+| [observability/telemetry/](observability/telemetry/README.md) | Metrics, budgets, OTel, profiling | `BudgetTracker`, `HealthAggregator`, `OTelProvider` |
+| [infrastructure/context/](infrastructure/context/README.md) | Context and multi-tenant isolation | `SessionContext`, `TenantContextMiddleware` |
 
 ## Three-Layer Orchestration
 
@@ -106,15 +109,18 @@ class OrchestratorV7:
 
 ### ServiceFactory
 ```python
-# Context-aware service creation
-from core import create_orchestrator
+from pathlib import Path
 
-orch = create_orchestrator(
+from core.config import Config
+from core.runtime import NexusSessionRuntime
+
+config = Config()
+runtime = NexusSessionRuntime.from_config(
+    config,
     workspace_path=Path("workspace"),
-    config=config,
-    gemini_info={"model": "gemini-3-pro-preview"},
-    claude_info={"model": "claude-opus-4-6-20250116"}
+    interaction_mode="headless",
 )
+result = runtime.execute_task("Inspect the current project")
 ```
 
 ## Complexity Routing
@@ -134,11 +140,12 @@ User Input -> TaskAnalyzer -> Complexity Assessment
 ### Internal
 - `core.fsm.*` - State machine
 - `core.drivers.*` - LLM drivers
-- `core.hive_mind.*` - Strategic pipeline
-- `core.swarm.*` - Collaboration engine
-- `core.memory.*` - RAG & persistence
-- `core.execution.*` - Tool execution
-- `core.security.*` - Governance
+- `core.intelligence.hive_mind.*` - Strategic pipeline
+- `core.intelligence.swarm.*` - Collaboration engine
+- `core.memory_pkg.memory.*` - RAG & persistence
+- `core.execution_pkg.execution.*` - Tool execution
+- `core.execution_pkg.orchestration.*` - Orchestration support
+- `core.security_pkg.security.*` - Runtime guards
 
 ### External
 - `pydantic` - Validation
@@ -148,19 +155,23 @@ User Input -> TaskAnalyzer -> Complexity Assessment
 
 ## Entry Points
 
-1. **REPL**: `nexus7.py` -> Creates `OrchestratorV7`
-2. **REST API**: `core/api/cerebro/` -> Session-based orchestrator
-3. **Commands**: `core/interface/commands/` -> Invoke methods
+1. **REPL**: `nexus7.py` -> bootstraps `InteractiveNexusV7` / `NexusSessionRuntime`
+2. **REST API**: `core/api/cerebro/` -> session-scoped runtime facade
+3. **Commands**: `core/interface_pkg/interface/commands/` -> slash-command registry
 
 ## Configuration
 
 ```bash
-# .env configuration
-NEXUS_VERSION=12.4.0
-NEXUS_CODENAME="COGNITIVE BOOST"
+NEXUS_DRIVER_MODE=auto
+WORKSPACE_PATH=./workspace
+NEXUS_ROOT=.
 SWARM_AUTO_ROUTE=True
 HIVE_MIND_ENABLED=True
 ```
+
+## Governance Note
+
+`KERNEL.py` and `INVARIANTS.md` still exist for compatibility, heredity, and historical review, but they are not the default runtime authority on `NX-CG`. The live runtime path is `nexus7.py` -> `NexusSessionRuntime` -> `OrchestratorV7`.
 
 ## Version History
 

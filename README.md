@@ -28,7 +28,7 @@
 
 > **"Evidence beats branding."**
 
-NEXUS is a working orchestration stack. It has a real REPL, a research CLI, an MCP server, and a CEREBRO API/UI surface. Treat maturity claims as untrusted unless they are backed by the current CI evidence ledger.
+NEXUS ships a real REPL, a local evidence-pack CLI, an MCP server, and a CEREBRO API/UI surface. Treat maturity claims as untrusted unless they are backed by the current CI evidence ledger, live canaries, and reproducible evaluation artifacts.
 
 ```text
 +----------------------+     collaboration      +----------------------+
@@ -70,10 +70,10 @@ nexus7> Hello! Analyze this project and help me understand it.
 
 ## Products (NX-CG)
 
-### Flagship: Research CLI + Evidence Pack
-Local-first research that turns a question into traceable artifacts.
+### Flagship: Research CLI + Evidence Pack Generator
+Local-first evidence-pack generation over indexed project files.
 ```bash
-python nexus_research.py "How does ProjectMemory index files?" --mode mock --path core/memory/project_memory.py
+python nexus_research.py "How does ProjectMemory index files?" --mode mock --path core/memory_pkg/memory/project_memory.py
 ```
 Outputs: `report.md`, `sources.json`, `trace.jsonl`, `reasoning_graph.mmd`, `metrics.json`, `manifest.sha256`
 
@@ -101,7 +101,7 @@ Demo scripts: `scripts/demo_flagship.ps1`, `scripts/demo_companion.ps1`
 | **Cognitive Pipeline** | Phase coordination, consensus tracking, reasoning quality |
 | **Security & Governance** | Event journal, access control, encryption, alignment journal |
 | **StagnationPredictor** | Detects task stagnation with auto-recovery |
-| **HybridBackend RRF** | Reciprocal Rank Fusion for hybrid retrieval; publish metrics via the evaluation stack and evidence ledger |
+| **Hybrid Retrieval Backends** | `dense`, `bm25`, `tfidf`, plus a `HybridBackend` implementation; publish uplift claims only with evaluation artifacts |
 
 ### Previous Releases
 
@@ -193,21 +193,27 @@ Agents:
 
 | Command | Description |
 |---------|-------------|
-| `/help` | Show all commands |
+| `/help` | Show command help |
 | `/status` | System status |
-| `/reset` | Reset conversation |
-| `/swarm <mode> <task>` | Explicit swarm mode |
-| `/spawn <name> <mission>` | Create specialized agent |
-| `/evolve` | Trigger evolution cycle |
-| `/specialize <mission>` | Create project spinoff |
-| `/learn <path>` | Add to RAG memory |
-| `/forget <path>` | Remove from RAG memory |
-| `/rag <query>` | Direct RAG search |
-| `/memory-status` | RAG statistics |
-| `/cerebro start` | Launch CEREBRO dashboard |
-| `/opsview` | Production metrics cockpit |
-| `/metrics` | Export Prometheus metrics |
-| `/audit` | Run security audit |
+| `/reset` | Reset orchestrator state |
+| `/swarm <task>` | Execute a task through the Swarm Engine |
+| `/swarm-status` | Show Swarm status and DyLAN metrics |
+| `/spawn <role>` | Create a specialized agent |
+| `/agents` | List registered agents |
+| `/evolve [child_count]` | Trigger an evolution cycle |
+| `/evolve-status` | Show evolution status |
+| `/review` | Review evolved children |
+| `/specialize <mission>` | Create a specialized spinoff |
+| `/learn <path>` | Index a file or directory into Project Memory |
+| `/forget <path>` | Remove a file or directory from Project Memory |
+| `/memory-status` | Show Project Memory statistics |
+| `/rag <init|clear|query <text>>` | Run RAG maintenance or retrieval commands |
+| `/bootstrap [path]` | Generate `NEXUS.md` for a project |
+| `/workspace ...` | Show, create, list, or switch workspaces |
+| `/doctor` | Run diagnostics |
+| `/telemetry` | View telemetry status or reports |
+| `/budget` | View or adjust budget state |
+| `/quit` | Exit the REPL |
 
 ---
 
@@ -240,12 +246,14 @@ NEXUS/
 +-- workspace/                           # Runtime data
 |   +-- agents/                          # Spawned agents
 |   +-- logs/                            # Event logs
-|   +-- .nexus/                          # RAG database
++-- .nexus/                              # Project-local retrieval store
++   +-- project_knowledge.json          # ProjectMemory JSON index
++   +-- lancedb/                        # Optional dense retrieval storage
 +-- tests/                               # Python test suite
 +-- docs/                                # Documentation
 +-- PRODUCTS/                            # Delivery logs + product docs
 +-- nexus7.py                            # Entry point
-+-- KERNEL.py                            # Legacy governance artifact
++-- KERNEL.py                            # Legacy governance / heredity artifact
 +-- MISSION.md                           # Project mission
 ```
 
@@ -272,26 +280,22 @@ Additional protections:
 ## Memory System
 
 ```text
-+------------------------------------------------------------+
-|                    NEXUS RAG SYSTEM                        |
-+------------------------------------------------------------+
-| Dense Embeddings: MiniLM-L6-v2 (384d)                      |
-| Sparse Retrieval:  BM25S                                   |
-|                    |                                       |
-|                    v                                       |
-| HybridBackend RRF (see evaluation artifacts for metrics)   |
-|                    |                                       |
-|                    v                                       |
-| MemoryCoordinator (adaptive weights)                       |
-|                    |                                       |
-|                    v                                       |
-| LanceDB storage in workspace/.nexus/                       |
-+------------------------------------------------------------+
++--------------------------------------------------------------+
+|                    NEXUS PROJECT MEMORY                      |
++--------------------------------------------------------------+
+| Storage root: NEXUS_ROOT/.nexus/                             |
+| - project_knowledge.json                                     |
+| - optional lancedb/                                          |
+|                                                              |
+| Backend selection: auto | dense | bm25 | tfidf              |
+| HybridBackend exists as an implementation, but               |
+| ProjectMemory does not select it by default today.           |
++--------------------------------------------------------------+
 ```
 
-- **100% Local** after first model download (22MB)
-- **No data leaves machine** - full privacy
-- **Supports**: .py, .md, .txt, .yaml, .json, .toml + more in V13
+- **Mock/local evidence-pack runs** require no external network calls
+- **Storage path** is `NEXUS_ROOT/.nexus/`, not `workspace/.nexus/`
+- **Supports**: `.py`, `.md`, `.txt`, `.yaml`, `.json`, `.toml`, plus document/image ingestion when optional ingestors are installed
 
 ---
 
