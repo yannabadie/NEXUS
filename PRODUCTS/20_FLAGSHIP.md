@@ -60,3 +60,15 @@ Artifacts:
 The harness is local-first and reproducible. It exercises the real `HybridSwarmEngine`
 with a deterministic dual-agent simulator so the repo can publish comparative evidence
 without needing live provider access for every run.
+
+## Live Provider Evidence
+
+NEXUS also ships a fixed-task provider canary runner:
+
+```bash
+python scripts/run_provider_canaries.py --output artifacts/provider-canaries.json
+```
+
+It is intentionally separate from structural smoke:
+- structural smoke proves wiring
+- provider canaries prove live execution when secrets are configured

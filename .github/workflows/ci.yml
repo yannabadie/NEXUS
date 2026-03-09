@@ -228,6 +228,57 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
 
+  provider-live-canaries:
+    name: Provider live canaries
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    needs: [unit-tests, lint-type-check, security-scan]
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      GOOGLE_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}
+      MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install hatchling
+          pip install -e ".[dev,sdk]" 2>/dev/null || pip install -r requirements.txt
+
+      - name: Run provider canaries
+        run: |
+          python scripts/run_provider_canaries.py --output artifacts/provider-canaries.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(Path("artifacts/provider-canaries.json").read_text(encoding="utf-8"))
+          assert "summary" in payload, payload
+          assert "results" in payload, payload
+          PY
+
+      - name: Upload provider canary evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: provider-canary-evidence
+          path: artifacts/provider-canaries.json
+          retention-days: 14
+          if-no-files-found: warn
+
   build-wheel:
     name: Build wheel
     runs-on: ubuntu-latest
@@ -516,6 +567,7 @@ jobs:
       - security-scan
       - shadow-redteam-smoke
       - swarm-eval-smoke
+      - provider-live-canaries
       - build-wheel
       - install-smoke
       - interactive-bootstrap-smoke
@@ -555,6 +607,7 @@ jobs:
             --job-result "security-scan=${{ needs.security-scan.result }}" \
             --job-result "shadow-redteam-smoke=${{ needs.shadow-redteam-smoke.result }}" \
             --job-result "swarm-eval-smoke=${{ needs.swarm-eval-smoke.result }}" \
+            --job-result "provider-live-canaries=${{ needs.provider-live-canaries.result }}" \
             --job-result "build-wheel=${{ needs.build-wheel.result }}" \
             --job-result "install-smoke=${{ needs.install-smoke.result }}" \
             --job-result "interactive-bootstrap-smoke=${{ needs.interactive-bootstrap-smoke.result }}" \
@@ -565,9 +618,11 @@ jobs:
             --artifact "security-evidence=ci-artifacts/security-evidence" \
             --artifact "shadow-redteam-evidence=ci-artifacts/shadow-redteam-evidence" \
             --artifact "swarm-eval-evidence=ci-artifacts/swarm-eval-evidence" \
+            --artifact "provider-canary-evidence=ci-artifacts/provider-canary-evidence" \
             --artifact "built-wheel=ci-artifacts/built-wheel" \
             --swarm-eval-root "ci-artifacts/swarm-eval-evidence" \
             --shadow-redteam-json "ci-artifacts/shadow-redteam-evidence/shadow-redteam-summary.json" \
+            --provider-canaries-json "ci-artifacts/provider-canary-evidence/provider-canaries.json" \
             --artifact "research-smoke-evidence=ci-artifacts/research-smoke-evidence" \
             --artifact "headless-success-evidence=ci-artifacts/headless-success-evidence" \
             --artifact "headless-evidence=ci-artifacts/headless-evidence" \

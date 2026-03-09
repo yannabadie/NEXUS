@@ -193,6 +193,7 @@ def _build_ledger(args: argparse.Namespace) -> dict[str, Any]:
     coverage = _parse_coverage(args.coverage_xml)
     providers = _read_json(args.provider_registry) or {"providers": [], "generated_at": None}
     shadow_redteam = _read_json(args.shadow_redteam_json)
+    provider_canaries = _read_json(args.provider_canaries_json)
     swarm_eval_report = _read_json(_find_first_json(args.swarm_eval_root, "report.json"))
     jobs = _job_pairs(args.job_result)
     artifacts = _artifact_entries(args.artifact)
@@ -222,6 +223,7 @@ def _build_ledger(args: argparse.Namespace) -> dict[str, Any]:
             "shadow_redteam": shadow_redteam,
         },
         "swarm_evaluation": swarm_eval_report,
+        "live_provider_canaries": provider_canaries,
         "provider_compatibility": providers,
         "environment": {
             "python_version": args.python_version,
@@ -359,6 +361,25 @@ def _write_markdown(path: Path, ledger: dict[str, Any]) -> None:
     else:
         lines.append("- No swarm evaluation report available.")
 
+    provider_canaries = ledger.get("live_provider_canaries")
+    lines.extend(
+        [
+            "",
+            "## Live Provider Canaries",
+            "",
+        ]
+    )
+    if provider_canaries:
+        summary = provider_canaries.get("summary", {})
+        lines.append(f"- Configured providers: {summary.get('configured_providers', 0)}")
+        lines.append(f"- Attempted providers: {summary.get('attempted_providers', 0)}")
+        lines.append(f"- Passed providers: {summary.get('passed_providers', 0)}")
+        lines.append(f"- Failed providers: {summary.get('failed_providers', 0)}")
+        if summary.get("attempted_providers", 0):
+            lines.append(f"- Pass rate: {summary.get('pass_rate', 0.0):.2%}")
+    else:
+        lines.append("- No live provider canary report available.")
+
     providers = _provider_rows(ledger["provider_compatibility"])
     lines.extend(
         [
@@ -392,6 +413,7 @@ def main() -> int:
     parser.add_argument("--provider-registry", type=Path, default=None)
     parser.add_argument("--shadow-redteam-json", type=Path, default=None)
     parser.add_argument("--swarm-eval-root", type=Path, default=None)
+    parser.add_argument("--provider-canaries-json", type=Path, default=None)
     parser.add_argument("--output-json", type=Path, required=True)
     parser.add_argument("--output-markdown", type=Path, required=True)
     parser.add_argument("--job-result", action="append", default=[])
