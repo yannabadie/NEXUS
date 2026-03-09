@@ -30,14 +30,14 @@ TUTORIAL_STEPS: list[TutorialStep] = [
 NEXUS est une plateforme de collaboration multi-agents.
 
 🐝 PHILOSOPHIE HIVE MIND:
-   • Gemini et Claude travaillent ENSEMBLE, pas en hiérarchie
-   • 6 modes de collaboration (Swarm) selon la complexité
-   • Génération d'agents spécialisés qui coexistent
+   - Gemini et Claude travaillent ENSEMBLE, pas en hiérarchie
+   - 6 modes de collaboration (Swarm) selon la complexité
+   - Génération d'agents spécialisés qui coexistent
 
 🎯 VOTRE RÔLE:
-   • Posez des questions ou décrivez des tâches
-   • NEXUS choisit automatiquement le meilleur mode
-   • Les agents collaborent pour résoudre votre problème
+   - Posez des questions ou décrivez des tâches
+   - NEXUS choisit automatiquement le meilleur mode
+   - Les agents collaborent pour résoudre votre problème
 
 🆕 V8.3: Les agents peuvent maintenant déléguer au Swarm!
 """,
@@ -49,12 +49,12 @@ NEXUS est une plateforme de collaboration multi-agents.
 Le Swarm Engine orchestre la collaboration entre agents.
 
 📊 6 MODES DE COLLABORATION:
-   • PARALLEL    - Travail simultané, résultats fusionnés
-   • SEQUENTIAL  - Pipeline ordonné (Agent1 → Agent2)
-   • LEAD_SUPPORT - Un lead (80%), un support (20%)
-   • PING_PONG   - Alternance rapide jusqu'à convergence
-   • SPECIALIST  - Un seul expert pour les tâches pointues
-   • RED_BLUE    - Adversarial (proposer/attaquer/défendre)
+   - PARALLEL    - Travail simultané, résultats fusionnés
+   - SEQUENTIAL  - Pipeline ordonné (Agent1 -> Agent2)
+   - LEAD_SUPPORT - Un lead (80%), un support (20%)
+   - PING_PONG   - Alternance rapide jusqu'à convergence
+   - SPECIALIST  - Un seul expert pour les tâches pointues
+   - RED_BLUE    - Adversarial (proposer/attaquer/défendre)
 
 🆕 V8.3 SwarmBridge: Le HiveMind peut déléguer des sous-tâches
    au Swarm pour une exécution tactique optimale!
@@ -70,21 +70,21 @@ Le Swarm Engine orchestre la collaboration entre agents.
 NEXUS V8.1.8+ génère des agents vraiment spécialisés.
 
 🧬 DYNAMIC SPAWN (V8.1.8):
-   • Le HiveMind brainstorme le system prompt
-   • Pas de templates statiques - prompts sur mesure
-   • Validation anti-hallucination des outils
+   - Le HiveMind brainstorme le system prompt
+   - Pas de templates statiques - prompts sur mesure
+   - Validation anti-hallucination des outils
 
 🎯 MODEL SELECTION (V8.1.8-B):
-   • Chaque agent choisit son LLM optimal
-   • Gemini Flash pour vitesse, Claude Opus pour raisonnement
-   • Configuration dans BIRTH_CERTIFICATE.json
+   - Chaque agent choisit son LLM optimal
+   - Gemini Flash pour vitesse, Claude Opus pour raisonnement
+   - Configuration dans BIRTH_CERTIFICATE.json
 
 📝 COMMANDES:
-   • /spawn "SQL Expert"     - Crée un agent spécialisé
-   • /agents                 - Liste vos agents
-   • /invoke sql_expert ...  - Utilise un agent
+   - /spawn "SQL Expert"     - Crée un agent spécialisé
+   - /agents                 - Liste vos agents
+   - /invoke sql_expert ...  - Utilise un agent
 
-⚠️ Le spawn utilise le brainstorming - surveiller /budget!
+[warning]️ Le spawn utilise le brainstorming - surveiller /budget!
 """,
         suggested_command='/spawn "Python testing expert"',
         tip="Les agents spawnés persistent dans workspace/agents/",
@@ -95,14 +95,14 @@ NEXUS V8.1.8+ génère des agents vraiment spécialisés.
 NEXUS apprend de vos succès et retient le contexte projet.
 
 📚 PROJECT MEMORY (RAG):
-   • Indexe automatiquement votre codebase
-   • Retrieval sémantique (Dense) + lexical (TF-IDF)
-   • Commandes: /rag init, /rag clear, /rag query
+   - Indexe automatiquement votre codebase
+   - Retrieval sémantique (Dense) + lexical (TF-IDF)
+   - Commandes: /rag init, /rag clear, /rag query
 
 🧠 SUCCESS MEMORY (V8.2.0):
-   • Enregistre les tâches réussies
-   • Réutilise les modes qui ont fonctionné
-   • Decay temporel (préfère expériences récentes)
+   - Enregistre les tâches réussies
+   - Réutilise les modes qui ont fonctionné
+   - Decay temporel (préfère expériences récentes)
 
 💡 Plus vous utilisez NEXUS, plus il devient efficace!
 """,
@@ -115,19 +115,19 @@ NEXUS apprend de vos succès et retient le contexte projet.
 NEXUS surveille vos dépenses API en temps réel.
 
 💰 BUDGET:
-   • Limite quotidienne configurable (défaut: $50)
-   • Alertes à 80% et 90% du budget
-   • Blocage automatique à 100%
+   - Limite quotidienne configurable (défaut: $50)
+   - Alertes à 80% et 90% du budget
+   - Blocage automatique à 100%
 
 📈 TÉLÉMÉTRIE:
-   • Tokens utilisés par modèle
-   • Latence moyenne des appels
-   • Historique des 7 derniers jours
+   - Tokens utilisés par modèle
+   - Latence moyenne des appels
+   - Historique des 7 derniers jours
 
 🔄 SELF-HEALING (V8.1.3):
-   • Fallback automatique si un mode échoue
-   • PARALLEL → SEQUENTIAL si race condition
-   • Hot-Swap du lead agent si stagnation (V8.0.1)
+   - Fallback automatique si un mode échoue
+   - PARALLEL -> SEQUENTIAL si race condition
+   - Hot-Swap du lead agent si stagnation (V8.0.1)
 """,
         suggested_command="/budget",
         tip="Utilisez /budget reset en cas d'urgence",
@@ -151,9 +151,9 @@ Fonctionnalités avancées pour utilisateurs expérimentés.
    des sous-tâches au Swarm Engine à n'importe quelle phase!
 
 🛡️ SÉCURITÉ:
-   • SandboxPolicy pour commandes dangereuses
-   • RedTeam validation des agents spawnés (V8.2.0c)
-   • Depth Guard anti-récursion (max 2 niveaux)
+   - SandboxPolicy pour commandes dangereuses
+   - RedTeam validation des agents spawnés (V8.2.0c)
+   - Depth Guard anti-récursion (max 2 niveaux)
 
 📖 Voir ROADMAP.md pour la liste complète des features!
 """,
@@ -202,9 +202,9 @@ class InteractiveTutorial:
         total = len(self.steps)
         lines = [
             "",
-            "═" * 64,
-            f"  📚 TUTORIAL ({index + 1}/{total}): {step.title}",
-            "═" * 64,
+            "=" * 64,
+            f"TUTORIAL ({index + 1}/{total}): {step.title}",
+            "=" * 64,
             "",
             step.explanation,
         ]
@@ -213,9 +213,8 @@ class InteractiveTutorial:
             lines.extend(
                 [
                     "",
-                    "┌─ Essayez cette commande ─────────────────────────────────────┐",
-                    f"│  {step.suggested_command:<60}│",
-                    "└──────────────────────────────────────────────────────────────┘",
+                    "Try this command:",
+                    f"  {step.suggested_command}",
                 ]
             )
 
@@ -223,14 +222,14 @@ class InteractiveTutorial:
             lines.extend(
                 [
                     "",
-                    f"💡 Tip: {step.tip}",
+                    f"Tip: {step.tip}",
                 ]
             )
 
         lines.extend(
             [
                 "",
-                "─" * 64,
+                "-" * 64,
             ]
         )
 
@@ -250,7 +249,7 @@ class InteractiveTutorial:
         if input_fn is None:
             input_fn = input
 
-        print_fn("\n🎓 Bienvenue dans le tutoriel interactif NEXUS!")
+        print_fn("\nWelcome to the NEXUS interactive tutorial.")
         print_fn("   Appuyez sur [Entrée] pour avancer, 'q' pour quitter, 's' pour sauter.\n")
 
         for i, step in enumerate(self.steps):
@@ -270,31 +269,30 @@ class InteractiveTutorial:
                 user_input = input_fn(prompt).strip().lower()
 
                 if user_input == "q":
-                    print_fn("\n👋 Tutoriel interrompu. Utilisez /tutorial pour reprendre.\n")
+                    print_fn("\nTutorial interrupted. Use /tutorial to resume.\n")
                     return False
                 elif user_input == "s":
-                    print_fn("⏭️  Étape sautée\n")
+                    print_fn("Step skipped.\n")
                     continue
 
             except (EOFError, KeyboardInterrupt):
-                print_fn("\n👋 Tutoriel interrompu.\n")
+                print_fn("\nTutorial interrupted.\n")
                 return False
 
         # Tutorial complete
         print_fn("""
-╔══════════════════════════════════════════════════════════════╗
-║                    🎉 TUTORIEL TERMINÉ!                      ║
-╠══════════════════════════════════════════════════════════════╣
-║  Vous êtes prêt à utiliser NEXUS TRUE HIVE MIND!             ║
-║                                                              ║
-║  📚 /help      - Voir toutes les commandes                   ║
-║  🐝 /swarm     - Lancer une tâche collaborative              ║
-║  💰 /budget    - Vérifier vos dépenses                       ║
-║  🧬 /spawn     - Créer un agent spécialisé                   ║
-║  📖 /rag init  - Indexer votre projet                        ║
-║                                                              ║
-║  Bonne collaboration! 🤝                                      ║
-╚══════════════════════════════════════════════════════════════╝
+==============================================================
+TUTORIAL COMPLETE
+==============================================================
+You are ready to use NEXUS TRUE HIVE MIND.
+
+  /help      - Show all commands
+  /swarm     - Launch a collaborative task
+  /budget    - Check your spend
+  /spawn     - Create a specialized agent
+  /rag init  - Index your project
+
+Good collaboration.
 """)
         return True
 
@@ -306,28 +304,28 @@ class InteractiveTutorial:
             Formatted quick start guide
         """
         return """
-╔══════════════════════════════════════════════════════════════╗
-║              NEXUS TRUE HIVE MIND - QUICK START              ║
-╚══════════════════════════════════════════════════════════════╝
+==============================================================
+NEXUS TRUE HIVE MIND - QUICK START
+==============================================================
 
-1️⃣  POSEZ UNE QUESTION
-    > Analyse ce code et trouve les bugs
+1. ASK A QUESTION
+   > Analyse ce code et trouve les bugs
 
-2️⃣  UTILISEZ LE SWARM POUR LES TÂCHES COMPLEXES
-    > /swarm "Refactore le module auth avec tests"
+2. USE SWARM FOR COMPLEX TASKS
+   > /swarm "Refactore le module auth avec tests"
 
-3️⃣  INDEXEZ VOTRE PROJET (V8.1.9)
-    > /rag init
+3. INDEX YOUR PROJECT
+   > /rag init
 
-4️⃣  CRÉEZ DES AGENTS SPÉCIALISÉS (V8.1.8)
-    > /spawn SQL Expert
+4. CREATE SPECIALIZED AGENTS
+   > /spawn SQL Expert
 
-5️⃣  SURVEILLEZ VOS DÉPENSES
-    > /budget
+5. REVIEW YOUR BUDGET
+   > /budget
 
-6️⃣  CONSULTEZ L'AIDE
-    > /help
+6. OPEN HELP
+   > /help
 
-💡 Pour un guide complet: /tutorial
-📖 Pour la doc technique: voir docs/ et ROADMAP.md
+Tip: use /tutorial for the guided version.
+Docs: see docs/ and ROADMAP.md
 """

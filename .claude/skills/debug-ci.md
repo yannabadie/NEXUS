@@ -270,7 +270,7 @@ gh run list --branch NX-CG --limit 1
 gh run view $(gh run list --branch NX-CG --limit 1 --json databaseId -q '.[0].databaseId') --log-failed
 ```
 
-**NEVER claim "CI fixed" without verification** ✓
+**NEVER claim "CI fixed" without verification** [OK]
 
 ## Debugging Checklist
 
@@ -318,4 +318,4 @@ def test_failing():
 - Test config: `pyproject.toml` [tool.pytest]
 - Coverage config: `pyproject.toml` [tool.coverage]
 
-**Remember**: CI failures are INFORMATION, not setbacks. They catch bugs before production ✓
+**Remember**: CI failures are INFORMATION, not setbacks. They catch bugs before production [OK]

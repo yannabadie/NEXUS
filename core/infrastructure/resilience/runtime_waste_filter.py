@@ -118,7 +118,7 @@ class FilterStats:
 # Constants
 # ---------------------------------------------------------------------------
 
-# Content similarity threshold (hash collision → redundancy)
+# Content similarity threshold (hash collision -> redundancy)
 REDUNDANCY_HASH_WINDOW: int = 10  # Look at last N exchanges
 
 # Stagnation: max exchanges without new topic words
@@ -365,7 +365,7 @@ class RuntimeWasteFilter:
                     akey = intervention.action.value
                     self._stats.action_counts[akey] = self._stats.action_counts.get(akey, 0) + 1
                 logger.debug(
-                    "RuntimeWasteFilter: %s → %s (confidence=%.2f)",
+                    "RuntimeWasteFilter: %s -> %s (confidence=%.2f)",
                     intervention.type.value,
                     intervention.action.value,
                     intervention.confidence,
@@ -417,7 +417,7 @@ class RuntimeWasteFilter:
         return Intervention(type=InterventionType.REDUNDANCY, action=InterventionAction.CONTINUE)
 
     def _check_loop(self) -> Intervention:
-        """Detect circular exchange patterns (A→B→A→B with same hashes)."""
+        """Detect circular exchange patterns (A->B->A->B with same hashes)."""
         if len(self._exchanges) < self._loop_threshold * 2:
             return Intervention(type=InterventionType.LOOP, action=InterventionAction.CONTINUE)
 

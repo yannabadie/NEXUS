@@ -60,7 +60,7 @@ python -m pytest tests/ -q
 Then:
 1. Parse all failures
 2. Group by error type
-3. Fix in order of dependency (IMPORT → EXCEPTION → ASSERTION)
+3. Fix in order of dependency (IMPORT -> EXCEPTION -> ASSERTION)
 4. Re-run after each fix
 5. Report: error summary, root cause, fix applied, verification
 

@@ -17,14 +17,14 @@ Handles security policies, alignment verification, and access control.
 
 ```
 governance/
-├── __init__.py          # This file
-├── red_team/            # Alignment testing (migrated from BENCHMARKS/)
-│   ├── __init__.py
-│   ├── alignment_tests.py
-│   └── validator.py
-├── sandbox_policy.py    # Tool execution permissions and security policies
-├── gcp_gatekeeper.py    # TODO: ROI-based cloud access
-└── ethics.py            # TODO: Alignment verification to Creator
++-- __init__.py          # This file
++-- red_team/            # Alignment testing (migrated from BENCHMARKS/)
+|   +-- __init__.py
+|   +-- alignment_tests.py
+|   +-- validator.py
++-- sandbox_policy.py    # Tool execution permissions and security policies
++-- gcp_gatekeeper.py    # TODO: ROI-based cloud access
++-- ethics.py            # TODO: Alignment verification to Creator
 ```
 
 ## Usage

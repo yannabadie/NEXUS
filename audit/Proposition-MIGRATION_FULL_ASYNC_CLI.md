@@ -12,84 +12,84 @@
 ### Architecture Actuelle (Problématique)
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    ARCHITECTURE ACTUELLE                         │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  main() [SYNC]                                                   │
-│      │                                                           │
-│      ▼                                                           │
-│  REPL.run() [SYNC]                                               │
-│      │                                                           │
-│      ▼                                                           │
-│  OrchestratorV7.process_turn() [SYNC]                           │
-│      │                                                           │
-│      ├──► _handle_trivial() [SYNC]                              │
-│      │                                                           │
-│      ├──► _handle_moderate_plus() [SYNC]                        │
-│      │        │                                                  │
-│      │        ▼                                                  │
-│      │    ┌─────────────────────────────────────┐               │
-│      │    │ ThreadPoolExecutor + asyncio.run() │ ◄── F18!      │
-│      │    │     │                               │               │
-│      │    │     ▼                               │               │
-│      │    │ HiveMind.process_task() [ASYNC]    │               │
-│      │    └─────────────────────────────────────┘               │
-│      │                                                           │
-│      └──► SwarmEngine [HYBRIDE]                                 │
-│               │                                                  │
-│               ▼                                                  │
-│           AsyncGeminiDriver.invoke() [ASYNC]                    │
-│               │                                                  │
-│               ▼                                                  │
-│           asyncio.create_subprocess_exec()                      │
-│               │                                                  │
-│               ▼                                                  │
-│           [Gemini CLI / Claude Code CLI]                        │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
++-----------------------------------------------------------------+
+|                    ARCHITECTURE ACTUELLE                         |
++-----------------------------------------------------------------+
+|                                                                  |
+|  main() [SYNC]                                                   |
+|      |                                                           |
+|      v                                                           |
+|  REPL.run() [SYNC]                                               |
+|      |                                                           |
+|      v                                                           |
+|  OrchestratorV7.process_turn() [SYNC]                           |
+|      |                                                           |
+|      +--► _handle_trivial() [SYNC]                              |
+|      |                                                           |
+|      +--► _handle_moderate_plus() [SYNC]                        |
+|      |        |                                                  |
+|      |        v                                                  |
+|      |    +-------------------------------------+               |
+|      |    | ThreadPoolExecutor + asyncio.run() | ◄-- F18!      |
+|      |    |     |                               |               |
+|      |    |     v                               |               |
+|      |    | HiveMind.process_task() [ASYNC]    |               |
+|      |    +-------------------------------------+               |
+|      |                                                           |
+|      +--► SwarmEngine [HYBRIDE]                                 |
+|               |                                                  |
+|               v                                                  |
+|           AsyncGeminiDriver.invoke() [ASYNC]                    |
+|               |                                                  |
+|               v                                                  |
+|           asyncio.create_subprocess_exec()                      |
+|               |                                                  |
+|               v                                                  |
+|           [Gemini CLI / Claude Code CLI]                        |
+|                                                                  |
++-----------------------------------------------------------------+
 ```
 
 ### Architecture Cible (Full Async + CLI)
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    ARCHITECTURE CIBLE                            │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  if __name__ == "__main__":                                      │
-│      asyncio.run(main())  ◄── SINGLE EVENT LOOP                 │
-│          │                                                       │
-│          ▼                                                       │
-│  async def main():                                               │
-│      orch = OrchestratorV7()                                     │
-│      await orch.run_async()                                      │
-│          │                                                       │
-│          ▼                                                       │
-│  await REPL.run_async()                                          │
-│          │                                                       │
-│          ▼                                                       │
-│  await OrchestratorV7.process_turn_async()                      │
-│          │                                                       │
-│          ├──► await _handle_trivial_async()                     │
-│          │                                                       │
-│          ├──► await _handle_moderate_plus_async()               │
-│          │        │                                              │
-│          │        ▼                                              │
-│          │    await HiveMind.process_task()  ◄── DIRECT AWAIT   │
-│          │                                                       │
-│          └──► await SwarmEngine.execute_async()                 │
-│                   │                                              │
-│                   ▼                                              │
-│               await AsyncGeminiDriver.invoke()                  │
-│                   │                                              │
-│                   ▼                                              │
-│               await asyncio.create_subprocess_exec()            │
-│                   │                                              │
-│                   ▼                                              │
-│               [Gemini CLI / Claude Code CLI]                    │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
++-----------------------------------------------------------------+
+|                    ARCHITECTURE CIBLE                            |
++-----------------------------------------------------------------+
+|                                                                  |
+|  if __name__ == "__main__":                                      |
+|      asyncio.run(main())  ◄-- SINGLE EVENT LOOP                 |
+|          |                                                       |
+|          v                                                       |
+|  async def main():                                               |
+|      orch = OrchestratorV7()                                     |
+|      await orch.run_async()                                      |
+|          |                                                       |
+|          v                                                       |
+|  await REPL.run_async()                                          |
+|          |                                                       |
+|          v                                                       |
+|  await OrchestratorV7.process_turn_async()                      |
+|          |                                                       |
+|          +--► await _handle_trivial_async()                     |
+|          |                                                       |
+|          +--► await _handle_moderate_plus_async()               |
+|          |        |                                              |
+|          |        v                                              |
+|          |    await HiveMind.process_task()  ◄-- DIRECT AWAIT   |
+|          |                                                       |
+|          +--► await SwarmEngine.execute_async()                 |
+|                   |                                              |
+|                   v                                              |
+|               await AsyncGeminiDriver.invoke()                  |
+|                   |                                              |
+|                   v                                              |
+|               await asyncio.create_subprocess_exec()            |
+|                   |                                              |
+|                   v                                              |
+|               [Gemini CLI / Claude Code CLI]                    |
+|                                                                  |
++-----------------------------------------------------------------+
 ```
 
 ---
@@ -113,7 +113,7 @@
 def _handle_moderate_plus(self, user_input):
     try:
         loop = asyncio.get_running_loop()
-        # Loop running → ThreadPool hack
+        # Loop running -> ThreadPool hack
         with ThreadPoolExecutor() as executor:
             def run_hive():
                 return asyncio.run(  # NESTED LOOP!
@@ -393,21 +393,21 @@ class OrchestratorV7:
 - [ ] Vérifier que tous les tests passent
 
 ### Phase 1: Entry Points
-- [ ] Modifier `nexus7.py` → `asyncio.run(main())`
-- [ ] Modifier `REPL.run()` → `async def run_async()`
+- [ ] Modifier `nexus7.py` -> `asyncio.run(main())`
+- [ ] Modifier `REPL.run()` -> `async def run_async()`
 - [ ] Vérifier startup fonctionne
 
 ### Phase 2: Orchestrator
-- [ ] `OrchestratorV7.process_turn()` → `async`
-- [ ] `FSMHandlers._handle_*()` → `async`
+- [ ] `OrchestratorV7.process_turn()` -> `async`
+- [ ] `FSMHandlers._handle_*()` -> `async`
 - [ ] Supprimer tous les `ThreadPoolExecutor + asyncio.run()`
 - [ ] Remplacer `threading.RLock` par `asyncio.Lock`
 - [ ] Tests orchestrator
 
 ### Phase 3: Swarm
-- [ ] `HybridSwarmEngine.execute()` → `async`
-- [ ] `ParallelExecutor.execute()` → supprimer sync
-- [ ] Tous executors → async only
+- [ ] `HybridSwarmEngine.execute()` -> `async`
+- [ ] `ParallelExecutor.execute()` -> supprimer sync
+- [ ] Tous executors -> async only
 - [ ] Tests swarm
 
 ### Phase 4: Drivers
@@ -416,9 +416,9 @@ class OrchestratorV7:
 - [ ] Tests drivers
 
 ### Phase 5: Cleanup
-- [ ] Grep `get_event_loop` → migrer
-- [ ] Grep `asyncio.run(` (hors entry point) → supprimer
-- [ ] Grep `ThreadPoolExecutor` + async → supprimer
+- [ ] Grep `get_event_loop` -> migrer
+- [ ] Grep `asyncio.run(` (hors entry point) -> supprimer
+- [ ] Grep `ThreadPoolExecutor` + async -> supprimer
 - [ ] Tests complets
 
 ### Post-Migration

@@ -309,7 +309,7 @@ class ParallelExecutor(ModeExecutor):
             tasks_info.append((agent.agent_id, task_context))
 
             subtask_preview = (subtask[:100] + "...") if len(subtask) > 100 else subtask
-            print(f"   → {agent.agent_id}: {subtask_preview}", file=sys.stderr)
+            print(f"   -> {agent.agent_id}: {subtask_preview}", file=sys.stderr)
 
             async_tasks.append(self._invoke_async(context, agent.agent_id, task_context, f"worker_{idx}"))
 
@@ -324,14 +324,14 @@ class ParallelExecutor(ModeExecutor):
             agent_id = tasks_info[i][0]
             if isinstance(result, Exception):
                 outputs.append(AgentResponse(agent_id=agent_id, content="", status="error", error=str(result)))
-                print(f"   ❌ {agent_id}: ERROR - {str(result)[:100]}", file=sys.stderr)
+                print(f"   [NO] {agent_id}: ERROR - {str(result)[:100]}", file=sys.stderr)
             else:
                 outputs.append(result)
                 total_tokens += result.tokens_used
                 total_time = max(total_time, result.time_seconds)
                 content_preview = (result.content[:80] + "...") if len(result.content) > 80 else result.content
                 content_preview = content_preview.replace("\n", " ")
-                print(f"   ✓ {agent_id}: {content_preview}", file=sys.stderr)
+                print(f"   [OK] {agent_id}: {content_preview}", file=sys.stderr)
 
                 # V13.0 CEREBRO LIVE: Emit parallel execution result
                 emit_agent_speak(agent_id, result.content[:200], action_type="PARALLEL")
@@ -340,7 +340,7 @@ class ParallelExecutor(ModeExecutor):
         # V10 FIX F4: Detect conflicts before merging
         conflict_report = self._conflict_detector.detect_conflicts(outputs)
         if conflict_report.has_conflicts:
-            print(f"⚠️  [PARALLEL] Conflicts detected ({conflict_report.severity}):", file=sys.stderr)
+            print(f"[warning]️  [PARALLEL] Conflicts detected ({conflict_report.severity}):", file=sys.stderr)
             for fc in conflict_report.file_conflicts[:3]:
                 print(f"      📄 {fc}", file=sys.stderr)
             for cc in conflict_report.command_conflicts[:2]:
@@ -352,9 +352,9 @@ class ParallelExecutor(ModeExecutor):
         merge_result = self._merge_with_strategy(context, outputs)
 
         success_count = sum(1 for o in outputs if o.status != "error")
-        conflict_indicator = f" ⚠️ {conflict_report.severity} conflicts" if conflict_report.has_conflicts else ""
+        conflict_indicator = f" [warning]️ {conflict_report.severity} conflicts" if conflict_report.has_conflicts else ""
         print(
-            f"✅ [PARALLEL] Complete: {success_count}/{len(outputs)} succeeded | {total_time:.1f}s{conflict_indicator}\n",
+            f"[OK] [PARALLEL] Complete: {success_count}/{len(outputs)} succeeded | {total_time:.1f}s{conflict_indicator}\n",
             file=sys.stderr,
         )
 
@@ -395,7 +395,7 @@ class ParallelExecutor(ModeExecutor):
         for output in outputs:
             agent_name = registry.get_display_name(output.agent_id)
             if output.status == "error":
-                merged_parts.append(f"[{agent_name}] ❌ Error:\n{output.error or output.content}")
+                merged_parts.append(f"[{agent_name}] [NO] Error:\n{output.error or output.content}")
             else:
                 merged_parts.append(f"[{agent_name}]:\n{output.content}")
 

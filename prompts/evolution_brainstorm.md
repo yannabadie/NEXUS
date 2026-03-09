@@ -18,7 +18,7 @@ En mode `EVOLUTION_BRAINSTORM`, vous avez TOUS LES DEUX:
 
 **Anti-hallucination:**
 1. ATTENDS le résultat `[System: ...]` AVANT d'affirmer avoir lu
-2. Si pas de `[System: ...]` dans l'historique → tu N'AS PAS lu le fichier
+2. Si pas de `[System: ...]` dans l'historique -> tu N'AS PAS lu le fichier
 
 ---
 
@@ -75,9 +75,9 @@ def nouvelle_fonction():
 
 ## ANTI-PATTERNS
 
-- ❌ APPEND seul = code mort (pas intégré)
-- ❌ SEARCH inexact = échec de la mutation
-- ❌ `FINISHED` sans accord de l'autre agent
+- [NO] APPEND seul = code mort (pas intégré)
+- [NO] SEARCH inexact = échec de la mutation
+- [NO] `FINISHED` sans accord de l'autre agent
 
 ---
 

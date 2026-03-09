@@ -115,7 +115,7 @@ class TestAgentAlternationE2E:
 
     def test_multi_turn_alternation(self, orchestrator_with_mocks, run_orchestrator_loop):
         """
-        Alternance sur 4+ tours (Gemini→Claude→Gemini→Claude).
+        Alternance sur 4+ tours (Gemini->Claude->Gemini->Claude).
 
         Vérifie que l'alternance est bien égale.
         """
@@ -177,7 +177,7 @@ class TestProtocolValidatorAlternation:
         Avant la correction: gardait le sender.
         Après la correction: alterne vers l'autre agent.
         """
-        # Test Gemini sender → should get Claude as next_agent
+        # Test Gemini sender -> should get Claude as next_agent
         gemini_msg = LightMessageV7(
             sender="Gemini",
             action_type="TALK",
@@ -190,7 +190,7 @@ class TestProtocolValidatorAlternation:
         assert gemini_msg.next_agent == "Claude", f"Expected 'Claude' but got '{gemini_msg.next_agent}'"
 
     def test_protocol_validator_alternates_claude_to_gemini(self):
-        """Claude sender → next_agent should be Gemini."""
+        """Claude sender -> next_agent should be Gemini."""
         claude_msg = LightMessageV7(
             sender="Claude", action_type="TALK", content="Test", status="CONTINUE", next_agent=None
         )

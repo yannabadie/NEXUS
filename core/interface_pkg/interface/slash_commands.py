@@ -83,22 +83,23 @@ def get_help_message() -> str:
     from core import __codename__, __version__
 
     lines = [
-        "╔══════════════════════════════════════════════════════════════╗",
-        f"║       NEXUS V{__version__} {__codename__} - Command Reference      ║",
-        "╚══════════════════════════════════════════════════════════════╝",
+        "==============================================================",
+        f"NEXUS V{__version__} {__codename__} - Command Reference",
+        "==============================================================",
         "",
     ]
 
     for category, commands in COMMAND_CATEGORIES.items():
-        lines.append(f"┌─ {category} ─────────────────────────────────────────┐")
+        lines.append(category)
+        lines.append("-" * 60)
         for cmd, desc in commands.items():
             # Truncate description if too long
             desc_short = desc[:45] + "..." if len(desc) > 48 else desc
-            lines.append(f"│  {cmd:<25} {desc_short}")
-        lines.append("└" + "─" * 60 + "┘")
+            lines.append(f"  {cmd:<25} {desc_short}")
+        lines.append("-" * 60)
         lines.append("")
 
-    lines.append("💡 Tip: Use /tutorial for an interactive guide")
+    lines.append("Tip: Use /tutorial for an interactive guide")
 
     return "\n".join(lines)
 
@@ -156,7 +157,7 @@ def parse_command(user_input: str) -> tuple:
 
     Returns:
         Tuple (command, args)
-        Example: ("/mode Normal") → ("/mode", "Normal")
+        Example: ("/mode Normal") -> ("/mode", "Normal")
 
     Examples:
         >>> parse_command("/clear")

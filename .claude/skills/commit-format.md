@@ -48,12 +48,12 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
 
 **Examples**:
 ```
-✅ feat(P5.1-Phase1): extract GuardPipeline from orchestrator (145 LOC, 15 tests)
-✅ fix(init): correct agent_invoker initialization order
-✅ docs: add verification rule + Claude Code best practices research
+[OK] feat(P5.1-Phase1): extract GuardPipeline from orchestrator (145 LOC, 15 tests)
+[OK] fix(init): correct agent_invoker initialization order
+[OK] docs: add verification rule + Claude Code best practices research
 
-❌ feat: did some stuff (too vague)
-❌ Fixed the bug in orchestration_v7.py that was causing issues. (too long, past tense)
+[NO] feat: did some stuff (too vague)
+[NO] Fixed the bug in orchestration_v7.py that was causing issues. (too long, past tense)
 ```
 
 ## Body (Optional)
@@ -101,7 +101,7 @@ BREAKING CHANGE: Removed deprecated CLI driver imports
 ```
 feat(V12.4): add RuntimeWasteFilter and ExperienceDistiller (294 tests)
 
-feat(P5.1-Phase4): extract StateHandler from OrchestratorV7 (1177→1097 lines)
+feat(P5.1-Phase4): extract StateHandler from OrchestratorV7 (1177->1097 lines)
 
 feat(V8.3.1): add SwarmBridge delegation to HiveMind phases
 ```
@@ -174,14 +174,14 @@ gh run list --limit 1
 ### Protected Branch Rules
 
 **NEVER**:
-- ❌ Force push to `NX` or `main`
-- ❌ Push directly to `NX` (use PR)
-- ❌ Skip hooks with `--no-verify`
+- [NO] Force push to `NX` or `main`
+- [NO] Push directly to `NX` (use PR)
+- [NO] Skip hooks with `--no-verify`
 
 **ALWAYS**:
-- ✅ Work on `NX-CG` or feature branches
-- ✅ Run tests before pushing
-- ✅ Verify CI passes after push
+- [OK] Work on `NX-CG` or feature branches
+- [OK] Run tests before pushing
+- [OK] Verify CI passes after push
 
 ## Multi-File Commits
 
@@ -194,7 +194,7 @@ Created:
 - tests/test_result_handler.py (22 tests)
 
 Modified:
-- core/orchestration_v7.py (1177→1097 lines)
+- core/orchestration_v7.py (1177->1097 lines)
 - core/orchestration/__init__.py (exports updated)
 
 API compatibility maintained via _make_result() delegation wrapper.
@@ -255,7 +255,7 @@ gh run view <run-id> --log-failed | grep ERROR
 # 5. Fix, commit, push, REPEAT verification
 ```
 
-**NEVER say "pushed successfully" without verifying CI passes** ✓
+**NEVER say "pushed successfully" without verifying CI passes** [OK]
 
 ## Pro Tips
 
@@ -267,10 +267,10 @@ gh run view <run-id> --log-failed | grep ERROR
 
 ## Common Pitfalls
 
-❌ **Too vague**: `git commit -m "fixes"`
-❌ **Too long**: Subject > 70 chars
-❌ **Past tense**: "Fixed bug" (use "Fix bug")
-❌ **Mixing concerns**: Multiple unrelated changes
-❌ **No co-author**: Forgot AI attribution
+[NO] **Too vague**: `git commit -m "fixes"`
+[NO] **Too long**: Subject > 70 chars
+[NO] **Past tense**: "Fixed bug" (use "Fix bug")
+[NO] **Mixing concerns**: Multiple unrelated changes
+[NO] **No co-author**: Forgot AI attribution
 
-✅ **Good commit**: Clear, concise, imperative, scoped, co-authored
+[OK] **Good commit**: Clear, concise, imperative, scoped, co-authored

@@ -480,7 +480,7 @@ def evaluate_child(child_path: Path, child_id: str, parent_path: Path, parent_id
 
     if tested and not alignment_passed:
         print(f"\n{'=' * 60}")
-        print("[RED TEAM] ❌ ALIGNMENT FAILURE")
+        print("[RED TEAM] [NO] ALIGNMENT FAILURE")
         print(f"{'=' * 60}")
         print(f"Reason: {alignment_reason}")
         print("This child should NOT be promoted!")
@@ -498,7 +498,7 @@ def evaluate_child(child_path: Path, child_id: str, parent_path: Path, parent_id
     print(f"Significance: {comparison['significance']}")
 
     if tested:
-        status_icon = "✅" if alignment_passed else "❌"
+        status_icon = "[OK]" if alignment_passed else "[NO]"
         print(f"Alignment: {status_icon} {alignment_reason}")
 
     print(f"Report: {report_path}")

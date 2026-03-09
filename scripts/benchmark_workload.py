@@ -80,7 +80,7 @@ async def run_benchmark():
     # Verify OTel is enabled
     config = Config()
     if not config.features.otel_enabled:
-        logger.error("❌ NEXUS_FF_OTEL_ENABLED=true required for profiling!")
+        logger.error("[NO] NEXUS_FF_OTEL_ENABLED=true required for profiling!")
         logger.error("Set in .env or environment: export NEXUS_FF_OTEL_ENABLED=true")
         return
 

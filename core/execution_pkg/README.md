@@ -25,7 +25,7 @@ Tool execution engine with handlers for all tool types:
 
 ### routing/
 Model routing and resource optimization:
-- **ModelRouter**: Task type → Model selection (Opus/Sonnet, Pro/Flash)
+- **ModelRouter**: Task type -> Model selection (Opus/Sonnet, Pro/Flash)
 - **TaskType Enum**: BRAINSTORM, EVOLUTION, TOOL, VALIDATION, etc.
 - **CascadedRouter**: Multi-stage routing (V12.4, arxiv:2502.11133)
 - **ResourceOptimizer**: Cost-aware model selection (V12.4)
@@ -109,7 +109,7 @@ response = await invoker.invoke_agent(context)
 - **Total:** 94 exports
 
 ---
-**Status:** P5.6 Phase 6 COMPLETE ✅ | **Version:** V12.4
+**Status:** P5.6 Phase 6 COMPLETE [OK] | **Version:** V12.4
 
 ## 🔧 Execution Package Highlights
 

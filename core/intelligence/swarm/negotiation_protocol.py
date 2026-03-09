@@ -402,40 +402,40 @@ class NegotiationProtocol:
     ) -> str:
         """Build enriched context string for agent negotiation turn"""
         lines = [
-            "╔════════════════════════════════════════════════════════════════╗",
-            "║              SWARM NEGOTIATION PROTOCOL                        ║",
-            "╚════════════════════════════════════════════════════════════════╝",
+            "==============================================================",
+            "SWARM NEGOTIATION PROTOCOL",
+            "==============================================================",
             "",
             "You are participating in a multi-agent collaboration negotiation.",
             "Your goal: Agree on the best collaboration mode for this task.",
             "",
-            "─── TASK ANALYSIS ───",
-            f"• Complexity: {analysis.complexity.name} ({analysis.complexity.value}/5)",
-            f"• Domains: {', '.join(d.value for d in analysis.domains)}",
-            f"• Gemini fit score: {analysis.gemini_fit_score:.0%}",
-            f"• Claude fit score: {analysis.claude_fit_score:.0%}",
-            f"• Recommended lead: {analysis.recommended_lead}",
+            "TASK ANALYSIS",
+            f"- Complexity: {analysis.complexity.name} ({analysis.complexity.value}/5)",
+            f"- Domains: {', '.join(d.value for d in analysis.domains)}",
+            f"- Gemini fit score: {analysis.gemini_fit_score:.0%}",
+            f"- Claude fit score: {analysis.claude_fit_score:.0%}",
+            f"- Recommended lead: {analysis.recommended_lead}",
             "",
-            "─── INITIAL PROPOSAL ───",
+            "INITIAL PROPOSAL",
             f"Mode: {proposal.mode.value.upper()}",
             f"Reasoning: {proposal.reasoning}",
             "",
         ]
 
         if history:
-            lines.append("─── NEGOTIATION HISTORY ───")
+            lines.append("--- NEGOTIATION HISTORY ---")
             for msg in history[-4:]:  # Last 4 messages
                 lines.append(f"[{msg.sender.upper()}]: {msg.natural_content[:300]}")
                 if msg.structured_proposal:
                     lines.append(
-                        f"  └─ Proposal: {msg.structured_proposal.proposed_mode or 'none'}, "
+                        f"  +- Proposal: {msg.structured_proposal.proposed_mode or 'none'}, "
                         f"agrees: {msg.structured_proposal.agrees_with_partner}"
                     )
             lines.append("")
 
         lines.extend(
             [
-                "─── YOUR TURN ───",
+                "--- YOUR TURN ---",
                 f"Agent: {agent_id}",
                 "",
                 "INSTRUCTIONS:",
@@ -461,12 +461,12 @@ class NegotiationProtocol:
                 '"""',
                 "",
                 "AVAILABLE MODES:",
-                "• parallel     - Work simultaneously, merge results",
-                "• sequential   - First agent then second agent",
-                "• lead_support - Lead (80%) + Support reviewer (20%)",
-                "• ping_pong    - Rapid alternation until convergence",
-                "• specialist   - Single expert handles everything",
-                "• red_blue     - Adversarial: propose/attack/defend",
+                "- parallel     - Work simultaneously, merge results",
+                "- sequential   - First agent then second agent",
+                "- lead_support - Lead (80%) + Support reviewer (20%)",
+                "- ping_pong    - Rapid alternation until convergence",
+                "- specialist   - Single expert handles everything",
+                "- red_blue     - Adversarial: propose/attack/defend",
                 "",
                 "Set 'consensus_reached': true when you agree with your partner to end negotiation.",
             ]

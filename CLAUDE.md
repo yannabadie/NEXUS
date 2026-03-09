@@ -23,7 +23,7 @@ NEXUS is a **deployable collaborative intelligence core** that specializes based
 
 ---
 
-## ⚠️ CRITICAL RULES
+## [warning]️ CRITICAL RULES
 
 ### 1. Always Verify Your Claims
 
@@ -33,8 +33,8 @@ When claiming something is **fixed/resolved/completed**:
 3. Document evidence
 
 **Examples**:
-- ❌ "CI fixed by adding requirements.txt"
-- ✅ "Added requirements.txt → `gh run view` shows 'success' ✓"
+- [NO] "CI fixed by adding requirements.txt"
+- [OK] "Added requirements.txt -> `gh run view` shows 'success' [OK]"
 
 ### 2. Test Before Committing
 
@@ -44,8 +44,8 @@ pytest tests/ --tb=short  # Must pass before git push
 
 ### 3. Never Skip Hooks
 
-- ❌ `git push --no-verify`
-- ❌ `git commit --no-verify`
+- [NO] `git push --no-verify`
+- [NO] `git commit --no-verify`
 
 ### 4. Check CI After Push
 
@@ -67,24 +67,24 @@ When adding packages, update BOTH:
 
 ```
 NEXUS/
-├── core/
-│   ├── orchestration_v7.py              # Main FSM orchestrator (1074 lines, refactored)
-│   ├── intelligence/
-│   │   ├── hive_mind/                   # 7-phase pipeline (24 states)
-│   │   ├── swarm/                       # 6 collaboration modes + DyLAN metrics
-│   │   └── evolution/                   # Agent spawning & mutation
-│   ├── drivers/                         # Gemini + Claude SDK (AsyncDriverFactory)
-│   ├── memory_pkg/memory/               # RAG (LanceDB) + SuccessMemory
-│   ├── security_pkg/security/           # InputGuard, OutputGuard, PathGuardian
-│   ├── foundation/                      # Agents, async primitives
-│   ├── fsm/                             # State machine (12 states)
-│   └── [30+ other modules]              # See docs/MODULE_MAP.md
-├── tests/                               # Test suite (see CI evidence ledger for current counts)
-├── workspace/                           # Runtime data (agents, logs, sessions)
-├── KERNEL.py                            # Immutable alignment (NEVER modify)
-└── .claude/                             # Claude Code config
-    ├── skills/                          # test-strategy, commit-format, swarm-modes, debug-ci
-    └── settings.json                    # Hooks & permissions
++-- core/
+|   +-- orchestration_v7.py              # Main FSM orchestrator (1074 lines, refactored)
+|   +-- intelligence/
+|   |   +-- hive_mind/                   # 7-phase pipeline (24 states)
+|   |   +-- swarm/                       # 6 collaboration modes + DyLAN metrics
+|   |   +-- evolution/                   # Agent spawning & mutation
+|   +-- drivers/                         # Gemini + Claude SDK (AsyncDriverFactory)
+|   +-- memory_pkg/memory/               # RAG (LanceDB) + SuccessMemory
+|   +-- security_pkg/security/           # InputGuard, OutputGuard, PathGuardian
+|   +-- foundation/                      # Agents, async primitives
+|   +-- fsm/                             # State machine (12 states)
+|   +-- [30+ other modules]              # See docs/MODULE_MAP.md
++-- tests/                               # Test suite (see CI evidence ledger for current counts)
++-- workspace/                           # Runtime data (agents, logs, sessions)
++-- KERNEL.py                            # Immutable alignment (NEVER modify)
++-- .claude/                             # Claude Code config
+    +-- skills/                          # test-strategy, commit-format, swarm-modes, debug-ci
+    +-- settings.json                    # Hooks & permissions
 ```
 
 ---
@@ -143,7 +143,7 @@ from core.metagraph import (
 # Before editing a file
 impact = get_impact_before_edit("core/drivers/protocol.py")
 if impact["impact_score"] > 0.7:
-    print(f"⚠️ High-impact: affects {len(impact['affected_files'])} files")
+    print(f"[warning]️ High-impact: affects {len(impact['affected_files'])} files")
 
 # Find symbols in file (for agent assignment)
 experts = find_experts_for_file("core/swarm/negotiation_protocol.py")
@@ -226,7 +226,7 @@ gh run view <run-id> --log-failed
 
 ## 🧬 Code Patterns & Anti-Patterns
 
-### ✅ DO
+### [OK] DO
 
 - **Composition over inheritance** (StateHandler, ResultHandler pattern)
 - **Dataclasses with frozen=True** for immutability
@@ -236,7 +236,7 @@ gh run view <run-id> --log-failed
 - **f-strings** for formatting
 - **Explicit exceptions** (never bare `except:`)
 
-### ❌ DON'T
+### [NO] DON'T
 
 - Modify `orchestration_v7.py` without reading adjacent modules first
 - Import legacy CLI drivers (use `core/drivers/async_factory.AsyncDriverFactory`)
@@ -269,7 +269,7 @@ Auto-routing enabled by default. For manual override: `/swarm <mode> <task>`
 | Mode | Use Case |
 |------|----------|
 | `PARALLEL` | Independent subtasks |
-| `SEQUENTIAL` | Dependent steps (A→B→C) |
+| `SEQUENTIAL` | Dependent steps (A->B->C) |
 | `LEAD_SUPPORT` | Complex implementation (lead drives, support reviews) |
 | `PING_PONG` | Iterative refinement (converges in 3-5 turns) |
 | `SPECIALIST` | Single expert task |

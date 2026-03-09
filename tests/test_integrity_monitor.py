@@ -1414,7 +1414,7 @@ def test_get_status_report_totals(tmp_path):
 
 
 def test_roundtrip_save_modify_verify(tmp_path):
-    """Round-trip: save baseline → modify file → verify detects change"""
+    """Round-trip: save baseline -> modify file -> verify detects change"""
     (tmp_path / "KERNEL.py").write_text("# Original", encoding="utf-8")
 
     monitor = IntegrityMonitor(tmp_path)
@@ -1432,7 +1432,7 @@ def test_roundtrip_save_modify_verify(tmp_path):
 
 
 def test_roundtrip_save_load_verify_matches(tmp_path):
-    """Round-trip: save baseline → load baseline → verify matches"""
+    """Round-trip: save baseline -> load baseline -> verify matches"""
     (tmp_path / "KERNEL.py").write_text("# Kernel", encoding="utf-8")
     (tmp_path / "MISSION.md").write_text("# Mission", encoding="utf-8")
 
@@ -1449,7 +1449,7 @@ def test_roundtrip_save_load_verify_matches(tmp_path):
 
 
 def test_roundtrip_full_workflow(tmp_path):
-    """Full workflow: create files → save → modify → verify → report"""
+    """Full workflow: create files -> save -> modify -> verify -> report"""
     # Create files
     (tmp_path / "KERNEL.py").write_text("# Kernel", encoding="utf-8")
     (tmp_path / "CLAUDE.md").write_text("# Claude", encoding="utf-8")
@@ -1496,7 +1496,7 @@ def test_roundtrip_multiple_saves(tmp_path):
 
 
 def test_roundtrip_deleted_file_detected(tmp_path):
-    """Round-trip: save → delete file → verify detects deletion"""
+    """Round-trip: save -> delete file -> verify detects deletion"""
     (tmp_path / "KERNEL.py").write_text("# Kernel", encoding="utf-8")
 
     monitor = IntegrityMonitor(tmp_path)
@@ -1514,7 +1514,7 @@ def test_roundtrip_deleted_file_detected(tmp_path):
 
 
 def test_roundtrip_new_file_not_flagged(tmp_path):
-    """Round-trip: save → add new file → verify ignores new file"""
+    """Round-trip: save -> add new file -> verify ignores new file"""
     (tmp_path / "KERNEL.py").write_text("# Kernel", encoding="utf-8")
 
     monitor = IntegrityMonitor(tmp_path)

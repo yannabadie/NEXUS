@@ -30,7 +30,7 @@
 **Command**: `python -m pytest tests/ --tb=short --maxfail=10 -q`
 
 **Results**:
-- **Tests Started**: Yes ✅
+- **Tests Started**: Yes [OK]
 - **Early Progress**: ~290 tests passed (dots indicate passing tests)
 - **Errors**: 9 errors (E) detected around test 200-300
 - **Skips**: 1 skip (s) detected
@@ -45,7 +45,7 @@
 **Command**: `python -m pytest tests/ --ignore=tests/test_dynamic_tools.py --timeout=10 -q`
 
 **Results**:
-- **Tests Started**: Yes ✅
+- **Tests Started**: Yes [OK]
 - **Early Progress**: ~200 tests passed
 - **Status**: Still hangs on async test (different file)
 - **Hanging Location**: LanceDB background event loop + async test
@@ -148,7 +148,7 @@ markers = [
 
 ## Conclusion
 
-**Overall Status**: ✅ **Test Suite Functional** (with caveats)
+**Overall Status**: [OK] **Test Suite Functional** (with caveats)
 
 - Core test infrastructure works
 - Majority of tests pass (>95% on fast tests)

@@ -1,5 +1,5 @@
 """
-Tests for SwarmBridge V8.3 - Hive Mind → Swarm Delegation
+Tests for SwarmBridge V8.3 - Hive Mind -> Swarm Delegation
 
 Tests cover:
 1. Mode validation per phase (guardrails)

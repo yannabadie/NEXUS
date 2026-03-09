@@ -16,17 +16,17 @@ Key Innovation (from external critique):
 
 Architecture:
     SagaManager
-    ├── checkpoint_phase(phase, result, state, context_index)
-    ├── rollback_to(phase) → runs compensations + truncates context
-    ├── resume_from(task_id) → recovers from disk after crash
-    └── get_checkpoint(phase)
+    +-- checkpoint_phase(phase, result, state, context_index)
+    +-- rollback_to(phase) -> runs compensations + truncates context
+    +-- resume_from(task_id) -> recovers from disk after crash
+    +-- get_checkpoint(phase)
 
 Storage Layout:
     workspace/.nexus/sagas/{task_id}.json
-    ├── task_id: str
-    ├── checkpoints: {phase_name: PhaseCheckpoint}
-    ├── recovery_point: str (last successful phase)
-    └── created_at: str (ISO timestamp)
+    +-- task_id: str
+    +-- checkpoints: {phase_name: PhaseCheckpoint}
+    +-- recovery_point: str (last successful phase)
+    +-- created_at: str (ISO timestamp)
 
 Author: Claude (NEXUS V8.4.4)
 Date: 2025-12-10
@@ -582,7 +582,7 @@ class SagaManager:
                         getattr(item, "token_estimate", 0) for item in context_manager._items
                     )
                 logger.info(
-                    f"Context truncated: {original_len} → {len(context_manager._items)} items "
+                    f"Context truncated: {original_len} -> {len(context_manager._items)} items "
                     f"(rollback to index {target_checkpoint.context_index})"
                 )
             elif hasattr(context_manager, "messages"):
@@ -590,7 +590,7 @@ class SagaManager:
                 original_len = len(context_manager.messages)
                 context_manager.messages = context_manager.messages[: target_checkpoint.context_index]
                 logger.info(
-                    f"Context truncated: {original_len} → {len(context_manager.messages)} messages "
+                    f"Context truncated: {original_len} -> {len(context_manager.messages)} messages "
                     f"(rollback to index {target_checkpoint.context_index})"
                 )
 

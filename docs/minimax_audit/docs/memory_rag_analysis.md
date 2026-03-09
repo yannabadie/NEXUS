@@ -29,33 +29,33 @@ The NEXUS memory system is a sophisticated, multi-layered architecture supportin
 The system implements a sophisticated hybrid retrieval approach with four distinct backends:
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                   NEXUS RAG SYSTEM (V12.4)                  │
-├─────────────────────────────────────────────────────────────┤
-│  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────┐  │
-│  │  MiniLM-L6-v2   │    │    BM25S        │    │   TF-IDF    │  │
-│  │  (Dense 384d)   │    │   (Sparse)      │    │ (Fallback)  │  │
-│  └────────┬────────┘    └────────┬────────┘    └──────┬──────┘  │
-│           │                      │                     │        │
-│           └──────────┬───────────┘                     │        │
-│                      ▼                                 │        │
-│           ┌─────────────────────┐                     │        │
-│           │ HybridBackend RRF   │◄────────────────────┘        │
-│           │ (Reciprocal Rank    │                              │
-│           │  Fusion +15% recall)│                              │
-│           └──────────┬──────────┘                              │
-│                      ▼                                          │
-│           ┌─────────────────────┐                              │
-│           │  MemoryCoordinator  │                              │
-│           │  (Poids adaptatifs  │                              │
-│           │   EMA par domaine)  │                              │
-│           └──────────┬──────────┘                              │
-│                      ▼                                          │
-│           ┌─────────────────────┐                              │
-│           │     LanceDB         │                              │
-│           │ (.nexus/lancedb/)   │                              │
-│           └─────────────────────┘                              │
-└─────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------+
+|                   NEXUS RAG SYSTEM (V12.4)                  |
++-------------------------------------------------------------+
+|  +-----------------+    +-----------------+    +-------------+  |
+|  |  MiniLM-L6-v2   |    |    BM25S        |    |   TF-IDF    |  |
+|  |  (Dense 384d)   |    |   (Sparse)      |    | (Fallback)  |  |
+|  +--------+--------+    +--------+--------+    +------+------+  |
+|           |                      |                     |        |
+|           +----------+-----------+                     |        |
+|                      v                                 |        |
+|           +---------------------+                     |        |
+|           | HybridBackend RRF   |◄--------------------+        |
+|           | (Reciprocal Rank    |                              |
+|           |  Fusion +15% recall)|                              |
+|           +----------+----------+                              |
+|                      v                                          |
+|           +---------------------+                              |
+|           |  MemoryCoordinator  |                              |
+|           |  (Poids adaptatifs  |                              |
+|           |   EMA par domaine)  |                              |
+|           +----------+----------+                              |
+|                      v                                          |
+|           +---------------------+                              |
+|           |     LanceDB         |                              |
+|           | (.nexus/lancedb/)   |                              |
+|           +---------------------+                              |
++-------------------------------------------------------------+
 ```
 
 ### 1.2 Dense Retrieval (Semantic)
@@ -126,27 +126,27 @@ score(doc) = dense_weight/(k + dense_rank) + sparse_weight/(k + sparse_rank)
 The system implements three distinct memory types coordinated through a central MemoryCoordinator:
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    MEMORY COORDINATOR                       │
-│  ┌─────────────────┐    ┌─────────────────────────────┐    │
-│  │  SuccessMemory  │    │      AutoMemory             │    │
-│  │  (Episodic)     │    │    (Procedural)             │    │
-│  │                 │    │                             │    │
-│  │  - Similarity   │    │  - Task type patterns       │    │
-│  │  - Time decay   │    │  - Agent configurations     │    │
-│  │  - Task history │    │  - Success rates            │    │
-│  └─────────────────┘    └─────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────┘
-                      │
-                      ▼
-            ┌─────────────────────┐
-            │   ProjectMemory     │
-            │   (Semantic RAG)    │
-            │                     │
-            │  - Code knowledge   │
-            │  - Documentation    │
-            │  - Context retrieval│
-            └─────────────────────┘
++-------------------------------------------------------------+
+|                    MEMORY COORDINATOR                       |
+|  +-----------------+    +-----------------------------+    |
+|  |  SuccessMemory  |    |      AutoMemory             |    |
+|  |  (Episodic)     |    |    (Procedural)             |    |
+|  |                 |    |                             |    |
+|  |  - Similarity   |    |  - Task type patterns       |    |
+|  |  - Time decay   |    |  - Agent configurations     |    |
+|  |  - Task history |    |  - Success rates            |    |
+|  +-----------------+    +-----------------------------+    |
++-------------------------------------------------------------+
+                      |
+                      v
+            +---------------------+
+            |   ProjectMemory     |
+            |   (Semantic RAG)    |
+            |                     |
+            |  - Code knowledge   |
+            |  - Documentation    |
+            |  - Context retrieval|
+            +---------------------+
 ```
 
 ### 2.2 SuccessMemory (Episodic Memory)
@@ -193,9 +193,9 @@ class SuccessEntry:
 **Storage Pattern:**
 ```
 workspace/memory/
-├── successes.jsonl    # Successful task patterns
-├── failures.jsonl     # Failed approaches to avoid
-└── fitness_scores.json # Agent fitness history
++-- successes.jsonl    # Successful task patterns
++-- failures.jsonl     # Failed approaches to avoid
++-- fitness_scores.json # Agent fitness history
 ```
 
 **Query Performance:**
@@ -506,14 +506,14 @@ class UniversalIngestor:
 **Multi-Namespace RAG:**
 ```
 .nexus/
-├── project_knowledge.json      # Project RAG (global)
-├── lancedb/project/            # Project vectors
-├── agent_rags/                 # Agent-specific RAGs
-│   ├── security_expert/
-│   │   ├── knowledge.json
-│   │   └── lancedb/
-│   └── {agent_name}/
-└── rag_config.json             # Namespace configuration
++-- project_knowledge.json      # Project RAG (global)
++-- lancedb/project/            # Project vectors
++-- agent_rags/                 # Agent-specific RAGs
+|   +-- security_expert/
+|   |   +-- knowledge.json
+|   |   +-- lancedb/
+|   +-- {agent_name}/
++-- rag_config.json             # Namespace configuration
 ```
 
 **Use Cases:**

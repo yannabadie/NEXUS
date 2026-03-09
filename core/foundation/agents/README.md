@@ -50,7 +50,7 @@ update_dylan_score(agent_id: str, capability: str, score: float) -> bool
 ### AgentService
 Service layer for agent spawning and management.
 
-**spawn(role, force) → SpawnResult:**
+**spawn(role, force) -> SpawnResult:**
 V8.1.8 true dynamic spawning via EVOLUTION_BRAINSTORM.
 
 Workflow:
@@ -63,10 +63,10 @@ Workflow:
 7. Save BIRTH_CERTIFICATE.json + system_prompt.md
 8. Register as Agent-as-Tool
 
-**list_agents() → List[AgentInfo]:**
+**list_agents() -> List[AgentInfo]:**
 List all spawned agents in workspace/agents/.
 
-**get_pool_stats() → Optional[PoolStats]:**
+**get_pool_stats() -> Optional[PoolStats]:**
 DyLAN importance scores (if AGENT_METRICS=True).
 
 ## Dependencies

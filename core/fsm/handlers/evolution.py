@@ -127,9 +127,9 @@ class EvolutionHandler(BaseHandler):
             result_text = f"[{sender} executed: {tool_name}]\n"
             if result.status.lower() == "success":
                 output = result.output[:3000] if len(result.output) > 3000 else result.output
-                result_text += f"✓ Result:\n{output}"
+                result_text += f"[OK] Result:\n{output}"
             else:
-                result_text += f"✗ Error: {result.error or 'Unknown error'}"
+                result_text += f"[NO] Error: {result.error or 'Unknown error'}"
 
             # Add to history
             self._orch.memory.add_to_history({"sender": "System", "action_type": "TOOL_RESULT", "content": result_text})

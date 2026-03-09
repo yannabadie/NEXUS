@@ -8,184 +8,39 @@ End-to-end flow from user input to final result, showing how frontend and backen
 
 ## Complete Request Lifecycle
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                     NEXUS FULL SYSTEM FLOW                                  │
-│                     From User Input to Result                               │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                         FRONTEND (CEREBRO)                           │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│                                                                             │
-│  User types task in MissionControl                                          │
-│  "Implement a login form with validation"                                   │
-│        │                                                                    │
-│        │ Select mode: LEAD_SUPPORT                                          │
-│        │ Click ENGAGE                                                       │
-│        │                                                                    │
-│        ▼                                                                    │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │ POST /api/workflow/start                                             │   │
-│  │ Headers: Authorization: Bearer <jwt>                                 │   │
-│  │ Body: { task: "...", mode: "LEAD_SUPPORT" }                         │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│        │                                                                    │
-│        │                                                                    │
-│ ═══════╪════════════════════════════════════════════════════════════════   │
-│        │              HTTP REQUEST                                          │
-│ ═══════╪════════════════════════════════════════════════════════════════   │
-│        │                                                                    │
-│        ▼                                                                    │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                         BACKEND (CEREBRO API)                        │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│        │                                                                    │
-│        ▼                                                                    │
-│  ┌─────────────────┐                                                       │
-│  │ JWT Validation  │──▶ Verify token, extract user                         │
-│  │ (IRONCLAD)      │                                                       │
-│  └─────────────────┘                                                       │
-│        │                                                                    │
-│        ▼                                                                    │
-│  ┌─────────────────┐                                                       │
-│  │ Rate Limiter    │──▶ Check 100 req/min limit                            │
-│  │ (V12.1)         │                                                       │
-│  └─────────────────┘                                                       │
-│        │                                                                    │
-│        ▼                                                                    │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                      ORCHESTRATOR V7 (FSM)                           │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│        │                                                                    │
-│        │ process_turn(user_input)                                           │
-│        ▼                                                                    │
-│  ┌─────────────────┐                                                       │
-│  │ FSM Transition  │──▶ IDLE → BRAINSTORMING                               │
-│  │                 │    Emit: fsm.state_changed                            │
-│  └─────────────────┘                                                       │
-│        │                                                                    │
-│        ▼                                                                    │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                      TASK ANALYZER                                   │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│        │                                                                    │
-│        │ Analyze: complexity, domains, agent fit scores                     │
-│        │                                                                    │
-│        ├─────────────────────────────────────────────────────────────────  │
-│        │ TRIVIAL?                                                           │
-│        │    │                                                               │
-│        │    └──▶ Direct execution (single agent)                           │
-│        │                                                                    │
-│        ├─────────────────────────────────────────────────────────────────  │
-│        │ MODERATE+?                                                         │
-│        │    │                                                               │
-│        │    ▼                                                               │
-│        │  ┌─────────────────────────────────────────────────────────────┐  │
-│        │  │                 ROUTE DECISION                               │  │
-│        │  │   Mode specified?  ────────────────▶ Use Swarm Engine        │  │
-│        │  │   Auto-route?      ────────────────▶ HiveMind or Swarm       │  │
-│        │  └─────────────────────────────────────────────────────────────┘  │
-│        │                                                                    │
-│        ▼                                                                    │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │            HYBRID SWARM ENGINE (Mode: LEAD_SUPPORT)                  │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│        │                                                                    │
-│        ▼                                                                    │
-│  ┌─────────────────┐                                                       │
-│  │ Mode Selector   │──▶ Select Lead (Claude Opus) + Support (Gemini 3 Pro)│
-│  │ (DyLAN scores)  │    Emit: swarm.mode_selected                          │
-│  └─────────────────┘                                                       │
-│        │                                                                    │
-│        ▼                                                                    │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                 LEAD_SUPPORT EXECUTOR                                │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│        │                                                                    │
-│        │  ┌─────────────────────────────────────────────────────────────┐  │
-│        │  │ LEAD (Claude Opus)                                          │  │
-│        │  │ - Analyze requirements                                      │  │
-│        │  │ - Design component structure                                │  │
-│        │  │ - Implement login form                                      │  │
-│        │  └─────────────────────────────────────────────────────────────┘  │
-│        │        │                                                           │
-│        │        │ Needs tool: write                                         │
-│        │        ▼                                                           │
-│        │  ┌─────────────────┐                                              │
-│        │  │ Tool Execution  │                                              │
-│        │  │                 │                                              │
-│        │  │ ┌─────────────┐ │                                              │
-│        │  │ │ InputGuard  │ │──▶ Sanitize inputs                           │
-│        │  │ └─────────────┘ │                                              │
-│        │  │ ┌─────────────┐ │                                              │
-│        │  │ │ PathGuard   │ │──▶ Validate file path                        │
-│        │  │ └─────────────┘ │                                              │
-│        │  │ ┌─────────────┐ │                                              │
-│        │  │ │ FileHandler │ │──▶ Write src/LoginForm.tsx                   │
-│        │  │ └─────────────┘ │                                              │
-│        │  │ ┌─────────────┐ │                                              │
-│        │  │ │ OutputGuard │ │──▶ Check output safety                       │
-│        │  │ └─────────────┘ │    Emit: tool.execution_completed            │
-│        │  └─────────────────┘                                              │
-│        │        │                                                           │
-│        │        │ FSM: EXECUTING_TOOL → VALIDATING_CFL                      │
-│        │        ▼                                                           │
-│        │  ┌─────────────────────────────────────────────────────────────┐  │
-│        │  │ SUPPORT (Gemini 3 Pro) - Review                             │  │
-│        │  │ - Check code quality                                        │  │
-│        │  │ - Suggest improvements                                      │  │
-│        │  │ - Validate security                                         │  │
-│        │  └─────────────────────────────────────────────────────────────┘  │
-│        │        │                                                           │
-│        │        │ Review passed                                             │
-│        │        ▼                                                           │
-│        │  ┌─────────────────┐                                              │
-│        │  │ Continue or     │                                              │
-│        │  │ Complete?       │                                              │
-│        │  └─────────────────┘                                              │
-│        │        │                                                           │
-│        │        │ More work needed → Loop back to LEAD                      │
-│        │        │ Complete → Consolidate                                    │
-│        │        ▼                                                           │
-│        │  ┌─────────────────────────────────────────────────────────────┐  │
-│        │  │ CONSOLIDATION                                               │  │
-│        │  │ - Merge all outputs                                         │  │
-│        │  │ - Generate summary                                          │  │
-│        │  │ - Record to SuccessMemory                                   │  │
-│        │  └─────────────────────────────────────────────────────────────┘  │
-│        │                                                                    │
-│        ▼                                                                    │
-│  ┌─────────────────┐                                                       │
-│  │ FSM Transition  │──▶ → WAITING_USER                                     │
-│  │                 │    Emit: fsm.state_changed, workflow.completed        │
-│  └─────────────────┘                                                       │
-│        │                                                                    │
-│        │                                                                    │
-│ ═══════╪════════════════════════════════════════════════════════════════   │
-│        │              WEBSOCKET EVENTS                                      │
-│ ═══════╪════════════════════════════════════════════════════════════════   │
-│        │                                                                    │
-│        │ (Throughout execution, events stream to frontend)                  │
-│        │                                                                    │
-│        ▼                                                                    │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                         FRONTEND (CEREBRO)                           │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│        │                                                                    │
-│        ▼                                                                    │
-│  ┌─────────────────┐                                                       │
-│  │ EventStream     │──▶ Display all events in real-time                    │
-│  │ component       │    User sees progress                                 │
-│  └─────────────────┘                                                       │
-│        │                                                                    │
-│        ▼                                                                    │
-│  ┌─────────────────┐                                                       │
-│  │ Final Result    │──▶ "Login form created at src/LoginForm.tsx"          │
-│  │ displayed       │    with validation and styling                        │
-│  └─────────────────┘                                                       │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
+```text
+NEXUS FULL SYSTEM FLOW
+======================
+
+Frontend (CEREBRO)
+  -> User enters a task in MissionControl
+  -> User selects a mode such as LEAD_SUPPORT
+  -> Frontend sends POST /api/workflow/start with JWT + task payload
+
+Backend (CEREBRO API)
+  -> JWT validation
+  -> Rate limiting
+  -> Orchestrator V7 process_turn(user_input)
+
+Orchestrator path
+  -> FSM transition: IDLE -> BRAINSTORMING
+  -> Task analyzer scores complexity, domains, and provider fit
+  -> Trivial task: direct execution
+  -> Moderate+ task: route to Swarm or HiveMind
+
+Lead/support execution example
+  -> Hybrid Swarm Engine selects LEAD_SUPPORT
+  -> Lead agent implements the task
+  -> Tool execution runs through InputGuard, PathGuard, FileHandler, OutputGuard
+  -> FSM transition: EXECUTING_TOOL -> VALIDATING_CFL
+  -> Support agent reviews quality and security
+  -> Consolidation merges outputs and records memory
+  -> FSM transition: WAITING_USER
+
+Realtime feedback
+  -> Events stream over WebSocket during execution
+  -> Frontend EventStream displays progress in real time
+  -> Final result is rendered back to the user
 ```
 
 ---
@@ -193,19 +48,19 @@ End-to-end flow from user input to final result, showing how frontend and backen
 ## Event Timeline Example
 
 ```
-T+0ms     │ frontend  │ POST /api/workflow/start
-T+50ms    │ backend   │ JWT validated, rate check passed
-T+100ms   │ websocket │ { type: "fsm.state_changed", payload: { from: "IDLE", to: "BRAINSTORMING" } }
-T+150ms   │ backend   │ TaskAnalyzer: MODERATE complexity, CODING domain
-T+200ms   │ websocket │ { type: "swarm.mode_selected", payload: { mode: "LEAD_SUPPORT", lead: "claude" } }
-T+300ms   │ backend   │ Claude Opus analyzing requirements
-T+1500ms  │ websocket │ { type: "tool.execution_started", payload: { tool: "write", path: "src/LoginForm.tsx" } }
-T+2000ms  │ websocket │ { type: "tool.execution_completed", payload: { tool: "write", success: true } }
-T+2100ms  │ websocket │ { type: "fsm.state_changed", payload: { from: "EXECUTING_TOOL", to: "VALIDATING_CFL" } }
-T+3000ms  │ backend   │ Gemini 3 Pro reviewing code
-T+3500ms  │ websocket │ { type: "swarm.review_complete", payload: { approved: true } }
-T+4000ms  │ websocket │ { type: "workflow.completed", payload: { success: true, files_created: 1 } }
-T+4050ms  │ websocket │ { type: "fsm.state_changed", payload: { from: "VALIDATING_CFL", to: "WAITING_USER" } }
+T+0ms     | frontend  | POST /api/workflow/start
+T+50ms    | backend   | JWT validated, rate check passed
+T+100ms   | websocket | { type: "fsm.state_changed", payload: { from: "IDLE", to: "BRAINSTORMING" } }
+T+150ms   | backend   | TaskAnalyzer: MODERATE complexity, CODING domain
+T+200ms   | websocket | { type: "swarm.mode_selected", payload: { mode: "LEAD_SUPPORT", lead: "claude" } }
+T+300ms   | backend   | Claude Opus analyzing requirements
+T+1500ms  | websocket | { type: "tool.execution_started", payload: { tool: "write", path: "src/LoginForm.tsx" } }
+T+2000ms  | websocket | { type: "tool.execution_completed", payload: { tool: "write", success: true } }
+T+2100ms  | websocket | { type: "fsm.state_changed", payload: { from: "EXECUTING_TOOL", to: "VALIDATING_CFL" } }
+T+3000ms  | backend   | Gemini 3 Pro reviewing code
+T+3500ms  | websocket | { type: "swarm.review_complete", payload: { approved: true } }
+T+4000ms  | websocket | { type: "workflow.completed", payload: { success: true, files_created: 1 } }
+T+4050ms  | websocket | { type: "fsm.state_changed", payload: { from: "VALIDATING_CFL", to: "WAITING_USER" } }
 ```
 
 ---
@@ -214,35 +69,35 @@ T+4050ms  │ websocket │ { type: "fsm.state_changed", payload: { from: "VALID
 
 ```
 Normal Flow                          Error Flow
-    │                                    │
-    ▼                                    ▼
+    |                                    |
+    v                                    v
 Execution                          Execution fails
-    │                                    │
-    ▼                                    ▼
-Success                            ┌─────────────────┐
-    │                              │ Phase 5:        │
-    ▼                              │ DIAGNOSIS       │
-WAITING_USER                       │ (error analysis)│
-                                   └─────────────────┘
-                                         │
-                                         ▼
-                                   ┌─────────────────┐
-                                   │ Phase 6:        │
-                                   │ RETRY           │
-                                   │ (max 3 attempts)│
-                                   └─────────────────┘
-                                         │
-                                   ┌─────┴─────┐
-                                   │           │
+    |                                    |
+    v                                    v
+Success                            +-----------------+
+    |                              | Phase 5:        |
+    v                              | DIAGNOSIS       |
+WAITING_USER                       | (error analysis)|
+                                   +-----------------+
+                                         |
+                                         v
+                                   +-----------------+
+                                   | Phase 6:        |
+                                   | RETRY           |
+                                   | (max 3 attempts)|
+                                   +-----------------+
+                                         |
+                                   +-----+-----+
+                                   |           |
                               Retry OK    Retry failed
-                                   │           │
-                                   ▼           ▼
+                                   |           |
+                                   v           v
                               WAITING_USER   ERROR state
-                                               │
-                                               ▼
+                                               |
+                                               v
                                          User: /reset
-                                               │
-                                               ▼
+                                               |
+                                               v
                                              IDLE
 ```
 
@@ -252,23 +107,23 @@ WAITING_USER                       │ (error analysis)│
 
 ```
 Selected mode: RED_BLUE (adversarial)
-    │
-    ▼
+    |
+    v
 RED_BLUE execution fails (agents can't reach consensus)
-    │
-    ▼
+    |
+    v
 Self-Healing: Try LEAD_SUPPORT
-    │
-    ▼
+    |
+    v
 LEAD_SUPPORT execution fails (lead encounters error)
-    │
-    ▼
+    |
+    v
 Self-Healing: Try SPECIALIST
-    │
-    ▼
+    |
+    v
 SPECIALIST succeeds (single expert completes task)
-    │
-    ▼
+    |
+    v
 Result returned to user
 ```
 
@@ -278,30 +133,30 @@ Result returned to user
 
 ```
 Task Completed
-    │
-    ▼
-┌───────────────────────────────────┐
-│ SuccessMemory.record()            │
-│                                   │
-│ Stored:                           │
-│ - Task description                │
-│ - Selected mode                   │
-│ - Agent performance               │
-│ - Tool sequence                   │
-│ - Success/failure                 │
-└───────────────────────────────────┘
-    │
-    ▼
+    |
+    v
++-----------------------------------+
+| SuccessMemory.record()            |
+|                                   |
+| Stored:                           |
+| - Task description                |
+| - Selected mode                   |
+| - Agent performance               |
+| - Tool sequence                   |
+| - Success/failure                 |
++-----------------------------------+
+    |
+    v
 Next similar task
-    │
-    ▼
-┌───────────────────────────────────┐
-│ ModeSelector uses SuccessMemory   │
-│                                   │
-│ - Check past success patterns     │
-│ - Adjust DyLAN scores             │
-│ - Select optimal mode             │
-└───────────────────────────────────┘
+    |
+    v
++-----------------------------------+
+| ModeSelector uses SuccessMemory   |
+|                                   |
+| - Check past success patterns     |
+| - Adjust DyLAN scores             |
+| - Select optimal mode             |
++-----------------------------------+
 ```
 
 ---

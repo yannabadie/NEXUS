@@ -56,13 +56,13 @@ class CircuitBreaker:
     """
     Circuit breaker with exponential backoff for agent invocations.
 
-    V9.3: Prevents cascading failures between FSM → HiveMind → Swarm layers.
+    V9.3: Prevents cascading failures between FSM -> HiveMind -> Swarm layers.
 
     States:
         CLOSED: Normal operation. Failures increment counter.
         OPEN: Too many failures. Requests rejected with CircuitOpenError.
         HALF_OPEN: After recovery_timeout, allow ONE request through.
-                   Success → CLOSED, Failure → OPEN (with longer timeout)
+                   Success -> CLOSED, Failure -> OPEN (with longer timeout)
 
     Attributes:
         name: Identifier for this circuit (e.g., "gemini", "claude", "swarm")

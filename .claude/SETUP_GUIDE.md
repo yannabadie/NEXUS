@@ -1,10 +1,10 @@
 # Claude Code Setup Guide for NEXUS
 
-**Status**: ✅ Partially configured - Skills created, hooks exist, settings functional
+**Status**: [OK] Partially configured - Skills created, hooks exist, settings functional
 
 ## Current Configuration
 
-### ✅ Existing Files
+### [OK] Existing Files
 
 - `.claude/settings.json` - Permission rules + basic hooks
 - `.claude/settings.local.json` - Local overrides
@@ -13,7 +13,7 @@
 - `.claude/skills/` - **NEW**: 4 essential skills created
 - `.claude/rules/` - Empty (ready for custom rules)
 
-### ✅ Skills Created (Use via natural language)
+### [OK] Skills Created (Use via natural language)
 
 | Skill | Invocation | Purpose |
 |-------|------------|---------|
@@ -24,21 +24,21 @@
 
 **Skills are invoked automatically** when Claude detects relevant keywords in your prompts.
 
-## ✅ Completed Optimizations
+## [OK] Completed Optimizations
 
 ### 1. CLAUDE.md Optimization
-**Status**: ✅ DONE
+**Status**: [OK] DONE
 - **Before**: 769 lines (too verbose)
 - **After**: 270 lines (optimized)
 - **Reduction**: 65% (-499 lines)
 - **Method**: Moved detailed patterns to skills, removed redundant explanations, kept only essentials
 
 **What was removed**:
-- Verbose vision/concept explanations → Condensed to core purpose
-- Detailed testing patterns → Already in test-strategy.md skill
-- Commit format examples → Already in commit-format.md skill
-- Swarm mode details → Already in swarm-modes.md skill
-- Code style conventions → Claude already knows Python best practices
+- Verbose vision/concept explanations -> Condensed to core purpose
+- Detailed testing patterns -> Already in test-strategy.md skill
+- Commit format examples -> Already in commit-format.md skill
+- Swarm mode details -> Already in swarm-modes.md skill
+- Code style conventions -> Claude already knows Python best practices
 
 **What was kept**:
 - Project purpose & mission
@@ -108,10 +108,10 @@
 - `2` = Blocking error (PreToolUse only)
 - Other = Warning (logs but continues)
 
-### 2. ~~Trim CLAUDE.md~~ ✅ COMPLETED
+### 2. ~~Trim CLAUDE.md~~ [OK] COMPLETED
 
 **Previous**: 769 lines
-**Current**: 270 lines ✅
+**Current**: 270 lines [OK]
 **Status**: Optimized (under 300-line target)
 
 **Result**: Improved instruction clarity and reduced cognitive load. All essential information preserved, verbose explanations removed or condensed.
@@ -132,8 +132,8 @@ When claiming something is "fixed" or "complete":
 4. NEVER claim success without proof
 
 Examples:
-- "CI fixed" → Run `gh run list` and verify "success"
-- "Tests pass" → Run `pytest` and verify 0 failures
+- "CI fixed" -> Run `gh run list` and verify "success"
+- "Tests pass" -> Run `pytest` and verify 0 failures
 ```
 
 Rules are **always enforced**, unlike skills which activate contextually.
@@ -197,9 +197,9 @@ find core -name "*.py" -exec python -m py_compile {} \;
 - `main` - Legacy (rarely used)
 
 **Never**:
-- ❌ Push directly to `NX` or `main`
-- ❌ Force push
-- ❌ Skip hooks (`--no-verify`)
+- [NO] Push directly to `NX` or `main`
+- [NO] Force push
+- [NO] Skip hooks (`--no-verify`)
 
 ### NEXUS Verification Protocol
 
@@ -256,7 +256,7 @@ cat .mcp.json
 
 1. **Immediate**: Use the 4 skills created (automatic)
 2. **Optional**: Add enhanced hooks (manual JSON edit)
-3. **Recommended**: Trim CLAUDE.md (from 500 → 300 lines)
+3. **Recommended**: Trim CLAUDE.md (from 500 -> 300 lines)
 4. **Advanced**: Create custom rules for NEXUS-specific patterns
 
 ## Resources
@@ -265,4 +265,4 @@ cat .mcp.json
 - Claude Code docs: https://code.claude.com/docs
 - NEXUS best practices: `docs/CLAUDE_CODE_RULES_RECOMMENDATIONS.md`
 
-**Remember**: The goal is to make NEXUS development **faster and safer** through intelligent automation ✓
+**Remember**: The goal is to make NEXUS development **faster and safer** through intelligent automation [OK]

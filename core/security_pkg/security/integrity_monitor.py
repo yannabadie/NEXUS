@@ -273,7 +273,7 @@ def main():
     if args.save_baseline:
         output_path = Path(args.project_root) / args.output
         monitor.save_baseline(output_path)
-        print(f"✓ Baseline saved to: {output_path}")
+        print(f"[OK] Baseline saved to: {output_path}")
 
     elif args.verify:
         baseline_path = Path(args.project_root) / args.output
@@ -286,10 +286,10 @@ def main():
         print("NEXUS INTEGRITY REPORT")
         print(f"{'=' * 60}")
         print(f"Status: {report['status']}")
-        print(f"Integrity Valid: {'✓' if report['integrity_valid'] else '✗'}")
+        print(f"Integrity Valid: {'[OK]' if report['integrity_valid'] else '[NO]'}")
 
         if report["modified_protected"]:
-            print("\n⚠️  CRITICAL - Modified protected files:")
+            print("\n[warning]️  CRITICAL - Modified protected files:")
             for f in report["modified_protected"]:
                 print(f"   - {f}")
 

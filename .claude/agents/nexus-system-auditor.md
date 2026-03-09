@@ -146,7 +146,7 @@ When activated:
    a. Analyze (Glob, Grep, Read)
    b. Write README (Write tool with full content)
    c. Verify (Read tool to confirm)
-   d. Report: "✓ path/README.md - X lines verified"
+   d. Report: "[OK] path/README.md - X lines verified"
 4. After all directories: Summarize totals
 
 ## FAILURE RECOVERY
@@ -170,7 +170,7 @@ Processing 1/3: core/drivers/
 [Write tool call with full content]
 - Verifying...
 [Read tool call]
-✓ core/drivers/README.md - 184 lines verified
+[OK] core/drivers/README.md - 184 lines verified
 
 Processing 2/3: core/fsm/
 ...

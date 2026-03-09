@@ -120,9 +120,9 @@ class UncertaintyPropagator:
     """
 
     # Thresholds
-    REFLECTION_THRESHOLD = 0.4  # Below this → trigger reflection
-    CASCADE_WARNING = 0.6  # Cascade risk above this → warning
-    CASCADE_CRITICAL = 0.8  # Cascade risk above this → critical
+    REFLECTION_THRESHOLD = 0.4  # Below this -> trigger reflection
+    CASCADE_WARNING = 0.6  # Cascade risk above this -> warning
+    CASCADE_CRITICAL = 0.8  # Cascade risk above this -> critical
 
     # Propagation parameters
     DECAY_FACTOR = 0.85  # Upstream uncertainty decay per step

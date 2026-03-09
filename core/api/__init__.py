@@ -8,7 +8,7 @@ Provides:
 - Prevents 429 Too Many Requests errors in PARALLEL mode
 
 Imports are lazy to avoid circular dependency:
-core.api → core.infrastructure → core.intelligence.swarm → core.api
+core.api -> core.infrastructure -> core.intelligence.swarm -> core.api
 """
 
 import importlib as _importlib

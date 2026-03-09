@@ -30,11 +30,11 @@
 
 | Document | Alignement Code | Notes |
 |----------|-----------------|-------|
-| README.md | ✅ 90% | Version V8.3.2 mentionnée, cohérent |
-| MISSION.md | ✅ 95% | Vision claire, alignée avec KERNEL.py |
-| ROADMAP.md | ⚠️ 75% | Certaines phases marquées "DONE" sont partielles |
-| CLAUDE.md | ⚠️ 80% | Structure V7 encore référencée, V8 partiel |
-| ROADMAP_HIVE_MIND.md | ⚠️ 70% | Chevauchement/redondance avec ROADMAP.md |
+| README.md | [OK] 90% | Version V8.3.2 mentionnée, cohérent |
+| MISSION.md | [OK] 95% | Vision claire, alignée avec KERNEL.py |
+| ROADMAP.md | [warning]️ 75% | Certaines phases marquées "DONE" sont partielles |
+| CLAUDE.md | [warning]️ 80% | Structure V7 encore référencée, V8 partiel |
+| ROADMAP_HIVE_MIND.md | [warning]️ 70% | Chevauchement/redondance avec ROADMAP.md |
 
 ### 1.2 Divergences Identifiées
 
@@ -58,20 +58,20 @@
 
 | Phase | Code Vérifié | Tests | Documentation |
 |-------|--------------|-------|---------------|
-| Phase 1: Swarm Activation | ✅ `hybrid_swarm_engine.py` | ? | ✅ |
-| Phase 5: Agent Factory | ✅ `/spawn` fonctionne | ? | ✅ |
-| Phase 7: Session Isolation | ✅ `session_manager.py` | ? | ✅ |
-| Phase 8: Self-Healing | ✅ Fallback chain visible | ? | ✅ |
-| Phase 10: Success Memory | ✅ `success_memory.py` (849 lignes) | ? | ✅ |
-| Phase 14e: Chain-of-Thought | ✅ Référencé dans code | ? | ✅ |
+| Phase 1: Swarm Activation | [OK] `hybrid_swarm_engine.py` | ? | [OK] |
+| Phase 5: Agent Factory | [OK] `/spawn` fonctionne | ? | [OK] |
+| Phase 7: Session Isolation | [OK] `session_manager.py` | ? | [OK] |
+| Phase 8: Self-Healing | [OK] Fallback chain visible | ? | [OK] |
+| Phase 10: Success Memory | [OK] `success_memory.py` (849 lignes) | ? | [OK] |
+| Phase 14e: Chain-of-Thought | [OK] Référencé dans code | ? | [OK] |
 
 ### 2.2 Phases Surestimées
 
 | Phase | Déclaration | Réalité |
 |-------|-------------|---------|
-| V8.0.3 EPHEMERAL | "✅ PARTIAL" | Tests planifiés non implémentés |
-| Phase 5b N-Agent | "✅ COMPLETE" | 20+ hardcoded lookups (tech debt) |
-| V8.1.0 Success Memory | "✅ DONE" | Adapter pattern manquant |
+| V8.0.3 EPHEMERAL | "[OK] PARTIAL" | Tests planifiés non implémentés |
+| Phase 5b N-Agent | "[OK] COMPLETE" | 20+ hardcoded lookups (tech debt) |
+| V8.1.0 Success Memory | "[OK] DONE" | Adapter pattern manquant |
 
 ### 2.3 Estimation Effort Restant (Production-Ready)
 
@@ -91,8 +91,8 @@
 
 | ID | Faille | Fichier | Impact | Statut |
 |----|--------|---------|--------|--------|
-| FL-001 | Race Condition ThreadPoolExecutor | `mode_executors.py:513` | Corruption blackboard | ✅ FIXED (lock ajouté) |
-| FL-002 | False Positives "DONE" detection | `mode_executors.py:62` | Terminaison prématurée | ✅ FIXED |
+| FL-001 | Race Condition ThreadPoolExecutor | `mode_executors.py:513` | Corruption blackboard | [OK] FIXED (lock ajouté) |
+| FL-002 | False Positives "DONE" detection | `mode_executors.py:62` | Terminaison prématurée | [OK] FIXED |
 | FL-004 | Exception Swallowing (390x) | Multiple | Debugging impossible | **OUVERT** |
 
 ### 3.2 Failles Architecturales (P1)
@@ -142,13 +142,13 @@
 | Besoin | Capacité NEXUS | Gap |
 |--------|----------------|-----|
 | **Traçabilité décisions** | Partielle (logs JSON) | Pas d'audit trail cryptographique |
-| **Compliance** | ❌ Non | Pas de certifications |
-| **Offline mode** | ❌ Non | Dépendance internet obligatoire |
-| **Multi-tenant** | ❌ Non | Pas d'isolation tenant |
-| **SSO/RBAC** | ❌ Non | Pas d'authentification |
-| **API REST** | ❌ Non | CLI uniquement |
-| **High Availability** | ❌ Non | Single process |
-| **Deployment automation** | ❌ Non | Pas de Docker/K8s |
+| **Compliance** | [NO] Non | Pas de certifications |
+| **Offline mode** | [NO] Non | Dépendance internet obligatoire |
+| **Multi-tenant** | [NO] Non | Pas d'isolation tenant |
+| **SSO/RBAC** | [NO] Non | Pas d'authentification |
+| **API REST** | [NO] Non | CLI uniquement |
+| **High Availability** | [NO] Non | Single process |
+| **Deployment automation** | [NO] Non | Pas de Docker/K8s |
 
 ### 4.3 Verdict Motherson Aerospace
 
@@ -170,10 +170,10 @@
 
 | Framework | Maturité | Enterprise | Multi-Agent | Forces |
 |-----------|----------|------------|-------------|--------|
-| **LangGraph** | Production | ✅ LangChain backing | ✅ Graph-based | Workflows complexes |
-| **AutoGen** | Production | ✅ Microsoft backing | ✅ Conversational | Azure intégration |
-| **CrewAI** | Production | ✅ Enterprise tier | ✅ Role-based | YAML config simple |
-| **NEXUS** | Alpha/Beta | ❌ | ✅ 6 modes Swarm | Dual-LLM unique |
+| **LangGraph** | Production | [OK] LangChain backing | [OK] Graph-based | Workflows complexes |
+| **AutoGen** | Production | [OK] Microsoft backing | [OK] Conversational | Azure intégration |
+| **CrewAI** | Production | [OK] Enterprise tier | [OK] Role-based | YAML config simple |
+| **NEXUS** | Alpha/Beta | [NO] | [OK] 6 modes Swarm | Dual-LLM unique |
 
 ### 5.2 Forces Uniques de NEXUS
 
@@ -187,11 +187,11 @@
 | Aspect | NEXUS | Concurrents |
 |--------|-------|-------------|
 | **Communauté** | 0 | LangGraph 13.9K stars |
-| **Enterprise support** | ❌ | Microsoft, LangChain |
+| **Enterprise support** | [NO] | Microsoft, LangChain |
 | **Documentation** | Interne | Publique extensive |
 | **Intégrations** | 2 (CLI) | 600+ (LangChain) |
-| **API REST** | ❌ | ✅ Tous |
-| **Async natif** | Partiel | ✅ Tous |
+| **API REST** | [NO] | [OK] Tous |
+| **Async natif** | Partiel | [OK] Tous |
 
 ---
 
@@ -241,15 +241,15 @@
 
 ### 7.1 Pour Usage Personnel / Expérimental
 
-✅ **Viable** - NEXUS est un excellent laboratoire d'exploration multi-agent
+[OK] **Viable** - NEXUS est un excellent laboratoire d'exploration multi-agent
 
 ### 7.2 Pour Startup / Prototype
 
-⚠️ **Viable avec réserves** - 2-3 mois de stabilisation nécessaires
+[warning]️ **Viable avec réserves** - 2-3 mois de stabilisation nécessaires
 
 ### 7.3 Pour Enterprise (Motherson Aerospace)
 
-❌ **Non viable** - Minimum 6-9 mois de développement + compliance
+[NO] **Non viable** - Minimum 6-9 mois de développement + compliance
 
 ### 7.4 Positionnement Recommandé
 
@@ -295,30 +295,30 @@ Différentiateur unique: **Symbiose Gemini + Claude** avec négociation dynamiqu
 *Rapport généré le 2025-12-11 par analyse automatisée NEXUS + recherche web*
 
 QUESTION SUPPLEMENTAIRE: As tu étudié les spécificités type hive minde qui lance swarm, ou est-ce que ce n'est pas fonctionnel?
-Analyse Détaillée : Hive Mind → Swarm
+Analyse Détaillée : Hive Mind -> Swarm
 Voici ce que j'ai trouvé :
 
 Architecture Globale (Fonctionnelle)
-┌─────────────────────────────────────────────────────────────────┐
-│  ORCHESTRATOR V7 (orchestration_v7.py)                           │
-│       │                                                          │
-│       └── FSMHandlers._should_route_to_hive_mind()              │
-│           │  (Si complexity >= MODERATE/COMPLEX/EXPERT)          │
-│           ▼                                                      │
-│       FSMHandlers._route_to_hive_mind()                         │
-│           │  ✅ Instancie TrueHiveMind (lazy)                   │
-│           ▼                                                      │
-│  ┌────────────────────────────────────────────────────────────┐ │
-│  │  TRUE HIVE MIND (7 phases)                                  │ │
-│  │  Phase 1: Analysis      ← Gemini + Claude indépendants     │ │
-│  │  Phase 2: Debate        ← Si désaccord                     │ │
-│  │  Phase 3: Architecture  ← Plan d'exécution                 │ │
-│  │  Phase 4: Execution     ← ⚠️ ANGLE MORT ICI               │ │
-│  │  Phase 5: Diagnosis     ← Si échec                         │ │
-│  │  Phase 6: Retry         ← Adaptive retry                   │ │
-│  │  Phase 7: Consolidation ← Knowledge archiving              │ │
-│  └────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
++-----------------------------------------------------------------+
+|  ORCHESTRATOR V7 (orchestration_v7.py)                           |
+|       |                                                          |
+|       +-- FSMHandlers._should_route_to_hive_mind()              |
+|           |  (Si complexity >= MODERATE/COMPLEX/EXPERT)          |
+|           v                                                      |
+|       FSMHandlers._route_to_hive_mind()                         |
+|           |  [OK] Instancie TrueHiveMind (lazy)                   |
+|           v                                                      |
+|  +------------------------------------------------------------+ |
+|  |  TRUE HIVE MIND (7 phases)                                  | |
+|  |  Phase 1: Analysis      <- Gemini + Claude indépendants     | |
+|  |  Phase 2: Debate        <- Si désaccord                     | |
+|  |  Phase 3: Architecture  <- Plan d'exécution                 | |
+|  |  Phase 4: Execution     <- [warning]️ ANGLE MORT ICI               | |
+|  |  Phase 5: Diagnosis     <- Si échec                         | |
+|  |  Phase 6: Retry         <- Adaptive retry                   | |
+|  |  Phase 7: Consolidation <- Knowledge archiving              | |
+|  +------------------------------------------------------------+ |
++-----------------------------------------------------------------+
 
 Problème Critique Trouvé : Délégation Swarm Non-Câblée
 Fichier: core/hive_mind/orchestrator.py:196-201
@@ -329,26 +329,26 @@ self.phase_execution = MonitoredExecutionPhase(
     claude_driver=self.claude,
     cost_estimator=self.cost_estimator,
     context_manager=self.context_manager
-    # ❌ MANQUE: swarm_engine=self.swarm_engine
+    # [NO] MANQUE: swarm_engine=self.swarm_engine
 )
 
 Fichier: core/hive_mind/phases/phase_execution.py:289-291
 
 # V8.3: Check if step should be delegated to Swarm
-if step.swarm_mode and self.swarm_bridge:  # ❌ self.swarm_bridge = None !
+if step.swarm_mode and self.swarm_bridge:  # [NO] self.swarm_bridge = None !
     return await self._execute_via_swarm(...)
 
-Conséquence : Le SwarmBridge dans Phase 4 est toujours None. La délégation Hive Mind → Swarm NE FONCTIONNE PAS.
+Conséquence : Le SwarmBridge dans Phase 4 est toujours None. La délégation Hive Mind -> Swarm NE FONCTIONNE PAS.
 
 Ce Qui Fonctionne vs Ce Qui Ne Fonctionne Pas
 Composant	Statut	Notes
-Hive Mind 7 phases pipeline	✅ Fonctionnel	Orchestration async complète
-TrueHiveMind instanciation	✅ Fonctionnel	Lazy init dans FSMHandlers
-Phase 1-3 (Analysis/Debate/Architecture)	✅ Fonctionnel	Gemini + Claude direct
-Phase 4 → Swarm délégation	❌ NON CÂBLÉ	swarm_engine jamais passé
-Phase 5-7 (Diagnosis/Retry/Consolidation)	✅ Fonctionnel	Drivers directs
-Swarm Engine standalone	✅ Fonctionnel	Via /swarm ou auto-route
-SwarmBridge en ToolManager	✅ Fonctionnel	swarm_delegate tool
+Hive Mind 7 phases pipeline	[OK] Fonctionnel	Orchestration async complète
+TrueHiveMind instanciation	[OK] Fonctionnel	Lazy init dans FSMHandlers
+Phase 1-3 (Analysis/Debate/Architecture)	[OK] Fonctionnel	Gemini + Claude direct
+Phase 4 -> Swarm délégation	[NO] NON CÂBLÉ	swarm_engine jamais passé
+Phase 5-7 (Diagnosis/Retry/Consolidation)	[OK] Fonctionnel	Drivers directs
+Swarm Engine standalone	[OK] Fonctionnel	Via /swarm ou auto-route
+SwarmBridge en ToolManager	[OK] Fonctionnel	swarm_delegate tool
 Résumé
 Le Hive Mind existe et fonctionne pour les 7 phases, MAIS la délégation vers Swarm (V8.3 "Dictator Mode") n'est pas câblée.
 
@@ -363,14 +363,14 @@ def __init__(self, ..., swarm_engine: "HybridSwarmEngine" = None):
 # Dans _init_phases()
 self.phase_execution = MonitoredExecutionPhase(
     ...,
-    swarm_engine=self.swarm_engine  # ← AJOUTER
+    swarm_engine=self.swarm_engine  # <- AJOUTER
 )
 
 Et dans FSMHandlers._route_to_hive_mind():
 
 self._orch._hive_mind = TrueHiveMind(
     ...,
-    swarm_engine=self._orch.swarm_engine  # ← AJOUTER
+    swarm_engine=self._orch.swarm_engine  # <- AJOUTER
 )
 
 C'est un angle mort de câblage - le code existe mais n'est pas connecté.

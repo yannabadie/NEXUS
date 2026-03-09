@@ -134,18 +134,18 @@ class FSMHandlers:
 
         # Step 2: Route based on complexity
 
-        # TRIVIAL → Fast Path
+        # TRIVIAL -> Fast Path
         if complexity == TaskComplexity.TRIVIAL:
             return self._handle_trivial(user_input)
 
-        # SIMPLE → Single agent mode
+        # SIMPLE -> Single agent mode
         if complexity == TaskComplexity.SIMPLE:
             self._logger.debug(
                 "SIMPLE task - single agent mode", {"input": user_input, "lead": task_analysis.recommended_lead}
             )
             return self._execute_simple_task(user_input, task_analysis)
 
-        # MODERATE/COMPLEX/EXPERT → Swarm or Brainstorming
+        # MODERATE/COMPLEX/EXPERT -> Swarm or Brainstorming
         return self._handle_moderate_plus(user_input, task_analysis)
 
     def handle_waiting_user(self, user_input: str | None) -> dict:
@@ -185,7 +185,7 @@ class FSMHandlers:
         health = self._orch.plan_health.check_health(current_plan, self._orch.iteration)
 
         if health["status"] == "ZOMBIE":
-            # Plan zombie → Trigger panic
+            # Plan zombie -> Trigger panic
             self._orch.panic_system.trigger_panic_explicit(reason="ZOMBIE_PLAN", details=health["message"])
             return self._orch._trigger_panic(f"Plan zombie: {health['message']}")
 
@@ -241,7 +241,7 @@ class FSMHandlers:
         emit_agent_exchange(sender, next_agent, content, exchange_type="brainstorm")
 
         if action_type == "TOOL_USE":
-            # Consensus reached → Execute tool
+            # Consensus reached -> Execute tool
             self._orch._transition_to(OrchestratorState.EXECUTING_TOOL)
             tool_name = message.get("tool_use", {}).get("tool_name", "unknown")
             emit_agent_exchange(sender, "tool_executor", f"Execute: {tool_name}", exchange_type="tool")
@@ -258,7 +258,7 @@ class FSMHandlers:
             self._orch.stagnation_detector.reset()
             if self._orch.config.ui_verbose:
                 print(
-                    f"[BRAINSTORM] {self._registry.get_display_name(previous_agent)} → {self._registry.get_display_name(self._orch.active_agent)}",
+                    f"[BRAINSTORM] {self._registry.get_display_name(previous_agent)} -> {self._registry.get_display_name(self._orch.active_agent)}",
                     file=sys.stderr,
                 )
 
@@ -292,7 +292,7 @@ class FSMHandlers:
         self._orch.active_agent = self._registry.get_alternate(self._orch.active_agent) or self._orch.active_agent
         if self._orch.config.ui_verbose:
             print(
-                f"[CFL] {self._registry.get_display_name(requesting_agent)} tool → {self._registry.get_display_name(self._orch.active_agent)} validates",
+                f"[CFL] {self._registry.get_display_name(requesting_agent)} tool -> {self._registry.get_display_name(self._orch.active_agent)} validates",
                 file=sys.stderr,
             )
 
@@ -339,9 +339,9 @@ class FSMHandlers:
         )
 
         # Determine validation success
-        if "✓" in content or "success" in content.lower() or "successfully" in content.lower():
+        if "[OK]" in content or "success" in content.lower() or "successfully" in content.lower():
             validation_success = True
-        elif "✗" in content or "error" in content.lower() or "failed" in content.lower():
+        elif "[NO]" in content or "error" in content.lower() or "failed" in content.lower():
             validation_success = False
         else:
             # V10 FIX F8: Conservative default - ambiguity = failure
@@ -356,7 +356,7 @@ class FSMHandlers:
             self._orch.panic_system.reset_stalemate()
             self._orch.panic_system.reset_errors()
             self._orch._transition_to(OrchestratorState.IDLE)
-            return self._make_result("FINISHED", f"✓ {content}", self._orch.active_agent, True)
+            return self._make_result("FINISHED", f"[OK] {content}", self._orch.active_agent, True)
 
         elif validation_success:
             self._orch.stalemate_counter = 0
@@ -368,12 +368,12 @@ class FSMHandlers:
             self._orch.active_agent = self._registry.get_alternate(self._orch.active_agent) or self._orch.active_agent
             if self._orch.config.ui_verbose:
                 print(
-                    f"[CFL SUCCESS] {self._registry.get_display_name(previous_agent)} → {self._registry.get_display_name(self._orch.active_agent)}",
+                    f"[CFL SUCCESS] {self._registry.get_display_name(previous_agent)} -> {self._registry.get_display_name(self._orch.active_agent)}",
                     file=sys.stderr,
                 )
 
             self._orch._transition_to(OrchestratorState.BRAINSTORMING)
-            return self._make_result("BRAINSTORMING", f"✓ {content}", previous_agent, False)
+            return self._make_result("BRAINSTORMING", f"[OK] {content}", previous_agent, False)
 
         else:
             # V9.3 ISSUE-004 FIX: Removed duplicate increment
@@ -389,7 +389,7 @@ class FSMHandlers:
             self._orch.active_agent = self._registry.get_alternate(self._orch.active_agent) or self._orch.active_agent
 
             self._orch._transition_to(OrchestratorState.BRAINSTORMING)
-            return self._make_result("BRAINSTORMING", f"✗ {content}", previous_agent, False)
+            return self._make_result("BRAINSTORMING", f"[NO] {content}", previous_agent, False)
 
     def handle_error(self) -> dict:
         """Handle ERROR state."""
@@ -523,9 +523,9 @@ class FSMHandlers:
             result_text = f"[{sender} executed: {tool_name}]\n"
             if result.status.lower() == "success":
                 output = result.output[:3000] if len(result.output) > 3000 else result.output
-                result_text += f"✓ Result:\n{output}"
+                result_text += f"[OK] Result:\n{output}"
             else:
-                result_text += f"✗ Error: {result.error or 'Unknown error'}"
+                result_text += f"[NO] Error: {result.error or 'Unknown error'}"
 
             # Add to history
             self._orch.memory.add_to_history({"sender": "System", "action_type": "TOOL_RESULT", "content": result_text})
@@ -891,9 +891,9 @@ class FSMHandlers:
 
                 if status == "error" or content.startswith("Error:") or not content.strip():
                     error_msg = agent_data.get("error") or content or "[No response]"
-                    formatted_output += f"\n{agent_name} ❌ ERREUR:\n{error_msg}\n{'─' * 40}\n"
+                    formatted_output += f"\n{agent_name} [NO] ERREUR:\n{error_msg}\n{'-' * 40}\n"
                 else:
-                    formatted_output += f"\n{agent_name}:\n{content}\n{'─' * 40}\n"
+                    formatted_output += f"\n{agent_name}:\n{content}\n{'-' * 40}\n"
         else:
             raw_output = swarm_result.get("output", "")
             if raw_output.startswith("[Swarm]"):
@@ -971,7 +971,7 @@ class FSMHandlers:
         """
         Execute SIMPLE tasks with a single agent (no CFL, no alternation).
 
-        As per MISSION.md: "Tâche Simple → NEXUS parent résout directement"
+        As per MISSION.md: "Tâche Simple -> NEXUS parent résout directement"
 
         This mode:
         - Uses ONE agent (selected by fit score)
@@ -1088,9 +1088,9 @@ class FSMHandlers:
                     # Add tool result to context for next iteration
                     if result.status.lower() == "success":
                         tool_output = result.output[:2000] if len(result.output) > 2000 else result.output
-                        context += f"\n\n## Tool Result [{tool_name}]\n✓ SUCCESS:\n```\n{tool_output}\n```\n"
+                        context += f"\n\n## Tool Result [{tool_name}]\n[OK] SUCCESS:\n```\n{tool_output}\n```\n"
                     else:
-                        context += f"\n\n## Tool Result [{tool_name}]\n✗ ERROR: {result.error}\n"
+                        context += f"\n\n## Tool Result [{tool_name}]\n[NO] ERROR: {result.error}\n"
 
                     # Check if agent is done after tool
                     if message.get("status") == "FINISHED":
@@ -1100,7 +1100,7 @@ class FSMHandlers:
 
                 except Exception as e:
                     self._logger.error(f"[SIMPLE MODE] Tool error: {e}")
-                    context += f"\n\n## Tool Result [{tool_name}]\n✗ ERROR: {e}\n"
+                    context += f"\n\n## Tool Result [{tool_name}]\n[NO] ERROR: {e}\n"
 
             elif message.get("status") == "FINISHED" or action_type == "FINISHED":
                 # V11 SENTINEL F3: Self-reflection before accepting FINISHED
@@ -1123,7 +1123,7 @@ class FSMHandlers:
                         self._logger.warning(f"[SIMPLE MODE] Reflection score {score}/10 - escalating to Swarm")
                         return self._make_result(
                             "INCOMPLETE",
-                            f"{content}\n\n⚠️ Self-reflection score: {score}/10 - Escalating to Swarm",
+                            f"{content}\n\n[warning]️ Self-reflection score: {score}/10 - Escalating to Swarm",
                             agent,
                             False,
                             escalate_reason=f"Reflection score {score}/10 below threshold",
@@ -1139,7 +1139,7 @@ class FSMHandlers:
                     # Escalate to MODERATE instead of accepting false FINISHED
                     return self._make_result(
                         "INCOMPLETE",
-                        f"{content}\n\n⚠️ Validation failed: {validation_msg}",
+                        f"{content}\n\n[warning]️ Validation failed: {validation_msg}",
                         agent,
                         False,  # Not finished
                         escalate_reason=validation_msg,
@@ -1170,7 +1170,7 @@ class FSMHandlers:
                             self._logger.warning(f"[SIMPLE MODE] Reflection score {score}/10 - escalating")
                             return self._make_result(
                                 "INCOMPLETE",
-                                f"{content}\n\n⚠️ Self-reflection score: {score}/10 - Escalating to Swarm",
+                                f"{content}\n\n[warning]️ Self-reflection score: {score}/10 - Escalating to Swarm",
                                 agent,
                                 False,
                                 escalate_reason=f"Reflection score {score}/10 below threshold",
@@ -1184,7 +1184,7 @@ class FSMHandlers:
                         self._logger.warning(f"[SIMPLE MODE] Completion claim rejected: {validation_msg}")
                         return self._make_result(
                             "INCOMPLETE",
-                            f"{content}\n\n⚠️ Validation failed: {validation_msg}",
+                            f"{content}\n\n[warning]️ Validation failed: {validation_msg}",
                             agent,
                             False,
                             escalate_reason=validation_msg,
@@ -1670,7 +1670,7 @@ Be brutally honest. It's better to catch issues now than have them fail in produ
             self._orch.stagnation_detector.reset()
             if self._orch.config.ui_verbose:
                 print(
-                    f"[BRAINSTORM] {self._registry.get_display_name(previous_agent)} → {self._registry.get_display_name(self._orch.active_agent)}",
+                    f"[BRAINSTORM] {self._registry.get_display_name(previous_agent)} -> {self._registry.get_display_name(self._orch.active_agent)}",
                     file=sys.stderr,
                 )
 
@@ -1745,7 +1745,7 @@ Be brutally honest. It's better to catch issues now than have them fail in produ
             self._orch.active_agent = self._registry.get_alternate(self._orch.active_agent) or self._orch.active_agent
             if self._orch.config.ui_verbose:
                 print(
-                    f"[CFL] {self._registry.get_display_name(previous_agent)} → {self._registry.get_display_name(self._orch.active_agent)}",
+                    f"[CFL] {self._registry.get_display_name(previous_agent)} -> {self._registry.get_display_name(self._orch.active_agent)}",
                     file=sys.stderr,
                 )
             return self._make_result("BRAINSTORMING", content, self._orch.active_agent, False)

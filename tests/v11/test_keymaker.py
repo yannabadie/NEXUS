@@ -393,5 +393,5 @@ class TestAuthRouterRegistered:
             response = client.get("/")
 
         data = response.json()
-        assert data["version"] == "13.0.0"
+        assert data["version"] == "12.4.0"
         assert "auth" in data

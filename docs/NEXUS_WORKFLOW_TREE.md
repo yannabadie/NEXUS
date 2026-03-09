@@ -9,15 +9,15 @@
 ## Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        NEXUS WORKFLOW ARCHITECTURE                          │
-│                                                                             │
-│   USER INPUT ──► TASK ANALYSIS ──► ROUTING ──► EXECUTION ──► OUTPUT        │
-│                       │              │            │                         │
-│                       ▼              ▼            ▼                         │
-│                  Complexity     FSM/HiveMind   Tools/Swarm                  │
-│                  Detection      Selection      Orchestration                │
-└─────────────────────────────────────────────────────────────────────────────┘
++-----------------------------------------------------------------------------+
+|                        NEXUS WORKFLOW ARCHITECTURE                          |
+|                                                                             |
+|   USER INPUT --► TASK ANALYSIS --► ROUTING --► EXECUTION --► OUTPUT        |
+|                       |              |            |                         |
+|                       v              v            v                         |
+|                  Complexity     FSM/HiveMind   Tools/Swarm                  |
+|                  Detection      Selection      Orchestration                |
++-----------------------------------------------------------------------------+
 ```
 
 ---
@@ -28,71 +28,71 @@
 
 ```
 nexus7.py
-    │
-    ├── /help ────────────────► Display commands
-    ├── /status ──────────────► System status
-    ├── /clear ───────────────► Clear conversation
-    │
-    ├── /swarm <task> ────────► Force swarm execution
-    │       │
-    │       └──► Mode Selection ──► 6 Modes (see §4)
-    │
-    ├── /hive <task> ─────────► Force HiveMind pipeline
-    │       │
-    │       └──► 7 Phases (see §3)
-    │
-    ├── /spawn <spec> ────────► Agent creation
-    │       │
-    │       └──► Evolution Engine ──► workspace/agents/
-    │
-    ├── /specialize <domain> ─► Project specialization
-    │       │
-    │       └──► Mutation + New agent config
-    │
-    ├── /evolve ──────────────► Improve existing agent
-    │       │
-    │       └──► Performance metrics ──► Optimized clone
-    │
-    ├── /memory ──────────────► RAG commands
-    │       ├── /memory index <path>
-    │       ├── /memory query <query>
-    │       └── /memory stats
-    │
-    └── Natural language ─────► TaskAnalyzer ──► Auto-routing
+    |
+    +-- /help ----------------► Display commands
+    +-- /status --------------► System status
+    +-- /clear ---------------► Clear conversation
+    |
+    +-- /swarm <task> --------► Force swarm execution
+    |       |
+    |       +--► Mode Selection --► 6 Modes (see §4)
+    |
+    +-- /hive <task> ---------► Force HiveMind pipeline
+    |       |
+    |       +--► 7 Phases (see §3)
+    |
+    +-- /spawn <spec> --------► Agent creation
+    |       |
+    |       +--► Evolution Engine --► workspace/agents/
+    |
+    +-- /specialize <domain> -► Project specialization
+    |       |
+    |       +--► Mutation + New agent config
+    |
+    +-- /evolve --------------► Improve existing agent
+    |       |
+    |       +--► Performance metrics --► Optimized clone
+    |
+    +-- /memory --------------► RAG commands
+    |       +-- /memory index <path>
+    |       +-- /memory query <query>
+    |       +-- /memory stats
+    |
+    +-- Natural language -----► TaskAnalyzer --► Auto-routing
 ```
 
 ### 1.2 CEREBRO API (Remote)
 
 ```
 HTTP/WebSocket
-    │
-    ├── /api/auth/* ──────────► JWT Authentication
-    │       ├── POST /login
-    │       ├── POST /refresh
-    │       └── GET /me
-    │
-    ├── /api/workflow/* ──────► Workflow Control
-    │       ├── POST /start ───► Start task
-    │       ├── POST /abort ───► Abort current
-    │       └── GET /status ───► Current state
-    │
-    ├── /api/interactions/* ──► Human-in-the-Loop
-    │       ├── GET /pending
-    │       └── POST /:id/reply
-    │
-    ├── /api/memory/* ────────► RAG Management
-    │       ├── GET /stats
-    │       ├── GET/POST/DELETE /namespaces
-    │       ├── POST /ingest
-    │       └── POST /query
-    │
-    ├── /api/files/* ─────────► Secure File Access
-    │       ├── GET /content
-    │       └── GET /tree
-    │
-    └── /ws/stream ───────────► Real-time Events
-            │
-            └──► EventStream (WebSocket)
+    |
+    +-- /api/auth/* ----------► JWT Authentication
+    |       +-- POST /login
+    |       +-- POST /refresh
+    |       +-- GET /me
+    |
+    +-- /api/workflow/* ------► Workflow Control
+    |       +-- POST /start ---► Start task
+    |       +-- POST /abort ---► Abort current
+    |       +-- GET /status ---► Current state
+    |
+    +-- /api/interactions/* --► Human-in-the-Loop
+    |       +-- GET /pending
+    |       +-- POST /:id/reply
+    |
+    +-- /api/memory/* --------► RAG Management
+    |       +-- GET /stats
+    |       +-- GET/POST/DELETE /namespaces
+    |       +-- POST /ingest
+    |       +-- POST /query
+    |
+    +-- /api/files/* ---------► Secure File Access
+    |       +-- GET /content
+    |       +-- GET /tree
+    |
+    +-- /ws/stream -----------► Real-time Events
+            |
+            +--► EventStream (WebSocket)
 ```
 
 ---
@@ -102,46 +102,46 @@ HTTP/WebSocket
 ### 2.1 State Diagram
 
 ```
-                              ┌───────────────┐
-                              │     IDLE      │◄──────────────────┐
-                              └───────┬───────┘                   │
-                                      │ User Input                │
-                                      ▼                           │
-                    ┌─────────────────────────────────────┐       │
-                    │          TASK_ANALYSIS              │       │
-                    │  (Complexity + Domain Detection)    │       │
-                    └─────────────────┬───────────────────┘       │
-                                      │                           │
-              ┌───────────────────────┼───────────────────────┐   │
-              ▼                       ▼                       ▼   │
-    ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-    │   BRAINSTORMING │     │  HIVE_DELEGATE  │     │ SWARM_DELEGATE  │
-    │   (Simple/Mod)  │     │   (Complex+)    │     │  (Multi-agent)  │
-    └────────┬────────┘     └────────┬────────┘     └────────┬────────┘
-             │                       │                       │
-             ▼                       ▼                       ▼
-    ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-    │ EXECUTING_TOOL  │     │  HiveMind 7φ    │     │  Swarm 6 modes  │
-    └────────┬────────┘     └────────┬────────┘     └────────┬────────┘
-             │                       │                       │
-             └───────────────────────┼───────────────────────┘
-                                     ▼
-                           ┌─────────────────┐
-                           │ VALIDATING_CFL  │
-                           │ (Quality Check) │
-                           └────────┬────────┘
-                                    │
-                    ┌───────────────┼───────────────┐
-                    ▼               ▼               ▼
-          ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
-          │   SUCCESS    │  │WAITING_USER  │  │    ERROR     │
-          │  (Complete)  │  │  (HITL)      │  │ (Recoverable)│
-          └──────┬───────┘  └──────┬───────┘  └──────┬───────┘
-                 │                 │                  │
-                 └─────────────────┼──────────────────┘
-                                   ▼
+                              +---------------+
+                              |     IDLE      |◄------------------+
+                              +-------+-------+                   |
+                                      | User Input                |
+                                      v                           |
+                    +-------------------------------------+       |
+                    |          TASK_ANALYSIS              |       |
+                    |  (Complexity + Domain Detection)    |       |
+                    +-----------------+-------------------+       |
+                                      |                           |
+              +-----------------------+-----------------------+   |
+              v                       v                       v   |
+    +-----------------+     +-----------------+     +-----------------+
+    |   BRAINSTORMING |     |  HIVE_DELEGATE  |     | SWARM_DELEGATE  |
+    |   (Simple/Mod)  |     |   (Complex+)    |     |  (Multi-agent)  |
+    +--------+--------+     +--------+--------+     +--------+--------+
+             |                       |                       |
+             v                       v                       v
+    +-----------------+     +-----------------+     +-----------------+
+    | EXECUTING_TOOL  |     |  HiveMind 7φ    |     |  Swarm 6 modes  |
+    +--------+--------+     +--------+--------+     +--------+--------+
+             |                       |                       |
+             +-----------------------+-----------------------+
+                                     v
+                           +-----------------+
+                           | VALIDATING_CFL  |
+                           | (Quality Check) |
+                           +--------+--------+
+                                    |
+                    +---------------+---------------+
+                    v               v               v
+          +--------------+  +--------------+  +--------------+
+          |   SUCCESS    |  |WAITING_USER  |  |    ERROR     |
+          |  (Complete)  |  |  (HITL)      |  | (Recoverable)|
+          +------+-------+  +------+-------+  +------+-------+
+                 |                 |                  |
+                 +-----------------+------------------+
+                                   v
                               Back to IDLE
-                                   │
+                                   |
                          (or PANIC if fatal)
 ```
 
@@ -172,56 +172,56 @@ HTTP/WebSocket
 ### 3.1 Phase Flow
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         HIVEMIND 7-PHASE PIPELINE                       │
-└─────────────────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------------------+
+|                         HIVEMIND 7-PHASE PIPELINE                       |
++-------------------------------------------------------------------------+
 
 Phase 1: ANALYSIS
-    │
-    ├── Claude Analysis ──────► Independent reasoning
-    ├── Gemini Analysis ──────► Independent reasoning
-    └── Merge ────────────────► Combined understanding
-                │
-                ▼
+    |
+    +-- Claude Analysis ------► Independent reasoning
+    +-- Gemini Analysis ------► Independent reasoning
+    +-- Merge ----------------► Combined understanding
+                |
+                v
 Phase 2: DEBATE (if disagreement)
-    │
-    ├── Point identification ─► Areas of conflict
-    ├── Exchange arguments ───► Max 4 rounds
-    └── Resolution ───────────► Consensus or escalate
-                │
-                ▼
+    |
+    +-- Point identification -► Areas of conflict
+    +-- Exchange arguments ---► Max 4 rounds
+    +-- Resolution -----------► Consensus or escalate
+                |
+                v
 Phase 3: ARCHITECTURE
-    │
-    ├── Plan design ──────────► Execution steps
-    ├── Tool selection ───────► Required tools
-    └── Dependency graph ─────► Step ordering
-                │
-                ▼
+    |
+    +-- Plan design ----------► Execution steps
+    +-- Tool selection -------► Required tools
+    +-- Dependency graph -----► Step ordering
+                |
+                v
 Phase 4: EXECUTION
-    │
-    ├── Step execution ───────► Sequential/Parallel
-    ├── SwarmBridge ──────────► Delegate to Swarm if needed
-    └── Progress tracking ────► Real-time events
-                │
-                ▼
+    |
+    +-- Step execution -------► Sequential/Parallel
+    +-- SwarmBridge ----------► Delegate to Swarm if needed
+    +-- Progress tracking ----► Real-time events
+                |
+                v
 Phase 5: DIAGNOSIS (on error)
-    │
-    ├── Error analysis ───────► Root cause
-    ├── Recovery plan ────────► Fix strategy
-    └── Retry logic ──────────► Up to 3 attempts
-                │
-                ▼
+    |
+    +-- Error analysis -------► Root cause
+    +-- Recovery plan --------► Fix strategy
+    +-- Retry logic ----------► Up to 3 attempts
+                |
+                v
 Phase 6: CONSOLIDATION
-    │
-    ├── Result merge ─────────► Combine outputs
-    ├── Quality check ────────► Validation
-    └── Summary ──────────────► Human-readable
-                │
-                ▼
+    |
+    +-- Result merge ---------► Combine outputs
+    +-- Quality check --------► Validation
+    +-- Summary --------------► Human-readable
+                |
+                v
 Phase 7: COMPLETION
-    │
-    ├── HIVE_SUCCESS ─────────► Task complete
-    └── HIVE_FAILED ──────────► Task failed (with report)
+    |
+    +-- HIVE_SUCCESS ---------► Task complete
+    +-- HIVE_FAILED ----------► Task failed (with report)
 ```
 
 ### 3.2 HiveMind State Machine (24 States)
@@ -245,111 +245,111 @@ Phase 7: COMPLETION
 
 ```
 Task Input
-    │
-    ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    MODE SELECTOR (DyLAN)                     │
-│                                                              │
-│  Factors:                                                    │
-│  - Task complexity (TRIVIAL → EXPERT)                        │
-│  - Domain (CODING, RESEARCH, ANALYSIS, CREATIVE)             │
-│  - Agent metrics (success rate, response time)               │
-│  - Historical patterns (SuccessMemory)                       │
-└─────────────────────────────────────────────────────────────┘
-    │
-    ├── Independent subtasks ─────────► PARALLEL
-    ├── Dependent steps ──────────────► SEQUENTIAL
-    ├── Complex + guidance ───────────► LEAD_SUPPORT
-    ├── Iterative refinement ─────────► PING_PONG
-    ├── Single expert domain ─────────► SPECIALIST
-    └── Security/Adversarial ─────────► RED_BLUE
+    |
+    v
++-------------------------------------------------------------+
+|                    MODE SELECTOR (DyLAN)                     |
+|                                                              |
+|  Factors:                                                    |
+|  - Task complexity (TRIVIAL -> EXPERT)                        |
+|  - Domain (CODING, RESEARCH, ANALYSIS, CREATIVE)             |
+|  - Agent metrics (success rate, response time)               |
+|  - Historical patterns (SuccessMemory)                       |
++-------------------------------------------------------------+
+    |
+    +-- Independent subtasks ---------► PARALLEL
+    +-- Dependent steps --------------► SEQUENTIAL
+    +-- Complex + guidance -----------► LEAD_SUPPORT
+    +-- Iterative refinement ---------► PING_PONG
+    +-- Single expert domain ---------► SPECIALIST
+    +-- Security/Adversarial ---------► RED_BLUE
 ```
 
 ### 4.2 Mode Details
 
 #### PARALLEL Mode
 ```
-┌─────────────┐     ┌─────────────┐
-│   Claude    │     │   Gemini    │
-│  Subtask A  │     │  Subtask B  │
-└──────┬──────┘     └──────┬──────┘
-       │                   │
-       └───────┬───────────┘
-               ▼
-        ┌─────────────┐
-        │   Merger    │
-        │  (Results)  │
-        └─────────────┘
++-------------+     +-------------+
+|   Claude    |     |   Gemini    |
+|  Subtask A  |     |  Subtask B  |
++------+------+     +------+------+
+       |                   |
+       +-------+-----------+
+               v
+        +-------------+
+        |   Merger    |
+        |  (Results)  |
+        +-------------+
 ```
 
 #### SEQUENTIAL Mode
 ```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Agent 1   │────►│   Agent 2   │────►│   Agent 3   │
-│   Step 1    │     │   Step 2    │     │   Step 3    │
-└─────────────┘     └─────────────┘     └─────────────┘
++-------------+     +-------------+     +-------------+
+|   Agent 1   |----►|   Agent 2   |----►|   Agent 3   |
+|   Step 1    |     |   Step 2    |     |   Step 3    |
++-------------+     +-------------+     +-------------+
 ```
 
 #### LEAD_SUPPORT Mode
 ```
-┌─────────────────────────────────────────┐
-│              LEAD (Claude)              │
-│  - Drives implementation                │
-│  - Makes decisions                      │
-└────────────────────┬────────────────────┘
-                     │ Review/Assist
-                     ▼
-┌─────────────────────────────────────────┐
-│            SUPPORT (Gemini)             │
-│  - Reviews work                         │
-│  - Provides suggestions                 │
-└─────────────────────────────────────────┘
++-----------------------------------------+
+|              LEAD (Claude)              |
+|  - Drives implementation                |
+|  - Makes decisions                      |
++--------------------+--------------------+
+                     | Review/Assist
+                     v
++-----------------------------------------+
+|            SUPPORT (Gemini)             |
+|  - Reviews work                         |
+|  - Provides suggestions                 |
++-----------------------------------------+
 ```
 
 #### PING_PONG Mode
 ```
     Claude                  Gemini
-       │                       │
-       │──── Proposal ────────►│
-       │                       │
-       │◄─── Refinement ───────│
-       │                       │
-       │──── Counter ─────────►│
-       │                       │
-       │◄─── Agreement ────────│
-       │                       │
+       |                       |
+       |---- Proposal --------►|
+       |                       |
+       |◄--- Refinement -------|
+       |                       |
+       |---- Counter ---------►|
+       |                       |
+       |◄--- Agreement --------|
+       |                       |
     (Converges after N rounds)
 ```
 
 #### SPECIALIST Mode
 ```
-┌─────────────────────────────────────────┐
-│            SPECIALIST                   │
-│  (Single agent handles entire task)     │
-│                                         │
-│  Selected based on:                     │
-│  - Domain expertise                     │
-│  - Historical success rate              │
-└─────────────────────────────────────────┘
++-----------------------------------------+
+|            SPECIALIST                   |
+|  (Single agent handles entire task)     |
+|                                         |
+|  Selected based on:                     |
+|  - Domain expertise                     |
+|  - Historical success rate              |
++-----------------------------------------+
 ```
 
 #### RED_BLUE Mode
 ```
-┌─────────────────┐         ┌─────────────────┐
-│    RED TEAM     │◄───────►│   BLUE TEAM     │
-│   (Attacker)    │         │   (Defender)    │
-│                 │         │                 │
-│ - Find flaws    │         │ - Fix issues    │
-│ - Attack plan   │         │ - Harden code   │
-│ - Edge cases    │         │ - Validate      │
-└─────────────────┘         └─────────────────┘
-            │                       │
-            └───────────┬───────────┘
-                        ▼
-              ┌─────────────────┐
-              │  FINAL REVIEW   │
-              │  (Hardened)     │
-              └─────────────────┘
++-----------------+         +-----------------+
+|    RED TEAM     |◄-------►|   BLUE TEAM     |
+|   (Attacker)    |         |   (Defender)    |
+|                 |         |                 |
+| - Find flaws    |         | - Fix issues    |
+| - Attack plan   |         | - Harden code   |
+| - Edge cases    |         | - Validate      |
++-----------------+         +-----------------+
+            |                       |
+            +-----------+-----------+
+                        v
+              +-----------------+
+              |  FINAL REVIEW   |
+              |  (Hardened)     |
+              +-----------------+
 ```
 
 ---
@@ -360,59 +360,59 @@ Task Input
 
 ```
 NEXUS TOOLS (16+)
-    │
-    ├── File Operations
-    │       ├── read ──────► Read file content
-    │       ├── write ─────► Create/overwrite file
-    │       ├── edit ──────► Modify existing file
-    │       ├── list_dir ──► Directory listing
-    │       ├── glob ──────► Pattern matching
-    │       └── grep ──────► Content search
-    │
-    ├── Execution
-    │       ├── bash ──────► Shell commands
-    │       └── git ───────► Version control
-    │
-    ├── Research
-    │       ├── web_search ► Internet search
-    │       └── web_fetch ─► URL content
-    │
-    ├── Memory
-    │       ├── rag_query ─► Semantic search
-    │       ├── rag_index ─► Index files
-    │       └── rag_forget ► Remove from index
-    │
-    └── Coordination
-            ├── todo_write ► Task management
-            └── interaction ► Human-in-the-loop
+    |
+    +-- File Operations
+    |       +-- read ------► Read file content
+    |       +-- write -----► Create/overwrite file
+    |       +-- edit ------► Modify existing file
+    |       +-- list_dir --► Directory listing
+    |       +-- glob ------► Pattern matching
+    |       +-- grep ------► Content search
+    |
+    +-- Execution
+    |       +-- bash ------► Shell commands
+    |       +-- git -------► Version control
+    |
+    +-- Research
+    |       +-- web_search ► Internet search
+    |       +-- web_fetch -► URL content
+    |
+    +-- Memory
+    |       +-- rag_query -► Semantic search
+    |       +-- rag_index -► Index files
+    |       +-- rag_forget ► Remove from index
+    |
+    +-- Coordination
+            +-- todo_write ► Task management
+            +-- interaction ► Human-in-the-loop
 ```
 
 ### 5.2 Tool Execution Flow
 
 ```
 Tool Request
-    │
-    ▼
-┌─────────────────────────────────────────┐
-│           EXECUTION POLICY              │
-│  - Check KERNEL.py alignment            │
-│  - Validate permissions                 │
-│  - Apply sandboxing                     │
-└────────────────────┬────────────────────┘
-    │
-    ├── ALLOWED ──────► Execute tool
-    │                       │
-    │                       ▼
-    │               ┌─────────────────┐
-    │               │  Tool Handler   │
-    │               └────────┬────────┘
-    │                        │
-    │                        ▼
-    │               ┌─────────────────┐
-    │               │  Result/Error   │
-    │               └─────────────────┘
-    │
-    └── DENIED ───────► Return error + reason
+    |
+    v
++-----------------------------------------+
+|           EXECUTION POLICY              |
+|  - Check KERNEL.py alignment            |
+|  - Validate permissions                 |
+|  - Apply sandboxing                     |
++--------------------+--------------------+
+    |
+    +-- ALLOWED ------► Execute tool
+    |                       |
+    |                       v
+    |               +-----------------+
+    |               |  Tool Handler   |
+    |               +--------+--------+
+    |                        |
+    |                        v
+    |               +-----------------+
+    |               |  Result/Error   |
+    |               +-----------------+
+    |
+    +-- DENIED -------► Return error + reason
 ```
 
 ---
@@ -423,89 +423,89 @@ Tool Request
 
 ```
 Document Input
-    │
-    ├── Code files ────────► AST parsing
-    ├── PDF/DOCX ──────────► Docling extraction
-    ├── Images ────────────► OCR/Vision
-    └── Other ─────────────► Text extraction
-            │
-            ▼
-┌─────────────────────────────────────────┐
-│            CHUNKING                      │
-│  - 512 tokens per chunk                 │
-│  - 50 token overlap                     │
-│  - Context preservation                 │
-└────────────────────┬────────────────────┘
-            │
-            ▼
-┌─────────────────────────────────────────┐
-│           EMBEDDING                      │
-│  - MiniLM-L6-v2 (384 dims)              │
-│  - Batch processing                     │
-└────────────────────┬────────────────────┘
-            │
-            ▼
-┌─────────────────────────────────────────┐
-│           STORAGE                        │
-│  - LanceDB (vector store)               │
-│  - Namespace isolation                  │
-│  - Metadata indexing                    │
-└─────────────────────────────────────────┘
+    |
+    +-- Code files --------► AST parsing
+    +-- PDF/DOCX ----------► Docling extraction
+    +-- Images ------------► OCR/Vision
+    +-- Other -------------► Text extraction
+            |
+            v
++-----------------------------------------+
+|            CHUNKING                      |
+|  - 512 tokens per chunk                 |
+|  - 50 token overlap                     |
+|  - Context preservation                 |
++--------------------+--------------------+
+            |
+            v
++-----------------------------------------+
+|           EMBEDDING                      |
+|  - MiniLM-L6-v2 (384 dims)              |
+|  - Batch processing                     |
++--------------------+--------------------+
+            |
+            v
++-----------------------------------------+
+|           STORAGE                        |
+|  - LanceDB (vector store)               |
+|  - Namespace isolation                  |
+|  - Metadata indexing                    |
++-----------------------------------------+
 ```
 
 ### 6.2 Namespace Architecture
 
 ```
 .nexus/
-    │
-    ├── project_knowledge.json ─────► Project RAG metadata
-    │
-    ├── lancedb/
-    │       └── project/ ───────────► Project vectors
-    │
-    └── agent_rags/
-            ├── security_expert/
-            │       ├── knowledge.json
-            │       └── lancedb/
-            │
-            ├── code_reviewer/
-            │       ├── knowledge.json
-            │       └── lancedb/
-            │
-            └── {agent_name}/
-                    ├── knowledge.json
-                    └── lancedb/
+    |
+    +-- project_knowledge.json -----► Project RAG metadata
+    |
+    +-- lancedb/
+    |       +-- project/ -----------► Project vectors
+    |
+    +-- agent_rags/
+            +-- security_expert/
+            |       +-- knowledge.json
+            |       +-- lancedb/
+            |
+            +-- code_reviewer/
+            |       +-- knowledge.json
+            |       +-- lancedb/
+            |
+            +-- {agent_name}/
+                    +-- knowledge.json
+                    +-- lancedb/
 ```
 
 ### 6.3 Query Flow
 
 ```
 User Query
-    │
-    ▼
-┌─────────────────────────────────────────┐
-│           EMBEDDING                      │
-│  Query → 384-dim vector                 │
-└────────────────────┬────────────────────┘
-    │
-    ▼
-┌─────────────────────────────────────────┐
-│         HYBRID SEARCH                    │
-│  - Dense: Cosine similarity             │
-│  - Sparse: BM25 (optional)              │
-│  - RRF fusion                           │
-└────────────────────┬────────────────────┘
-    │
-    ▼
-┌─────────────────────────────────────────┐
-│           RERANKING                      │
-│  - Top-K selection                      │
-│  - Metadata filtering                   │
-│  - Deduplication                        │
-└────────────────────┬────────────────────┘
-    │
-    ▼
-Relevant Chunks → Agent Context
+    |
+    v
++-----------------------------------------+
+|           EMBEDDING                      |
+|  Query -> 384-dim vector                 |
++--------------------+--------------------+
+    |
+    v
++-----------------------------------------+
+|         HYBRID SEARCH                    |
+|  - Dense: Cosine similarity             |
+|  - Sparse: BM25 (optional)              |
+|  - RRF fusion                           |
++--------------------+--------------------+
+    |
+    v
++-----------------------------------------+
+|           RERANKING                      |
+|  - Top-K selection                      |
+|  - Metadata filtering                   |
+|  - Deduplication                        |
++--------------------+--------------------+
+    |
+    v
+Relevant Chunks -> Agent Context
 ```
 
 ---
@@ -516,64 +516,64 @@ Relevant Chunks → Agent Context
 
 ```
 /spawn "Security Expert for Python auditing"
-    │
-    ▼
-┌─────────────────────────────────────────┐
-│         SPECIFICATION ANALYSIS           │
-│  - Domain extraction                    │
-│  - Capability mapping                   │
-│  - Parent selection                     │
-└────────────────────┬────────────────────┘
-    │
-    ▼
-┌─────────────────────────────────────────┐
-│         BRAINSTORM (Gemini+Claude)       │
-│  - Capability discussion                │
-│  - Prompt engineering                   │
-│  - Configuration design                 │
-└────────────────────┬────────────────────┘
-    │
-    ▼
-┌─────────────────────────────────────────┐
-│         AGENT CREATION                   │
-│  workspace/agents/{agent_name}/         │
-│  ├── config.yaml                        │
-│  ├── system_prompt.md                   │
-│  ├── capabilities.json                  │
-│  └── rag/                               │
-└─────────────────────────────────────────┘
+    |
+    v
++-----------------------------------------+
+|         SPECIFICATION ANALYSIS           |
+|  - Domain extraction                    |
+|  - Capability mapping                   |
+|  - Parent selection                     |
++--------------------+--------------------+
+    |
+    v
++-----------------------------------------+
+|         BRAINSTORM (Gemini+Claude)       |
+|  - Capability discussion                |
+|  - Prompt engineering                   |
+|  - Configuration design                 |
++--------------------+--------------------+
+    |
+    v
++-----------------------------------------+
+|         AGENT CREATION                   |
+|  workspace/agents/{agent_name}/         |
+|  +-- config.yaml                        |
+|  +-- system_prompt.md                   |
+|  +-- capabilities.json                  |
+|  +-- rag/                               |
++-----------------------------------------+
 ```
 
 ### 7.2 Evolution Cycle
 
 ```
 /evolve
-    │
-    ▼
-┌─────────────────────────────────────────┐
-│         METRICS ANALYSIS                 │
-│  - Success rate                         │
-│  - Task completion time                 │
-│  - Error patterns                       │
-└────────────────────┬────────────────────┘
-    │
-    ▼
-┌─────────────────────────────────────────┐
-│         MUTATION PROPOSAL                │
-│  - Capability adjustments               │
-│  - Prompt refinements                   │
-│  - Tool preferences                     │
-└────────────────────┬────────────────────┘
-    │
-    ▼
-┌─────────────────────────────────────────┐
-│         OFFSPRING CREATION               │
-│  - Clone parent                         │
-│  - Apply mutations                      │
-│  - Validate                             │
-└────────────────────┬────────────────────┘
-    │
-    ▼
+    |
+    v
++-----------------------------------------+
+|         METRICS ANALYSIS                 |
+|  - Success rate                         |
+|  - Task completion time                 |
+|  - Error patterns                       |
++--------------------+--------------------+
+    |
+    v
++-----------------------------------------+
+|         MUTATION PROPOSAL                |
+|  - Capability adjustments               |
+|  - Prompt refinements                   |
+|  - Tool preferences                     |
++--------------------+--------------------+
+    |
+    v
++-----------------------------------------+
+|         OFFSPRING CREATION               |
+|  - Clone parent                         |
+|  - Apply mutations                      |
+|  - Validate                             |
++--------------------+--------------------+
+    |
+    v
 New Agent (Improved Version)
 ```
 
@@ -584,76 +584,76 @@ New Agent (Improved Version)
 ### 8.1 Dashboard Layout
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                        HEADER                               │
-│  [Logo] NEXUS CEREBRO    [User] [WS: Connected] [Logout]    │
-├───────────────────────────────────┬─────────────────────────┤
-│                                   │                         │
-│  [Hive Map] [Files] [Memory]      │    MISSION CONTROL      │
-│  ────────────────────────────     │    ───────────────      │
-│                                   │    Mode: [Dropdown]     │
-│     TAB CONTENT                   │    [Start Task]         │
-│                                   │    [Abort]              │
-│     - HiveMap: Agent graph        │                         │
-│     - Files: Tree + Editor        ├─────────────────────────┤
-│     - Memory: RAG panel           │                         │
-│                                   │    EVENT STREAM         │
-│                                   │    ───────────────      │
-│                                   │    [Live events]        │
-│                                   │    [Auto-scroll]        │
-│                                   │                         │
-└───────────────────────────────────┴─────────────────────────┘
++-------------------------------------------------------------+
+|                        HEADER                               |
+|  [Logo] NEXUS CEREBRO    [User] [WS: Connected] [Logout]    |
++-----------------------------------+-------------------------+
+|                                   |                         |
+|  [Hive Map] [Files] [Memory]      |    MISSION CONTROL      |
+|  ----------------------------     |    ---------------      |
+|                                   |    Mode: [Dropdown]     |
+|     TAB CONTENT                   |    [Start Task]         |
+|                                   |    [Abort]              |
+|     - HiveMap: Agent graph        |                         |
+|     - Files: Tree + Editor        +-------------------------+
+|     - Memory: RAG panel           |                         |
+|                                   |    EVENT STREAM         |
+|                                   |    ---------------      |
+|                                   |    [Live events]        |
+|                                   |    [Auto-scroll]        |
+|                                   |                         |
++-----------------------------------+-------------------------+
 ```
 
 ### 8.2 Event Flow (WebSocket)
 
 ```
 Backend (FastAPI)
-    │
-    ├── State changes ────────────┐
-    ├── Tool executions ──────────┤
-    ├── Agent messages ───────────┼───► WebSocket
-    ├── Errors ───────────────────┤      │
-    └── Progress updates ─────────┘      │
-                                         ▼
-                               ┌─────────────────┐
-                               │  Event Store    │
-                               │  (Zustand)      │
-                               └────────┬────────┘
-                                        │
-                    ┌───────────────────┼───────────────────┐
-                    ▼                   ▼                   ▼
-            ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-            │ EventStream │     │  HiveMap    │     │   Toasts    │
-            │  (Live log) │     │  (Update)   │     │  (Alerts)   │
-            └─────────────┘     └─────────────┘     └─────────────┘
+    |
+    +-- State changes ------------+
+    +-- Tool executions ----------+
+    +-- Agent messages -----------+---► WebSocket
+    +-- Errors -------------------+      |
+    +-- Progress updates ---------+      |
+                                         v
+                               +-----------------+
+                               |  Event Store    |
+                               |  (Zustand)      |
+                               +--------+--------+
+                                        |
+                    +-------------------+-------------------+
+                    v                   v                   v
+            +-------------+     +-------------+     +-------------+
+            | EventStream |     |  HiveMap    |     |   Toasts    |
+            |  (Live log) |     |  (Update)   |     |  (Alerts)   |
+            +-------------+     +-------------+     +-------------+
 ```
 
 ### 8.3 Interaction Flow (HITL)
 
 ```
 Backend needs human input
-    │
-    ▼
+    |
+    v
 Event: interaction.request
-    │
-    ▼
-┌─────────────────────────────────────────┐
-│         InteractionModal                │
-│                                         │
-│  [Question from agent]                  │
-│                                         │
-│  ┌─────────────────────────────────┐    │
-│  │  Response textarea              │    │
-│  └─────────────────────────────────┘    │
-│                                         │
-│  [Cancel]                [Submit]       │
-└─────────────────────────────────────────┘
-    │
-    ▼
+    |
+    v
++-----------------------------------------+
+|         InteractionModal                |
+|                                         |
+|  [Question from agent]                  |
+|                                         |
+|  +---------------------------------+    |
+|  |  Response textarea              |    |
+|  +---------------------------------+    |
+|                                         |
+|  [Cancel]                [Submit]       |
++-----------------------------------------+
+    |
+    v
 POST /api/interactions/:id/reply
-    │
-    ▼
+    |
+    v
 Backend continues execution
 ```
 
@@ -665,44 +665,44 @@ Backend continues execution
 
 ```
 User Request
-    │
-    ▼
-┌─────────────────────────────────────────┐
-│         KERNEL.py CHECK                  │
-│  - Alignment verification               │
-│  - Creator binding (immutable)          │
-└────────────────────┬────────────────────┘
-    │
-    ▼
-┌─────────────────────────────────────────┐
-│         EXECUTION POLICY                 │
-│  - Path validation                      │
-│  - Command filtering                    │
-│  - SSRF protection                      │
-└────────────────────┬────────────────────┘
-    │
-    ▼
-┌─────────────────────────────────────────┐
-│         TENANT ISOLATION                 │
-│  - Multi-tenant context                 │
-│  - Data separation                      │
-│  - Access control                       │
-└────────────────────┬────────────────────┘
-    │
-    ▼
+    |
+    v
++-----------------------------------------+
+|         KERNEL.py CHECK                  |
+|  - Alignment verification               |
+|  - Creator binding (immutable)          |
++--------------------+--------------------+
+    |
+    v
++-----------------------------------------+
+|         EXECUTION POLICY                 |
+|  - Path validation                      |
+|  - Command filtering                    |
+|  - SSRF protection                      |
++--------------------+--------------------+
+    |
+    v
++-----------------------------------------+
+|         TENANT ISOLATION                 |
+|  - Multi-tenant context                 |
+|  - Data separation                      |
+|  - Access control                       |
++--------------------+--------------------+
+    |
+    v
 Execute (if all checks pass)
 ```
 
 ### 9.2 7 Security Layers
 
 ```
-Layer 1: KERNEL.py ─────────► Immutable alignment
-Layer 2: JWT Auth ──────────► Token validation
-Layer 3: RBAC ──────────────► Role-based access
-Layer 4: Tenant Isolation ──► Data separation
-Layer 5: Rate Limiting ─────► DoS protection
-Layer 6: SSRF Protection ───► URL validation
-Layer 7: Path Sandbox ──────► File access control
+Layer 1: KERNEL.py ---------► Immutable alignment
+Layer 2: JWT Auth ----------► Token validation
+Layer 3: RBAC --------------► Role-based access
+Layer 4: Tenant Isolation --► Data separation
+Layer 5: Rate Limiting -----► DoS protection
+Layer 6: SSRF Protection ---► URL validation
+Layer 7: Path Sandbox ------► File access control
 ```
 
 ---
@@ -713,20 +713,20 @@ Layer 7: Path Sandbox ──────► File access control
 
 ```
 User: "Read main.py and explain it"
-    │
-    ▼
-IDLE → TASK_ANALYSIS
-    │
-    ▼
-Complexity: TRIVIAL → BRAINSTORMING (direct)
-    │
-    ▼
-Agent reads file → Explanation
-    │
-    ▼
-VALIDATING_CFL → IDLE
-    │
-    ▼
+    |
+    v
+IDLE -> TASK_ANALYSIS
+    |
+    v
+Complexity: TRIVIAL -> BRAINSTORMING (direct)
+    |
+    v
+Agent reads file -> Explanation
+    |
+    v
+VALIDATING_CFL -> IDLE
+    |
+    v
 Response to user
 ```
 
@@ -734,33 +734,33 @@ Response to user
 
 ```
 User: "Refactor auth system with tests"
-    │
-    ▼
-IDLE → TASK_ANALYSIS
-    │
-    ▼
-Complexity: COMPLEX → HIVE_DELEGATE
-    │
-    ▼
-┌─────────────────────────────────────────┐
-│              HIVEMIND                    │
-│                                         │
-│  Phase 1: Both agents analyze auth      │
-│  Phase 2: Debate on approach            │
-│  Phase 3: Design refactor plan          │
-│  Phase 4: Execute steps                 │
-│      └── Step 3: SwarmBridge            │
-│              └── PARALLEL mode          │
-│                  (Claude: refactor)     │
-│                  (Gemini: tests)        │
-│  Phase 6: Merge results                 │
-│  Phase 7: Complete                      │
-└─────────────────────────────────────────┘
-    │
-    ▼
-VALIDATING_CFL → IDLE
-    │
-    ▼
+    |
+    v
+IDLE -> TASK_ANALYSIS
+    |
+    v
+Complexity: COMPLEX -> HIVE_DELEGATE
+    |
+    v
++-----------------------------------------+
+|              HIVEMIND                    |
+|                                         |
+|  Phase 1: Both agents analyze auth      |
+|  Phase 2: Debate on approach            |
+|  Phase 3: Design refactor plan          |
+|  Phase 4: Execute steps                 |
+|      +-- Step 3: SwarmBridge            |
+|              +-- PARALLEL mode          |
+|                  (Claude: refactor)     |
+|                  (Gemini: tests)        |
+|  Phase 6: Merge results                 |
+|  Phase 7: Complete                      |
++-----------------------------------------+
+    |
+    v
+VALIDATING_CFL -> IDLE
+    |
+    v
 Complete refactored code + tests
 ```
 
@@ -768,31 +768,31 @@ Complete refactored code + tests
 
 ```
 User: "/swarm red_blue Security audit of api/"
-    │
-    ▼
-SWARM_DELEGATE → SWARM_NEGOTIATING
-    │
-    ▼
+    |
+    v
+SWARM_DELEGATE -> SWARM_NEGOTIATING
+    |
+    v
 Mode: RED_BLUE (forced)
-    │
-    ▼
-┌─────────────────────────────────────────┐
-│            RED_BLUE MODE                 │
-│                                         │
-│  RED (Gemini):                          │
-│  - Scan for vulnerabilities             │
-│  - Attempt exploits                     │
-│  - Document attack vectors              │
-│                                         │
-│  BLUE (Claude):                         │
-│  - Review findings                      │
-│  - Propose fixes                        │
-│  - Validate mitigations                 │
-│                                         │
-│  Final: Hardened code + report          │
-└─────────────────────────────────────────┘
-    │
-    ▼
+    |
+    v
++-----------------------------------------+
+|            RED_BLUE MODE                 |
+|                                         |
+|  RED (Gemini):                          |
+|  - Scan for vulnerabilities             |
+|  - Attempt exploits                     |
+|  - Document attack vectors              |
+|                                         |
+|  BLUE (Claude):                         |
+|  - Review findings                      |
+|  - Propose fixes                        |
+|  - Validate mitigations                 |
+|                                         |
+|  Final: Hardened code + report          |
++-----------------------------------------+
+    |
+    v
 Security report + fixes
 ```
 
@@ -804,17 +804,17 @@ Security report + fixes
 
 ```
 Error occurs
-    │
-    ▼
-STATE → ERROR
-    │
-    ▼
+    |
+    v
+STATE -> ERROR
+    |
+    v
 User: /reset
-    │
-    ▼
-ERROR → IDLE
-    │
-    ▼
+    |
+    v
+ERROR -> IDLE
+    |
+    v
 Ready for new input
 ```
 
@@ -822,43 +822,43 @@ Ready for new input
 
 ```
 Execution step fails
-    │
-    ▼
-EXEC_STEP → DIAG_PENDING
-    │
-    ▼
-┌─────────────────────────────────────────┐
-│           DIAGNOSIS PHASE                │
-│                                         │
-│  1. Analyze error                       │
-│  2. Identify root cause                 │
-│  3. Propose fix                         │
-│  4. Retry (up to 3x)                    │
-└─────────────────────────────────────────┘
-    │
-    ├── Success → Continue execution
-    └── Fail 3x → HIVE_FAILED
+    |
+    v
+EXEC_STEP -> DIAG_PENDING
+    |
+    v
++-----------------------------------------+
+|           DIAGNOSIS PHASE                |
+|                                         |
+|  1. Analyze error                       |
+|  2. Identify root cause                 |
+|  3. Propose fix                         |
+|  4. Retry (up to 3x)                    |
++-----------------------------------------+
+    |
+    +-- Success -> Continue execution
+    +-- Fail 3x -> HIVE_FAILED
 ```
 
 ---
 
 ## 12. Quick Reference
 
-### Commands → Workflows
+### Commands -> Workflows
 
 | Command | Workflow Path |
 |---------|---------------|
-| Natural text | TaskAnalyzer → Auto-route |
+| Natural text | TaskAnalyzer -> Auto-route |
 | `/swarm` | Force Swarm Engine |
 | `/hive` | Force HiveMind |
-| `/spawn` | Evolution → Agent creation |
-| `/evolve` | Evolution → Mutation |
-| `/memory index` | RAG → Ingestion |
-| `/memory query` | RAG → Search |
-| `/status` | Direct → Status display |
-| `/reset` | ERROR → IDLE |
+| `/spawn` | Evolution -> Agent creation |
+| `/evolve` | Evolution -> Mutation |
+| `/memory index` | RAG -> Ingestion |
+| `/memory query` | RAG -> Search |
+| `/status` | Direct -> Status display |
+| `/reset` | ERROR -> IDLE |
 
-### Complexity → Orchestration
+### Complexity -> Orchestration
 
 | Complexity | Handler |
 |------------|---------|

@@ -8,8 +8,8 @@ token reduction for file reads, grep results, and web fetches.
 Based on: "Solving Context Window Overflow in AI Agents" (arXiv:2511.22729)
 
 Two operations:
-1. store(content) → pointer_id + summary (compact representation for context)
-2. retrieve(pointer_id) → full content (on demand)
+1. store(content) -> pointer_id + summary (compact representation for context)
+2. retrieve(pointer_id) -> full content (on demand)
 
 Usage:
     pm = get_pointer_memory()
@@ -148,8 +148,8 @@ class PointerMemory:
     ):
         self._size_threshold = size_threshold or self.SIZE_THRESHOLD
         self._max_pointers = max_pointers or self.MAX_POINTERS
-        self._store: OrderedDict[str, str] = OrderedDict()  # pointer_id → content
-        self._pointers: dict[str, Pointer] = {}  # pointer_id → Pointer metadata
+        self._store: OrderedDict[str, str] = OrderedDict()  # pointer_id -> content
+        self._pointers: dict[str, Pointer] = {}  # pointer_id -> Pointer metadata
         self._total_stored = 0
         self._total_retrieved = 0
         self._tokens_saved = 0

@@ -54,11 +54,11 @@ class SessionWorkspaceManager:
     Architecture:
     ```
     workspace/
-    ├── .sessions/                     # Legacy CWD isolation (V9.7)
-    │   └── [deprecated]
-    └── .session_homes/                # V9.7.1 HOME spoofing
-        ├── swarm_task_001_lead/       # Isolated HOME for lead agent
-        └── swarm_task_002_support/    # Isolated HOME for support agent
+    +-- .sessions/                     # Legacy CWD isolation (V9.7)
+    |   +-- [deprecated]
+    +-- .session_homes/                # V9.7.1 HOME spoofing
+        +-- swarm_task_001_lead/       # Isolated HOME for lead agent
+        +-- swarm_task_002_support/    # Isolated HOME for support agent
     ```
 
     Thread Safety:

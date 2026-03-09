@@ -52,13 +52,12 @@ class ConsoleV7:
         codename = codename or NEXUS_CODENAME
 
         banner = f"""
-╔═══════════════════════════════════════════════════════════╗
-║        NEXUS V{version} "{codename}"           ║
-║              Persistent FSM Orchestrator                  ║
-╚═══════════════════════════════════════════════════════════╝
-
-🧠 Gemini: {gemini_model}
-🛠️  Claude: {claude_model} (Dynamic: Opus for evolution/brainstorm)
+===========================================================
+NEXUS V{version} "{codename}"
+Persistent FSM Orchestrator
+===========================================================
+Gemini: {gemini_model}
+Claude: {claude_model} (Dynamic: Opus for evolution/brainstorm)
 
 Mode: Shared Runtime (CLI + SDK)
 Type your task or use slash commands (/help for list)
@@ -117,16 +116,16 @@ Type your task or use slash commands (/help for list)
         # Tool execution indication
         if state == "EXECUTING_TOOL" and "tool" in result:
             tool_name = result["tool"]
-            self.console.print(f"[yellow]⚙️  Executing: {tool_name}[/yellow]")
+            self.console.print(f"[yellow][tool] Executing: {tool_name}[/yellow]")
 
         # Error
         if error:
-            self.console.print(f"[red]❌ {error}[/red]")
+            self.console.print(f"[red][error] {error}[/red]")
 
         # Validation results
-        if "✓" in str(output):
+        if "[OK]" in str(output) or "[OK]" in str(output):
             self.console.print(output, style="green")
-        elif "✗" in str(output):
+        elif "[NO]" in str(output) or "[NO]" in str(output):
             self.console.print(output, style="yellow")
 
     def print_status(self, status: dict):
@@ -146,7 +145,7 @@ Active Agent: {status["agent"]}
 Iteration: {status["iteration"]}
 Objective: {status["objective"]}"""
 
-        panel = Panel(content, title="📊 Orchestrator Status", border_style="cyan")
+        panel = Panel(content, title="Orchestrator Status", border_style="cyan")
         self.console.print(panel)
 
     def print_doctor_results(self, results: dict):
@@ -164,17 +163,17 @@ Objective: {status["objective"]}"""
         gemini = results["gemini"]
         claude = results["claude"]
 
-        gemini_status = "✓" if gemini["available"] else "❌"
-        claude_status = "✓" if claude["available"] else "❌"
+        gemini_status = "[OK]" if gemini["available"] else "[NO]"
+        claude_status = "[OK]" if claude["available"] else "[NO]"
 
         content = f"""{gemini_status} Gemini CLI: {gemini.get("model", "N/A")}
 {claude_status} Claude CLI: {claude.get("model", "N/A")}
-{"✓" if results.get("workspace") else "❌"} Workspace directory
-{"✓" if results.get("io_buffer") else "❌"} IO Buffer directory"""
+{"[OK]" if results.get("workspace") else "[NO]"} Workspace directory
+{"[OK]" if results.get("io_buffer") else "[NO]"} IO Buffer directory"""
 
         panel = Panel(
             content,
-            title="🔍 System Diagnostics",
+            title="System Diagnostics",
             border_style="green" if results.get("workspace") and results.get("io_buffer") else "yellow",
         )
         self.console.print(panel)
@@ -185,7 +184,7 @@ Objective: {status["objective"]}"""
 
     def print_error(self, error: str):
         """Print error message"""
-        self.console.print(f"[red]❌ {error}[/red]")
+        self.console.print(f"[red][error] {error}[/red]")
 
     def print(self, message: str, style: str | None = None):
         """

@@ -6,13 +6,13 @@
 
 ---
 
-## ✅ PHASE 3: SDKs NATIFS ET SANDBOXING OS-LEVEL - 100% COMPLETE
+## [OK] PHASE 3: SDKs NATIFS ET SANDBOXING OS-LEVEL - 100% COMPLETE
 
 *Objective: Replace CLIs with cloud-ready SDKs and secure Swarm code execution.*
 
 ---
 
-### Epic 3.1: Contrats LLM Provider (API-First & Prompt Caching) ✅
+### Epic 3.1: Contrats LLM Provider (API-First & Prompt Caching) [OK]
 
 **Status**: COMPLETE (Prior work, verified 2026-02-17)
 
@@ -148,31 +148,31 @@ class BaseAsyncDriver(ABC):
 **Validation**:
 ```python
 # Anthropic SDK Driver
-✓ Native SDK calls (no subprocess)
-✓ Prompt caching with cache_control
-✓ Structured outputs (messages.parse, output_config)
-✓ Streaming responses
-✓ OTel tracing
-✓ Budget tracking
-✓ Health monitoring
+[OK] Native SDK calls (no subprocess)
+[OK] Prompt caching with cache_control
+[OK] Structured outputs (messages.parse, output_config)
+[OK] Streaming responses
+[OK] OTel tracing
+[OK] Budget tracking
+[OK] Health monitoring
 
 # Google GenAI SDK Driver
-✓ Native SDK calls (no subprocess)
-✓ Context caching (server-side, TTL)
-✓ Structured outputs (responseSchema, response_json_schema)
-✓ Streaming responses
-✓ OTel tracing
-✓ Budget tracking
-✓ Health monitoring
+[OK] Native SDK calls (no subprocess)
+[OK] Context caching (server-side, TTL)
+[OK] Structured outputs (responseSchema, response_json_schema)
+[OK] Streaming responses
+[OK] OTel tracing
+[OK] Budget tracking
+[OK] Health monitoring
 
 # Legacy drivers moved to core/drivers/legacy/
-✓ claude_driver_hybrid.py
-✓ gemini_driver_v7.py
+[OK] claude_driver_hybrid.py
+[OK] gemini_driver_v7.py
 ```
 
 ---
 
-### Epic 3.2: Sandboxing Physique des Exécuteurs ✅
+### Epic 3.2: Sandboxing Physique des Exécuteurs [OK]
 
 **Status**: COMPLETE (Prior work, verified 2026-02-17)
 
@@ -195,15 +195,15 @@ class BaseAsyncDriver(ABC):
 **Architecture**:
 ```
 User/Agent Request
-    → BashHandler (validates command via ExecutionPolicy)
-    → SandboxHandler (if NEXUS_FF_SANDBOX_ENABLED=true)
-    → Docker container (isolated, ephemeral)
+    -> BashHandler (validates command via ExecutionPolicy)
+    -> SandboxHandler (if NEXUS_FF_SANDBOX_ENABLED=true)
+    -> Docker container (isolated, ephemeral)
         - No network
         - Read-only root
         - Workspace mounted read-only
         - Memory/CPU limited
         - Process count limited
-    → Result returned to agent
+    -> Result returned to agent
 ```
 
 **Feature Flags**:
@@ -311,16 +311,16 @@ def test_workspace_mounted_readonly(sandbox):
 
 **Validation**:
 ```
-✓ SandboxHandler implemented with Docker isolation
-✓ 10 security constraints enforced
-✓ Feature flags: NEXUS_FF_SANDBOX_ENABLED, NEXUS_FF_SANDBOX_REQUIRED
-✓ Fail-closed production mode (refuses to run without Docker)
-✓ BashHandler delegates to sandbox when enabled
-✓ Graceful fallback when Docker unavailable (dev mode)
-✓ 28 tests passing (Docker command validation)
-✓ ExecutionPolicy validation still active (double security)
-✓ Workspace mounted read-only (no corruption possible)
-✓ Network isolation (no data exfiltration)
+[OK] SandboxHandler implemented with Docker isolation
+[OK] 10 security constraints enforced
+[OK] Feature flags: NEXUS_FF_SANDBOX_ENABLED, NEXUS_FF_SANDBOX_REQUIRED
+[OK] Fail-closed production mode (refuses to run without Docker)
+[OK] BashHandler delegates to sandbox when enabled
+[OK] Graceful fallback when Docker unavailable (dev mode)
+[OK] 28 tests passing (Docker command validation)
+[OK] ExecutionPolicy validation still active (double security)
+[OK] Workspace mounted read-only (no corruption possible)
+[OK] Network isolation (no data exfiltration)
 ```
 
 ---
@@ -382,11 +382,11 @@ def test_workspace_mounted_readonly(sandbox):
 ### Test Status
 
 ```
-✓ AnthropicSDKDriver API tested (prompt caching, structured outputs)
-✓ GoogleGenAISDKDriver API tested (context caching, structured outputs)
-✓ SandboxHandler: 28 tests passing (security constraints validated)
-✓ Docker command builder validated (--network=none, --read-only, etc.)
-✓ Feature flag behavior verified
+[OK] AnthropicSDKDriver API tested (prompt caching, structured outputs)
+[OK] GoogleGenAISDKDriver API tested (context caching, structured outputs)
+[OK] SandboxHandler: 28 tests passing (security constraints validated)
+[OK] Docker command builder validated (--network=none, --read-only, etc.)
+[OK] Feature flag behavior verified
 ```
 
 ---
@@ -404,7 +404,7 @@ def test_workspace_mounted_readonly(sandbox):
 - Status: Needs implementation
 - Action: Refactor `core/evolution/promote.py` for deterministic fitness
 - Action: Remove LLM-as-a-judge (model collapse risk)
-- Action: Pipeline: Linter → Type-check → Bandit → Pytest → Promote
+- Action: Pipeline: Linter -> Type-check -> Bandit -> Pytest -> Promote
 
 **Epic 4.3**: OpenTelemetry & Déploiement
 - Status: Partially complete (OTel provider exists, docker-compose missing OTel collector)
@@ -419,89 +419,89 @@ def test_workspace_mounted_readonly(sandbox):
 ### SDK Driver Architecture (Epic 3.1)
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│  HiveMind Phases / Swarm Engine                                  │
-└────────────────────────┬────────────────────────────────────────┘
-                         │
-                         ▼
-          ┌──────────────────────────────┐
-          │  BaseAsyncDriver (Protocol)  │  ← Unified interface
-          │  - invoke()                  │
-          │  - invoke_structured()       │
-          │  - invoke_stream()           │
-          │  - health_check()            │
-          └──────────────┬───────────────┘
-                         │
-          ┌──────────────┴────────────────┐
-          │                               │
-          ▼                               ▼
-┌──────────────────────┐      ┌──────────────────────┐
-│ AnthropicSDKDriver   │      │ GoogleGenAISDKDriver │
-│ - Prompt Caching     │      │ - Context Caching    │
-│ - Structured Outputs │      │ - Structured Outputs │
-│ - Streaming          │      │ - Streaming          │
-│ - OTel Tracing       │      │ - OTel Tracing       │
-└──────────┬───────────┘      └──────────┬───────────┘
-           │                              │
-           ▼                              ▼
-┌──────────────────────┐      ┌──────────────────────┐
-│ Anthropic API        │      │ Google GenAI API     │
-│ (claude-opus-4-6,    │      │ (gemini-3-pro,       │
-│  claude-sonnet-4-5)  │      │  gemini-3-flash)     │
-└──────────────────────┘      └──────────────────────┘
++-----------------------------------------------------------------+
+|  HiveMind Phases / Swarm Engine                                  |
++------------------------+----------------------------------------+
+                         |
+                         v
+          +------------------------------+
+          |  BaseAsyncDriver (Protocol)  |  <- Unified interface
+          |  - invoke()                  |
+          |  - invoke_structured()       |
+          |  - invoke_stream()           |
+          |  - health_check()            |
+          +--------------+---------------+
+                         |
+          +--------------+----------------+
+          |                               |
+          v                               v
++----------------------+      +----------------------+
+| AnthropicSDKDriver   |      | GoogleGenAISDKDriver |
+| - Prompt Caching     |      | - Context Caching    |
+| - Structured Outputs |      | - Structured Outputs |
+| - Streaming          |      | - Streaming          |
+| - OTel Tracing       |      | - OTel Tracing       |
++----------+-----------+      +----------+-----------+
+           |                              |
+           v                              v
++----------------------+      +----------------------+
+| Anthropic API        |      | Google GenAI API     |
+| (claude-opus-4-6,    |      | (gemini-3-pro,       |
+|  claude-sonnet-4-5)  |      |  gemini-3-flash)     |
++----------------------+      +----------------------+
 ```
 
 ### Sandboxing Architecture (Epic 3.2)
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│  Agent Request (bash command)                                    │
-└────────────────────────┬────────────────────────────────────────┘
-                         │
-                         ▼
-          ┌──────────────────────────────┐
-          │  BashHandler                 │
-          │  - ExecutionPolicy validation│
-          │  - Feature flag check        │
-          └──────────────┬───────────────┘
-                         │
-         ┌───────────────┴────────────────┐
-         │  NEXUS_FF_SANDBOX_ENABLED?    │
-         └────┬──────────────────────┬────┘
-              │ Yes                  │ No
-              ▼                      ▼
-    ┌──────────────────┐    ┌──────────────────┐
-    │ SandboxHandler   │    │ Host Execution   │
-    │ (Docker)         │    │ (subprocess)     │
-    └─────────┬────────┘    └──────────────────┘
-              │
-              ▼
-    ┌──────────────────────────────────────────┐
-    │ Docker Container (Ephemeral)             │
-    │ ┌──────────────────────────────────────┐ │
-    │ │ Security Constraints:                │ │
-    │ │ - Network isolation (--network=none) │ │
-    │ │ - Read-only root (--read-only)       │ │
-    │ │ - Memory limit (--memory=256m)       │ │
-    │ │ - CPU limit (--cpus=1.0)             │ │
-    │ │ - No privileges (no-new-privileges)  │ │
-    │ │ - Process limit (--pids-limit=128)   │ │
-    │ │ - Workspace mounted read-only (:ro)  │ │
-    │ └──────────────────────────────────────┘ │
-    │ ┌──────────────────────────────────────┐ │
-    │ │ Command Execution                    │ │
-    │ │ $ python -c 'print(1+1)'             │ │
-    │ │ 2                                     │ │
-    │ └──────────────────────────────────────┘ │
-    └────────────────┬─────────────────────────┘
-                     │
-                     ▼
-          ┌──────────────────────┐
-          │ ToolResult           │
-          │ - status: SUCCESS    │
-          │ - output: "2\n"      │
-          │ - error: ""          │
-          └──────────────────────┘
++-----------------------------------------------------------------+
+|  Agent Request (bash command)                                    |
++------------------------+----------------------------------------+
+                         |
+                         v
+          +------------------------------+
+          |  BashHandler                 |
+          |  - ExecutionPolicy validation|
+          |  - Feature flag check        |
+          +--------------+---------------+
+                         |
+         +---------------+----------------+
+         |  NEXUS_FF_SANDBOX_ENABLED?    |
+         +----+----------------------+----+
+              | Yes                  | No
+              v                      v
+    +------------------+    +------------------+
+    | SandboxHandler   |    | Host Execution   |
+    | (Docker)         |    | (subprocess)     |
+    +---------+--------+    +------------------+
+              |
+              v
+    +------------------------------------------+
+    | Docker Container (Ephemeral)             |
+    | +--------------------------------------+ |
+    | | Security Constraints:                | |
+    | | - Network isolation (--network=none) | |
+    | | - Read-only root (--read-only)       | |
+    | | - Memory limit (--memory=256m)       | |
+    | | - CPU limit (--cpus=1.0)             | |
+    | | - No privileges (no-new-privileges)  | |
+    | | - Process limit (--pids-limit=128)   | |
+    | | - Workspace mounted read-only (:ro)  | |
+    | +--------------------------------------+ |
+    | +--------------------------------------+ |
+    | | Command Execution                    | |
+    | | $ python -c 'print(1+1)'             | |
+    | | 2                                     | |
+    | +--------------------------------------+ |
+    +----------------+-------------------------+
+                     |
+                     v
+          +----------------------+
+          | ToolResult           |
+          | - status: SUCCESS    |
+          | - output: "2\n"      |
+          | - error: ""          |
+          +----------------------+
 ```
 
 ---
@@ -511,16 +511,16 @@ def test_workspace_mounted_readonly(sandbox):
 **PHASE 3: 100% COMPLETE**
 
 NEXUS V12.4 now has:
-- ✅ Native SDK drivers (Anthropic + Google GenAI)
-- ✅ Prompt caching (~90% cost reduction)
-- ✅ Context caching (Gemini server-side)
-- ✅ Structured outputs (Pydantic + JSON schema)
-- ✅ Streaming responses (SSE-compatible)
-- ✅ OTel tracing and budget tracking
-- ✅ Docker-based sandboxing (10 security layers)
-- ✅ Fail-closed production mode (NEXUS_FF_SANDBOX_REQUIRED)
-- ✅ Network isolation + read-only filesystem
-- ✅ Legacy CLI drivers deprecated
+- [OK] Native SDK drivers (Anthropic + Google GenAI)
+- [OK] Prompt caching (~90% cost reduction)
+- [OK] Context caching (Gemini server-side)
+- [OK] Structured outputs (Pydantic + JSON schema)
+- [OK] Streaming responses (SSE-compatible)
+- [OK] OTel tracing and budget tracking
+- [OK] Docker-based sandboxing (10 security layers)
+- [OK] Fail-closed production mode (NEXUS_FF_SANDBOX_REQUIRED)
+- [OK] Network isolation + read-only filesystem
+- [OK] Legacy CLI drivers deprecated
 
 **Ready for PHASE 4: INTEROPÉRABILITÉ (A2A/MCP) & OBSERVABILITÉ**
 
@@ -528,4 +528,4 @@ NEXUS V12.4 now has:
 
 **Date**: 2026-02-17
 **Agent**: Claude Sonnet 4.5 (Autonomous Development)
-**Status**: Cloud-ready SDK infrastructure + OS-level sandboxing ✅
+**Status**: Cloud-ready SDK infrastructure + OS-level sandboxing [OK]

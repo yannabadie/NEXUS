@@ -48,7 +48,7 @@ Replaying 10k events from JSONL takes 2-5 seconds. Need fast crash recovery.
 **IEEE Conference Publication**
 **Approach**: Snapshot algorithms that require coordination among all nodes. Partial snapshots reduce communication cost for large systems.
 
-**NEXUS Implementation**: ✅ **Already implemented in Task #113**
+**NEXUS Implementation**: [OK] **Already implemented in Task #113**
 - Snapshots every 100 FSM transitions
 - Fast recovery: 71ms for 10k events (7× faster than 500ms target)
 - Auto-cleanup: Keep last 10 snapshots
@@ -63,7 +63,7 @@ Replaying 10k events from JSONL takes 2-5 seconds. Need fast crash recovery.
 #### [Event Sourcing Pattern - Martin Fowler](https://martinfowler.com/eaaDev/EventSourcing.html)
 **Best Practice**: "A system in use during a working day could be started from an overnight snapshot and hold the current application state in memory. Should it crash it replays the events from the overnight store."
 
-**NEXUS Alignment**: ✅ Exactly our implementation - boot from snapshot + replay delta events.
+**NEXUS Alignment**: [OK] Exactly our implementation - boot from snapshot + replay delta events.
 
 ---
 
@@ -141,7 +141,7 @@ Current HiveMind phases use `json_parser.py` with regex heuristics to extract JS
 - `cache_read_input_tokens`: Tokens retrieved from cache
 - `input_tokens`: Tokens not cached
 
-**NEXUS Status**: ✅ Already implemented in V12.4.1 (Task #112)
+**NEXUS Status**: [OK] Already implemented in V12.4.1 (Task #112)
 - Static system prompts in `core/hive_mind/prompts.py`
 - All phases use `invoke()` with cached system prompts
 - Expected 41-90% cost reduction
@@ -164,18 +164,18 @@ Current HiveMind phases use `json_parser.py` with regex heuristics to extract JS
 | Optimization | Epic | Research Paper | Expected Impact |
 |--------------|------|----------------|-----------------|
 | **Context Compression** | 1.1 (todo3) | ChunkKV (ArXiv 2502.00299) | 70-85% token reduction |
-| **Event Snapshots** | Task #113 ✅ | IEEE Event Sourcing | 71ms recovery (vs 500ms target) |
+| **Event Snapshots** | Task #113 [OK] | IEEE Event Sourcing | 71ms recovery (vs 500ms target) |
 | **ReDoS Immunity** | Rust Phase 2 | CloudFlare Rust Regex Case | Eliminate vulnerability class |
 | **Structured Outputs** | 1.2 (todo3) | JSONSchemaBench (ArXiv 2501.10868) | Zero parsing errors |
-| **Prompt Caching** | Task #112 ✅ | Anthropic Docs | 41-90% cost reduction |
+| **Prompt Caching** | Task #112 [OK] | Anthropic Docs | 41-90% cost reduction |
 
 ---
 
 ## 🗺️ Implementation Roadmap (Updated)
 
 ### Python P0 Optimizations (February 17-28)
-- ✅ **Prompt Caching** (Task #112) - DONE
-- ✅ **Event Snapshots** (Task #113) - DONE
+- [OK] **Prompt Caching** (Task #112) - DONE
+- [OK] **Event Snapshots** (Task #113) - DONE
 - 📋 **Context Compression** (Epic 1.1) - Next (SLM-based inter-phase compression)
 - 📋 **Structured Outputs** (Epic 1.2) - After 1.1 (remove json_parser.py)
 
@@ -183,7 +183,7 @@ Current HiveMind phases use `json_parser.py` with regex heuristics to extract JS
 - **Phase 1** (Mar 1-15): RRF + BM25 scoring (8-12× speedup)
 - **Phase 2** (Mar 16-Apr 5): ReDoS immunity (Input/Output Guards)
 - **Phase 3** (Apr 6-20): JSON extraction (4-6× parse speed + type safety)
-- **Phase 4** (Apr 21-May 10): ONNX embedding (2.5GB → 600MB Docker)
+- **Phase 4** (Apr 21-May 10): ONNX embedding (2.5GB -> 600MB Docker)
 
 ---
 

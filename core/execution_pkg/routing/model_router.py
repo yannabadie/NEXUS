@@ -49,7 +49,7 @@ class ModelTier(Enum):
     Model capability tiers for SLM triage (V12.4).
 
     Ordered from cheapest/fastest to most capable:
-    LIGHT → MEDIUM → HEAVY
+    LIGHT -> MEDIUM -> HEAVY
     """
 
     LIGHT = "light"  # Haiku / Flash (cheapest, fastest)
@@ -61,8 +61,8 @@ class TaskType(Enum):
     """
     Task types for model routing.
 
-    Claude: Complex tasks → Opus, simpler tasks → Sonnet
-    Gemini: Complex tasks → 3-Pro, simpler tasks → Flash
+    Claude: Complex tasks -> Opus, simpler tasks -> Sonnet
+    Gemini: Complex tasks -> 3-Pro, simpler tasks -> Flash
     """
 
     # Opus/3-Pro routed (complex, creative, security-critical)
@@ -166,7 +166,7 @@ class ModelRouter:
         }
         self.gemini_flash_tasks = {TaskType.SIMPLE, TaskType.FORMAT, TaskType.VALIDATION, TaskType.TOOL}
 
-        # V12.4: Task type → tier mapping (for SLM triage)
+        # V12.4: Task type -> tier mapping (for SLM triage)
         self._task_tiers: dict[TaskType, ModelTier] = {
             # Heavy tier (complex reasoning, creativity, security)
             TaskType.BRAINSTORM: ModelTier.HEAVY,
@@ -332,7 +332,7 @@ class ModelRouter:
         else:
             tier_label = "Sonnet (medium)"
 
-        reason = f"[{self.policy.value}] Task '{task_type.value}' (tier={tier.value}) → {tier_label}"
+        reason = f"[{self.policy.value}] Task '{task_type.value}' (tier={tier.value}) -> {tier_label}"
 
         return RoutingDecision(
             model_id=model,
@@ -352,9 +352,9 @@ class ModelRouter:
         Select appropriate Gemini model for task type (V7 Sprint 6).
 
         V12.4: Now policy-aware.
-        QUALITY_OPTIMIZED → always Pro
-        COST_OPTIMIZED → Flash for LIGHT/MEDIUM tasks
-        BALANCED → original behavior (Pro for complex, Flash for simple)
+        QUALITY_OPTIMIZED -> always Pro
+        COST_OPTIMIZED -> Flash for LIGHT/MEDIUM tasks
+        BALANCED -> original behavior (Pro for complex, Flash for simple)
 
         Args:
             task_type: Type of task to perform
@@ -432,7 +432,7 @@ class ModelRouter:
             return RoutingDecision(
                 model_id=base_model,
                 task_type=task_type,
-                reason=f"Static routing: {task_type.value} → {'Opus' if is_opus else 'Sonnet'}",
+                reason=f"Static routing: {task_type.value} -> {'Opus' if is_opus else 'Sonnet'}",
                 is_opus=is_opus,
             )
 
@@ -551,7 +551,7 @@ class ModelRouter:
         Returns:
             Model ID string (may be "ollama" at budget limit)
         """
-        # Hard stop: over budget → local model only
+        # Hard stop: over budget -> local model only
         if budget_pct >= 100.0:
             return "ollama"
 
@@ -561,7 +561,7 @@ class ModelRouter:
                 return self.haiku_model
             return self.gemini_flash_model
 
-        # Warning: downgrade heavy → medium
+        # Warning: downgrade heavy -> medium
         if budget_pct >= 80.0:
             tier = self._task_tiers.get(task_type, ModelTier.MEDIUM)
             if tier == ModelTier.HEAVY:
@@ -612,7 +612,7 @@ class ModelRouter:
         tier = self._task_tiers.get(task_type, ModelTier.MEDIUM)
         is_claude = agent_id.lower() == "claude"
 
-        # Build full cascade (LIGHT → MEDIUM → HEAVY)
+        # Build full cascade (LIGHT -> MEDIUM -> HEAVY)
         if is_claude:
             full_cascade = [self.haiku_model, self.sonnet_model, self.opus_model]
         else:

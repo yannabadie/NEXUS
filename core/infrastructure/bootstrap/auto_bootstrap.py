@@ -661,13 +661,13 @@ class AutoBootstrap:
         for dir_name in analysis.directories[:15]:
             desc = dir_descriptions.get(dir_name.lower(), "")
             if desc:
-                lines.append(f"├── {dir_name}/          # {desc}")
+                lines.append(f"+-- {dir_name}/          # {desc}")
             else:
-                lines.append(f"├── {dir_name}/")
+                lines.append(f"+-- {dir_name}/")
 
         # Add key files with context
         for file_name in analysis.key_files[:8]:
-            lines.append(f"├── {file_name}")
+            lines.append(f"+-- {file_name}")
 
         lines.append("```")
         lines.append("")

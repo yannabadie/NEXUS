@@ -77,7 +77,7 @@ class TortureChamber:
             self.results.append(result)
             with open(LOG_FILE, "a") as f:
                 f.write(json.dumps(result.__dict__) + "\n")
-            status = "✅ PASS" if result.success else "❌ FAIL"
+            status = "[OK] PASS" if result.success else "[NO] FAIL"
             print(f"[{status}] {result.scenario} ({result.duration:.2f}s)")
             if result.error:
                 print(f"   ERROR: {result.error}")

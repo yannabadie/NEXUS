@@ -5,10 +5,10 @@ Replaces LLM-as-a-judge with deterministic pipeline to prevent model collapse.
 
 Pipeline:
 1. Syntax Check (py_compile + AST)
-2. Linter (ruff) → PASS/FAIL
-3. Type Check (mypy --strict) → PASS/FAIL
-4. Security Scan (bandit -r .) → PASS/FAIL
-5. Tests (pytest tests/) → Exit Code 0/1
+2. Linter (ruff) -> PASS/FAIL
+3. Type Check (mypy --strict) -> PASS/FAIL
+4. Security Scan (bandit -r .) -> PASS/FAIL
+5. Tests (pytest tests/) -> Exit Code 0/1
 6. PROMOTE if all PASS
 
 This module enhances the existing TieredValidator with additional code quality checks.
@@ -526,7 +526,7 @@ class DeterministicFitness:
 
     def _print_check_result(self, check: FitnessResult):
         """Print check result with formatting."""
-        status = "✓ PASS" if check.passed else "✗ FAIL"
+        status = "[OK] PASS" if check.passed else "[NO] FAIL"
         print(f"  [{check.check.name:12s}] {status:8s} {check.message} ({check.duration_seconds:.2f}s)")
         if not check.passed and check.error_output:
             print(f"                           {check.error_output[:200]}...")

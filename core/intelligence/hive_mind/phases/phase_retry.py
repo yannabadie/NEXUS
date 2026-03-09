@@ -8,7 +8,7 @@ Flow:
 1. Check if strategy is blacklisted
 2. Apply recommended changes to architecture
 3. Retry execution (back to Phase 4)
-4. If still fails → blacklist strategy, suggest escalation
+4. If still fails -> blacklist strategy, suggest escalation
 
 Key Features:
 - Blacklist prevents trying same failing approach

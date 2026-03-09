@@ -40,6 +40,7 @@ import logging
 from datetime import UTC
 
 from dotenv import load_dotenv
+
 from core.provider_registry import build_provider_snapshot, get_replacement, refresh_provider_registry
 from core.version import NEXUS_CODENAME as DEFAULT_NEXUS_CODENAME
 from core.version import NEXUS_VERSION as DEFAULT_NEXUS_VERSION
@@ -365,7 +366,7 @@ async def async_main(workspace_path: Path, gemini_info: dict, claude_info: dict,
 
         print(get_repl_alert_message(pending_metadata, config))
         if should_block_evolution(pending_metadata, config):
-            print("\n⚠️  WARNING: Evolution is BLOCKED until review is completed.")
+            print("\n[warning] Evolution is BLOCKED until review is completed.")
             print("   Use /review command to evaluate children.\n")
 
     # V12.4: Check for interrupted sessions (crash recovery)
@@ -375,7 +376,7 @@ async def async_main(workspace_path: Path, gemini_info: dict, claude_info: dict,
         event_store = get_event_store(workspace_path)
         interrupted = event_store.get_interrupted_sessions()
         if interrupted:
-            print(f"\n⚠️  Detected {len(interrupted)} interrupted session(s):")
+            print(f"\n[warning] Detected {len(interrupted)} interrupted session(s):")
             for sess in interrupted[:3]:
                 print(
                     f"   - Session {sess['session_id']}: last state={sess['last_state']}, events={sess['event_count']}"
@@ -494,7 +495,7 @@ Documentation: https://github.com/yannabadie/NEXUS
 
         # Handle --verify (exit after bootstrap)
         if args.verify:
-            print("\n✅ Bootstrap verification successful!")
+            print("\n[ok] Bootstrap verification successful.")
             print(f"   NEXUS V{NEXUS_VERSION} {NEXUS_CODENAME} is ready to use.")
             sys.exit(0)
 
@@ -512,7 +513,7 @@ Documentation: https://github.com/yannabadie/NEXUS
 
         if interrupted:
             session_info = interrupted[-1]  # Most recent interrupted session
-            print("\n⚠️  Detected interrupted session")
+            print("\n[warning] Detected interrupted session")
             print(f"   Last state: {session_info['last_state']}")
             print(f"   Timestamp: {session_info['last_timestamp']}")
             print(f"   Events: {session_info['event_count']}")
@@ -520,7 +521,7 @@ Documentation: https://github.com/yannabadie/NEXUS
             # Ask user if they want to resume (interactive mode only)
             response = input("\n   Resume previous session? [y/N]: ").strip().lower()
             if response in ("y", "yes"):
-                print("   ✓ Resuming previous session state...")
+                print("   [ok] Resuming previous session state...")
                 # Note: Actual state restoration would happen in async_main
                 # For now, we just log this and continue with existing events
             else:
@@ -528,7 +529,7 @@ Documentation: https://github.com/yannabadie/NEXUS
         else:
             last_state = event_store.get_last_state()
             if last_state:
-                print(f"✓ Previous session ended cleanly ({last_state})")
+                print(f"[ok] Previous session ended cleanly ({last_state})")
 
         # V9 CYBORG: Launch via asyncio.run()
         asyncio.run(
@@ -542,12 +543,12 @@ Documentation: https://github.com/yannabadie/NEXUS
         )
 
     except KeyboardInterrupt:
-        print(f"\n\n👋 NEXUS V{NEXUS_VERSION} {NEXUS_CODENAME} terminated by user")
+        print(f"\n\n[shutdown] NEXUS V{NEXUS_VERSION} {NEXUS_CODENAME} terminated by user")
         # V8.4.5: Cleanup handled by atexit and signal handlers
         sys.exit(0)
 
     except Exception as e:
-        print(f"\n❌ Fatal error: {e}")
+        print(f"\n[error] Fatal error: {e}")
         import traceback
 
         traceback.print_exc()

@@ -358,7 +358,7 @@ MIT License - See [LICENSE](LICENSE) for details.
 
 <div align="center">
 
-**NEXUS V12.4 "COGNITIVE BOOST"**
+**NEXUS V12.4.0 "COGNITIVE BOOST"**
 
 *Collaborative Intelligence for Real-World Problems*
 

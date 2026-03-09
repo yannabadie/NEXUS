@@ -7,7 +7,7 @@ Architecture FSM (Finite State Machine):
 - Transitions explicites entre états
 - Pas de while loop infini
 
-États: IDLE → BRAINSTORMING → EXECUTING_TOOL → VALIDATING_CFL → IDLE
+États: IDLE -> BRAINSTORMING -> EXECUTING_TOOL -> VALIDATING_CFL -> IDLE
 États spéciaux: EVOLUTION_BRAINSTORM (débat émergent 30 tours max)
 """
 
@@ -815,7 +815,7 @@ class OrchestratorV7:
         self.stagnation_detector.reset()
 
         return self.result_handler.make_result(
-            "BRAINSTORMING", "⚠️ Stagnation detected. Forcing decision...", "Gemini", False, error="STAGNATION"
+            "BRAINSTORMING", "[warning]️ Stagnation detected. Forcing decision...", "Gemini", False, error="STAGNATION"
         )
 
     def _handle_error(self, error_msg: str) -> dict:

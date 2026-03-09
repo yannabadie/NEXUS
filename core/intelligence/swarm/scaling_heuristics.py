@@ -102,7 +102,7 @@ class ScalingStats:
 # Constants: Scaling Law Parameters (from arXiv:2512.08296)
 # ---------------------------------------------------------------------------
 
-# Task characteristic → expected multi-agent benefit (positive = benefit)
+# Task characteristic -> expected multi-agent benefit (positive = benefit)
 SCALING_BENEFIT: dict[TaskCharacteristic, float] = {
     TaskCharacteristic.PARALLELIZABLE: 0.808,  # +80.8% for parallelizable
     TaskCharacteristic.WEB_NAVIGATION: 0.092,  # +9.2% for web nav
@@ -226,7 +226,7 @@ CHARACTERISTIC_KEYWORDS: dict[TaskCharacteristic, list[str]] = {
     ],
 }
 
-# Complexity → agent count recommendation
+# Complexity -> agent count recommendation
 COMPLEXITY_AGENT_MAP: dict[str, int] = {
     "trivial": 1,
     "simple": 1,
@@ -336,7 +336,7 @@ class ScalingHeuristicEvaluator:
             self._stats.avg_confidence = (self._stats.avg_confidence * (n - 1) + confidence) / n
 
         logger.debug(
-            "ScalingHeuristic: %s → %s (benefit=%.1f%%, risk=%.1f%%, confidence=%.2f)",
+            "ScalingHeuristic: %s -> %s (benefit=%.1f%%, risk=%.1f%%, confidence=%.2f)",
             characteristic.value,
             base_coordination.value,
             adjusted_benefit * 100,

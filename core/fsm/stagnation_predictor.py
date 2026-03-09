@@ -10,15 +10,15 @@ StagnationPredictor is PROACTIVE - it predicts stagnation BEFORE it happens
 using leading indicators and trajectory analysis.
 
 Leading Indicators (from web research):
-- "let me think" / "réfléchissons" → hesitation signal
-- "we should consider" / "on pourrait" → indecision signal
-- "I agree but" / "d'accord mais" → non-commitment signal
-- "perhaps" / "peut-être" → uncertainty signal
+- "let me think" / "réfléchissons" -> hesitation signal
+- "we should consider" / "on pourrait" -> indecision signal
+- "I agree but" / "d'accord mais" -> non-commitment signal
+- "perhaps" / "peut-être" -> uncertainty signal
 
 Trajectory Signals:
-- Message length decreasing over time → running out of ideas
-- Similarity increasing over time → converging without action
-- Tool mentions without tool use → discussing instead of doing
+- Message length decreasing over time -> running out of ideas
+- Similarity increasing over time -> converging without action
+- Tool mentions without tool use -> discussing instead of doing
 
 Action Thresholds (V12.4 COGNITIVE BOOST - lowered for proactivity):
 - < 0.15: CONTINUE (normal)
@@ -56,7 +56,7 @@ class PredictionLevel(Enum):
 # LEADING INDICATORS
 # =============================================================================
 
-# Pattern → weight (higher = more stagnation signal)
+# Pattern -> weight (higher = more stagnation signal)
 LEADING_INDICATORS_EN = [
     (r"\blet me think\b", 0.15),
     (r"\bwe should consider\b", 0.15),
@@ -402,7 +402,7 @@ class StagnationPredictor:
         """Get a full intervention message."""
         return """
 ---
-## ⚠️ PROACTIVE STAGNATION WARNING
+## [warning]️ PROACTIVE STAGNATION WARNING
 
 **Analysis shows high probability of unproductive discussion loop.**
 

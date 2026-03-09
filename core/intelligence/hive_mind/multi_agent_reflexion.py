@@ -103,7 +103,7 @@ class ReflexionStats:
     degeneration_detections: int = 0
     avg_agreement: float = 0.0
     mode_counts: dict[str, int] = field(default_factory=dict)
-    insight_counts: dict[str, int] = field(default_factory=dict)  # agent → novel insights
+    insight_counts: dict[str, int] = field(default_factory=dict)  # agent -> novel insights
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -482,7 +482,7 @@ class MultiAgentReflexion:
         # Combine all evidence and insights more aggressively
         all_fixes = [r.proposed_fix for r in reflections if r.proposed_fix]
         if len(all_fixes) > 1:
-            combined = " → ".join(all_fixes[:3])
+            combined = " -> ".join(all_fixes[:3])
             synthesis.proposed_strategy = f"Multi-step approach: {combined}"
 
         # Boost agreement slightly for constructive mode

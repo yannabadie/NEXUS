@@ -64,29 +64,29 @@ Le Hybrid Swarm Engine permet aux agents de:
 
 ```
                          USER INPUT
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    HYBRID SWARM ENGINE                       │
-│                                                              │
-│  ┌──────────────┐   ┌──────────────┐   ┌────────────────┐   │
-│  │ TaskAnalyzer │──▶│ ModeSelector │──▶│ Negotiation    │   │
-│  │              │   │   (DyLAN)    │   │ Protocol       │   │
-│  └──────────────┘   └──────────────┘   └────────────────┘   │
-│         │                  │                   │             │
-│         ▼                  ▼                   ▼             │
-│  ┌─────────────────────────────────────────────────────┐    │
-│  │                  MODE EXECUTORS                      │    │
-│  │  ┌────────┐ ┌────────┐ ┌─────────┐ ┌─────────┐     │    │
-│  │  │PARALLEL│ │SEQUENT │ │  LEAD   │ │PING_PONG│     │    │
-│  │  └────────┘ └────────┘ └─────────┘ └─────────┘     │    │
-│  │  ┌──────────┐ ┌──────────┐                          │    │
-│  │  │SPECIALIST│ │ RED_BLUE │                          │    │
-│  │  └──────────┘ └──────────┘                          │    │
-│  └─────────────────────────────────────────────────────┘    │
-│                              │                               │
-└──────────────────────────────┼───────────────────────────────┘
-                               ▼
+                              |
+                              v
++-------------------------------------------------------------+
+|                    HYBRID SWARM ENGINE                       |
+|                                                              |
+|  +--------------+   +--------------+   +----------------+   |
+|  | TaskAnalyzer |-->| ModeSelector |-->| Negotiation    |   |
+|  |              |   |   (DyLAN)    |   | Protocol       |   |
+|  +--------------+   +--------------+   +----------------+   |
+|         |                  |                   |             |
+|         v                  v                   v             |
+|  +-----------------------------------------------------+    |
+|  |                  MODE EXECUTORS                      |    |
+|  |  +--------+ +--------+ +---------+ +---------+     |    |
+|  |  |PARALLEL| |SEQUENT | |  LEAD   | |PING_PONG|     |    |
+|  |  +--------+ +--------+ +---------+ +---------+     |    |
+|  |  +----------+ +----------+                          |    |
+|  |  |SPECIALIST| | RED_BLUE |                          |    |
+|  |  +----------+ +----------+                          |    |
+|  +-----------------------------------------------------+    |
+|                              |                               |
++------------------------------+-------------------------------+
+                               v
                     ORCHESTRATOR V7 (FSM)
 ```
 
@@ -94,14 +94,14 @@ Le Hybrid Swarm Engine permet aux agents de:
 
 ```
 core/swarm/
-├── __init__.py               # Exports (~150 lignes)
-├── agent_metrics.py          # DyLAN metrics (Sprint 3)
-├── collaboration_modes.py    # 6 modes + caractéristiques
-├── task_analyzer.py          # Analyse complexité/domaines
-├── mode_selector.py          # Sélection basée sur DyLAN
-├── negotiation_protocol.py   # Protocole hybride
-├── mode_executors.py         # 6 executors
-└── hybrid_swarm_engine.py    # Moteur principal
++-- __init__.py               # Exports (~150 lignes)
++-- agent_metrics.py          # DyLAN metrics (Sprint 3)
++-- collaboration_modes.py    # 6 modes + caractéristiques
++-- task_analyzer.py          # Analyse complexité/domaines
++-- mode_selector.py          # Sélection basée sur DyLAN
++-- negotiation_protocol.py   # Protocole hybride
++-- mode_executors.py         # 6 executors
++-- hybrid_swarm_engine.py    # Moteur principal
 ```
 
 ---
@@ -124,16 +124,16 @@ core/swarm/
 #### PARALLEL ⚡
 
 ```
-┌─────────┐     ┌─────────┐
-│ Gemini  │     │ Claude  │
-│ Task A  │     │ Task B  │
-└────┬────┘     └────┬────┘
-     │               │
-     └──────┬────────┘
-            ▼
-      ┌─────────┐
-      │  MERGE  │
-      └─────────┘
++---------+     +---------+
+| Gemini  |     | Claude  |
+| Task A  |     | Task B  |
++----+----+     +----+----+
+     |               |
+     +------+--------+
+            v
+      +---------+
+      |  MERGE  |
+      +---------+
 ```
 
 - **Quand**: Sous-tâches indépendantes
@@ -145,10 +145,10 @@ core/swarm/
 #### SEQUENTIAL ➡️
 
 ```
-┌─────────┐     ┌─────────┐
-│ Agent 1 │────▶│ Agent 2 │
-│ Phase 1 │     │ Phase 2 │
-└─────────┘     └─────────┘
++---------+     +---------+
+| Agent 1 |---->| Agent 2 |
+| Phase 1 |     | Phase 2 |
++---------+     +---------+
 ```
 
 - **Quand**: Résultat de A nécessaire pour B
@@ -160,21 +160,21 @@ core/swarm/
 #### LEAD_SUPPORT 👑
 
 ```
-┌─────────────────────────┐
-│        LEAD (80%)       │
-│  ┌───────────────────┐  │
-│  │ Développe solution │  │
-│  └─────────┬─────────┘  │
-│            │            │
-│   ┌────────▼────────┐   │
-│   │ SUPPORT (20%)   │   │
-│   │ Review/Feedback │   │
-│   └────────┬────────┘   │
-│            │            │
-│  ┌─────────▼─────────┐  │
-│  │ LEAD révise       │  │
-│  └───────────────────┘  │
-└─────────────────────────┘
++-------------------------+
+|        LEAD (80%)       |
+|  +-------------------+  |
+|  | Développe solution |  |
+|  +---------+---------+  |
+|            |            |
+|   +--------v--------+   |
+|   | SUPPORT (20%)   |   |
+|   | Review/Feedback |   |
+|   +--------+--------+   |
+|            |            |
+|  +---------v---------+  |
+|  | LEAD révise       |  |
+|  +-------------------+  |
++-------------------------+
 ```
 
 - **Quand**: Un agent a une expertise claire
@@ -187,9 +187,9 @@ core/swarm/
 
 ```
      Round 1      Round 2      Round 3
-┌─────────┐  ┌─────────┐  ┌─────────┐
-│ Gemini  │─▶│ Claude  │─▶│ Gemini  │─▶ ...
-└─────────┘  └─────────┘  └─────────┘
++---------+  +---------+  +---------+
+| Gemini  |->| Claude  |->| Gemini  |-> ...
++---------+  +---------+  +---------+
 ```
 
 - **Quand**: Brainstorming, créativité
@@ -201,15 +201,15 @@ core/swarm/
 #### SPECIALIST 🎯
 
 ```
-┌─────────────────────────┐
-│   EXPERT (100%)         │
-│   ┌─────────────────┐   │
-│   │ Gemini OR Claude │   │
-│   │   handles all    │   │
-│   └─────────────────┘   │
-│                         │
-│   [Other observes]      │
-└─────────────────────────┘
++-------------------------+
+|   EXPERT (100%)         |
+|   +-----------------+   |
+|   | Gemini OR Claude |   |
+|   |   handles all    |   |
+|   +-----------------+   |
+|                         |
+|   [Other observes]      |
++-------------------------+
 ```
 
 - **Quand**: Expertise exclusive (SWE-bench pour Claude, Terminal-Bench pour Gemini)
@@ -221,27 +221,27 @@ core/swarm/
 #### RED_BLUE ⚔️
 
 ```
-┌──────────────────────────────────────┐
-│  Phase 1: BLUE Propose               │
-│  ┌────────────────────────────────┐  │
-│  │ Claude: "Voici ma solution..." │  │
-│  └────────────────────────────────┘  │
-│                                      │
-│  Phase 2: RED Attack                 │
-│  ┌────────────────────────────────┐  │
-│  │ Gemini: "Faille trouvée..."    │  │
-│  └────────────────────────────────┘  │
-│                                      │
-│  Phase 3: BLUE Defend                │
-│  ┌────────────────────────────────┐  │
-│  │ Claude: "Voici la correction"  │  │
-│  └────────────────────────────────┘  │
-│                                      │
-│  Phase 4: RED Verify                 │
-│  ┌────────────────────────────────┐  │
-│  │ Gemini: "PASS/FAIL + raisons"  │  │
-│  └────────────────────────────────┘  │
-└──────────────────────────────────────┘
++--------------------------------------+
+|  Phase 1: BLUE Propose               |
+|  +--------------------------------+  |
+|  | Claude: "Voici ma solution..." |  |
+|  +--------------------------------+  |
+|                                      |
+|  Phase 2: RED Attack                 |
+|  +--------------------------------+  |
+|  | Gemini: "Faille trouvée..."    |  |
+|  +--------------------------------+  |
+|                                      |
+|  Phase 3: BLUE Defend                |
+|  +--------------------------------+  |
+|  | Claude: "Voici la correction"  |  |
+|  +--------------------------------+  |
+|                                      |
+|  Phase 4: RED Verify                 |
+|  +--------------------------------+  |
+|  | Gemini: "PASS/FAIL + raisons"  |  |
+|  +--------------------------------+  |
++--------------------------------------+
 ```
 
 - **Quand**: Sécurité, décisions critiques
@@ -257,52 +257,52 @@ core/swarm/
 
 ```
 User Input
-    │
-    ▼
-┌─────────────────────────────────────────────────────┐
-│ 1. TASK ANALYSIS                                     │
-│    TaskAnalyzer.analyze(input)                       │
-│    → complexity: TRIVIAL → EXPERT                    │
-│    → domains: [CODING, RESEARCH, SECURITY...]        │
-│    → gemini_fit_score: 0.0 - 1.0                     │
-│    → claude_fit_score: 0.0 - 1.0                     │
-└─────────────────────────────────────────────────────┘
-    │
-    ▼
-┌─────────────────────────────────────────────────────┐
-│ 2. MODE SELECTION (DyLAN-based)                      │
-│    ModeSelector.select_mode(analysis)                │
-│    → Score each mode for task                        │
-│    → Use agent importance scores                     │
-│    → Return ModeProposal                             │
-└─────────────────────────────────────────────────────┘
-    │
-    ▼
-┌─────────────────────────────────────────────────────┐
-│ 3. NEGOTIATION (if enabled)                          │
-│    NegotiationProtocol.run_negotiation()             │
-│    → Agents debate in natural language               │
-│    → Embed <negotiate> JSON proposals                │
-│    → Max 4 turns or consensus                        │
-└─────────────────────────────────────────────────────┘
-    │
-    ▼
-┌─────────────────────────────────────────────────────┐
-│ 4. EXECUTION                                         │
-│    ModeExecutor.execute(context)                     │
-│    → Run according to selected mode                  │
-│    → Track tokens/time per agent                     │
-└─────────────────────────────────────────────────────┘
-    │
-    ▼
-┌─────────────────────────────────────────────────────┐
-│ 5. METRICS UPDATE                                    │
-│    AgentPool.record_invocation()                     │
-│    → Update DyLAN importance scores                  │
-│    → Improve future mode selection                   │
-└─────────────────────────────────────────────────────┘
-    │
-    ▼
+    |
+    v
++-----------------------------------------------------+
+| 1. TASK ANALYSIS                                     |
+|    TaskAnalyzer.analyze(input)                       |
+|    -> complexity: TRIVIAL -> EXPERT                    |
+|    -> domains: [CODING, RESEARCH, SECURITY...]        |
+|    -> gemini_fit_score: 0.0 - 1.0                     |
+|    -> claude_fit_score: 0.0 - 1.0                     |
++-----------------------------------------------------+
+    |
+    v
++-----------------------------------------------------+
+| 2. MODE SELECTION (DyLAN-based)                      |
+|    ModeSelector.select_mode(analysis)                |
+|    -> Score each mode for task                        |
+|    -> Use agent importance scores                     |
+|    -> Return ModeProposal                             |
++-----------------------------------------------------+
+    |
+    v
++-----------------------------------------------------+
+| 3. NEGOTIATION (if enabled)                          |
+|    NegotiationProtocol.run_negotiation()             |
+|    -> Agents debate in natural language               |
+|    -> Embed <negotiate> JSON proposals                |
+|    -> Max 4 turns or consensus                        |
++-----------------------------------------------------+
+    |
+    v
++-----------------------------------------------------+
+| 4. EXECUTION                                         |
+|    ModeExecutor.execute(context)                     |
+|    -> Run according to selected mode                  |
+|    -> Track tokens/time per agent                     |
++-----------------------------------------------------+
+    |
+    v
++-----------------------------------------------------+
+| 5. METRICS UPDATE                                    |
+|    AgentPool.record_invocation()                     |
+|    -> Update DyLAN importance scores                  |
+|    -> Improve future mode selection                   |
++-----------------------------------------------------+
+    |
+    v
  Final Output
 ```
 
@@ -443,21 +443,21 @@ class OrchestratorState(Enum):
 
 ```
 IDLE
-  │ (swarm enabled + user input)
-  ▼
-SWARM_ANALYZING ─────────────────────┐
-  │                                  │
-  │ (trivial task)                   │ (complex task)
-  │                                  ▼
-  └──────────────────────────► SWARM_NEGOTIATING
-                                    │
-                                    ▼
+  | (swarm enabled + user input)
+  v
+SWARM_ANALYZING ---------------------+
+  |                                  |
+  | (trivial task)                   | (complex task)
+  |                                  v
+  +--------------------------► SWARM_NEGOTIATING
+                                    |
+                                    v
                               SWARM_EXECUTING
-                                    │
-                                    ▼
+                                    |
+                                    v
                               VALIDATING_CFL
-                                    │
-                                    ▼
+                                    |
+                                    v
                                   IDLE
 ```
 

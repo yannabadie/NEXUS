@@ -8,7 +8,7 @@ Architecture:
 - Auto-compression via Haiku CLI when >120k tokens
 
 V7.5 Phase 7: Atomic JSON persistence via AtomicJsonStore
-- All disk writes use Write-Replace pattern (temp → fsync → rename)
+- All disk writes use Write-Replace pattern (temp -> fsync -> rename)
 - Thread-safe for Swarm PARALLEL mode
 """
 
@@ -266,7 +266,7 @@ Résumé concis (max 2000 tokens) :"""
                         # Keep only last 10 messages + summary
                         self.blackboard["recent_history"] = history[-10:]
 
-                        print(f"[Memory] ✓ Compressed to {len(history[-10:])} messages + summary")
+                        print(f"[Memory] [OK] Compressed to {len(history[-10:])} messages + summary")
                     else:
                         print("[Memory] Warning: Compression failed (Haiku CLI error)")
 

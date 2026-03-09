@@ -62,11 +62,11 @@ def fetch_jaeger_traces(
         data = response.json()
 
         traces = data.get("data", [])
-        print(f"✅ Fetched {len(traces)} traces from Jaeger")
+        print(f"[OK] Fetched {len(traces)} traces from Jaeger")
         return traces
 
     except requests.RequestException as e:
-        print(f"❌ Failed to fetch traces: {e}")
+        print(f"[NO] Failed to fetch traces: {e}")
         print(f"Make sure Jaeger is running: docker compose --profile observability up -d")
         return []
 
@@ -82,7 +82,7 @@ def analyze_hotpaths(traces: List[Dict[str, Any]]) -> None:
     - Total time per operation (avg * count)
     """
     if not traces:
-        print("⚠️ No traces to analyze")
+        print("[warning]️ No traces to analyze")
         return
 
     # Collect span data
@@ -170,7 +170,7 @@ def analyze_hotpaths(traces: List[Dict[str, Any]]) -> None:
 
             print(f"  - {c['operation']}: {', '.join(reason)}")
     else:
-        print("✅ No obvious hot paths found (system performing well)")
+        print("[OK] No obvious hot paths found (system performing well)")
 
     # Summary stats
     total_spans = sum(r["count"] for r in results)
@@ -200,7 +200,7 @@ def main():
     if traces:
         analyze_hotpaths(traces)
     else:
-        print("\n⚠️ No traces found. Did you run benchmark_workload.py first?")
+        print("\n[warning]️ No traces found. Did you run benchmark_workload.py first?")
 
 
 if __name__ == "__main__":

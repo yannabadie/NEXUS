@@ -112,7 +112,7 @@ Distribution : 3
 Effort : 1–2 (lourd)
 
 Paiement : 5 (si tu signes 1–2 clients)
-➡️ Bon… mais à faire après avoir une wedge adoptée, sinon tu construis du vide.
+➡️ Bon... mais à faire après avoir une wedge adoptée, sinon tu construis du vide.
 
 Option D — Vendre une UI “Cerebro” comme produit
 
@@ -182,7 +182,7 @@ Hypothèses raisonnables
 
 Ton acquisition principale vient de la distribution MCP + GitHub/VS Code + bouche à oreille.
 
-Conversion OSS → payant est souvent basse (0,5–3% mentionné dans des analyses “open source SaaS”).
+Conversion OSS -> payant est souvent basse (0,5–3% mentionné dans des analyses “open source SaaS”).
 
 B2B est plus lent, mais panier moyen plus élevé.
 
@@ -198,7 +198,7 @@ Scénario base case
 
 6 mois : 3000–8000 installs
 
-0,5% conversion team à 200–400€/mois → 15–40 teams (si tu as un vrai “Pro” utile)
+0,5% conversion team à 200–400€/mois -> 15–40 teams (si tu as un vrai “Pro” utile)
 
 3–6 missions de service
 
@@ -208,7 +208,7 @@ Scénario optimiste
 
 6 mois : 20k installs (si un use-case devient viral : “PR Evidence Review MCP”)
 
-1% conversion → 200 teams à 300€/mois = 60k€ MRR
+1% conversion -> 200 teams à 300€/mois = 60k€ MRR
 
 Résultat : tu peux staffer
 
@@ -394,7 +394,7 @@ Deux modes stables :
 
 --mode mock (sans clés) : reproductible + rapide
 
---mode live (Claude/Gemini/…) : optionnel
+--mode live (Claude/Gemini/...) : optionnel
 
 1 use-case “killer demo” (pas 10) :
 
@@ -404,7 +404,7 @@ MCP server expose exactement 2 outils au départ :
 
 research(query, path, limit, mode)
 
-evidence_pack(query, inputs…)
+evidence_pack(query, inputs...)
 
 Smoke tests wedge (CI) :
 
@@ -433,7 +433,7 @@ nexus-mcp
 
 Démos (script 90 secondes)
 
-“Je pointe un repo/PR → je pose une question → je récupère un pack de preuves → je colle report.md dans la PR, et sources.json sert de justification.”
+“Je pointe un repo/PR -> je pose une question -> je récupère un pack de preuves -> je colle report.md dans la PR, et sources.json sert de justification.”
 
 Pricing (proposition simple)
 
@@ -462,7 +462,7 @@ S6 : release + publication (registry/marketplaces) + 1 vidéo demo
 Produit 2 — NEXUS Evidence Gateway
 Positionnement
 
-“Le pont gouverné entre tes clients MCP (VS Code / Copilot / Claude Desktop / …) et tes systèmes (Git, Jira, Confluence, DB, etc.)”
+“Le pont gouverné entre tes clients MCP (VS Code / Copilot / Claude Desktop / ...) et tes systèmes (Git, Jira, Confluence, DB, etc.)”
 Le mot clé enterprise : policy + audit + contrôle.
 
  
@@ -512,7 +512,7 @@ masquage patterns (clés, tokens, emails) sur logs/artefacts
 
 Déploiement simple
 
-docker compose up ou uvicorn … (mais stable)
+docker compose up ou uvicorn ... (mais stable)
 
 Interfaçage
 
@@ -538,7 +538,7 @@ Démo (5 minutes, “enterprise story”)
 
 Dans VS Code (MCP GA), on n’autorise que des MCP servers approuvés (concept “policy”).
 
-L’utilisateur lance une action → le gateway applique policy → produit trace + artefacts signables.
+L’utilisateur lance une action -> le gateway applique policy -> produit trace + artefacts signables.
 
 Pricing (proposition enterprise)
 
@@ -588,7 +588,7 @@ MVP (6 semaines)
 
 Registry d’expériences
 
-scénario → inputs → outputs → artefacts → score
+scénario -> inputs -> outputs -> artefacts -> score
 
 Runner (local + CI)
 
@@ -600,7 +600,7 @@ un tableau de résultats + diff des artefacts
 
 Boucles d’amélioration
 
-“on change une policy / un prompt / un mode → on rerun → on mesure”
+“on change une policy / un prompt / un mode -> on rerun -> on mesure”
 
 Packaging
 
@@ -700,7 +700,7 @@ Tu peux reconstruire Cerebro comme Evidence Review App sans maintenir une SPA �
 
 5) Comment tu l’exécutes sans te perdre (Superpowers, en mode “produit”)
 
-Superpowers est justement fait pour “brainstorm → plan → exécution” au lieu de dériver.
+Superpowers est justement fait pour “brainstorm -> plan -> exécution” au lieu de dériver.
 
 Copie‑colle (kickoff) pour Claude Code + Superpowers
 /superpowers:brainstorm

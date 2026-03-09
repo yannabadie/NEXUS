@@ -30,30 +30,30 @@ NEXUS-N7A implements a sophisticated multi-agent system built around a **Hybrid 
 ### Core Components
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    HYBRID SWARM ENGINE                       │
-│                                                              │
-│  ┌──────────────┐   ┌──────────────┐   ┌────────────────┐   │
-│  │ TaskAnalyzer │──▶│ ModeSelector │──▶│ Negotiation    │   │
-│  │              │   │   (DyLAN)    │   │ Protocol       │   │
-│  └──────────────┘   └──────────────┘   └────────────────┘   │
-│         │                  │                   │             │
-│         ▼                  ▼                   ▼             │
-│  ┌─────────────────────────────────────────────────────┐    │
-│  │                  MODE EXECUTORS                      │    │
-│  │  ┌────────┐ ┌────────┐ ┌─────────┐ ┌─────────┐     │    │
-│  │  │PARALLEL│ │SEQUENT │ │  LEAD   │ │PING_PONG│     │    │
-│  │  └────────┘ └────────┘ └─────────┘ └─────────┘     │    │
-│  │  ┌──────────┐ ┌──────────┐                          │    │
-│  │  │SPECIALIST│ │ RED_BLUE │                          │    │
-│  │  └──────────┘ └──────────┘                          │    │
-│  └─────────────────────────────────────────────────────┘    │
-│                                                              │
-│  ┌──────────────────┐  ┌──────────────────┐                │
-│  │  Agent Registry  │  │  Service Factory │                │
-│  │     (Unified)    │  │  (Context-Aware) │                │
-│  └──────────────────┘  └──────────────────┘                │
-└─────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------+
+|                    HYBRID SWARM ENGINE                       |
+|                                                              |
+|  +--------------+   +--------------+   +----------------+   |
+|  | TaskAnalyzer |-->| ModeSelector |-->| Negotiation    |   |
+|  |              |   |   (DyLAN)    |   | Protocol       |   |
+|  +--------------+   +--------------+   +----------------+   |
+|         |                  |                   |             |
+|         v                  v                   v             |
+|  +-----------------------------------------------------+    |
+|  |                  MODE EXECUTORS                      |    |
+|  |  +--------+ +--------+ +---------+ +---------+     |    |
+|  |  |PARALLEL| |SEQUENT | |  LEAD   | |PING_PONG|     |    |
+|  |  +--------+ +--------+ +---------+ +---------+     |    |
+|  |  +----------+ +----------+                          |    |
+|  |  |SPECIALIST| | RED_BLUE |                          |    |
+|  |  +----------+ +----------+                          |    |
+|  +-----------------------------------------------------+    |
+|                                                              |
+|  +------------------+  +------------------+                |
+|  |  Agent Registry  |  |  Service Factory |                |
+|  |     (Unified)    |  |  (Context-Aware) |                |
+|  +------------------+  +------------------+                |
++-------------------------------------------------------------+
 ```
 
 ### Key Design Principles
@@ -83,7 +83,7 @@ NEXUS-N7A implements a sophisticated multi-agent system built around a **Hybrid 
 **Characteristics**:
 - Parallelism benefit: 0.0
 - Typical rounds: 2
-- Fallback chain: SEQUENTIAL → SPECIALIST (last resort)
+- Fallback chain: SEQUENTIAL -> SPECIALIST (last resort)
 
 ### 3. **LEAD_SUPPORT** 👑
 **Use Case**: Clear expertise dominance, complex coding tasks
@@ -91,7 +91,7 @@ NEXUS-N7A implements a sophisticated multi-agent system built around a **Hybrid 
 **Characteristics**:
 - Complexity affinity: 0.7
 - Typical rounds: 3
-- Fallback chain: LEAD_SUPPORT → SPECIALIST
+- Fallback chain: LEAD_SUPPORT -> SPECIALIST
 
 ### 4. **PING_PONG** 🏓
 **Use Case**: Creative tasks, brainstorming, iterative refinement
@@ -99,7 +99,7 @@ NEXUS-N7A implements a sophisticated multi-agent system built around a **Hybrid 
 **Characteristics**:
 - Typical rounds: 6 (max)
 - Converges when agent signals "FINISHED"
-- Fallback chain: PING_PONG → SEQUENTIAL
+- Fallback chain: PING_PONG -> SEQUENTIAL
 
 ### 5. **SPECIALIST** 🎯
 **Use Case**: Exclusive expertise, highly specialized tasks
@@ -116,7 +116,7 @@ NEXUS-N7A implements a sophisticated multi-agent system built around a **Hybrid 
 - Adversarial mode: True
 - Complexity affinity: 1.0
 - Typical rounds: 4
-- Fallback chain: RED_BLUE → LEAD_SUPPORT
+- Fallback chain: RED_BLUE -> LEAD_SUPPORT
 
 ---
 
@@ -136,14 +136,14 @@ The **ServiceFactory** implements a sophisticated factory pattern for context-aw
 
 ```
 workspace/agents/
-├── security_expert/
-│   ├── BIRTH_CERTIFICATE.json
-│   ├── system_prompt.md
-│   └── workspace/
-└── web_developer/
-    ├── BIRTH_CERTIFICATE.json
-    ├── system_prompt.md
-    └── workspace/
++-- security_expert/
+|   +-- BIRTH_CERTIFICATE.json
+|   +-- system_prompt.md
+|   +-- workspace/
++-- web_developer/
+    +-- BIRTH_CERTIFICATE.json
+    +-- system_prompt.md
+    +-- workspace/
 ```
 
 **BIRTH_CERTIFICATE.json** structure:

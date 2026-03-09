@@ -12,38 +12,38 @@
 
 | Phase | Statut | Impact |
 |-------|--------|--------|
-| Phase 1: Activation Swarm | ✅ | Fondation multi-agent opérationnelle |
-| Phase 2: Refonte Vision (ASI→Task Fitness) | ✅ | Clarté conceptuelle |
-| Phase 3: Déblocage Évolution | ✅ | Red Team optionnel |
-| Phase 4: Architecture FSM | ✅ | États documentés |
-| Phase 5: Agent Factory | ✅ | `/spawn` fonctionnel |
-| Phase 5b: N-Agent Agnosticism | ✅ | Spawned dans tous les modes |
-| Phase 6: Robustesse JSON | ✅ | `json_extractor.py` |
-| Phase 7: Session Isolation | ✅ | `SwarmSessionManager` |
-| Phase 8: Self-Healing Swarm | ✅ | Mode fallback + Checkpointing |
-| Phase 9: Fast Path | ✅ | Bypass FSM trivial |
-| Phase 10a-d: Auto-Mémoire | ✅ | SuccessMemory + DyLAN integration |
-| Phase 12.3: MCP Client (CORTEX) | ✅ | Zero-dep MCP |
-| Phase 13b: Workspace Commands | ✅ | `/workspace` |
-| Phase 13c: Telemetry Export | ✅ | `/telemetry` |
-| Phase 14a: Security Hardening | ✅ | ExecutionPolicy |
+| Phase 1: Activation Swarm | [OK] | Fondation multi-agent opérationnelle |
+| Phase 2: Refonte Vision (ASI->Task Fitness) | [OK] | Clarté conceptuelle |
+| Phase 3: Déblocage Évolution | [OK] | Red Team optionnel |
+| Phase 4: Architecture FSM | [OK] | États documentés |
+| Phase 5: Agent Factory | [OK] | `/spawn` fonctionnel |
+| Phase 5b: N-Agent Agnosticism | [OK] | Spawned dans tous les modes |
+| Phase 6: Robustesse JSON | [OK] | `json_extractor.py` |
+| Phase 7: Session Isolation | [OK] | `SwarmSessionManager` |
+| Phase 8: Self-Healing Swarm | [OK] | Mode fallback + Checkpointing |
+| Phase 9: Fast Path | [OK] | Bypass FSM trivial |
+| Phase 10a-d: Auto-Mémoire | [OK] | SuccessMemory + DyLAN integration |
+| Phase 12.3: MCP Client (CORTEX) | [OK] | Zero-dep MCP |
+| Phase 13b: Workspace Commands | [OK] | `/workspace` |
+| Phase 13c: Telemetry Export | [OK] | `/telemetry` |
+| Phase 14a: Security Hardening | [OK] | ExecutionPolicy |
 
 ### 1.2 Phases En Cours / Planifiées
 
 | Phase | Statut | Effort | Viabilité |
 |-------|--------|--------|-----------|
-| Phase 12.4: Symmetric MCP Bridges | 🔄 Planifiée | 1 sem | ✅ HAUTE |
-| Phase 12.5: Dynamic Tool Generation | 🔄 Planifiée | 1 sem | ⚠️ MOYENNE |
-| Phase 11: Extended Swarm Modes | 🔄 Planifiée | 2 sem | ⚠️ MOYENNE |
-| Phase 13a: Graph of Thought | 🔄 Planifiée | 1 sem | ⚠️ BASSE |
-| Phase 13d: AutoMemory↔ModeSelector | 🔄 Planifiée | 3 jours | ✅ HAUTE |
-| Phase 13e: Global Registry | 🔄 Planifiée | 1 sem | ✅ HAUTE |
+| Phase 12.4: Symmetric MCP Bridges | 🔄 Planifiée | 1 sem | [OK] HAUTE |
+| Phase 12.5: Dynamic Tool Generation | 🔄 Planifiée | 1 sem | [warning]️ MOYENNE |
+| Phase 11: Extended Swarm Modes | 🔄 Planifiée | 2 sem | [warning]️ MOYENNE |
+| Phase 13a: Graph of Thought | 🔄 Planifiée | 1 sem | [warning]️ BASSE |
+| Phase 13d: AutoMemory↔ModeSelector | 🔄 Planifiée | 3 jours | [OK] HAUTE |
+| Phase 13e: Global Registry | 🔄 Planifiée | 1 sem | [OK] HAUTE |
 
 ---
 
 ## 2. Analyse de Viabilité des Phases Planifiées
 
-### 2.1 Phase 12.4: Symmetric MCP Bridges - **VIABLE ✅**
+### 2.1 Phase 12.4: Symmetric MCP Bridges - **VIABLE [OK]**
 
 **Concept**: Claude appelle Gemini et Gemini appelle Claude via MCP
 
@@ -54,7 +54,7 @@
 
 **Verdict**: PRIORITÉ HAUTE - aligné avec standards industrie
 
-### 2.2 Phase 12.5: Dynamic Tool Generation - **VIABLE AVEC RÉSERVES ⚠️**
+### 2.2 Phase 12.5: Dynamic Tool Generation - **VIABLE AVEC RÉSERVES [warning]️**
 
 **Concept**: Génération de scripts Python jetables
 
@@ -66,11 +66,11 @@
 **Réserves**:
 - Complexité de la sandbox sécurisée
 - Risque de dérive si mal encadré
-- Effort sous-estimé dans la roadmap (1 sem → probablement 2-3 sem)
+- Effort sous-estimé dans la roadmap (1 sem -> probablement 2-3 sem)
 
 **Verdict**: DIFFÉRER à V7.8 - nécessite Phase 14a complète (SecurityPolicy robuste)
 
-### 2.3 Phase 11: Extended Swarm Modes - **VIABILITÉ INCERTAINE ⚠️**
+### 2.3 Phase 11: Extended Swarm Modes - **VIABILITÉ INCERTAINE [warning]️**
 
 **Concept**: LEAD_SUPPORT_N, PARALLEL_SYNC, PIPELINE
 
@@ -86,7 +86,7 @@
 
 **Verdict**: SIMPLIFIER - consolider les 6 modes plutôt qu'ajouter
 
-### 2.4 Phase 13a: Graph of Thought - **VIABILITÉ BASSE ⚠️**
+### 2.4 Phase 13a: Graph of Thought - **VIABILITÉ BASSE [warning]️**
 
 **Concept**: Raisonnement non-linéaire via graphe
 
@@ -102,7 +102,7 @@
 
 **Verdict**: ANNULER ou DÉFÉRER à V8.0 - ROI insuffisant pour V7.7
 
-### 2.5 Phase 13d: AutoMemory↔ModeSelector - **VIABLE ET QUICK WIN ✅**
+### 2.5 Phase 13d: AutoMemory↔ModeSelector - **VIABLE ET QUICK WIN [OK]**
 
 **Concept**: Connecter les méthodes `suggest_mode()` et `suggest_lead()` existantes
 
@@ -113,7 +113,7 @@
 
 **Verdict**: PRIORITÉ IMMÉDIATE - quick win
 
-### 2.6 Phase 13e: Global Registry (~/.nexus/) - **VIABLE ✅**
+### 2.6 Phase 13e: Global Registry (~/.nexus/) - **VIABLE [OK]**
 
 **Concept**: Agents cross-workspace
 
@@ -135,9 +135,9 @@
 | **Modèle** | Gemini+Claude symbiose | Single LLM | Single LLM | Multi-LLM |
 | **Orchestration** | FSM + Swarm 6 modes | Graph-based | Role-based | Conversational |
 | **Mémoire** | SuccessMemory + DyLAN | MemorySaver | ChromaDB | Context vars |
-| **Standards** | MCP Client ✅ | Partiel | Non | Non |
-| **Self-Healing** | Mode fallback ✅ | Non natif | Non | Partiel |
-| **Session Isolation** | SwarmSessionManager ✅ | Thread-based | Non | Non |
+| **Standards** | MCP Client [OK] | Partiel | Non | Non |
+| **Self-Healing** | Mode fallback [OK] | Non natif | Non | Partiel |
+| **Session Isolation** | SwarmSessionManager [OK] | Thread-based | Non | Non |
 
 **Avantages distinctifs NEXUS**:
 1. **Dual-LLM Architecture**: Seul framework à combiner Gemini + Claude nativement
@@ -169,10 +169,10 @@
 **Proposition**:
 ```
 Phase 14d: Real-Time Observability
-├── OTLP Exporter (OpenTelemetry)
-├── Traces span per tool call
-├── Dashboard local (Grafana ou simple HTML)
-└── Effort: 1 semaine
++-- OTLP Exporter (OpenTelemetry)
++-- Traces span per tool call
++-- Dashboard local (Grafana ou simple HTML)
++-- Effort: 1 semaine
 ```
 
 **Impact**: Debugging drastiquement amélioré, détection stagnation temps réel
@@ -210,10 +210,10 @@ class AgentProfile:
 **Proposition**:
 ```
 Phase 15: Response Streaming
-├── GeminiDriverV7._invoke_subprocess_stream()
-├── ClaudeDriverHybrid._stream_response()
-├── REPL streaming output
-└── Effort: 3-4 jours
++-- GeminiDriverV7._invoke_subprocess_stream()
++-- ClaudeDriverHybrid._stream_response()
++-- REPL streaming output
++-- Effort: 3-4 jours
 ```
 
 **Impact**: UX drastiquement améliorée
@@ -224,7 +224,7 @@ Phase 15: Response Streaming
 
 **Best Practice Industrie**:
 - [AWS Strands](https://aws.amazon.com/blogs/machine-learning/multi-agent-collaboration-patterns-with-strands-agents-and-amazon-nova/) décompose automatiquement
-- Pattern "Plan→Execute→Validate"
+- Pattern "Plan->Execute->Validate"
 
 **Proposition**:
 ```python
@@ -264,7 +264,7 @@ human_review:
 
 | Action | Effort | Impact |
 |--------|--------|--------|
-| **Câbler Phase 13d** (AutoMemory→ModeSelector) | 3h | HAUTE |
+| **Câbler Phase 13d** (AutoMemory->ModeSelector) | 3h | HAUTE |
 | **Ajouter capability profiles** à AgentProfile | 4h | HAUTE |
 | **Documenter architecture** (README modules) | 2h | MOYENNE |
 

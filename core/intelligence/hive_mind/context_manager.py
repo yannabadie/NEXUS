@@ -580,7 +580,7 @@ Timestamp: {insight["timestamp"]}
             ScopedContext with appropriate content
 
         Example:
-            # Phase 1 → Phase 2 transition
+            # Phase 1 -> Phase 2 transition
             scoped = manager.create_scoped_context(
                 scope=ContextScope.TASK_PLUS_RESULTS,
                 from_phase="analysis",
@@ -666,7 +666,7 @@ Timestamp: {insight["timestamp"]}
             )
 
             logger.info(
-                f"Semantic compression: {result.original_tokens} → {result.compressed_tokens} tokens "
+                f"Semantic compression: {result.original_tokens} -> {result.compressed_tokens} tokens "
                 f"({result.compression_ratio:.1%} reduction)"
             )
 

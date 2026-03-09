@@ -2,8 +2,8 @@
 NEXUS V9.2 - Context Scoping for Controlled Inheritance
 
 Provides granular control over what context is passed between:
-- HiveMind phases (Phase 1 → Phase 2)
-- Parent → Spawned agents
+- HiveMind phases (Phase 1 -> Phase 2)
+- Parent -> Spawned agents
 - Model changes within same task
 - Parallel vs Sequential execution
 

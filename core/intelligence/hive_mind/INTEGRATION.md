@@ -8,32 +8,32 @@ This document describes how V8 Hive Mind integrates with existing V7 systems.
 
 ```
                     USER INPUT
-                         │
-                         ▼
-                ┌─────────────────┐
-                │  TaskAnalyzer   │
-                └────────┬────────┘
-                         │
-         ┌───────────────┼───────────────┐
-         │               │               │
+                         |
+                         v
+                +-----------------+
+                |  TaskAnalyzer   |
+                +--------+--------+
+                         |
+         +---------------+---------------+
+         |               |               |
       TRIVIAL         SIMPLE      MODERATE/COMPLEX/EXPERT
-         │               │               │
-         ▼               ▼               ▼
-    ┌─────────┐    ┌─────────┐    ┌─────────────────┐
-    │ FAST    │    │ SINGLE  │    │  GATE CHECK     │
-    │ PATH    │    │ AGENT   │    │                 │
-    └─────────┘    └─────────┘    └────────┬────────┘
-                                           │
-                    ┌──────────────────────┼──────────────────────┐
-                    │                      │                      │
+         |               |               |
+         v               v               v
+    +---------+    +---------+    +-----------------+
+    | FAST    |    | SINGLE  |    |  GATE CHECK     |
+    | PATH    |    | AGENT   |    |                 |
+    +---------+    +---------+    +--------+--------+
+                                           |
+                    +----------------------+----------------------+
+                    |                      |                      |
              MODERATE only          MODERATE (if              COMPLEX/EXPERT
              & hive_moderate=F      hive_moderate=T)
-                    │                      │                      │
-                    ▼                      ▼                      ▼
-              ┌─────────────┐       ┌─────────────────┐    ┌─────────────────┐
-              │ V7 SWARM    │       │ V8 HIVE MIND    │    │ V8 HIVE MIND    │
-              │ (existing)  │       │ (new)           │    │ (new)           │
-              └─────────────┘       └─────────────────┘    └─────────────────┘
+                    |                      |                      |
+                    v                      v                      v
+              +-------------+       +-----------------+    +-----------------+
+              | V7 SWARM    |       | V8 HIVE MIND    |    | V8 HIVE MIND    |
+              | (existing)  |       | (new)           |    | (new)           |
+              +-------------+       +-----------------+    +-----------------+
 ```
 
 ## Component Relationships
@@ -54,8 +54,8 @@ This document describes how V8 Hive Mind integrates with existing V7 systems.
 | Existing | Hive Mind | Relationship |
 |----------|-----------|--------------|
 | `BudgetTracker` | `CostEstimator` | **COMPLEMENTARY** |
-| - USD costs | - Token estimates | Estimator → Tracker |
-| - Daily limits | - Operation affordability | Chain: estimate → budget check |
+| - USD costs | - Token estimates | Estimator -> Tracker |
+| - Daily limits | - Operation affordability | Chain: estimate -> budget check |
 
 **Integration**: `CostEstimator.can_afford()` calls `BudgetTracker.can_spend()` for final check.
 
@@ -75,7 +75,7 @@ This document describes how V8 Hive Mind integrates with existing V7 systems.
 | Existing | Hive Mind | Relationship |
 |----------|-----------|--------------|
 | `StagnationDetector` | `StrategyBlacklist` | **CHAIN** |
-| - Output similarity | - Strategy tracking | Stagnation → Blacklist |
+| - Output similarity | - Strategy tracking | Stagnation -> Blacklist |
 | `PanicSystem` | `AdaptiveRetryPhase` | **ESCALATION** |
 
 **Integration**: Stagnation feeds blacklist. Retry phase uses blacklist. Panic if max retries.

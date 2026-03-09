@@ -204,10 +204,10 @@ class ConversationStore:
 
     Storage format:
         workspace/memory/conversations/
-        ├── sessions.json          # Session index
-        └── turns/
-            ├── {session_id}.jsonl  # Turns per session (JSONL)
-            └── ...
+        +-- sessions.json          # Session index
+        +-- turns/
+            +-- {session_id}.jsonl  # Turns per session (JSONL)
+            +-- ...
     """
 
     def __init__(

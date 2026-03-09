@@ -29,7 +29,7 @@ from core.utils.artifact_verifier import ArtifactVerifier
 from ..collaboration_modes import CollaborationMode
 from ..mode_selector import AgentAssignment
 
-# Lazy imports to avoid circular dependency: core.api → infrastructure → intelligence → core.api
+# Lazy imports to avoid circular dependency: core.api -> infrastructure -> intelligence -> core.api
 # Imported at runtime in methods that need them
 _rate_limiter_mod = None
 _concurrency_limiter_mod = None

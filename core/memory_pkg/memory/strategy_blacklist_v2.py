@@ -13,8 +13,8 @@ Key Improvements over V1:
 - Backward compatible: migrates old JSON data automatically
 
 Architecture:
-    BlacklistedStrategy → Chunk → LanceDB (via ProjectMemory)
-    Query: "use JWT for auth" → Detects similar failure: "tried token-based auth"
+    BlacklistedStrategy -> Chunk -> LanceDB (via ProjectMemory)
+    Query: "use JWT for auth" -> Detects similar failure: "tried token-based auth"
 
 Anti-Pattern Detection:
     V1: Hash-based (exact match only)
@@ -114,7 +114,7 @@ class StrategyBlacklistV2:
     Detection Example:
         Failed: "use JWT tokens for authentication"
         Query: "implement token-based auth with JWT"
-        → DETECTED as similar (semantic similarity ~0.85)
+        -> DETECTED as similar (semantic similarity ~0.85)
 
     Attributes:
         workspace_path: Path to workspace root
@@ -179,7 +179,7 @@ class StrategyBlacklistV2:
 
         # Skip if already migrated
         if migration_marker.exists():
-            self._logger.debug("V1→V2 blacklist migration already completed")
+            self._logger.debug("V1->V2 blacklist migration already completed")
             return
 
         # Skip if V1 data doesn't exist
@@ -217,7 +217,7 @@ class StrategyBlacklistV2:
             self._logger.info(f"Migrated {migrated_count} V1 blacklist entries to LanceDB")
 
         except Exception as e:
-            self._logger.warning(f"V1→V2 blacklist migration failed: {e}")
+            self._logger.warning(f"V1->V2 blacklist migration failed: {e}")
 
     def _index_blacklisted_strategy(self, strategy: BlacklistedStrategy) -> None:
         """

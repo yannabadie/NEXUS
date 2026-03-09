@@ -33,13 +33,13 @@ The Routing module provides intelligent model selection for NEXUS, routing tasks
 
 **`select_claude_model(task_type: TaskType) -> str`**
 - Select Claude model (Opus or Sonnet) based on task type
-- Complex tasks (BRAINSTORM, EVOLUTION) → Opus
-- Simple tasks (TOOL, VALIDATION) → Sonnet
+- Complex tasks (BRAINSTORM, EVOLUTION) -> Opus
+- Simple tasks (TOOL, VALIDATION) -> Sonnet
 
 **`select_gemini_model(task_type: TaskType) -> str`**
 - Select Gemini model (3-Pro or Flash) based on task type
-- Complex tasks (REASONING, RESEARCH) → Gemini 3 Pro
-- Simple tasks (TOOL, FORMAT) → Gemini Flash
+- Complex tasks (REASONING, RESEARCH) -> Gemini 3 Pro
+- Simple tasks (TOOL, FORMAT) -> Gemini Flash
 - **Note**: V7 Sprint 6 currently uses Pro for all tasks
 
 **`select_claude_model_str(task_type_str: str) -> str`**

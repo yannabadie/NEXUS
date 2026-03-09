@@ -14,25 +14,25 @@
 | **Total** | | **1363** | **41** |
 
 ## Commands Updated
-- `core/interface/commands/agents.py` → uses AgentService
-- `core/interface/commands/memory.py` → uses MemoryService
-- `core/interface/commands/swarm.py` → uses SwarmService
-- `core/interface/commands/workspace.py` → uses WorkspaceManager
+- `core/interface/commands/agents.py` -> uses AgentService
+- `core/interface/commands/memory.py` -> uses MemoryService
+- `core/interface/commands/swarm.py` -> uses SwarmService
+- `core/interface/commands/workspace.py` -> uses WorkspaceManager
 
 ## Phase 8: Duplicate Removal Complete
 
 ### Memory Methods (Done)
-- Original: ~200 lines → Thin delegations: ~30 lines
+- Original: ~200 lines -> Thin delegations: ~30 lines
 
 ### Swarm Methods (Done)
 - `run_swarm_task`, `run_swarm_task_fsm`, `show_swarm_status`
-- Original: ~200 lines → Thin delegations: ~26 lines
+- Original: ~200 lines -> Thin delegations: ~26 lines
 
 ### Agent Methods (Done)
 - `spawn_agent`, `_detect_domains_from_role`, `_brainstorm_agent_prompt`
 - `_extract_inference_config`, `_validate_prompt_tools`, `_static_agent_template`
 - `list_agents`, `show_pool_stats`
-- Original: ~517 lines → Thin delegations: ~15 lines
+- Original: ~517 lines -> Thin delegations: ~15 lines
 - Helper methods: moved to AgentService
 
 ## Kept in repl.py (~2059 lines)

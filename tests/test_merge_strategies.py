@@ -100,7 +100,7 @@ class TestNaiveMergeStrategy:
 
         result = NaiveMergeStrategy().merge(context)
 
-        assert "❌ Error" in result.content
+        assert "[NO] Error" in result.content
         assert "Connection failed" in result.content
 
     def test_mixed_success_and_error(self):
@@ -115,7 +115,7 @@ class TestNaiveMergeStrategy:
 
         assert "[Gemini]:" in result.content
         assert "Success result" in result.content
-        assert "[Claude] ❌ Error" in result.content
+        assert "[Claude] [NO] Error" in result.content
 
     def test_preserves_full_content(self):
         """Should not truncate long content"""

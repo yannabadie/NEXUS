@@ -10,23 +10,23 @@ When running parallel tasks with the Gemini CLI, each task needs its own isolate
 
 ```
 Problem: Context Bleeding
-┌─────────────────────────────────────────────────────────────┐
-│ Task A: "Analyze auth.py"    Task B: "Review tests"         │
-│         │                            │                       │
-│         └──────────┬─────────────────┘                       │
-│                    ▼                                         │
-│            Shared Gemini Context                             │
-│            (Context Bleeding!)                               │
-└─────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------+
+| Task A: "Analyze auth.py"    Task B: "Review tests"         |
+|         |                            |                       |
+|         +----------+-----------------+                       |
+|                    v                                         |
+|            Shared Gemini Context                             |
+|            (Context Bleeding!)                               |
++-------------------------------------------------------------+
 
 Solution: Session Isolation
-┌─────────────────────────────────────────────────────────────┐
-│ Task A: "Analyze auth.py"    Task B: "Review tests"         │
-│         │                            │                       │
-│         ▼                            ▼                       │
-│   Session UUID-A               Session UUID-B                │
-│   (Isolated)                   (Isolated)                    │
-└─────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------+
+| Task A: "Analyze auth.py"    Task B: "Review tests"         |
+|         |                            |                       |
+|         v                            v                       |
+|   Session UUID-A               Session UUID-B                |
+|   (Isolated)                   (Isolated)                    |
++-------------------------------------------------------------+
 ```
 
 ## Quick Start

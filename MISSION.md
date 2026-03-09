@@ -40,9 +40,9 @@ Ces principes définissent l'identité de NEXUS. Toute itération qui les viole 
 - **Transparence**: Toute action est loggée et auditable
 
 **Exemples de comportement aligné**:
-- ✅ "Yann, ta demande pourrait bénéficier de X - veux-tu que j'explore?"
-- ✅ "Je détecte une ambiguïté - puis-je clarifier avant d'agir?"
-- ✅ "Voici 3 approches possibles avec leurs trade-offs"
+- [OK] "Yann, ta demande pourrait bénéficier de X - veux-tu que j'explore?"
+- [OK] "Je détecte une ambiguïté - puis-je clarifier avant d'agir?"
+- [OK] "Voici 3 approches possibles avec leurs trade-offs"
 
 ### 2. Objectif : Résolution de Problèmes via Intelligence Distribuée
 
@@ -62,9 +62,9 @@ Ces principes définissent l'identité de NEXUS. Toute itération qui les viole 
 - Capacité à spawner un agent spécialisé si nécessaire
 
 **Exemples**:
-- ✅ "Cette tâche SQL complexe nécessite un agent spécialisé"
-- ✅ "Je détecte que PING_PONG mode serait plus efficace ici"
-- ✅ "Mon analyse initiale était incomplète - je corrige"
+- [OK] "Cette tâche SQL complexe nécessite un agent spécialisé"
+- [OK] "Je détecte que PING_PONG mode serait plus efficace ici"
+- [OK] "Mon analyse initiale était incomplète - je corrige"
 
 ### 4. Ressources Contrôlées
 
@@ -89,30 +89,30 @@ Ces principes définissent l'identité de NEXUS. Toute itération qui les viole 
 ### Modèle de Coexistence
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  NEXUS CORE (Orchestrateur Principal)                       │
-│  ┌─────────────────────────────────────────────────────────┐│
-│  │ • Task Analyzer: Détermine complexité & domaines        ││
-│  │ • Mode Selector: Choisit collaboration mode             ││
-│  │ • Agent Factory: Génère agents spécialisés              ││
-│  │ • Hybrid Swarm: Orchestre la collaboration              ││
-│  └─────────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────┘
-                           │
-         ┌─────────────────┼─────────────────┐
-         │                 │                 │
-    ┌─────────┐      ┌─────────┐      ┌─────────┐
-    │ Agent 1 │      │ Agent 2 │      │ Agent 3 │
-    │ SQL     │      │ Vue.js  │      │ DevOps  │
-    │ Expert  │      │ Expert  │      │ Expert  │
-    └─────────┘      └─────────┘      └─────────┘
-         │                 │                 │
-         └─────────────────┴─────────────────┘
-                           │
-              ┌────────────┴────────────┐
-              │   workspace/agents/     │
-              │   (Persistence)         │
-              └─────────────────────────┘
++-------------------------------------------------------------+
+|  NEXUS CORE (Orchestrateur Principal)                       |
+|  +---------------------------------------------------------+|
+|  | - Task Analyzer: Détermine complexité & domaines        ||
+|  | - Mode Selector: Choisit collaboration mode             ||
+|  | - Agent Factory: Génère agents spécialisés              ||
+|  | - Hybrid Swarm: Orchestre la collaboration              ||
+|  +---------------------------------------------------------+|
++-------------------------------------------------------------+
+                           |
+         +-----------------+-----------------+
+         |                 |                 |
+    +---------+      +---------+      +---------+
+    | Agent 1 |      | Agent 2 |      | Agent 3 |
+    | SQL     |      | Vue.js  |      | DevOps  |
+    | Expert  |      | Expert  |      | Expert  |
+    +---------+      +---------+      +---------+
+         |                 |                 |
+         +-----------------+-----------------+
+                           |
+              +------------+------------+
+              |   workspace/agents/     |
+              |   (Persistence)         |
+              +-------------------------+
 ```
 
 ### Les 6 Modes de Collaboration (Hybrid Swarm)
@@ -120,7 +120,7 @@ Ces principes définissent l'identité de NEXUS. Toute itération qui les viole 
 | Mode | Description | Use Case |
 |------|-------------|----------|
 | **PARALLEL** | Gemini & Claude travaillent simultanément | Tâches indépendantes |
-| **SEQUENTIAL** | A → B pipeline ordonné | Tâches dépendantes |
+| **SEQUENTIAL** | A -> B pipeline ordonné | Tâches dépendantes |
 | **LEAD_SUPPORT** | Un lead, l'autre en support | Implémentation complexe |
 | **PING_PONG** | Alternance rapide jusqu'à convergence | Raffinement itératif |
 | **SPECIALIST** | Un seul agent expert | Domaine clair |
@@ -158,7 +158,7 @@ Définir des équipes d'agents via `squad.json`:
 Topologies supportées:
 - **STAR**: Lead coordonne tout
 - **MESH**: Communication libre entre tous
-- **PIPELINE**: Séquentiel A→B→C
+- **PIPELINE**: Séquentiel A->B->C
 - **CUSTOM_GRAPH**: Définition libre
 
 ---
@@ -225,7 +225,7 @@ Topologies supportées:
 ### 1. Alignement (KERNEL.py)
 - SHA-256 hash vérifié au boot
 - Permissions read-only
-- Modification → alerte immédiate
+- Modification -> alerte immédiate
 
 ### 2. Traçabilité (Birth Certificates)
 - Chaîne de lignée documentée
@@ -255,9 +255,9 @@ Topologies supportées:
 ## 🚀 Feuille de Route
 
 ### 2025 Q4
-- ✅ Hybrid Swarm Engine (6 modes)
-- ✅ EVOLUTION_BRAINSTORM
-- ✅ Task Analyzer
+- [OK] Hybrid Swarm Engine (6 modes)
+- [OK] EVOLUTION_BRAINSTORM
+- [OK] Task Analyzer
 - 🔄 Agent Factory (/spawn)
 - 🔄 Squad definitions
 

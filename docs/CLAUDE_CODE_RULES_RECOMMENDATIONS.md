@@ -23,7 +23,7 @@ This document synthesizes best practices from:
 **MANDATORY for NEXUS**: When claiming to have fixed/resolved/completed something, **always verify**:
 
 ```markdown
-## ⚠️ CRITICAL RULE: Always Verify Your Claims
+## [warning]️ CRITICAL RULE: Always Verify Your Claims
 
 When you claim to have **fixed**, **resolved**, **completed**, or **verified** something, you MUST:
 
@@ -33,8 +33,8 @@ When you claim to have **fixed**, **resolved**, **completed**, or **verified** s
 4. **Document evidence** - Show the proof (logs, output, status)
 
 Examples:
-- ❌ "I fixed the CI by adding requirements.txt"
-- ✅ "Added requirements.txt → gh run view shows 'success' ✓"
+- [NO] "I fixed the CI by adding requirements.txt"
+- [OK] "Added requirements.txt -> gh run view shows 'success' [OK]"
 ```
 
 ---
@@ -46,7 +46,7 @@ Examples:
 **Problem**: Frontier LLMs can follow ~150-200 instructions with reasonable consistency.
 **Solution**: Ruthlessly prune CLAUDE.md. If Claude already does it correctly, remove the instruction.
 
-**Current NEXUS CLAUDE.md**: ~500 lines → **Recommended**: < 300 lines
+**Current NEXUS CLAUDE.md**: ~500 lines -> **Recommended**: < 300 lines
 
 ### 2. Essential Sections
 
@@ -64,11 +64,11 @@ Multi-agent orchestration platform for collaborative AI intelligence.
 
 ## 📁 Architecture Map
 core/
-├── orchestration_v7.py     # Main FSM orchestrator
-├── hive_mind/              # 7-phase pipeline
-├── swarm/                  # 6 collaboration modes
-├── drivers/                # Gemini + Claude SDK
-└── memory/                 # RAG + SuccessMemory
++-- orchestration_v7.py     # Main FSM orchestrator
++-- hive_mind/              # 7-phase pipeline
++-- swarm/                  # 6 collaboration modes
++-- drivers/                # Gemini + Claude SDK
++-- memory/                 # RAG + SuccessMemory
 
 ## 🚀 Essential Commands
 pytest tests/                    # Run all tests
@@ -77,7 +77,7 @@ ruff check core/ tests/         # Lint
 mypy core/memory/types.py       # Type check
 git commit -m "type(scope): msg" # Commit format
 
-## ⚠️ Critical Rules
+## [warning]️ Critical Rules
 1. **Always verify claims** - Run tests, check CI status
 2. **Test before committing** - pytest must pass
 3. **Never skip hooks** - Pre-commit checks are mandatory
@@ -92,11 +92,11 @@ git commit -m "type(scope): msg" # Commit format
 - OTel spans for instrumentation
 
 ## 🚫 Anti-Patterns (DO NOT)
-- ❌ Modify orchestration_v7.py without reading adjacent modules first
-- ❌ Add dependencies without updating both requirements.txt AND pyproject.toml
-- ❌ Claim "CI fixed" without running `gh run view` to verify
-- ❌ Use bare except: (always specify exception types)
-- ❌ Import legacy CLI drivers (use SDK drivers from core/drivers/)
+- [NO] Modify orchestration_v7.py without reading adjacent modules first
+- [NO] Add dependencies without updating both requirements.txt AND pyproject.toml
+- [NO] Claim "CI fixed" without running `gh run view` to verify
+- [NO] Use bare except: (always specify exception types)
+- [NO] Import legacy CLI drivers (use SDK drivers from core/drivers/)
 ```
 
 ---
@@ -172,7 +172,7 @@ description: NEXUS testing patterns. Use when writing tests or debugging failure
 ## Test File Naming
 - `test_*.py` for unit tests
 - `test_*_integration.py` for integration tests
-- Mirrors module structure: `core/memory/rag.py` → `tests/test_memory_rag.py`
+- Mirrors module structure: `core/memory/rag.py` -> `tests/test_memory_rag.py`
 
 ## Fixtures Pattern
 Use module-level fixtures from conftest.py:
@@ -248,10 +248,10 @@ Based on latest industry research:
 
 | Pattern | NEXUS Status | Recommendation |
 |---------|--------------|----------------|
-| **Swarm (All-to-All)** | ✅ Implemented (6 modes) | Keep current approach |
-| **Plan-and-Execute** | ✅ HiveMind Phase 3 | Use for cost optimization (90% savings) |
-| **Sequential Workflows** | ✅ SEQUENTIAL mode | Already optimal |
-| **Human-in-the-Loop** | ⚠️ Partial (approval prompts) | Add HITL dashboard |
+| **Swarm (All-to-All)** | [OK] Implemented (6 modes) | Keep current approach |
+| **Plan-and-Execute** | [OK] HiveMind Phase 3 | Use for cost optimization (90% savings) |
+| **Sequential Workflows** | [OK] SEQUENTIAL mode | Already optimal |
+| **Human-in-the-Loop** | [warning]️ Partial (approval prompts) | Add HITL dashboard |
 
 ### 2. Model Context Protocol (MCP) Integration
 
@@ -263,7 +263,7 @@ Based on latest industry research:
 
 ### 3. Observability & Telemetry
 
-**Current**: OTel spans, event sourcing, FSM snapshots ✅
+**Current**: OTel spans, event sourcing, FSM snapshots [OK]
 **Add**:
 - Agent performance dashboards
 - Cost tracking per collaboration mode
@@ -289,7 +289,7 @@ Based on latest industry research:
 
 ### Immediate (Priority 0)
 
-1. ✅ **Add verification rule to CLAUDE.md** (DONE - committed 70ebe85)
+1. [OK] **Add verification rule to CLAUDE.md** (DONE - committed 70ebe85)
 2. ⏳ **Trim CLAUDE.md to < 300 lines** (currently ~500 lines)
 3. ⏳ **Create essential hooks** (.claude/settings.json)
    - PreToolUse: Block protected branch pushes

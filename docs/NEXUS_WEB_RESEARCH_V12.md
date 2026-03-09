@@ -22,10 +22,10 @@ Cette recherche explore les meilleures pratiques et technologies émergentes pou
 Standard ouvert pour la communication agent-interface:
 
 ```
-┌─────────────────┐     AG-UI Protocol      ┌─────────────────┐
-│  Agent Backend  │ ◄────────────────────► │  Frontend UI    │
-│  (NEXUS Core)   │    Events + Actions     │  (CEREBRO)      │
-└─────────────────┘                         └─────────────────┘
++-----------------+     AG-UI Protocol      +-----------------+
+|  Agent Backend  | ◄--------------------► |  Frontend UI    |
+|  (NEXUS Core)   |    Events + Actions     |  (CEREBRO)      |
++-----------------+                         +-----------------+
 ```
 
 ### Types d'Events AG-UI
@@ -67,20 +67,20 @@ Standard ouvert pour la communication agent-interface:
 ### Implications pour NEXUS
 
 ```
-┌────────────────────────────────────────────────────────┐
-│                   CEREBRO Canvas UI                     │
-├────────────────────────────────────────────────────────┤
-│  ┌──────────┐    ┌──────────┐    ┌──────────┐         │
-│  │  Gemini  │───►│  Swarm   │───►│  Claude  │         │
-│  │  Agent   │    │  Mode    │    │  Agent   │         │
-│  └──────────┘    └──────────┘    └──────────┘         │
-│       │              │               │                 │
-│       ▼              ▼               ▼                 │
-│  ┌─────────────────────────────────────────────┐      │
-│  │              HiveMind Pipeline               │      │
-│  │  [Analysis] ► [Debate] ► [Arch] ► [Exec]    │      │
-│  └─────────────────────────────────────────────┘      │
-└────────────────────────────────────────────────────────┘
++--------------------------------------------------------+
+|                   CEREBRO Canvas UI                     |
++--------------------------------------------------------+
+|  +----------+    +----------+    +----------+         |
+|  |  Gemini  |---►|  Swarm   |---►|  Claude  |         |
+|  |  Agent   |    |  Mode    |    |  Agent   |         |
+|  +----------+    +----------+    +----------+         |
+|       |              |               |                 |
+|       v              v               v                 |
+|  +---------------------------------------------+      |
+|  |              HiveMind Pipeline               |      |
+|  |  [Analysis] ► [Debate] ► [Arch] ► [Exec]    |      |
+|  +---------------------------------------------+      |
++--------------------------------------------------------+
 ```
 
 **Features Recommandées**:
@@ -148,25 +148,25 @@ Liveblocks Engineering Blog: "WebSocket vs HTTP for AI agents"
 ### Architecture UI Recommandée
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│ Header: Status | Active Workflow | Agents Online            │
-├─────────────────────────────────────┬───────────────────────┤
-│                                     │ Mission Control       │
-│  Main Canvas:                       │ ├── Objective         │
-│  ┌─────────────────────────────┐   │ ├── Mode Selector     │
-│  │      Tabs:                   │   │ │   [6 Swarm Modes]   │
-│  │  [HiveMap] [Files] [Memory]  │   │ ├── ENGAGE Button    │
-│  │                              │   │ └── Active Phase     │
-│  │  Content varies by tab:      │   ├───────────────────────┤
-│  │  - HiveMap: Agent graph      │   │ Event Stream         │
-│  │  - Files: Monaco editor      │   │ ├── Real-time logs   │
-│  │  - Memory: RAG browser       │   │ ├── Collapsible      │
-│  │                              │   │ └── Filterable       │
-│  └─────────────────────────────┘   │                       │
-│                                     │                       │
-├─────────────────────────────────────┴───────────────────────┤
-│ Footer: Connection Status | Token Usage | Session Info      │
-└─────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------+
+| Header: Status | Active Workflow | Agents Online            |
++-------------------------------------+-----------------------+
+|                                     | Mission Control       |
+|  Main Canvas:                       | +-- Objective         |
+|  +-----------------------------+   | +-- Mode Selector     |
+|  |      Tabs:                   |   | |   [6 Swarm Modes]   |
+|  |  [HiveMap] [Files] [Memory]  |   | +-- ENGAGE Button    |
+|  |                              |   | +-- Active Phase     |
+|  |  Content varies by tab:      |   +-----------------------+
+|  |  - HiveMap: Agent graph      |   | Event Stream         |
+|  |  - Files: Monaco editor      |   | +-- Real-time logs   |
+|  |  - Memory: RAG browser       |   | +-- Collapsible      |
+|  |                              |   | +-- Filterable       |
+|  +-----------------------------+   |                       |
+|                                     |                       |
++-------------------------------------+-----------------------+
+| Footer: Connection Status | Token Usage | Session Info      |
++-------------------------------------------------------------+
 ```
 
 ---
@@ -177,10 +177,10 @@ Liveblocks Engineering Blog: "WebSocket vs HTTP for AI agents"
 
 | Bibliothèque | React 19 | Bundle | Use Case |
 |--------------|----------|--------|----------|
-| **SVG Custom** | ✅ | 0KB | Simple graphs (<50 nodes) |
-| React Flow | ⚠️ v12+ | ~200KB | Complex workflows |
-| D3.js | ✅ | ~250KB | Custom visualizations |
-| Cytoscape | ✅ | ~400KB | Large graphs |
+| **SVG Custom** | [OK] | 0KB | Simple graphs (<50 nodes) |
+| React Flow | [warning]️ v12+ | ~200KB | Complex workflows |
+| D3.js | [OK] | ~250KB | Custom visualizations |
+| Cytoscape | [OK] | ~400KB | Large graphs |
 
 **Recommandation NEXUS**: SVG Custom (souveraineté) + D3 si besoin avancé
 
@@ -188,8 +188,8 @@ Liveblocks Engineering Blog: "WebSocket vs HTTP for AI agents"
 
 | Bibliothèque | React 19 | Bundle |
 |--------------|----------|--------|
-| **Monaco** | ✅ v4.7+ | ~1MB (lazy) |
-| CodeMirror 6 | ✅ | ~300KB |
+| **Monaco** | [OK] v4.7+ | ~1MB (lazy) |
+| CodeMirror 6 | [OK] | ~300KB |
 
 **Recommandation NEXUS**: Monaco (VSCode feel, déjà familier)
 
@@ -197,9 +197,9 @@ Liveblocks Engineering Blog: "WebSocket vs HTTP for AI agents"
 
 | Bibliothèque | React 19 | Adoption |
 |--------------|----------|----------|
-| **Zustand** | ✅ | CEREBRO l'utilise déjà |
-| Jotai | ✅ | Alternative légère |
-| Redux | ✅ | Overkill pour CEREBRO |
+| **Zustand** | [OK] | CEREBRO l'utilise déjà |
+| Jotai | [OK] | Alternative légère |
+| Redux | [OK] | Overkill pour CEREBRO |
 
 ---
 
@@ -229,10 +229,10 @@ Liveblocks Engineering Blog: "WebSocket vs HTTP for AI agents"
 ### Interface CEREBRO V12.0 Optimale
 
 **Must Have (P0)**:
-1. ✅ HiveMap - Graph SVG temps réel
-2. ✅ MissionControl - 6 modes visibles + ENGAGE
-3. ✅ FileCommander - Monaco + tree browser
-4. ❌ MemoryBrowser - RAG visualization (V12.1)
+1. [OK] HiveMap - Graph SVG temps réel
+2. [OK] MissionControl - 6 modes visibles + ENGAGE
+3. [OK] FileCommander - Monaco + tree browser
+4. [NO] MemoryBrowser - RAG visualization (V12.1)
 
 **Should Have (P1)**:
 1. Phase Timeline - Barre de progression HiveMind

@@ -61,10 +61,10 @@ from .inference_latency_analyzer import (
 )
 from .kimi_sdk_driver import KimiSDKDriver
 from .minimax_sdk_driver import MiniMaxSDKDriver
-from .openai_sdk_driver import OpenAISDKDriver
 
 # V12.4 Local LLM Driver
 from .ollama_driver import OllamaDriver
+from .openai_sdk_driver import OpenAISDKDriver
 from .protocol import (
     BaseAsyncDriver,
     DriverProtocol,

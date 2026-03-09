@@ -5,7 +5,7 @@
 
 ---
 
-## Quick Reference: Anti-Patterns → Solutions
+## Quick Reference: Anti-Patterns -> Solutions
 
 | Anti-Pattern | Files Affected | Solution | Effort |
 |--------------|----------------|----------|--------|
@@ -59,9 +59,9 @@ git diff core/intelligence/evolution/evaluator.py | head -20
 ### Manual Review Checklist
 
 After running script, manually review:
-- [ ] Debug prints → `logger.debug()`
-- [ ] Error messages → `logger.error()`
-- [ ] User-facing output → Keep as `print()` (e.g., REPL responses)
+- [ ] Debug prints -> `logger.debug()`
+- [ ] Error messages -> `logger.error()`
+- [ ] User-facing output -> Keep as `print()` (e.g., REPL responses)
 
 ---
 
@@ -82,16 +82,16 @@ def record_evolution(self, child_count: int, parent_id: str) -> None:
 ### Files to Fix (Top 10)
 
 1. `core/intelligence/evolution/rate_limiter.py`
-   - `record_evolution()` → `-> None`
-   - `reset_daily()` → `-> None`
+   - `record_evolution()` -> `-> None`
+   - `reset_daily()` -> `-> None`
 
 2. `core/intelligence/hive_mind/context_manager.py`
-   - `add_item()` → `-> None`
-   - `clear()` → `-> None`
+   - `add_item()` -> `-> None`
+   - `clear()` -> `-> None`
 
 3. `core/intelligence/swarm/agent_metrics.py`
-   - `record_usage()` → `-> None`
-   - `update_importance()` → `-> None`
+   - `record_usage()` -> `-> None`
+   - `update_importance()` -> `-> None`
 
 ### Automated Fix
 
@@ -124,7 +124,7 @@ EOF
 
 ## 3. Decompose God Objects (P0/P1 - 16 hours)
 
-### Example: `TrueHiveMind` (1201 lines → 4 classes)
+### Example: `TrueHiveMind` (1201 lines -> 4 classes)
 
 #### Step 1: Extract StateManager
 
@@ -226,7 +226,7 @@ self._state_manager.transition_to(HiveMindState.HIVE_ANALYZING_GEMINI)
 ```
 
 **Benefits**:
-- Reduces `TrueHiveMind` from 1201 → ~800 lines
+- Reduces `TrueHiveMind` from 1201 -> ~800 lines
 - Improves testability (mock `StateManager`)
 - Single Responsibility Principle
 
@@ -285,11 +285,11 @@ def get_mutation_tracker() -> MutationTracker:
 ### Files to Refactor (53 singletons)
 
 Use this pattern for:
-- `get_mutation_tracker()` → `ServiceFactory.get_mutation_tracker()`
-- `get_strategy_tracker()` → `ServiceFactory.get_strategy_tracker()`
-- `get_budget_allocator()` → `ServiceFactory.get_budget_allocator()`
-- `get_consensus_tracker()` → `ServiceFactory.get_consensus_tracker()`
-- `get_echo_chamber_guard()` → `ServiceFactory.get_echo_chamber_guard()`
+- `get_mutation_tracker()` -> `ServiceFactory.get_mutation_tracker()`
+- `get_strategy_tracker()` -> `ServiceFactory.get_strategy_tracker()`
+- `get_budget_allocator()` -> `ServiceFactory.get_budget_allocator()`
+- `get_consensus_tracker()` -> `ServiceFactory.get_consensus_tracker()`
+- `get_echo_chamber_guard()` -> `ServiceFactory.get_echo_chamber_guard()`
 - ... (and 48 more)
 
 **Effort**: 15 minutes per singleton × 53 = ~13 hours
@@ -298,7 +298,7 @@ Use this pattern for:
 
 ## 5. Convert to @dataclass (P2 - 6 hours)
 
-### Pattern: Simple Init → Dataclass
+### Pattern: Simple Init -> Dataclass
 
 ```python
 # BEFORE (79 classes like this)
@@ -336,7 +336,7 @@ class EvolutionManager:
 ```
 
 **Benefits**:
-- Reduces 15 lines → 10 lines (30% reduction)
+- Reduces 15 lines -> 10 lines (30% reduction)
 - Auto-generates `__repr__`, `__eq__`, `__hash__`
 - Improves type safety (mypy catches field mismatches)
 
@@ -357,7 +357,7 @@ class EvolutionManager:
 
 ## 6. Extract Long Functions (P2 - 8 hours)
 
-### Example: `process_task()` (770 lines → 8 methods)
+### Example: `process_task()` (770 lines -> 8 methods)
 
 ```python
 # BEFORE: All in one method
@@ -522,7 +522,7 @@ def _count_pending_in_dir(self, child_dir: Path) -> int:
 ```
 
 **Benefits**:
-- Reduces nesting from 5 → 2 levels
+- Reduces nesting from 5 -> 2 levels
 - Easier to read (flat flow)
 - Easier to test (`_count_pending_in_dir` is isolated)
 
@@ -641,7 +641,7 @@ interrogate -v core/intelligence
 ## Refactoring: Decompose TrueHiveMind God Object
 
 ### Summary
-Extracts `StateManager` and `PhaseCoordinator` from `TrueHiveMind` to reduce class size from 1201 → 780 lines.
+Extracts `StateManager` and `PhaseCoordinator` from `TrueHiveMind` to reduce class size from 1201 -> 780 lines.
 
 ### Changes
 - **NEW**: `core/intelligence/hive_mind/state_manager.py` (85 lines)

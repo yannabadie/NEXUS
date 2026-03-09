@@ -6,40 +6,39 @@ The **hive_mind** module implements the TRUE HIVE MIND - a 7-phase collaborative
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                      HIVE MIND 7-PHASE PIPELINE                          │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐                  │
-│  │   Phase 1   │───▶│   Phase 2   │───▶│   Phase 3   │                  │
-│  │  ANALYSIS   │    │   DEBATE    │    │ ARCHITECTURE│                  │
-│  │ Independent │    │  Resolve    │    │   Design    │                  │
-│  └─────────────┘    │Disagreements│    │ Exec Plan   │                  │
-│        │            └──────┬──────┘    └──────┬──────┘                  │
-│        │                   │                  │                          │
-│   Gemini ║ Claude     [BREAKPOINT]      [BREAKPOINT]                    │
-│   Parallel               (debate)          (spawn)                      │
-│                                                                          │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐                  │
-│  │   Phase 4   │◀───│   Phase 5   │◀───│   Phase 6   │                  │
-│  │  EXECUTION  │    │  DIAGNOSIS  │    │    RETRY    │                  │
-│  │  Monitored  │    │Root Cause   │    │  Adaptive   │                  │
-│  └──────┬──────┘    │  Analysis   │    │  Decision   │                  │
-│         │           └─────────────┘    └─────────────┘                  │
-│         │                  ▲                                            │
-│    SwarmBridge        [BREAKPOINT]                                      │
-│    Delegation          (diagnosis)                                      │
-│         │                                                               │
-│         ▼                                                               │
-│  ┌─────────────┐                                                        │
-│  │   Phase 7   │───▶ HIVE_SUCCESS / HIVE_FAILED / HIVE_ESCALATE        │
-│  │CONSOLIDATION│                                                        │
-│  │  Knowledge  │    [BREAKPOINT]                                        │
-│  │  Archival   │    (consolidation)                                     │
-│  └─────────────┘                                                        │
-│                                                                          │
-└─────────────────────────────────────────────────────────────────────────┘
+```text
+HIVE MIND 7-PHASE PIPELINE
+==========================
+
+Phase 1: ANALYSIS
+  - Independent Gemini/Claude analysis in parallel
+
+Phase 2: DEBATE
+  - Resolve disagreements
+  - Breakpoint: debate
+
+Phase 3: ARCHITECTURE
+  - Design execution plan
+  - Breakpoint: spawn
+
+Phase 4: EXECUTION
+  - Monitored delivery via SwarmBridge delegation
+
+Phase 5: DIAGNOSIS
+  - Root cause analysis
+  - Breakpoint: diagnosis
+
+Phase 6: RETRY
+  - Adaptive retry decision
+
+Phase 7: CONSOLIDATION
+  - Knowledge archival
+  - Breakpoint: consolidation
+
+Terminal states:
+  - HIVE_SUCCESS
+  - HIVE_FAILED
+  - HIVE_ESCALATE
 ```
 
 ## Component Map
@@ -54,7 +53,7 @@ The **hive_mind** module implements the TRUE HIVE MIND - a 7-phase collaborative
 | `strategy_blacklist.py` | Anti-circular retry | `StrategyBlacklist` |
 | `user_interaction.py` | Breakpoint handling | `UserInteractionHandler` |
 | `adaptive_debate.py` | Dynamic debate turns | `AdaptiveDebateConfig`, `DebateParams` |
-| `swarm_bridge.py` | HiveMind → Swarm delegation | `SwarmBridge`, `SwarmDelegationResult` |
+| `swarm_bridge.py` | HiveMind -> Swarm delegation | `SwarmBridge`, `SwarmDelegationResult` |
 | `saga_manager.py` | Checkpoint/recovery | `SagaManager`, `PhaseCheckpoint` |
 | `json_parser.py` | Response parsing | JSON extraction utilities |
 | `async_adapter.py` | Async utilities | Async adaptation helpers |

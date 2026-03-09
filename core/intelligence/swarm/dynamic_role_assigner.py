@@ -91,7 +91,7 @@ class RoleScore:
 class RoleAssignmentResult:
     """Final role assignment from Meta-Debate."""
 
-    assignments: dict[str, RoleType]  # agent_id → role
+    assignments: dict[str, RoleType]  # agent_id -> role
     scores: list[RoleScore] = field(default_factory=list)
     method: str = "meta_debate"  # meta_debate | fallback | history
     confidence: float = 0.5
@@ -222,7 +222,7 @@ class DynamicRoleAssigner:
             RoleAssignmentResult with scored assignments.
         """
         if len(agent_ids) < 2:
-            # Single agent → specialist
+            # Single agent -> specialist
             assignments = {agent_ids[0]: RoleType.SPECIALIST} if agent_ids else {}
             return RoleAssignmentResult(
                 assignments=assignments,

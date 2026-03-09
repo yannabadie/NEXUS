@@ -74,7 +74,7 @@ class TrajectoryResult:
     """Result of trajectory-based debate evaluation."""
 
     best_agent: str  # Agent with highest trajectory score
-    trajectory_scores: dict[str, float]  # agent_id → score
+    trajectory_scores: dict[str, float]  # agent_id -> score
     agent_trajectories: dict[str, AgentTrajectory]
     conformity_analysis: list[ConformityAnalysis]
     debate_quality: float  # Overall debate quality (0-1)
@@ -160,7 +160,7 @@ class TrajectoryScorer:
     # Anti-conformity parameters
     MIN_EVIDENCE_FOR_FLIP = 2  # Minimum evidence items to justify position change
     CONFORMITY_PENALTY = 0.15  # Score reduction for conformity without evidence
-    MIN_DEBATE_QUALITY = 0.4  # Below this → recommend re-debate
+    MIN_DEBATE_QUALITY = 0.4  # Below this -> recommend re-debate
 
     def __init__(self):
         self._total_scored = 0

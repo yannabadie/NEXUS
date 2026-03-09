@@ -76,9 +76,9 @@ function TimelineEventCard({ event, showDiff = true, showCost = true }: Timeline
           <span className="text-2xl">{getPhaseIcon(event.phase)}</span>
           <div>
             <span className="font-semibold text-gray-800">{event.action}</span>
-            <span className="text-gray-500 text-sm ml-2">• {event.agent_id}</span>
+            <span className="text-gray-500 text-sm ml-2">- {event.agent_id}</span>
             {event.model && (
-              <span className="text-gray-400 text-sm ml-2">• {event.model}</span>
+              <span className="text-gray-400 text-sm ml-2">- {event.model}</span>
             )}
           </div>
         </div>
@@ -131,7 +131,7 @@ function TimelineEventCard({ event, showDiff = true, showCost = true }: Timeline
             onClick={() => setDiffExpanded(!diffExpanded)}
             className="text-sm text-blue-600 hover:text-blue-800 font-medium"
           >
-            {diffExpanded ? '▼' : '▶'} State Changes ({Object.keys(event.diff).length})
+            {diffExpanded ? 'v' : '>'} State Changes ({Object.keys(event.diff).length})
           </button>
           {diffExpanded && (
             <pre className="mt-2 bg-gray-50 border border-gray-200 rounded p-3 text-xs overflow-x-auto">

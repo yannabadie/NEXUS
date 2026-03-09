@@ -1119,7 +1119,7 @@ def test_enforce_quota_cleans_oldest_first(tmp_path):
         home = isolator.get_home_path(session_id)
         (home / "large.txt").write_bytes(b"x" * (5 * 1024 * 1024))  # 5 MB each
 
-    # Total ~15 MB, quota 10 MB → should clean oldest
+    # Total ~15 MB, quota 10 MB -> should clean oldest
     cleaned = isolator.enforce_quota(quota_mb=10.0)
 
     # Should clean at least one (oldest)
@@ -1163,7 +1163,7 @@ def test_enforce_quota_stops_when_under_quota(tmp_path):
         home = isolator.get_home_path(session_id)
         (home / "large.txt").write_bytes(b"x" * (5 * 1024 * 1024))
 
-    # Total 25 MB, quota 20 MB → should clean 1-2 sessions, not all
+    # Total 25 MB, quota 20 MB -> should clean 1-2 sessions, not all
     cleaned = isolator.enforce_quota(quota_mb=20.0)
 
     assert cleaned < 5  # Shouldn't clean all
@@ -1251,7 +1251,7 @@ def test_check_disk_quota_custom_warn_threshold(tmp_path):
     home = isolator.get_home_path("task_001")
     (home / "large.txt").write_bytes(b"x" * (6 * 1024 * 1024))
 
-    # 60% threshold, 60% usage → should warn
+    # 60% threshold, 60% usage -> should warn
     quota_check = isolator.check_disk_quota(quota_mb=10.0, warn_threshold=0.6)
     assert quota_check["status"] in ["warning", "exceeded"]
 

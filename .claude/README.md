@@ -18,23 +18,23 @@ debugging, and documentation of the NEXUS V12.4 multi-agent orchestrator.
 
 ```
 .claude/
-├── agents/                    # Subagent definitions
-│   ├── nexus-system-auditor.md  # Full codebase documentation (opus)
-│   ├── dev-automator.md         # Development automation (opus)
-│   ├── debugger.md              # Test debugging (sonnet)
-│   └── doc-writer.md            # Documentation agent (opus)
-├── commands/                  # Slash commands
-│   ├── dev.md                 # /dev - Development automation
-│   ├── debug.md               # /debug - Test debugging
-│   ├── docs.md                # /docs - Documentation
-│   ├── test.md                # /test - Test runner
-│   └── review.md              # /review - Code review
-├── hooks/                     # Automation hooks (Python, cross-platform)
-│   ├── session_start.py       # Session initialization
-│   └── post_test.py           # Post-test summary
-├── settings.json              # Claude Code configuration
-├── settings.local.json        # Local overrides (git-ignored)
-└── README.md                  # This file
++-- agents/                    # Subagent definitions
+|   +-- nexus-system-auditor.md  # Full codebase documentation (opus)
+|   +-- dev-automator.md         # Development automation (opus)
+|   +-- debugger.md              # Test debugging (sonnet)
+|   +-- doc-writer.md            # Documentation agent (opus)
++-- commands/                  # Slash commands
+|   +-- dev.md                 # /dev - Development automation
+|   +-- debug.md               # /debug - Test debugging
+|   +-- docs.md                # /docs - Documentation
+|   +-- test.md                # /test - Test runner
+|   +-- review.md              # /review - Code review
++-- hooks/                     # Automation hooks (Python, cross-platform)
+|   +-- session_start.py       # Session initialization
+|   +-- post_test.py           # Post-test summary
++-- settings.json              # Claude Code configuration
++-- settings.local.json        # Local overrides (git-ignored)
++-- README.md                  # This file
 ```
 
 ## Subagents
@@ -94,7 +94,7 @@ Generates and maintains documentation.
 ```bash
 /docs audit                     # Full documentation audit
 /docs generate core/swarm       # Generate module README
-/docs fix-versions              # Update V8.x → V12.4
+/docs fix-versions              # Update V8.x -> V12.4
 ```
 
 **Capabilities**:
@@ -189,7 +189,7 @@ These agents are designed for NEXUS V12.4 "COGNITIVE BOOST":
 # 1. Analyze module with Glob/Grep/Read
 # 2. Write README.md with Write tool
 # 3. Verify with Read tool
-# 4. Report: "✓ core/governance/README.md - X lines verified"
+# 4. Report: "[OK] core/governance/README.md - X lines verified"
 ```
 
 ## Troubleshooting

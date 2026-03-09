@@ -11,46 +11,46 @@ This document maps all frontend workflow paths in the CEREBRO dashboard.
 IRONCLAD-compliant authentication with in-memory token storage.
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                       AUTHENTICATION FLOW                                   │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  User opens app                                                             │
-│        │                                                                    │
-│        ▼                                                                    │
-│  ┌─────────────────┐                                                       │
-│  │ AuthContext     │──▶ Check: token in state?                             │
-│  │ (React Context) │                                                       │
-│  └─────────────────┘                                                       │
-│        │                                                                    │
-│        │ No token                                                           │
-│        ▼                                                                    │
-│  ┌─────────────────┐                                                       │
-│  │ Redirect to     │                                                       │
-│  │ /login          │                                                       │
-│  └─────────────────┘                                                       │
-│        │                                                                    │
-│        ▼                                                                    │
-│  ┌─────────────────┐      POST /api/auth/login                             │
-│  │ LoginForm       │─────────────────────────────▶ Backend                 │
-│  │ (username/pass) │                                   │                   │
-│  └─────────────────┘                                   │                   │
-│        │                                               │                   │
-│        │◀──────────────── JWT Response ◀──────────────┘                   │
-│        │                                                                    │
-│        ▼                                                                    │
-│  ┌─────────────────┐                                                       │
-│  │ setToken(jwt)   │──▶ Store IN MEMORY ONLY                               │
-│  │ (AuthContext)   │    NEVER localStorage/sessionStorage                  │
-│  └─────────────────┘                                                       │
-│        │                                                                    │
-│        ▼                                                                    │
-│  ┌─────────────────┐                                                       │
-│  │ Redirect to     │                                                       │
-│  │ /dashboard      │                                                       │
-│  └─────────────────┘                                                       │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
++-----------------------------------------------------------------------------+
+|                       AUTHENTICATION FLOW                                   |
++-----------------------------------------------------------------------------+
+|                                                                             |
+|  User opens app                                                             |
+|        |                                                                    |
+|        v                                                                    |
+|  +-----------------+                                                       |
+|  | AuthContext     |--> Check: token in state?                             |
+|  | (React Context) |                                                       |
+|  +-----------------+                                                       |
+|        |                                                                    |
+|        | No token                                                           |
+|        v                                                                    |
+|  +-----------------+                                                       |
+|  | Redirect to     |                                                       |
+|  | /login          |                                                       |
+|  +-----------------+                                                       |
+|        |                                                                    |
+|        v                                                                    |
+|  +-----------------+      POST /api/auth/login                             |
+|  | LoginForm       |-----------------------------> Backend                 |
+|  | (username/pass) |                                   |                   |
+|  +-----------------+                                   |                   |
+|        |                                               |                   |
+|        |<---------------- JWT Response <--------------+                   |
+|        |                                                                    |
+|        v                                                                    |
+|  +-----------------+                                                       |
+|  | setToken(jwt)   |--> Store IN MEMORY ONLY                               |
+|  | (AuthContext)   |    NEVER localStorage/sessionStorage                  |
+|  +-----------------+                                                       |
+|        |                                                                    |
+|        v                                                                    |
+|  +-----------------+                                                       |
+|  | Redirect to     |                                                       |
+|  | /dashboard      |                                                       |
+|  +-----------------+                                                       |
+|                                                                             |
++-----------------------------------------------------------------------------+
 ```
 
 ### Token Management
@@ -70,46 +70,46 @@ IRONCLAD-compliant authentication with in-memory token storage.
 Real-time event streaming with exponential backoff reconnection.
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                       WEBSOCKET CONNECTION FLOW                             │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  Dashboard loads                                                            │
-│        │                                                                    │
-│        ▼                                                                    │
-│  ┌─────────────────┐                                                       │
-│  │ useWebSocket    │──▶ Get token from AuthContext                         │
-│  │ hook            │                                                       │
-│  └─────────────────┘                                                       │
-│        │                                                                    │
-│        ▼                                                                    │
-│  ┌─────────────────────────────────────────┐                               │
-│  │ new WebSocket(ws://localhost:8765?token=<jwt>)                          │
-│  └─────────────────────────────────────────┘                               │
-│        │                                                                    │
-│        │ onopen                                                             │
-│        ▼                                                                    │
-│  ┌─────────────────┐                                                       │
-│  │ Reset reconnect │──▶ reconnectAttempts = 0                              │
-│  │ state           │                                                       │
-│  └─────────────────┘                                                       │
-│        │                                                                    │
-│        │ onmessage                                                          │
-│        ▼                                                                    │
-│  ┌─────────────────┐      ┌─────────────────┐                              │
-│  │ Parse event     │─────▶│ eventStore      │──▶ Update events array       │
-│  │ JSON            │      │ (Zustand)       │                              │
-│  └─────────────────┘      └─────────────────┘                              │
-│        │                                                                    │
-│        │ onclose/onerror                                                    │
-│        ▼                                                                    │
-│  ┌─────────────────────────────────────────┐                               │
-│  │ Exponential Backoff Reconnection         │                               │
-│  │ delay = min(30000, 1000 * 2^attempts)    │                               │
-│  │ Max attempts: 10                         │                               │
-│  └─────────────────────────────────────────┘                               │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
++-----------------------------------------------------------------------------+
+|                       WEBSOCKET CONNECTION FLOW                             |
++-----------------------------------------------------------------------------+
+|                                                                             |
+|  Dashboard loads                                                            |
+|        |                                                                    |
+|        v                                                                    |
+|  +-----------------+                                                       |
+|  | useWebSocket    |--> Get token from AuthContext                         |
+|  | hook            |                                                       |
+|  +-----------------+                                                       |
+|        |                                                                    |
+|        v                                                                    |
+|  +-----------------------------------------+                               |
+|  | new WebSocket(ws://localhost:8765?token=<jwt>)                          |
+|  +-----------------------------------------+                               |
+|        |                                                                    |
+|        | onopen                                                             |
+|        v                                                                    |
+|  +-----------------+                                                       |
+|  | Reset reconnect |--> reconnectAttempts = 0                              |
+|  | state           |                                                       |
+|  +-----------------+                                                       |
+|        |                                                                    |
+|        | onmessage                                                          |
+|        v                                                                    |
+|  +-----------------+      +-----------------+                              |
+|  | Parse event     |----->| eventStore      |--> Update events array       |
+|  | JSON            |      | (Zustand)       |                              |
+|  +-----------------+      +-----------------+                              |
+|        |                                                                    |
+|        | onclose/onerror                                                    |
+|        v                                                                    |
+|  +-----------------------------------------+                               |
+|  | Exponential Backoff Reconnection         |                               |
+|  | delay = min(30000, 1000 * 2^attempts)    |                               |
+|  | Max attempts: 10                         |                               |
+|  +-----------------------------------------+                               |
+|                                                                             |
++-----------------------------------------------------------------------------+
 ```
 
 ### Event Handling
@@ -135,65 +135,65 @@ const handleMessage = (event: MessageEvent) => {
 User initiates task via MissionControl component.
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                       TASK EXECUTION FLOW                                   │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  User input in MissionControl                                               │
-│        │                                                                    │
-│        ▼                                                                    │
-│  ┌─────────────────┐                                                       │
-│  │ Select mode     │──▶ PARALLEL | SEQUENTIAL | LEAD_SUPPORT | etc.        │
-│  │ (6 options)     │                                                       │
-│  └─────────────────┘                                                       │
-│        │                                                                    │
-│        │ Click ENGAGE                                                       │
-│        ▼                                                                    │
-│  ┌─────────────────┐      POST /api/workflow/start                         │
-│  │ API Client      │─────────────────────────────▶ Backend                 │
-│  │ (auto-auth)     │    { task, mode, options }        │                   │
-│  └─────────────────┘                                   │                   │
-│        │                                               │                   │
-│        │◀──────────────── { workflow_id } ◀───────────┘                   │
-│        │                                                                    │
-│        ▼                                                                    │
-│  ┌─────────────────┐                                                       │
-│  │ Store workflow  │──▶ Track in local state                               │
-│  │ ID              │                                                       │
-│  └─────────────────┘                                                       │
-│        │                                                                    │
-│        │ WebSocket events stream in                                         │
-│        ▼                                                                    │
-│  ┌─────────────────┐                                                       │
-│  │ EventStream     │──▶ Display real-time progress                         │
-│  │ component       │    fsm.*, swarm.*, tool.*, etc.                       │
-│  └─────────────────┘                                                       │
-│        │                                                                    │
-│        │ Task complete                                                      │
-│        ▼                                                                    │
-│  ┌─────────────────┐                                                       │
-│  │ Final result    │──▶ Display success/failure + output                   │
-│  │ in EventStream  │                                                       │
-│  └─────────────────┘                                                       │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
++-----------------------------------------------------------------------------+
+|                       TASK EXECUTION FLOW                                   |
++-----------------------------------------------------------------------------+
+|                                                                             |
+|  User input in MissionControl                                               |
+|        |                                                                    |
+|        v                                                                    |
+|  +-----------------+                                                       |
+|  | Select mode     |--> PARALLEL | SEQUENTIAL | LEAD_SUPPORT | etc.        |
+|  | (6 options)     |                                                       |
+|  +-----------------+                                                       |
+|        |                                                                    |
+|        | Click ENGAGE                                                       |
+|        v                                                                    |
+|  +-----------------+      POST /api/workflow/start                         |
+|  | API Client      |-----------------------------> Backend                 |
+|  | (auto-auth)     |    { task, mode, options }        |                   |
+|  +-----------------+                                   |                   |
+|        |                                               |                   |
+|        |<---------------- { workflow_id } <-----------+                   |
+|        |                                                                    |
+|        v                                                                    |
+|  +-----------------+                                                       |
+|  | Store workflow  |--> Track in local state                               |
+|  | ID              |                                                       |
+|  +-----------------+                                                       |
+|        |                                                                    |
+|        | WebSocket events stream in                                         |
+|        v                                                                    |
+|  +-----------------+                                                       |
+|  | EventStream     |--> Display real-time progress                         |
+|  | component       |    fsm.*, swarm.*, tool.*, etc.                       |
+|  +-----------------+                                                       |
+|        |                                                                    |
+|        | Task complete                                                      |
+|        v                                                                    |
+|  +-----------------+                                                       |
+|  | Final result    |--> Display success/failure + output                   |
+|  | in EventStream  |                                                       |
+|  +-----------------+                                                       |
+|                                                                             |
++-----------------------------------------------------------------------------+
 ```
 
 ### ABORT Flow
 
 ```
 Click ABORT
-     │
-     ▼
+     |
+     v
 POST /api/workflow/{id}/cancel
-     │
-     ▼
+     |
+     v
 Backend cancels workflow
-     │
-     ▼
+     |
+     v
 WebSocket: workflow.cancelled event
-     │
-     ▼
+     |
+     v
 Update EventStream
 ```
 
@@ -204,46 +204,46 @@ Update EventStream
 Backend requests human input during task execution.
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                       INTERACTION FLOW (HITL)                               │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  Backend needs human input                                                  │
-│        │                                                                    │
-│        ▼                                                                    │
-│  ┌─────────────────────────────────────────┐                               │
-│  │ WebSocket: interaction.required          │                               │
-│  │ { id, type, prompt, options? }           │                               │
-│  └─────────────────────────────────────────┘                               │
-│        │                                                                    │
-│        ▼                                                                    │
-│  ┌─────────────────┐                                                       │
-│  │ interactionStore│──▶ addInteraction(payload)                            │
-│  │ (Zustand)       │                                                       │
-│  └─────────────────┘                                                       │
-│        │                                                                    │
-│        ▼                                                                    │
-│  ┌─────────────────┐                                                       │
-│  │ InteractionModal│──▶ Render modal with prompt                           │
-│  │ component       │    Show options or free text input                    │
-│  └─────────────────┘                                                       │
-│        │                                                                    │
-│        │ User responds                                                      │
-│        ▼                                                                    │
-│  ┌─────────────────┐      POST /api/interaction/{id}/respond               │
-│  │ Send response   │─────────────────────────────▶ Backend                 │
-│  │                 │    { response: "..." }            │                   │
-│  └─────────────────┘                                   │                   │
-│        │                                               │                   │
-│        │◀──────────────── { success: true } ◀─────────┘                   │
-│        │                                                                    │
-│        ▼                                                                    │
-│  ┌─────────────────┐                                                       │
-│  │ Remove from     │──▶ Close modal                                        │
-│  │ interactionStore│    Resume workflow                                    │
-│  └─────────────────┘                                                       │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
++-----------------------------------------------------------------------------+
+|                       INTERACTION FLOW (HITL)                               |
++-----------------------------------------------------------------------------+
+|                                                                             |
+|  Backend needs human input                                                  |
+|        |                                                                    |
+|        v                                                                    |
+|  +-----------------------------------------+                               |
+|  | WebSocket: interaction.required          |                               |
+|  | { id, type, prompt, options? }           |                               |
+|  +-----------------------------------------+                               |
+|        |                                                                    |
+|        v                                                                    |
+|  +-----------------+                                                       |
+|  | interactionStore|--> addInteraction(payload)                            |
+|  | (Zustand)       |                                                       |
+|  +-----------------+                                                       |
+|        |                                                                    |
+|        v                                                                    |
+|  +-----------------+                                                       |
+|  | InteractionModal|--> Render modal with prompt                           |
+|  | component       |    Show options or free text input                    |
+|  +-----------------+                                                       |
+|        |                                                                    |
+|        | User responds                                                      |
+|        v                                                                    |
+|  +-----------------+      POST /api/interaction/{id}/respond               |
+|  | Send response   |-----------------------------> Backend                 |
+|  |                 |    { response: "..." }            |                   |
+|  +-----------------+                                   |                   |
+|        |                                               |                   |
+|        |<---------------- { success: true } <---------+                   |
+|        |                                                                    |
+|        v                                                                    |
+|  +-----------------+                                                       |
+|  | Remove from     |--> Close modal                                        |
+|  | interactionStore|    Resume workflow                                    |
+|  +-----------------+                                                       |
+|                                                                             |
++-----------------------------------------------------------------------------+
 ```
 
 ### Interaction Types
@@ -261,42 +261,42 @@ Backend requests human input during task execution.
 File tree browsing and code viewing.
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                       FILE NAVIGATION FLOW                                  │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  Dashboard loads with Files tab                                             │
-│        │                                                                    │
-│        ▼                                                                    │
-│  ┌─────────────────┐      GET /api/files/tree                              │
-│  │ FileCommander   │─────────────────────────────▶ Backend                 │
-│  │ (mount)         │                                   │                   │
-│  └─────────────────┘                                   │                   │
-│        │                                               │                   │
-│        │◀──────────────── { tree: [...] } ◀───────────┘                   │
-│        │                                                                    │
-│        ▼                                                                    │
-│  ┌─────────────────┐                                                       │
-│  │ Render file     │──▶ Recursive tree component                           │
-│  │ tree sidebar    │    Folders collapsible                                │
-│  └─────────────────┘                                                       │
-│        │                                                                    │
-│        │ Click on file                                                      │
-│        ▼                                                                    │
-│  ┌─────────────────┐      GET /api/files/read?path=...                     │
-│  │ Fetch file      │─────────────────────────────▶ Backend                 │
-│  │ contents        │                                   │                   │
-│  └─────────────────┘                                   │                   │
-│        │                                               │                   │
-│        │◀──────────────── { content: "..." } ◀────────┘                   │
-│        │                                                                    │
-│        ▼                                                                    │
-│  ┌─────────────────┐                                                       │
-│  │ Monaco Editor   │──▶ Display with syntax highlighting                   │
-│  │ (read-only)     │    Language auto-detected                             │
-│  └─────────────────┘                                                       │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
++-----------------------------------------------------------------------------+
+|                       FILE NAVIGATION FLOW                                  |
++-----------------------------------------------------------------------------+
+|                                                                             |
+|  Dashboard loads with Files tab                                             |
+|        |                                                                    |
+|        v                                                                    |
+|  +-----------------+      GET /api/files/tree                              |
+|  | FileCommander   |-----------------------------> Backend                 |
+|  | (mount)         |                                   |                   |
+|  +-----------------+                                   |                   |
+|        |                                               |                   |
+|        |<---------------- { tree: [...] } <-----------+                   |
+|        |                                                                    |
+|        v                                                                    |
+|  +-----------------+                                                       |
+|  | Render file     |--> Recursive tree component                           |
+|  | tree sidebar    |    Folders collapsible                                |
+|  +-----------------+                                                       |
+|        |                                                                    |
+|        | Click on file                                                      |
+|        v                                                                    |
+|  +-----------------+      GET /api/files/read?path=...                     |
+|  | Fetch file      |-----------------------------> Backend                 |
+|  | contents        |                                   |                   |
+|  +-----------------+                                   |                   |
+|        |                                               |                   |
+|        |<---------------- { content: "..." } <--------+                   |
+|        |                                                                    |
+|        v                                                                    |
+|  +-----------------+                                                       |
+|  | Monaco Editor   |--> Display with syntax highlighting                   |
+|  | (read-only)     |    Language auto-detected                             |
+|  +-----------------+                                                       |
+|                                                                             |
++-----------------------------------------------------------------------------+
 ```
 
 ### Security (PathGuard)
@@ -313,39 +313,39 @@ Backend validates all file paths:
 Three Zustand stores manage application state.
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                       ZUSTAND STORES                                        │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  ┌─────────────────────────────────────────┐                               │
-│  │            eventStore                    │                               │
-│  ├─────────────────────────────────────────┤                               │
-│  │ events: NexusEvent[]                     │                               │
-│  │ addEvent(event)                          │                               │
-│  │ clearEvents()                            │                               │
-│  │ getEventsByType(type)                    │                               │
-│  └─────────────────────────────────────────┘                               │
-│                                                                             │
-│  ┌─────────────────────────────────────────┐                               │
-│  │          interactionStore                │                               │
-│  ├─────────────────────────────────────────┤                               │
-│  │ interactions: Interaction[]              │                               │
-│  │ currentInteraction: Interaction | null   │                               │
-│  │ addInteraction(interaction)              │                               │
-│  │ removeInteraction(id)                    │                               │
-│  └─────────────────────────────────────────┘                               │
-│                                                                             │
-│  ┌─────────────────────────────────────────┐                               │
-│  │            graphStore                    │                               │
-│  ├─────────────────────────────────────────┤                               │
-│  │ nodes: GraphNode[]                       │                               │
-│  │ edges: GraphEdge[]                       │                               │
-│  │ addNode(node)                            │                               │
-│  │ addEdge(edge)                            │                               │
-│  │ updateNodeStatus(id, status)             │                               │
-│  └─────────────────────────────────────────┘                               │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
++-----------------------------------------------------------------------------+
+|                       ZUSTAND STORES                                        |
++-----------------------------------------------------------------------------+
+|                                                                             |
+|  +-----------------------------------------+                               |
+|  |            eventStore                    |                               |
+|  +-----------------------------------------+                               |
+|  | events: NexusEvent[]                     |                               |
+|  | addEvent(event)                          |                               |
+|  | clearEvents()                            |                               |
+|  | getEventsByType(type)                    |                               |
+|  +-----------------------------------------+                               |
+|                                                                             |
+|  +-----------------------------------------+                               |
+|  |          interactionStore                |                               |
+|  +-----------------------------------------+                               |
+|  | interactions: Interaction[]              |                               |
+|  | currentInteraction: Interaction | null   |                               |
+|  | addInteraction(interaction)              |                               |
+|  | removeInteraction(id)                    |                               |
+|  +-----------------------------------------+                               |
+|                                                                             |
+|  +-----------------------------------------+                               |
+|  |            graphStore                    |                               |
+|  +-----------------------------------------+                               |
+|  | nodes: GraphNode[]                       |                               |
+|  | edges: GraphEdge[]                       |                               |
+|  | addNode(node)                            |                               |
+|  | addEdge(edge)                            |                               |
+|  | updateNodeStatus(id, status)             |                               |
+|  +-----------------------------------------+                               |
+|                                                                             |
++-----------------------------------------------------------------------------+
 ```
 
 ### Store Integration

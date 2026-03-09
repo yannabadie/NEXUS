@@ -24,27 +24,27 @@
 | Links work | +1 |
 | Up to date with code | +1 |
 
-**Decision**: Score >= 3 → KEEP, Score < 3 → REPLACE
+**Decision**: Score >= 3 -> KEEP, Score < 3 -> REPLACE
 
 ## Detailed Scores
 
 | Module | Score | Purpose | Table | Diagram | Links | Current | Action |
 |--------|-------|---------|-------|---------|-------|---------|--------|
-| `core/README.md` | 5/5 | ✓ | ✓ | ✓ | ✓ | ✓ V8.3.2 | KEEP |
-| `core/swarm/README.md` | 5/5 | ✓ | ✓ | ✓ | ✓ | ✓ V9.6 | KEEP |
-| `core/hive_mind/README.md` | 5/5 | ✓ | ✓ | ✓ | ✓ | ✓ V9.0 | KEEP |
-| `core/fsm/README.md` | 5/5 | ✓ | ✓ | ✓ | ✓ | ✓ V8.4.4 | KEEP |
-| `core/drivers/README.md` | 5/5 | ✓ | ✓ | ✓ | ✓ | ✓ V9.0 | KEEP |
-| `core/security/README.md` | 5/5 | ✓ | ✓ | ✓ | ✓ | ✓ V9.0 | KEEP |
-| `core/memory/README.md` | 5/5 | ✓ | ✓ | ✓ | ✓ | ✓ V9.1 | KEEP |
-| `core/interface/README.md` | 5/5 | ✓ | ✓ | ✓ | ✓ | ✓ V9.0 | KEEP |
-| `core/telemetry/README.md` | 5/5 | ✓ | ✓ | ✓ | ✓ | ✓ V7.7 | KEEP |
-| `core/evolution/README.md` | 4/5 | ✓ | ✓ | ✗ | ✓ | ✓ V9.0 | KEEP + minor update |
-| `core/execution/README.md` | 4/5 | ✓ | ✓ | ✓ | ✓ | ~ | KEEP |
-| `core/logging/README.md` | 4/5 | ✓ | ✓ | ✓ | ✓ | ~ V7.6 | KEEP |
-| `core/routing/README.md` | 4/5 | ✓ | ✓ | ✓ | ✓ | ~ V7 | KEEP |
-| `core/api/README.md` | 3/5 | ✓ | ~ | ✗ | ✓ | ✓ V9.0 | UPDATE |
-| `core/workspace/README.md` | 3/5 | ✓ | ~ | ✗ | ✓ | ✓ V7.6 | UPDATE |
+| `core/README.md` | 5/5 | [OK] | [OK] | [OK] | [OK] | [OK] V8.3.2 | KEEP |
+| `core/swarm/README.md` | 5/5 | [OK] | [OK] | [OK] | [OK] | [OK] V9.6 | KEEP |
+| `core/hive_mind/README.md` | 5/5 | [OK] | [OK] | [OK] | [OK] | [OK] V9.0 | KEEP |
+| `core/fsm/README.md` | 5/5 | [OK] | [OK] | [OK] | [OK] | [OK] V8.4.4 | KEEP |
+| `core/drivers/README.md` | 5/5 | [OK] | [OK] | [OK] | [OK] | [OK] V9.0 | KEEP |
+| `core/security/README.md` | 5/5 | [OK] | [OK] | [OK] | [OK] | [OK] V9.0 | KEEP |
+| `core/memory/README.md` | 5/5 | [OK] | [OK] | [OK] | [OK] | [OK] V9.1 | KEEP |
+| `core/interface/README.md` | 5/5 | [OK] | [OK] | [OK] | [OK] | [OK] V9.0 | KEEP |
+| `core/telemetry/README.md` | 5/5 | [OK] | [OK] | [OK] | [OK] | [OK] V7.7 | KEEP |
+| `core/evolution/README.md` | 4/5 | [OK] | [OK] | [NO] | [OK] | [OK] V9.0 | KEEP + minor update |
+| `core/execution/README.md` | 4/5 | [OK] | [OK] | [OK] | [OK] | ~ | KEEP |
+| `core/logging/README.md` | 4/5 | [OK] | [OK] | [OK] | [OK] | ~ V7.6 | KEEP |
+| `core/routing/README.md` | 4/5 | [OK] | [OK] | [OK] | [OK] | ~ V7 | KEEP |
+| `core/api/README.md` | 3/5 | [OK] | ~ | [NO] | [OK] | [OK] V9.0 | UPDATE |
+| `core/workspace/README.md` | 3/5 | [OK] | ~ | [NO] | [OK] | [OK] V7.6 | UPDATE |
 
 ## Quality Distribution
 
@@ -71,7 +71,7 @@
 
 3. **`core/evolution/README.md`**
    - Missing: Phase pipeline diagram
-   - TODO: Add brainstorm→create→validate→promote flow visualization
+   - TODO: Add brainstorm->create->validate->promote flow visualization
 
 4. **`core/routing/README.md`**
    - Missing: DyLAN scoring details

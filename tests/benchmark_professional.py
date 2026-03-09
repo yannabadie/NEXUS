@@ -185,7 +185,7 @@ class ProfessionalBenchmark:
             with open(self.log_file, "a", encoding="utf-8") as f:
                 f.write(json.dumps(result.to_dict(), ensure_ascii=False) + "\n")
 
-            status = "✅ PASS" if result.passed else "❌ FAIL"
+            status = "[OK] PASS" if result.passed else "[NO] FAIL"
             severity_icon = {"critical": "🔴", "high": "🟠", "medium": "🟡", "low": "🟢"}.get(result.severity, "⚪")
             print(f"  [{status}] {severity_icon} {result.test_name} ({result.duration_seconds:.2f}s)")
             if result.error:
@@ -969,17 +969,17 @@ class ProfessionalBenchmark:
         print("📊 BENCHMARK SUMMARY")
         print("=" * 70)
         print(f"Total Tests:       {total}")
-        print(f"Passed:            {passed} ✅")
-        print(f"Failed:            {failed} ❌")
+        print(f"Passed:            {passed} [OK]")
+        print(f"Failed:            {failed} [NO]")
         print(f"Critical Failures: {critical_failures} 🔴")
         print(f"Pass Rate:         {report.pass_rate:.1f}%")
         print(f"Duration:          {system_info['duration_seconds']}s")
         print("=" * 70)
 
         if report.is_production_ready:
-            print("✅ PRODUCTION READY: No critical failures")
+            print("[OK] PRODUCTION READY: No critical failures")
         else:
-            print("❌ NOT PRODUCTION READY: Critical failures detected")
+            print("[NO] NOT PRODUCTION READY: Critical failures detected")
             for r in all_results:
                 if not r.passed and r.severity == BenchmarkSeverity.CRITICAL.value:
                     print(f"   - {r.test_name}: {r.error or 'Failed'}")

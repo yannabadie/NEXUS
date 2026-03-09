@@ -57,7 +57,7 @@ class SwarmBridge:
         """
         Start Hybrid Swarm mode for a task (V7 Sprint 9).
 
-        This bypasses the normal IDLE→BRAINSTORMING flow and uses
+        This bypasses the normal IDLE->BRAINSTORMING flow and uses
         the HybridSwarmEngine for dynamic mode negotiation.
 
         Args:

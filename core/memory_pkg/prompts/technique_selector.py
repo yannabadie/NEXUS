@@ -7,10 +7,10 @@ based on task clustering and historical effectiveness.
 Based on: Automatic Prompt Generation via Adaptive Selection (arXiv:2510.18162)
 
 Instead of fixed prompt templates, NEXUS adapts the prompting strategy:
-- Coding tasks → decomposition + step-by-step
-- Research tasks → chain-of-thought + web guidance
-- Security reviews → role-playing (red-team) + self-consistency
-- Debugging → few-shot + decomposition
+- Coding tasks -> decomposition + step-by-step
+- Research tasks -> chain-of-thought + web guidance
+- Security reviews -> role-playing (red-team) + self-consistency
+- Debugging -> few-shot + decomposition
 
 Usage:
     selector = get_technique_selector()

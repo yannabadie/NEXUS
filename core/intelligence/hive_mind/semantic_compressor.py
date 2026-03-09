@@ -5,7 +5,7 @@ SLM-based semantic compression for HiveMind inter-phase context.
 
 Problem:
     Passing full context between HiveMind phases causes token explosion.
-    Phase 1 → 2 → 3 → ... accumulates 10k+ tokens, wasting costs.
+    Phase 1 -> 2 -> 3 -> ... accumulates 10k+ tokens, wasting costs.
 
 Solution (from ArXiv 2502.00299 - ChunkKV):
     Treat semantic chunks (not tokens) as compression units.
@@ -14,7 +14,7 @@ Solution (from ArXiv 2502.00299 - ChunkKV):
 Architecture:
     [Phase 1 Output: 2000 tokens]
         ↓ Compress via SLM
-    [Compressed Summary: 300 tokens] ← 85% reduction
+    [Compressed Summary: 300 tokens] <- 85% reduction
         ↓ Pass to Phase 2
     [Phase 2 uses compressed context]
 
@@ -260,7 +260,7 @@ class SemanticCompressor:
             compression_ratio = 1.0 - (compressed_tokens / original_tokens) if original_tokens > 0 else 0.0
 
             logger.info(
-                f"Compressed {phase_name}: {original_tokens} → {compressed_tokens} tokens "
+                f"Compressed {phase_name}: {original_tokens} -> {compressed_tokens} tokens "
                 f"({compression_ratio:.1%} reduction)"
             )
 
@@ -304,7 +304,7 @@ class SemanticCompressor:
         compressed_tokens = len(compressed_content) // 4
         compression_ratio = 1.0 - (compressed_tokens / original_tokens) if original_tokens > 0 else 0.0
 
-        logger.warning(f"Using truncation fallback for {phase_name}: {original_tokens} → {compressed_tokens} tokens")
+        logger.warning(f"Using truncation fallback for {phase_name}: {original_tokens} -> {compressed_tokens} tokens")
 
         return CompressionResult(
             original_content=content,

@@ -97,16 +97,16 @@ The Session module provides session isolation for parallel task execution to pre
 
 ```
 workspace/
-├── .sessions/                    # Legacy V9.7 CWD isolation (deprecated)
-│   └── swarm_task_001_lead/
-└── .session_homes/               # V9.7.1 HOME spoofing
-    ├── nx123456_swarm_task_001_lead/    # Isolated HOME (with workspace prefix)
-    │   ├── .gemini/              # Gemini CLI session storage
-    │   ├── AppData/              # Windows app data isolation
-    │   ├── .config/              # XDG config (Linux)
-    │   ├── .local/share/         # XDG data (Linux)
-    │   └── .cache/               # XDG cache (Linux)
-    └── nx123456_swarm_task_002_support/
++-- .sessions/                    # Legacy V9.7 CWD isolation (deprecated)
+|   +-- swarm_task_001_lead/
++-- .session_homes/               # V9.7.1 HOME spoofing
+    +-- nx123456_swarm_task_001_lead/    # Isolated HOME (with workspace prefix)
+    |   +-- .gemini/              # Gemini CLI session storage
+    |   +-- AppData/              # Windows app data isolation
+    |   +-- .config/              # XDG config (Linux)
+    |   +-- .local/share/         # XDG data (Linux)
+    |   +-- .cache/               # XDG cache (Linux)
+    +-- nx123456_swarm_task_002_support/
 ```
 
 ### Usage Examples

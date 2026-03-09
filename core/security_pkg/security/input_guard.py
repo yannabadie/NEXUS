@@ -172,7 +172,8 @@ HIGH_PATTERNS: dict[str, dict] = {
             r"\bgrep\s+-r\s+['\"]?(API_KEY|SECRET|PASSWORD)",  # V12.4 P3.3: Secret scanning
             r"\b(tar|zip)\s+.*\|\s*base64",  # V12.4 P3.3: Data encoding for exfil
             r"(save|write|export)\s+(all\s+)?(environment\s+variables|env|secrets?)\s+to",  # V12.4 P3.3: Env var dump
-            r"/tmp/leak\.|/tmp/exfil\.",  # V12.4 P3.3: Suspicious file paths
+            # Suspicious path detection pattern, not temp file creation.
+            r"/tmp/leak\.|/tmp/exfil\.",  # nosec B108
             r"~/.ssh\s*\|",  # V12.4 P3.3: SSH key exfiltration
         ],
         "threat_type": ThreatType.INSTRUCTION_OVERRIDE,

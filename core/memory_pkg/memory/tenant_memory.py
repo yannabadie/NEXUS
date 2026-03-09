@@ -7,17 +7,17 @@ storage, preventing cross-tenant data leakage.
 
 Architecture:
     .nexus/
-    ├── tenants/
-    │   ├── tenant_abc/
-    │   │   ├── project_knowledge.json
-    │   │   ├── lancedb/
-    │   │   ├── agent_rags/
-    │   │   └── rag_config.json
-    │   ├── tenant_xyz/
-    │   │   └── ...
-    │   └── _default/             # Single-tenant fallback
-    │       └── ...
-    └── tenant_registry.json      # Tenant metadata
+    +-- tenants/
+    |   +-- tenant_abc/
+    |   |   +-- project_knowledge.json
+    |   |   +-- lancedb/
+    |   |   +-- agent_rags/
+    |   |   +-- rag_config.json
+    |   +-- tenant_xyz/
+    |   |   +-- ...
+    |   +-- _default/             # Single-tenant fallback
+    |       +-- ...
+    +-- tenant_registry.json      # Tenant metadata
 
 Usage:
     service = TenantMemoryService(nexus_root)

@@ -214,7 +214,7 @@ class InteractiveNexusV7:
                     # Agents iterate freely, user can Ctrl+C to interrupt anytime
                     if iterations > 0 and iterations % 10 == 0:
                         state = result.get("state", "UNKNOWN")
-                        self.console.print(f"[dim]─── Iteration {iterations} | State: {state} ───[/dim]")
+                        self.console.print(f"[dim]--- Iteration {iterations} | State: {state} ---[/dim]")
                         tool_active = False  # Reset tool tracking
 
                     # Prompt user only in specific cases:
@@ -228,7 +228,7 @@ class InteractiveNexusV7:
                     )
 
                     if needs_user_prompt and not tool_active:
-                        self.console.print("[yellow]─── User input needed (or press Enter to continue) ───[/yellow]")
+                        self.console.print("[yellow]--- User input needed (or press Enter to continue) ---[/yellow]")
                         try:
                             user_input = input().strip()
                             if user_input:
@@ -423,7 +423,7 @@ class InteractiveNexusV7:
             # Visual checkpoint every 10 turns
             if iterations > 0 and iterations % 10 == 0:
                 state = result.get("state", "UNKNOWN")
-                self.console.print(f"[dim]─── Iteration {iterations} | State: {state} ───[/dim]")
+                self.console.print(f"[dim]--- Iteration {iterations} | State: {state} ---[/dim]")
                 tool_active = False
 
             # Check if user input needed
@@ -434,7 +434,7 @@ class InteractiveNexusV7:
             )
 
             if needs_user_prompt and not tool_active:
-                self.console.print("[yellow]─── User input needed (or press Enter to continue) ───[/yellow]")
+                self.console.print("[yellow]--- User input needed (or press Enter to continue) ---[/yellow]")
                 try:
                     # Async input for interjection
                     # V11.4 ASYNC: get_running_loop() for Python 3.12+ compatibility
@@ -461,7 +461,7 @@ class InteractiveNexusV7:
             self.orchestrator.reset_to_idle()
 
         if result.get("finished") and result["state"] != "IDLE":
-            self.console.print("\n✅ [Task Complete]\n")
+            self.console.print("\n[OK] [Task Complete]\n")
             self.successful_turns += 1
 
             # Check for auto-evolution trigger
@@ -568,9 +568,9 @@ class InteractiveNexusV7:
 
         # Interactive review loop
         for i, child in enumerate(children, 1):
-            self.console.print(f"\n{'─' * 60}")
+            self.console.print(f"\n{'-' * 60}")
             self.console.print(f"Child {i}/{len(children)}: {child['id']}")
-            self.console.print(f"{'─' * 60}")
+            self.console.print(f"{'-' * 60}")
             self.console.print(f"Fitness Score: {child['score']:.3f} ({child['improvement']:+.1%} vs parent)")
 
             # Show improvements if available
@@ -588,7 +588,7 @@ class InteractiveNexusV7:
                 f"\n🔒 Safety Gates ({sum(1 for g in decision_result.gates if g.passed)}/{len(decision_result.gates)} passed):"
             )
             for gate in decision_result.gates:
-                status = "✅" if gate.passed else "❌"
+                status = "[OK]" if gate.passed else "[NO]"
                 blocking = " [BLOCKING]" if gate.blocking else ""
                 self.console.print(f"   {status} {gate.name}: {gate.score:.2f}/{gate.threshold:.2f}{blocking}")
 
@@ -606,18 +606,18 @@ class InteractiveNexusV7:
                         child_metadata={"improvements_summary": child.get("improvements_summary")},
                     )
                     if result.success:
-                        self.console.print(f"✅ Auto-promotion complete: {child['id']} is now the active parent")
+                        self.console.print(f"[OK] Auto-promotion complete: {child['id']} is now the active parent")
                     else:
                         raise Exception("; ".join(result.errors))
                 except Exception as e:
                     self.console.print_error(f"Auto-promotion failed: {e}")
-                    self.console.print("⚠️  Falling back to manual review...")
+                    self.console.print("[warning]️  Falling back to manual review...")
                 else:
                     continue  # Move to next child (auto-promoted successfully)
 
             # Show reason if not auto-approved
             if not decision_result.approved:
-                self.console.print(f"\n⚠️  Manual review required: {decision_result.reason}")
+                self.console.print(f"\n[warning]️  Manual review required: {decision_result.reason}")
 
             # Get user decision (manual review)
             while True:
@@ -629,7 +629,7 @@ class InteractiveNexusV7:
                     return
 
                 if decision in ["a", "approve"]:
-                    self.console.print(f"✓ Approved: {child['id']} will become new parent")
+                    self.console.print(f"[OK] Approved: {child['id']} will become new parent")
                     # V9.1: Use EvolutionManager (delegates to PromotePhase)
                     try:
                         result = self.evolution_manager.promote_child(
@@ -639,15 +639,15 @@ class InteractiveNexusV7:
                             child_metadata={"improvements_summary": child.get("improvements_summary")},
                         )
                         if result.success:
-                            self.console.print(f"✅ Promotion complete: {child['id']} is now the active parent")
+                            self.console.print(f"[OK] Promotion complete: {child['id']} is now the active parent")
                         else:
                             raise Exception("; ".join(result.errors))
                     except Exception as e:
                         self.console.print_error(f"Promotion failed: {e}")
-                        self.console.print("⚠️  Manual promotion required")
+                        self.console.print("[warning]️  Manual promotion required")
                     break
                 elif decision in ["r", "reject"]:
-                    self.console.print(f"✗ Rejected: {child['id']} will be archived")
+                    self.console.print(f"[NO] Rejected: {child['id']} will be archived")
                     # V9.1: Use EvolutionManager (delegates to PromotePhase)
                     try:
                         result = self.evolution_manager.archive_child(
@@ -657,16 +657,16 @@ class InteractiveNexusV7:
                             fitness_score=child.get("score", 0.0),
                         )
                         if result.success:
-                            self.console.print(f"✅ Child archived: {child['id']}")
+                            self.console.print(f"[OK] Child archived: {child['id']}")
                         else:
                             raise Exception(result.reason)
                     except Exception as e:
                         self.console.print_error(f"Archival failed: {e}")
-                        self.console.print("⚠️  Manual cleanup required")
+                        self.console.print("[warning]️  Manual cleanup required")
                     break
                 elif decision in ["t", "test"]:
                     self.console.print(f"🧪 Opening test mode for {child['id']}")
-                    self.console.print("⚠️  Manual testing required (auto-testing not yet implemented)")
+                    self.console.print("[warning]️  Manual testing required (auto-testing not yet implemented)")
                     break
                 elif decision in ["s", "skip"]:
                     self.console.print(f"⏭️  Skipped: {child['id']}")
@@ -679,7 +679,7 @@ class InteractiveNexusV7:
 
         # Review completed
         self.console.print("\n" + "=" * 60)
-        self.console.print("✅ Review completed for all children")
+        self.console.print("[OK] Review completed for all children")
         self.console.print("=" * 60)
 
         # Ask to delete PENDING_REVIEW files
@@ -692,9 +692,9 @@ class InteractiveNexusV7:
 
         if confirm == "y":
             if delete_pending_review(self.workspace_path):
-                self.console.print("✓ PENDING_REVIEW files deleted")
+                self.console.print("[OK] PENDING_REVIEW files deleted")
             else:
-                self.console.print("⚠️  No files to delete")
+                self.console.print("[warning]️  No files to delete")
         else:
             self.console.print("PENDING_REVIEW files kept (use /review again to continue)")
 
@@ -883,7 +883,7 @@ class InteractiveNexusV7:
         table.add_column("Size", justify="right", width=8)
 
         for ws in workspaces:
-            status = "[green]● ACTIF[/green]" if ws.is_current else ""
+            status = "[green]- ACTIF[/green]" if ws.is_current else ""
             name = ws.name[:28]
             last_used = ws.get_relative_time()
             task = (ws.last_task[:18] + "..") if len(ws.last_task) > 18 else ws.last_task or "-"
@@ -929,13 +929,13 @@ class InteractiveNexusV7:
         try:
             new_ws = self.workspace_manager.create_workspace(name=name, archive_current=True)
 
-            self.console.print("  ✓ Workspace archivé")
-            self.console.print("  ✓ Nouveau workspace créé")
+            self.console.print("  [OK] Workspace archivé")
+            self.console.print("  [OK] Nouveau workspace créé")
 
             # Hot-swap: reinitialize orchestrator
             self._reinit_orchestrator(new_ws.path)
 
-            self.console.print(f"\n✅ Workspace prêt: [bold cyan]{new_ws.name}[/bold cyan]\n")
+            self.console.print(f"\n[OK] Workspace prêt: [bold cyan]{new_ws.name}[/bold cyan]\n")
 
         except Exception as e:
             self.console.print_error(f"Erreur: {e}")
@@ -985,13 +985,13 @@ class InteractiveNexusV7:
         try:
             old_ws, new_ws = self.workspace_manager.switch_workspace(name=target.name, archive_current=archive_current)
 
-            self.console.print("  ✓ État sauvegardé")
+            self.console.print("  [OK] État sauvegardé")
             self.console.print(f"  ⠋ Chargement {new_ws.name}...")
 
             # Hot-swap: reinitialize orchestrator
             self._reinit_orchestrator(new_ws.path)
 
-            self.console.print("  ✓ Workspace chargé")
+            self.console.print("  [OK] Workspace chargé")
 
             # Show restored state
             self.console.print(f"""
@@ -999,7 +999,7 @@ class InteractiveNexusV7:
     Iterations:    {new_ws.metrics.iterations}
     Dernière tâche: "{new_ws.last_task[:40] + "..." if len(new_ws.last_task) > 40 else new_ws.last_task or "None"}"
 
-✅ Switched to: [bold cyan]{new_ws.name}[/bold cyan]
+[OK] Switched to: [bold cyan]{new_ws.name}[/bold cyan]
 """)
 
         except Exception as e:
@@ -1187,7 +1187,7 @@ class InteractiveNexusV7:
         # Check rate limits with UI feedback
         can_evolve, reason = self.rate_limiter.can_evolve(child_count)
         if not can_evolve:
-            self.console.print(f"[red]❌ Evolution blocked: {reason}[/red]")
+            self.console.print(f"[red][NO] Evolution blocked: {reason}[/red]")
             self.console.print("\nRate limit statistics:")
             stats = self.rate_limiter.get_stats()
             self.console.print(
@@ -1210,7 +1210,7 @@ class InteractiveNexusV7:
             # Display results
             if result.success:
                 self.console.print("\n" + "=" * 60)
-                self.console.print("✅ ÉMERGENT EVOLUTION COMPLETE")
+                self.console.print("[OK] ÉMERGENT EVOLUTION COMPLETE")
                 self.console.print("=" * 60)
                 self.console.print("\n📊 Summary:")
                 self.console.print(f"  Mutations proposed: {result.mutations_proposed}")
@@ -1220,14 +1220,14 @@ class InteractiveNexusV7:
                     self.console.print(f"  🏆 Winner: {result.winner_id}")
                     self.console.print(f"  📈 Fitness Score: {result.winner_score:.3f}")
                 if result.promoted:
-                    self.console.print("  ✓ Winner promoted to parent")
+                    self.console.print("  [OK] Winner promoted to parent")
                 self.console.print(f"\n  Duration: {result.duration_seconds:.1f}s")
                 self.console.print("\nReview with: /review")
                 self.console.print("Status with: /evolve-status\n")
             else:
-                self.console.print(f"\n[red]❌ Evolution failed at phase: {result.phase_reached}[/red]")
+                self.console.print(f"\n[red][NO] Evolution failed at phase: {result.phase_reached}[/red]")
                 for error in result.errors:
-                    self.console.print(f"  • {error}")
+                    self.console.print(f"  - {error}")
                 self.console.print("\nUse /evolve-status for more details.\n")
 
         except Exception as e:
@@ -1255,31 +1255,31 @@ class InteractiveNexusV7:
             score = parent.get("fitness_score") or parent.get("asi_proximity_score", 0.7)
             self.console.print(f"Fitness Score: {score}")
             self.console.print(f"Activated: {parent['activated_at']}")
-            self.console.print(f"\n{'─' * 60}")
+            self.console.print(f"\n{'-' * 60}")
             self.console.print("STATISTICS")
-            self.console.print(f"{'─' * 60}")
+            self.console.print(f"{'-' * 60}")
             self.console.print(f"Total Generations: {stats['total_generations']}")
             self.console.print(f"Total Children Created: {stats['total_children_created']}")
             self.console.print(f"Successful Promotions: {stats['successful_promotions']}")
             self.console.print(f"\nStagnation Counter: {stats['stagnation_counter']}/3")
 
             if stats["stagnation_counter"] >= 2:
-                self.console.print("⚠️  WARNING: Approaching SURVIVAL_LAW threshold!")
+                self.console.print("[warning]️  WARNING: Approaching SURVIVAL_LAW threshold!")
             elif stats["stagnation_counter"] >= 3:
                 self.console.print("🚨 CRITICAL: SURVIVAL_LAW triggered - human intervention required!")
 
-            self.console.print(f"\n{'─' * 60}")
+            self.console.print(f"\n{'-' * 60}")
             self.console.print("SESSION STATUS")
-            self.console.print(f"{'─' * 60}")
+            self.console.print(f"{'-' * 60}")
             self.console.print(f"Successful Turns This Session: {self.successful_turns}")
             self.console.print(f"Auto-Evolution Trigger: {self.evolution_trigger_threshold} turns")
             remaining = self.evolution_trigger_threshold - self.successful_turns
             self.console.print(f"Turns Until Auto-Evolution: {remaining}")
 
             # Rate limiter statistics
-            self.console.print(f"\n{'─' * 60}")
+            self.console.print(f"\n{'-' * 60}")
             self.console.print("RATE LIMITING")
-            self.console.print(f"{'─' * 60}")
+            self.console.print(f"{'-' * 60}")
             rate_stats = self.rate_limiter.get_stats()
             self.console.print(f"Total Evolutions: {rate_stats['total_evolutions']}")
             self.console.print(f"Total Children Created: {rate_stats['total_children']}")

@@ -169,24 +169,24 @@ Corrections appliquées au prompt original:
 
 ```
 interface/
-└── ui/
-    └── cerebro/
-        ├── src/
-        │   ├── components/
-        │   │   ├── LoginForm.tsx      # POST /api/auth/login
-        │   │   └── Dashboard.tsx       # Main layout
-        │   ├── context/
-        │   │   └── AuthContext.tsx     # IN-MEMORY token storage
-        │   ├── hooks/
-        │   │   ├── useAuth.ts          # Login/logout + token expiry check
-        │   │   └── useWebSocket.ts     # WS + reconnection logic
-        │   ├── stores/
-        │   │   └── eventStore.ts       # Zustand for events
-        │   ├── App.tsx                 # Protected routes
-        │   └── main.tsx                # Entry point
-        ├── vite.config.ts              # Proxy /api + /ws
-        ├── package.json
-        └── tailwind.config.js
++-- ui/
+    +-- cerebro/
+        +-- src/
+        |   +-- components/
+        |   |   +-- LoginForm.tsx      # POST /api/auth/login
+        |   |   +-- Dashboard.tsx       # Main layout
+        |   +-- context/
+        |   |   +-- AuthContext.tsx     # IN-MEMORY token storage
+        |   +-- hooks/
+        |   |   +-- useAuth.ts          # Login/logout + token expiry check
+        |   |   +-- useWebSocket.ts     # WS + reconnection logic
+        |   +-- stores/
+        |   |   +-- eventStore.ts       # Zustand for events
+        |   +-- App.tsx                 # Protected routes
+        |   +-- main.tsx                # Entry point
+        +-- vite.config.ts              # Proxy /api + /ws
+        +-- package.json
+        +-- tailwind.config.js
 ```
 
 ## AuthContext.tsx (CORRIGÉ - In-Memory)
@@ -383,22 +383,22 @@ export default defineConfig({
 ## RECOMMANDATION D'EXÉCUTION
 
 ```
-┌────────────────────────────────────────────────────────────────┐
-│ PHASE 0: IRONCLAD V11.6.2 (WebSocket Security)      [15 min]  │
-│ └─ Fix stream.py IDOR - MANDATORY JWT for WebSocket           │
-├────────────────────────────────────────────────────────────────┤
-│ PHASE 1: RETINA FOUNDATION                          [60 min]  │
-│ ├─ Create interface/ui/cerebro structure                      │
-│ ├─ Implement AuthContext (in-memory)                          │
-│ ├─ Implement useWebSocket (with reconnection)                 │
-│ ├─ Create LoginForm + Dashboard                               │
-│ └─ Configure Vite proxy                                       │
-├────────────────────────────────────────────────────────────────┤
-│ PHASE 2: RETINA VISUALS (FUTURE)                              │
-│ ├─ Add /api/files/tree endpoint                               │
-│ ├─ React Flow graph                                           │
-│ └─ Monaco editor                                              │
-└────────────────────────────────────────────────────────────────┘
++----------------------------------------------------------------+
+| PHASE 0: IRONCLAD V11.6.2 (WebSocket Security)      [15 min]  |
+| +- Fix stream.py IDOR - MANDATORY JWT for WebSocket           |
++----------------------------------------------------------------+
+| PHASE 1: RETINA FOUNDATION                          [60 min]  |
+| +- Create interface/ui/cerebro structure                      |
+| +- Implement AuthContext (in-memory)                          |
+| +- Implement useWebSocket (with reconnection)                 |
+| +- Create LoginForm + Dashboard                               |
+| +- Configure Vite proxy                                       |
++----------------------------------------------------------------+
+| PHASE 2: RETINA VISUALS (FUTURE)                              |
+| +- Add /api/files/tree endpoint                               |
+| +- React Flow graph                                           |
+| +- Monaco editor                                              |
++----------------------------------------------------------------+
 ```
 
 ---

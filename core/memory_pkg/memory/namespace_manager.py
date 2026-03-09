@@ -7,14 +7,14 @@ Manages multiple RAG namespaces:
 
 Architecture:
     .nexus/
-    ├── project_knowledge.json      # Project RAG (existing)
-    ├── lancedb/project/            # Project vectors
-    ├── agent_rags/                 # Agent-specific RAGs
-    │   ├── security_expert/
-    │   │   ├── knowledge.json
-    │   │   └── lancedb/
-    │   └── {agent_name}/
-    └── rag_config.json             # Namespace configuration
+    +-- project_knowledge.json      # Project RAG (existing)
+    +-- lancedb/project/            # Project vectors
+    +-- agent_rags/                 # Agent-specific RAGs
+    |   +-- security_expert/
+    |   |   +-- knowledge.json
+    |   |   +-- lancedb/
+    |   +-- {agent_name}/
+    +-- rag_config.json             # Namespace configuration
 
 Usage:
     manager = RAGNamespaceManager(nexus_root)

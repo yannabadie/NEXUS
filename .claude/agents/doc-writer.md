@@ -124,7 +124,7 @@ WHEN GENERATING DOCS:
     2. Check existing README.md (if any)
     3. Write README.md using Write tool with FULL content
     4. VERIFY: Read the file back immediately
-    5. Confirm: "✓ path/README.md - X lines verified"
+    5. Confirm: "[OK] path/README.md - X lines verified"
     6. Move to next module
 
 WHEN AUDITING DOCS:
@@ -171,7 +171,7 @@ find . -name "*.md" | wc -l
 When reporting documentation work:
 1. **Files written** - List with line counts
 2. **Verification status** - "Verified via Read tool"
-3. **Version fixes** - Old → New version references
+3. **Version fixes** - Old -> New version references
 4. **Gaps identified** - Missing docs by priority
 5. **Quality score** - Coverage %, consistency %
 

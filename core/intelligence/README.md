@@ -9,7 +9,7 @@ High-level intelligence components for swarm coordination, agent evolution, adva
 ### swarm/
 Hybrid Swarm Engine with dynamic collaboration modes:
 - **6 Collaboration Modes**: PARALLEL, SEQUENTIAL, LEAD_SUPPORT, PING_PONG, SPECIALIST, RED_BLUE
-- **Task Analyzer**: Analyzes task complexity (TRIVIAL → EXPERT) and domains
+- **Task Analyzer**: Analyzes task complexity (TRIVIAL -> EXPERT) and domains
 - **Mode Selector**: Selects optimal mode using DyLAN agent metrics
 - **Negotiation Protocol**: Hybrid natural+JSON negotiation between agents
 - **Session Manager**: Swarm task session tracking (V7.5)
@@ -38,7 +38,7 @@ Advanced reasoning patterns and quality monitoring:
 
 ### hive_mind/
 TRUE HIVE MIND collaborative intelligence:
-- **7 Phases**: Analysis → Debate → Architecture → Execution → Diagnosis → Retry → Consolidation
+- **7 Phases**: Analysis -> Debate -> Architecture -> Execution -> Diagnosis -> Retry -> Consolidation
 - **Adaptive Debate**: Complexity-based debate turns (2-20 turns)
 - **SwarmBridge**: Delegation to Swarm Engine at any phase (V8.3)
 - **SagaManager**: Checkpoint/recovery for crash resilience (V8.4.4)
@@ -82,7 +82,7 @@ from core.intelligence import TrueHiveMind
 
 hive = TrueHiveMind(workspace_path, config)
 result = await hive.process_task("Complex multi-step task")
-# 7-phase pipeline: analyze → debate → architect → execute → diagnose → retry → consolidate
+# 7-phase pipeline: analyze -> debate -> architect -> execute -> diagnose -> retry -> consolidate
 ```
 
 ## 📊 Migration Impact
@@ -107,7 +107,7 @@ result = await hive.process_task("Complex multi-step task")
 - **Total:** 234+ exports
 
 ---
-**Status:** P5.6 Phase 6 COMPLETE ✅ | **Version:** V12.4
+**Status:** P5.6 Phase 6 COMPLETE [OK] | **Version:** V12.4
 
 ## 🏆 Intelligence Package Highlights
 

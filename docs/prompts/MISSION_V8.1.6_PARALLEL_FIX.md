@@ -24,13 +24,13 @@ Analysis revealed **Critical Race Conditions** in the current driver implementat
 ## Call Chain Analysis
 
 ```
-ModeExecutor._invoke()                          ← Has session_uuid in blackboard
+ModeExecutor._invoke()                          <- Has session_uuid in blackboard
     ↓ context.invoke_agent(agent_id, task_type, context)
-    ↓ _wrap_invoke_agent().wrapper()            ← Must pass session_uuid
-    ↓ self.invoke_agent()                       ← invoke_for_swarm
-    ↓ AgentInvoker.invoke_for_swarm()           ← Must accept session_uuid
-    ↓ AgentInvoker.invoke_agent_direct()        ← Must accept session_uuid
-    ↓ driver.invoke(context, session_uuid)      ← Must use for unique filenames
+    ↓ _wrap_invoke_agent().wrapper()            <- Must pass session_uuid
+    ↓ self.invoke_agent()                       <- invoke_for_swarm
+    ↓ AgentInvoker.invoke_for_swarm()           <- Must accept session_uuid
+    ↓ AgentInvoker.invoke_agent_direct()        <- Must accept session_uuid
+    ↓ driver.invoke(context, session_uuid)      <- Must use for unique filenames
 ```
 
 ---

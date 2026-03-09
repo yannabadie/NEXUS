@@ -149,29 +149,29 @@ class TestCpkCalculation:
         self.verifier = ConsensusVerifier()
 
     def test_perfect_consistency_high_cpk(self):
-        """Zero variance → Cpk = 3.0 (capped)."""
+        """Zero variance -> Cpk = 3.0 (capped)."""
         cpk = self.verifier._compute_cpk(mean=0.5, std=0.0)
         assert cpk == 3.0
 
     def test_centered_process(self):
-        """Mean at 0.5, moderate std → positive Cpk."""
+        """Mean at 0.5, moderate std -> positive Cpk."""
         cpk = self.verifier._compute_cpk(mean=0.5, std=0.1)
         assert cpk > 0
 
     def test_off_center_high_reduces_cpk(self):
-        """Mean close to USL → lower Cpk."""
+        """Mean close to USL -> lower Cpk."""
         cpk_centered = self.verifier._compute_cpk(mean=0.5, std=0.1)
         cpk_high = self.verifier._compute_cpk(mean=0.9, std=0.1)
         assert cpk_high < cpk_centered
 
     def test_off_center_low_reduces_cpk(self):
-        """Mean close to LSL → lower Cpk."""
+        """Mean close to LSL -> lower Cpk."""
         cpk_centered = self.verifier._compute_cpk(mean=0.5, std=0.1)
         cpk_low = self.verifier._compute_cpk(mean=0.1, std=0.1)
         assert cpk_low < cpk_centered
 
     def test_wide_spread_low_cpk(self):
-        """High std → low Cpk."""
+        """High std -> low Cpk."""
         cpk = self.verifier._compute_cpk(mean=0.5, std=0.3)
         assert cpk < 1.0
 
@@ -275,7 +275,7 @@ class TestOutcomeDetermination:
         assert outcome == VerificationOutcome.REJECTED
 
     def test_high_consensus_low_cpk_weak_accept(self):
-        """Good consensus but low Cpk → weak accept."""
+        """Good consensus but low Cpk -> weak accept."""
         outcome = self.verifier._determine_outcome(consensus=0.8, cpk=0.5, score=0.8)
         assert outcome == VerificationOutcome.WEAK_ACCEPT
 
@@ -309,7 +309,7 @@ class TestVerifyIntegration:
         assert result.n_clusters >= 1
 
     def test_verify_consistent_output_high_cpk(self):
-        """Consistent evaluator output → high Cpk."""
+        """Consistent evaluator output -> high Cpk."""
 
         # Use a custom evaluator that returns consistent scores
         def consistent_eval(output, context=""):
@@ -321,7 +321,7 @@ class TestVerifyIntegration:
         assert result.quality_gate in (QualityGate.GREEN, QualityGate.YELLOW)
 
     def test_verify_all_same_score_accepted(self):
-        """All identical scores → strong consensus."""
+        """All identical scores -> strong consensus."""
 
         def fixed_eval(output, context=""):
             return 0.75, ["fixed"]
@@ -457,7 +457,7 @@ class TestCustomConfig:
 
         strict = ConsensusVerifier(n_samples=5, consensus_threshold=0.95, evaluator=varied_eval)
         result = strict.verify("test")
-        # With varied scores, unlikely to get 95% consensus → weak or rejected
+        # With varied scores, unlikely to get 95% consensus -> weak or rejected
         assert result.outcome in (
             VerificationOutcome.WEAK_ACCEPT,
             VerificationOutcome.REJECTED,

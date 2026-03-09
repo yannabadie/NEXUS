@@ -16,8 +16,6 @@ import sys
 import tempfile
 from pathlib import Path
 
-import pytest
-
 NEXUS_ENTRY = str(Path(__file__).parent.parent / "nexus7.py")
 NEXUS_CWD = str(Path(NEXUS_ENTRY).parent)
 SDK_ENV = {

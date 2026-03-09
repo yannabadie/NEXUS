@@ -63,8 +63,8 @@ CRITICAL_PATTERNS = {
 
 #### Security Metrics:
 - **Threat Levels**: NONE(0), LOW(1), MEDIUM(2), HIGH(3), CRITICAL(4)
-- **Block Threshold**: 0.7 (default) - inputs with risk score ≥0.7 are blocked
-- **Warn Threshold**: 0.4 (default) - inputs with risk score ≥0.4 generate warnings
+- **Block Threshold**: 0.7 (default) - inputs with risk score >=0.7 are blocked
+- **Warn Threshold**: 0.4 (default) - inputs with risk score >=0.4 generate warnings
 - **Pattern Database**: 30+ pre-compiled regex patterns across 6 threat categories
 
 ### 1.2 Layer 2: Spotlighter (RAG Content Protection)
@@ -359,10 +359,10 @@ class HITLRequest:
 #### Protected Component Hierarchy:
 ```
 KERNEL.py (Immutable)
-├── MISSION.md (Read-only)
-├── INVARIANTS.md (Read-only)
-├── alignment_tests.py (Read-only)
-└── sacred configuration files
++-- MISSION.md (Read-only)
++-- INVARIANTS.md (Read-only)
++-- alignment_tests.py (Read-only)
++-- sacred configuration files
 ```
 
 ### 4.2 Integrity Monitoring System
@@ -461,28 +461,28 @@ class SandboxPolicy:
 
 #### Le Tribunal (Governance Module):
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    GOVERNANCE ARCHITECTURE               │
-├─────────────────────────────────────────────────────────┤
-│  ┌───────────────────────────────────────────────────┐   │
-│  │                   KERNEL.py                       │   │
-│  │            Immutable Alignment to Creator         │   │
-│  └─────────────────────┬─────────────────────────────┘   │
-│                         │                                 │
-│      ┌─────────────────┼─────────────────┐               │
-│      │                 │                 │               │
-│      ▼                 ▼                 ▼               │
-│ ┌──────────────┐ ┌──────────────┐ ┌──────────────────┐  │
-│ │ SandboxPolicy│ │  RedTeam     │ │  GCP Gatekeeper  │  │
-│ │ Tool Perms   │ │  Validator   │ │  (Planned)       │  │
-│ └──────────────┘ └──────────────┘ └──────────────────┘  │
-│      │                 │                               │
-│      ▼                 ▼                               │
-│ ┌────────────────────────────────────────────────────┐  │
-│ │               Evolution Gating                     │  │
-│ │      Block unsafe evolutions, verify alignment     │  │
-│ └────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────┘
++---------------------------------------------------------+
+|                    GOVERNANCE ARCHITECTURE               |
++---------------------------------------------------------+
+|  +---------------------------------------------------+   |
+|  |                   KERNEL.py                       |   |
+|  |            Immutable Alignment to Creator         |   |
+|  +---------------------+-----------------------------+   |
+|                         |                                 |
+|      +-----------------+-----------------+               |
+|      |                 |                 |               |
+|      v                 v                 v               |
+| +--------------+ +--------------+ +------------------+  |
+| | SandboxPolicy| |  RedTeam     | |  GCP Gatekeeper  |  |
+| | Tool Perms   | |  Validator   | |  (Planned)       |  |
+| +--------------+ +--------------+ +------------------+  |
+|      |                 |                               |
+|      v                 v                               |
+| +----------------------------------------------------+  |
+| |               Evolution Gating                     |  |
+| |      Block unsafe evolutions, verify alignment     |  |
+| +----------------------------------------------------+  |
++---------------------------------------------------------+
 ```
 
 ### 6.2 Red Team Validation
@@ -532,11 +532,11 @@ class RedTeamValidator:
 ### 7.1 OWASP LLM01:2025 Compliance
 
 #### Prompt Injection Prevention:
-- ✅ **Input Validation**: Comprehensive pattern detection
-- ✅ **Output Filtering**: System prompt leak prevention
-- ✅ **Context Isolation**: RAG content protection
-- ✅ **Instruction Override Detection**: Multiple pattern matching
-- ✅ **Role Manipulation Protection**: Identity verification
+- [OK] **Input Validation**: Comprehensive pattern detection
+- [OK] **Output Filtering**: System prompt leak prevention
+- [OK] **Context Isolation**: RAG content protection
+- [OK] **Instruction Override Detection**: Multiple pattern matching
+- [OK] **Role Manipulation Protection**: Identity verification
 
 #### Implementation Score: 95%
 - Excellent pattern coverage

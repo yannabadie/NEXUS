@@ -160,22 +160,22 @@ NEXUS supports 3 routing policies via `ROUTING_POLICY` env variable:
 ### 1. `balanced` (Default)
 - **Philosophy**: Best quality for the complexity
 - **Behavior**:
-  - Trivial tasks → Flash/Haiku
-  - Simple tasks → Sonnet/Flash
-  - Moderate tasks → Sonnet/Pro
-  - Complex tasks → Opus/Pro
-  - Expert tasks → Opus
+  - Trivial tasks -> Flash/Haiku
+  - Simple tasks -> Sonnet/Flash
+  - Moderate tasks -> Sonnet/Pro
+  - Complex tasks -> Opus/Pro
+  - Expert tasks -> Opus
 - **Cost**: Medium (optimized for quality/cost balance)
 - **Use When**: General development, mixed workloads
 
 ### 2. `cost_optimized` (V12.4 Enhanced)
 - **Philosophy**: Minimize costs while maintaining acceptable quality
 - **Behavior**:
-  - Trivial tasks → **DeepSeek V3** (98% savings)
-  - Simple tasks → **DeepSeek V3** (98% savings)
-  - Moderate tasks → **Kimi K2.5** (90% savings)
-  - Complex tasks → Sonnet/Pro
-  - Expert tasks → Opus (quality preserved)
+  - Trivial tasks -> **DeepSeek V3** (98% savings)
+  - Simple tasks -> **DeepSeek V3** (98% savings)
+  - Moderate tasks -> **Kimi K2.5** (90% savings)
+  - Complex tasks -> Sonnet/Pro
+  - Expert tasks -> Opus (quality preserved)
 - **Cost**: 85-95% cheaper than balanced
 - **Use When**:
   - Budget-constrained projects
@@ -186,7 +186,7 @@ NEXUS supports 3 routing policies via `ROUTING_POLICY` env variable:
 ### 3. `quality_optimized`
 - **Philosophy**: Always use the best model
 - **Behavior**:
-  - All tasks → Opus 4.6 / Gemini 3 Pro
+  - All tasks -> Opus 4.6 / Gemini 3 Pro
   - No downgrading to cheaper models
 - **Cost**: Highest (no optimization)
 - **Use When**:
@@ -289,11 +289,11 @@ The CascadedRouter (based on MasRouter, arXiv:2502.11133) makes 3-stage decision
 
 ### Stage 1: Collaboration Mode Selection
 Based on task complexity (0.0-1.0):
-- `< 0.2` → SPECIALIST (single agent)
-- `0.2-0.4` → SEQUENTIAL (ordered execution)
-- `0.4-0.6` → LEAD_SUPPORT (one leads, one assists)
-- `0.6-0.8` → PARALLEL or PING_PONG
-- `> 0.8` → Full PARALLEL
+- `< 0.2` -> SPECIALIST (single agent)
+- `0.2-0.4` -> SEQUENTIAL (ordered execution)
+- `0.4-0.6` -> LEAD_SUPPORT (one leads, one assists)
+- `0.6-0.8` -> PARALLEL or PING_PONG
+- `> 0.8` -> Full PARALLEL
 
 ### Stage 2: Role Assignment
 Based on mode + domain affinities:
@@ -306,17 +306,17 @@ Based on mode + domain affinities:
 Based on role tier + routing policy:
 
 **balanced:**
-- High tier → Opus 4.6 / Gemini 3 Pro
-- Medium tier → Sonnet 4.5 / Gemini 3 Pro
-- Low tier → Sonnet 4.5 / Flash
+- High tier -> Opus 4.6 / Gemini 3 Pro
+- Medium tier -> Sonnet 4.5 / Gemini 3 Pro
+- Low tier -> Sonnet 4.5 / Flash
 
 **cost_optimized:**
-- High tier → Sonnet 4.5 / Gemini 3 Pro
-- Medium tier → **DeepSeek V3** / **Kimi K2.5**
-- Low tier → **DeepSeek V3** / **Kimi K2.5**
+- High tier -> Sonnet 4.5 / Gemini 3 Pro
+- Medium tier -> **DeepSeek V3** / **Kimi K2.5**
+- Low tier -> **DeepSeek V3** / **Kimi K2.5**
 
 **quality_optimized:**
-- All tiers → Opus 4.6 / Gemini 3 Pro
+- All tiers -> Opus 4.6 / Gemini 3 Pro
 
 ## Performance Metrics
 

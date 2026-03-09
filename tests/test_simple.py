@@ -42,9 +42,9 @@ def test_stagnation_detector():
 if __name__ == "__main__":
     # Run tests manually
     test_config()
-    print("✓ Config OK")
+    print("[OK] Config OK")
 
     test_stagnation_detector()
-    print("✓ Stagnation Detector OK")
+    print("[OK] Stagnation Detector OK")
 
-    print("\n✅ All tests passed!")
+    print("\n[OK] All tests passed!")

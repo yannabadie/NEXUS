@@ -6,21 +6,21 @@ Comparison of NEXUS V6 tools vs real Claude Code and Gemini CLI capabilities.
 
 ## Current Status: V6.0
 
-### ✅ Implemented Tools (11 total - COMPLETE!)
+### [OK] Implemented Tools (11 total - COMPLETE!)
 
 | Tool | Source | Status | Priority | Notes |
 |------|--------|--------|----------|-------|
-| **bash** | Both CLIs | ✅ Implemented | High | Execute shell commands |
-| **read** | Both CLIs | ✅ Implemented | High | Read file contents |
-| **write** | Both CLIs | ✅ Implemented | High | Create/overwrite files |
-| **edit** | Both CLIs | ✅ Implemented | High | Search and replace in files |
-| **list_dir** | Custom | ✅ Implemented | Medium | List directory contents |
-| **git** | V5 + Both | ✅ Implemented | High | Git operations (ported from V5) |
-| **web_search** | Gemini CLI | ✅ **NEWLY ADDED** | **CRITICAL** | Google web search for fact-checking |
-| **web_fetch** | Both CLIs | ✅ **NEWLY ADDED** | **CRITICAL** | Fetch URL content |
-| **glob** | Claude Code | ✅ **NEWLY ADDED** | **HIGH** | File pattern matching |
-| **grep** | Claude Code | ✅ **NEWLY ADDED** | **HIGH** | Code search with regex |
-| **todo_write** | Claude Code | ✅ **NEWLY ADDED** | **MEDIUM** | Plan management |
+| **bash** | Both CLIs | [OK] Implemented | High | Execute shell commands |
+| **read** | Both CLIs | [OK] Implemented | High | Read file contents |
+| **write** | Both CLIs | [OK] Implemented | High | Create/overwrite files |
+| **edit** | Both CLIs | [OK] Implemented | High | Search and replace in files |
+| **list_dir** | Custom | [OK] Implemented | Medium | List directory contents |
+| **git** | V5 + Both | [OK] Implemented | High | Git operations (ported from V5) |
+| **web_search** | Gemini CLI | [OK] **NEWLY ADDED** | **CRITICAL** | Google web search for fact-checking |
+| **web_fetch** | Both CLIs | [OK] **NEWLY ADDED** | **CRITICAL** | Fetch URL content |
+| **glob** | Claude Code | [OK] **NEWLY ADDED** | **HIGH** | File pattern matching |
+| **grep** | Claude Code | [OK] **NEWLY ADDED** | **HIGH** | Code search with regex |
+| **todo_write** | Claude Code | [OK] **NEWLY ADDED** | **MEDIUM** | Plan management |
 
 **TOTAL: 11 tools - Feature parity with Claude Code + Gemini CLI achieved!**
 
@@ -31,17 +31,17 @@ Comparison of NEXUS V6 tools vs real Claude Code and Gemini CLI capabilities.
 ### Claude Code (Anthropic)
 
 **Built-in Tools:**
-- ✅ Bash - Shell command execution
-- ✅ Read - Read files
-- ✅ Write - Create files
-- ✅ Edit - Modify files
-- ⚠️ Glob - File pattern matching (partially via bash)
-- ⚠️ Grep - Code searching (partially via bash)
-- ✅ WebFetch - Fetch URLs
-- ✅ WebSearch - Web searching
-- ❌ Task - Launch sub-agents (complex feature)
-- ❌ TodoWrite - Task management (complex feature)
-- ❌ NotebookEdit - Jupyter notebook editing
+- [OK] Bash - Shell command execution
+- [OK] Read - Read files
+- [OK] Write - Create files
+- [OK] Edit - Modify files
+- [warning]️ Glob - File pattern matching (partially via bash)
+- [warning]️ Grep - Code searching (partially via bash)
+- [OK] WebFetch - Fetch URLs
+- [OK] WebSearch - Web searching
+- [NO] Task - Launch sub-agents (complex feature)
+- [NO] TodoWrite - Task management (complex feature)
+- [NO] NotebookEdit - Jupyter notebook editing
 
 **Additional Capabilities:**
 - Custom subagents
@@ -53,10 +53,10 @@ Comparison of NEXUS V6 tools vs real Claude Code and Gemini CLI capabilities.
 ### Gemini CLI (Google)
 
 **Built-in Tools:**
-- ✅ Bash - Shell commands
-- ✅ File operations (read/write)
-- ✅ **google_web_search** - Web search with Google grounding (CRITICAL!)
-- ✅ **web_fetch** - Fetch URL content
+- [OK] Bash - Shell commands
+- [OK] File operations (read/write)
+- [OK] **google_web_search** - Web search with Google grounding (CRITICAL!)
+- [OK] **web_fetch** - Fetch URL content
 - Code execution
 - Structured outputs
 - Extensions system
@@ -66,39 +66,39 @@ Comparison of NEXUS V6 tools vs real Claude Code and Gemini CLI capabilities.
 ## Gap Analysis
 
 ### Priority 1: CRITICAL (Newly Added!)
-- ✅ **web_search** - DONE! (via Gemini google_web_search)
-- ✅ **web_fetch** - DONE! (urllib implementation)
+- [OK] **web_search** - DONE! (via Gemini google_web_search)
+- [OK] **web_fetch** - DONE! (urllib implementation)
 
 ### Priority 2: HIGH (COMPLETED!)
-- ✅ **glob** - DONE! Dedicated file pattern matching tool
+- [OK] **glob** - DONE! Dedicated file pattern matching tool
   - **Impact:** More efficient than `bash + find`
   - **Usage:** Finding files by pattern (*.py, src/**/*.tsx)
   - **Implementation:** Python pathlib + pattern matching
 
-- ✅ **grep** - DONE! Dedicated code search tool
+- [OK] **grep** - DONE! Dedicated code search tool
   - **Impact:** More efficient than `bash + grep`
   - **Usage:** Searching code for keywords, patterns
   - **Implementation:** Python regex search with file filtering
 
 ### Priority 3: MEDIUM (Future Enhancements)
-- ❌ **Task/SubAgents** - Launch specialized sub-agents
+- [NO] **Task/SubAgents** - Launch specialized sub-agents
   - **Impact:** Parallel workflows (frontend + backend)
   - **Complexity:** Very high (requires agent architecture)
 
-- ❌ **NotebookEdit** - Jupyter notebook support
+- [NO] **NotebookEdit** - Jupyter notebook support
   - **Impact:** Data science workflows
   - **Complexity:** Medium
 
-- ✅ **TodoWrite** - DONE! Task management
+- [OK] **TodoWrite** - DONE! Task management
   - **Impact:** Better planning visibility
   - **Complexity:** Low-medium
   - **Implementation:** JSON-based plan storage in `.nexus/plan.json`
 
 ### Priority 4: LOW (Advanced Features)
-- ❌ Hooks system (pre/post execution)
-- ❌ Checkpointing (conversation/code rewind)
-- ❌ Background tasks
-- ❌ MCP protocol support
+- [NO] Hooks system (pre/post execution)
+- [NO] Checkpointing (conversation/code rewind)
+- [NO] Background tasks
+- [NO] MCP protocol support
 
 ---
 
@@ -156,12 +156,12 @@ Comparison of NEXUS V6 tools vs real Claude Code and Gemini CLI capabilities.
 
 ## Recommendations
 
-### Immediate Actions (✅ ALL DONE!)
-1. ✅ Add web_search (CRITICAL for fact-checking)
-2. ✅ Add web_fetch (CRITICAL for documentation)
-3. ✅ Add glob (HIGH priority - file pattern matching)
-4. ✅ Add grep (HIGH priority - code search)
-5. ✅ Add todo_write (MEDIUM priority - plan management)
+### Immediate Actions ([OK] ALL DONE!)
+1. [OK] Add web_search (CRITICAL for fact-checking)
+2. [OK] Add web_fetch (CRITICAL for documentation)
+3. [OK] Add glob (HIGH priority - file pattern matching)
+4. [OK] Add grep (HIGH priority - code search)
+5. [OK] Add todo_write (MEDIUM priority - plan management)
 
 ### Short-Term (V6.1)
 1. Improve web_search with result parsing
@@ -226,19 +226,19 @@ Comparison of NEXUS V6 tools vs real Claude Code and Gemini CLI capabilities.
 
 | Feature | Claude Code | Gemini CLI | NEXUS V6 | Notes |
 |---------|------------|------------|----------|-------|
-| **Bash** | ✅ | ✅ | ✅ | Full support |
-| **Read** | ✅ | ✅ | ✅ | Full support |
-| **Write** | ✅ | ✅ | ✅ | Full support |
-| **Edit** | ✅ | ✅ | ✅ | Full support |
-| **Git** | Via bash | Via bash | ✅ | Dedicated tool |
-| **Web Search** | ✅ | ✅ | ✅ | Via Gemini CLI |
-| **Web Fetch** | ✅ | ✅ | ✅ | urllib-based |
-| **Glob** | ✅ | ❌ | ✅ **NEW!** | Pathlib pattern matching |
-| **Grep** | ✅ | ❌ | ✅ **NEW!** | Regex code search |
-| **TodoWrite** | ✅ | ❌ | ✅ **NEW!** | JSON plan storage |
-| **SubAgents** | ✅ | ❌ | ❌ | V7.0 target |
-| **NotebookEdit** | ✅ | ❌ | ❌ | V6.2 target |
-| **MCP Protocol** | ✅ | ✅ | ❌ | V7.0 target |
+| **Bash** | [OK] | [OK] | [OK] | Full support |
+| **Read** | [OK] | [OK] | [OK] | Full support |
+| **Write** | [OK] | [OK] | [OK] | Full support |
+| **Edit** | [OK] | [OK] | [OK] | Full support |
+| **Git** | Via bash | Via bash | [OK] | Dedicated tool |
+| **Web Search** | [OK] | [OK] | [OK] | Via Gemini CLI |
+| **Web Fetch** | [OK] | [OK] | [OK] | urllib-based |
+| **Glob** | [OK] | [NO] | [OK] **NEW!** | Pathlib pattern matching |
+| **Grep** | [OK] | [NO] | [OK] **NEW!** | Regex code search |
+| **TodoWrite** | [OK] | [NO] | [OK] **NEW!** | JSON plan storage |
+| **SubAgents** | [OK] | [NO] | [NO] | V7.0 target |
+| **NotebookEdit** | [OK] | [NO] | [NO] | V6.2 target |
+| **MCP Protocol** | [OK] | [OK] | [NO] | V7.0 target |
 
 ---
 
@@ -248,21 +248,21 @@ Comparison of NEXUS V6 tools vs real Claude Code and Gemini CLI capabilities.
 > "as tu intégré tout les outils dont disposent REELEMENT claude et gemini ? Ou est la recherche internet par exemple, elle me semble vitale dans un debat pour fact checker des informations ou des sources officielles"
 
 **Response:**
-✅ **Absolutely right!** Web search was MISSING and is indeed VITAL for:
+[OK] **Absolutely right!** Web search was MISSING and is indeed VITAL for:
 - Fact-checking during debates
 - Verifying sources
 - Finding official documentation
 - Real-time information
 
 **Actions Taken:**
-- ✅ Added `web_search` tool (via Gemini's google_web_search)
-- ✅ Added `web_fetch` tool (via urllib)
-- ✅ Added `glob` tool (file pattern matching)
-- ✅ Added `grep` tool (code search with regex)
-- ✅ Added `todo_write` tool (plan management)
-- ✅ Updated all prompts to document these tools
-- ✅ Clarified that ALL tools are accessible by BOTH agents
-- ✅ Updated README to reflect **11 tools total**
+- [OK] Added `web_search` tool (via Gemini's google_web_search)
+- [OK] Added `web_fetch` tool (via urllib)
+- [OK] Added `glob` tool (file pattern matching)
+- [OK] Added `grep` tool (code search with regex)
+- [OK] Added `todo_write` tool (plan management)
+- [OK] Updated all prompts to document these tools
+- [OK] Clarified that ALL tools are accessible by BOTH agents
+- [OK] Updated README to reflect **11 tools total**
 
 **NEXUS V6 now has FEATURE PARITY with Claude Code + Gemini CLI!** 🎯
 

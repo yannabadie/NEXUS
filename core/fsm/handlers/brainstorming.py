@@ -30,7 +30,7 @@ class BrainstormingHandler(BaseHandler):
         health = self._orch.plan_health.check_health(current_plan, self._orch.iteration)
 
         if health["status"] == "ZOMBIE":
-            # Plan zombie → Trigger panic
+            # Plan zombie -> Trigger panic
             self._orch.panic_system.trigger_panic_explicit(reason="ZOMBIE_PLAN", details=health["message"])
             return self._orch._trigger_panic(f"Plan zombie: {health['message']}")
 
@@ -86,7 +86,7 @@ class BrainstormingHandler(BaseHandler):
         emit_agent_exchange(sender, next_agent, content, exchange_type="brainstorm")
 
         if action_type == "TOOL_USE":
-            # Consensus reached → Execute tool
+            # Consensus reached -> Execute tool
             self._orch._transition_to(OrchestratorState.EXECUTING_TOOL)
             tool_name = message.get("tool_use", {}).get("tool_name", "unknown")
             emit_agent_exchange(sender, "tool_executor", f"Execute: {tool_name}", exchange_type="tool")
@@ -103,7 +103,7 @@ class BrainstormingHandler(BaseHandler):
             self._orch.stagnation_detector.reset()
             if self._orch.config.ui_verbose:
                 print(
-                    f"[BRAINSTORM] {self._registry.get_display_name(previous_agent)} → {self._registry.get_display_name(self._orch.active_agent)}",
+                    f"[BRAINSTORM] {self._registry.get_display_name(previous_agent)} -> {self._registry.get_display_name(self._orch.active_agent)}",
                     file=sys.stderr,
                 )
 

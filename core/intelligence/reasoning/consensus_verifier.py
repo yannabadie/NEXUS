@@ -455,7 +455,7 @@ class ConsensusVerifier:
         Where USL=1.0, LSL=0.0 for our normalized scores.
         """
         if std < 1e-10:
-            # Perfect consistency → very high Cpk
+            # Perfect consistency -> very high Cpk
             return 3.0
 
         # Spec limits for quality scores

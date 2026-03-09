@@ -492,7 +492,7 @@ class TaskAnalyzer:
     for optimal mode selection.
 
     V10 FIX F1: Enhanced with context-aware classification beyond keywords.
-    V11 SENTINEL: 3-Stage cost-aware classification (Regex→Heuristic→LLM).
+    V11 SENTINEL: 3-Stage cost-aware classification (Regex->Heuristic->LLM).
     V11.2 MEMORIA: RAG-enriched classification for domain hints.
     """
 
@@ -657,9 +657,9 @@ class TaskAnalyzer:
         base_complexity = self._calculate_complexity(input_lower, domains)
         # Apply RAG complexity boost (0.0-0.3 maps to 0-1 complexity levels)
         # V11.2.1 FIX: Use round() instead of int() to avoid truncation
-        # int(0.3 * 3) = int(0.9) = 0 ← BUG! round(0.9) = 1 ← CORRECT
+        # int(0.3 * 3) = int(0.9) = 0 <- BUG! round(0.9) = 1 <- CORRECT
         if complexity_boost > 0:
-            boost_levels = round(complexity_boost * 3.34)  # 0.3 * 3.34 = 1.0 → 1 level
+            boost_levels = round(complexity_boost * 3.34)  # 0.3 * 3.34 = 1.0 -> 1 level
             boosted_value = min(5, base_complexity.value + boost_levels)
             complexity = TaskComplexity(boosted_value)
             if boosted_value != base_complexity.value:

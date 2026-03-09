@@ -24,9 +24,9 @@ This document defines the formal testing protocol for NEXUS V7 Chrysalis. It cov
 | Priority | Category | Threshold | Blocking Release |
 |----------|----------|-----------|------------------|
 | **CRITICAL** | Security, FSM, Core Tools | 100% pass | YES |
-| **HIGH** | Swarm, Bootstrap, Evolution | ≥90% pass | YES |
-| **MEDIUM** | Integration, Routing | ≥85% pass | NO |
-| **LOW** | UI, Logging, Metrics | ≥80% pass | NO |
+| **HIGH** | Swarm, Bootstrap, Evolution | >=90% pass | YES |
+| **MEDIUM** | Integration, Routing | >=85% pass | NO |
+| **LOW** | UI, Logging, Metrics | >=80% pass | NO |
 
 ### 2.2 Test Files
 
@@ -51,25 +51,25 @@ This document defines the formal testing protocol for NEXUS V7 Chrysalis. It cov
 
 | Test Class | Tests | Category | Status |
 |------------|-------|----------|--------|
-| `TestOrchestratorE2E` | 25 | Core | ⬜ |
-| `TestREPLCommandsE2E` | 20 | REPL | ⬜ |
-| `TestFSMFlowsE2E` | 15 | FSM | ⬜ |
-| `TestSwarmModesE2E` | 20 | Swarm | ⬜ |
-| `TestEvolutionE2E` | 15 | Evolution | ⬜ |
-| `TestSecurityE2E` | 20 | Security | ⬜ |
+| `TestOrchestratorE2E` | 25 | Core | [ ] |
+| `TestREPLCommandsE2E` | 20 | REPL | [ ] |
+| `TestFSMFlowsE2E` | 15 | FSM | [ ] |
+| `TestSwarmModesE2E` | 20 | Swarm | [ ] |
+| `TestEvolutionE2E` | 15 | Evolution | [ ] |
+| `TestSecurityE2E` | 20 | Security | [ ] |
 
-Legend: ✅ Pass | ❌ Fail | ⬜ Not Run
+Legend: [OK] Pass | [NO] Fail | [ ] Not Run
 
 ### 3.2 Critical Tests
 
 | ID | Test | File | Status |
 |----|------|------|--------|
-| C001 | Orchestrator initializes in IDLE | test_e2e_nexus.py | ⬜ |
-| C002 | Path traversal blocked | test_security.py | ⬜ |
-| C003 | Sacred files protected | test_security.py | ⬜ |
-| C004 | FSM transitions correct | test_fsm_transitions.py | ⬜ |
-| C005 | Tool execution safe | test_tool_manager.py | ⬜ |
-| C006 | Panic state terminal | test_fsm_transitions.py | ⬜ |
+| C001 | Orchestrator initializes in IDLE | test_e2e_nexus.py | [ ] |
+| C002 | Path traversal blocked | test_security.py | [ ] |
+| C003 | Sacred files protected | test_security.py | [ ] |
+| C004 | FSM transitions correct | test_fsm_transitions.py | [ ] |
+| C005 | Tool execution safe | test_tool_manager.py | [ ] |
+| C006 | Panic state terminal | test_fsm_transitions.py | [ ] |
 
 ---
 
@@ -123,39 +123,39 @@ python -m pytest tests/ --cov=core --cov-report=html
 ### 5.1 Workflow Diagram
 
 ```
-┌─────────────────────────────────────────┐
-│         AUTONOMOUS DEBUG CYCLE          │
-├─────────────────────────────────────────┤
-│                                         │
-│  1. RUN TESTS                           │
-│     pytest tests/ -v --tb=short         │
-│              │                          │
-│              ▼                          │
-│  2. ALL PASSED? ─── YES ──► DONE ✅     │
-│              │                          │
-│              NO                         │
-│              ▼                          │
-│  3. PARSE FAILURES                      │
-│     - Categorize (IMPORT/ASSERT/etc)    │
-│     - Prioritize (P1-P4)                │
-│              │                          │
-│              ▼                          │
-│  4. FOR EACH FAILURE (max 3 attempts):  │
-│     a. INVESTIGATE (read source)        │
-│     b. CLASSIFY (BUG/TEST/ENV)          │
-│     c. FIX (minimal change)             │
-│     d. VERIFY (re-run single test)      │
-│              │                          │
-│              ▼                          │
-│  5. SAVE STATE                          │
-│     debug_cycle_state.json              │
-│              │                          │
-│              ▼                          │
-│  6. CONTEXT LIMIT? ─── YES ──► HANDOFF  │
-│              │                          │
-│              NO                         │
-│              └──────────► LOOP (1)      │
-└─────────────────────────────────────────┘
++-----------------------------------------+
+|         AUTONOMOUS DEBUG CYCLE          |
++-----------------------------------------+
+|                                         |
+|  1. RUN TESTS                           |
+|     pytest tests/ -v --tb=short         |
+|              |                          |
+|              v                          |
+|  2. ALL PASSED? --- YES --► DONE [OK]     |
+|              |                          |
+|              NO                         |
+|              v                          |
+|  3. PARSE FAILURES                      |
+|     - Categorize (IMPORT/ASSERT/etc)    |
+|     - Prioritize (P1-P4)                |
+|              |                          |
+|              v                          |
+|  4. FOR EACH FAILURE (max 3 attempts):  |
+|     a. INVESTIGATE (read source)        |
+|     b. CLASSIFY (BUG/TEST/ENV)          |
+|     c. FIX (minimal change)             |
+|     d. VERIFY (re-run single test)      |
+|              |                          |
+|              v                          |
+|  5. SAVE STATE                          |
+|     debug_cycle_state.json              |
+|              |                          |
+|              v                          |
+|  6. CONTEXT LIMIT? --- YES --► HANDOFF  |
+|              |                          |
+|              NO                         |
+|              +----------► LOOP (1)      |
++-----------------------------------------+
 ```
 
 ### 5.2 Error Categories
@@ -262,18 +262,18 @@ Contents:
 
 | Metric | Required | Actual |
 |--------|----------|--------|
-| CRITICAL tests passing | 100% | ⬜ |
-| HIGH tests passing | ≥90% | ⬜ |
-| MEDIUM tests passing | ≥85% | ⬜ |
-| No security regressions | YES | ⬜ |
-| No FSM regressions | YES | ⬜ |
+| CRITICAL tests passing | 100% | PENDING |
+| HIGH tests passing | >=90% | PENDING |
+| MEDIUM tests passing | >=85% | PENDING |
+| No security regressions | YES | PENDING |
+| No FSM regressions | YES | PENDING |
 
 ### 7.2 Test Run Summary Template
 
-```
-═══════════════════════════════════════════
-         NEXUS V7 TEST SUMMARY
-═══════════════════════════════════════════
+```text
+===========================================
+NEXUS V7 TEST SUMMARY
+===========================================
 Date: YYYY-MM-DD HH:MM
 Branch: N7C
 Commit: xxxxxxx
@@ -286,15 +286,15 @@ RESULTS:
   Skipped:  XXX
 
 BY CATEGORY:
-  CRITICAL: XX/XX (XX%) ✅/❌
-  HIGH:     XX/XX (XX%) ✅/❌
-  MEDIUM:   XX/XX (XX%) ✅/❌
+  CRITICAL: XX/XX (XX%) PASS/FAIL
+  HIGH:     XX/XX (XX%) PASS/FAIL
+  MEDIUM:   XX/XX (XX%) PASS/FAIL
 
 BLOCKING ISSUES:
   - [if any]
 
-RELEASE STATUS: ✅ READY / ❌ BLOCKED
-═══════════════════════════════════════════
+RELEASE STATUS: READY / BLOCKED
+===========================================
 ```
 
 ---

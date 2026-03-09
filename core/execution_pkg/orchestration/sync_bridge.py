@@ -188,7 +188,7 @@ class OrchestratorSyncBridge:
         # Callbacks for extensibility (e.g., telemetry)
         self._on_sync_callbacks: list[Callable[[SyncEvent], None]] = []
 
-        # Task ID mapping: HiveMind task_id → Swarm task_id correlation
+        # Task ID mapping: HiveMind task_id -> Swarm task_id correlation
         self._task_correlation: dict[str, dict[str, str]] = {}
 
         # V10 SYNAPSE: Setup telemetry hook
@@ -367,7 +367,7 @@ class OrchestratorSyncBridge:
             checkpoint_data = checkpoint_data or {}
 
             if source == "hivemind" and self._session:
-                # HiveMind checkpointed → Create Swarm checkpoint
+                # HiveMind checkpointed -> Create Swarm checkpoint
                 try:
                     checkpoint_id = self._session.create_checkpoint(task_id)
                     if checkpoint_id:
@@ -381,7 +381,7 @@ class OrchestratorSyncBridge:
                             )
                         )
                         logger.debug(
-                            f"Checkpoint synced: HiveMind phase '{phase_or_mode}' → Swarm checkpoint '{checkpoint_id}'"
+                            f"Checkpoint synced: HiveMind phase '{phase_or_mode}' -> Swarm checkpoint '{checkpoint_id}'"
                         )
                         return True
                 except Exception as e:
@@ -389,7 +389,7 @@ class OrchestratorSyncBridge:
                     return False
 
             elif source == "swarm":
-                # Swarm checkpointed → Record correlation (Saga is phase-based)
+                # Swarm checkpointed -> Record correlation (Saga is phase-based)
                 self._record_event(
                     SyncEvent(
                         event_type=SyncEventType.CHECKPOINT_CREATED,
@@ -485,7 +485,7 @@ class OrchestratorSyncBridge:
                     checkpoints = self._session.list_checkpoints(task_id)
                     if checkpoints:
                         # Restore to most recent checkpoint
-                        # Future: Map phase → checkpoint for precise restore
+                        # Future: Map phase -> checkpoint for precise restore
                         latest_cp = checkpoints[-1]
                         swarm_success = self._session.restore_checkpoint(task_id, latest_cp)
                         if not swarm_success:

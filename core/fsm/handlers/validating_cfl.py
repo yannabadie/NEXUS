@@ -52,9 +52,9 @@ class ValidatingCFLHandler(BaseHandler):
         )
 
         # Determine validation success
-        if "✓" in content or "success" in content.lower() or "successfully" in content.lower():
+        if "[OK]" in content or "success" in content.lower() or "successfully" in content.lower():
             validation_success = True
-        elif "✗" in content or "error" in content.lower() or "failed" in content.lower():
+        elif "[NO]" in content or "error" in content.lower() or "failed" in content.lower():
             validation_success = False
         else:
             # V10 FIX F8: Conservative default - ambiguity = failure
@@ -69,7 +69,7 @@ class ValidatingCFLHandler(BaseHandler):
             self._orch.panic_system.reset_stalemate()
             self._orch.panic_system.reset_errors()
             self._orch._transition_to(OrchestratorState.IDLE)
-            return self._make_result("FINISHED", f"✓ {content}", self._orch.active_agent, True)
+            return self._make_result("FINISHED", f"[OK] {content}", self._orch.active_agent, True)
 
         elif validation_success:
             self._orch.stalemate_counter = 0
@@ -81,12 +81,12 @@ class ValidatingCFLHandler(BaseHandler):
             self._orch.active_agent = self._registry.get_alternate(self._orch.active_agent) or self._orch.active_agent
             if self._orch.config.ui_verbose:
                 print(
-                    f"[CFL SUCCESS] {self._registry.get_display_name(previous_agent)} → {self._registry.get_display_name(self._orch.active_agent)}",
+                    f"[CFL SUCCESS] {self._registry.get_display_name(previous_agent)} -> {self._registry.get_display_name(self._orch.active_agent)}",
                     file=sys.stderr,
                 )
 
             self._orch._transition_to(OrchestratorState.BRAINSTORMING)
-            return self._make_result("BRAINSTORMING", f"✓ {content}", previous_agent, False)
+            return self._make_result("BRAINSTORMING", f"[OK] {content}", previous_agent, False)
 
         else:
             # V9.3 ISSUE-004 FIX: Removed duplicate increment
@@ -102,4 +102,4 @@ class ValidatingCFLHandler(BaseHandler):
             self._orch.active_agent = self._registry.get_alternate(self._orch.active_agent) or self._orch.active_agent
 
             self._orch._transition_to(OrchestratorState.BRAINSTORMING)
-            return self._make_result("BRAINSTORMING", f"✗ {content}", previous_agent, False)
+            return self._make_result("BRAINSTORMING", f"[NO] {content}", previous_agent, False)

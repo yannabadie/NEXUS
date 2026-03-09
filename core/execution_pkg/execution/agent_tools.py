@@ -6,22 +6,22 @@ Spawned agents can be invoked as tools by the Swarm, creating recursive
 multi-agent patterns.
 
 Architecture:
-    ┌──────────────────────────────────────────────────────────────┐
-    │  Swarm Engine                                                 │
-    │  ┌─────────────────┐    ┌─────────────────────────────────┐ │
-    │  │ Task: "Analyze  │───>│ AgentToolRegistry               │ │
-    │  │ security vulns" │    │ ┌───────────────────────────┐   │ │
-    │  └─────────────────┘    │ │ agent_security_expert     │   │ │
-    │                         │ │ agent_code_reviewer       │   │ │
-    │                         │ │ agent_test_writer         │   │ │
-    │                         │ └───────────────────────────┘   │ │
-    │                         └────────────────┬────────────────┘ │
-    │                                          │                   │
-    │                                          ▼                   │
-    │                         ┌─────────────────────────────────┐ │
-    │                         │ AgentInvoker.invoke_spawned()   │ │
-    │                         └─────────────────────────────────┘ │
-    └──────────────────────────────────────────────────────────────┘
+    +--------------------------------------------------------------+
+    |  Swarm Engine                                                 |
+    |  +-----------------+    +---------------------------------+ |
+    |  | Task: "Analyze  |--->| AgentToolRegistry               | |
+    |  | security vulns" |    | +---------------------------+   | |
+    |  +-----------------+    | | agent_security_expert     |   | |
+    |                         | | agent_code_reviewer       |   | |
+    |                         | | agent_test_writer         |   | |
+    |                         | +---------------------------+   | |
+    |                         +----------------+----------------+ |
+    |                                          |                   |
+    |                                          v                   |
+    |                         +---------------------------------+ |
+    |                         | AgentInvoker.invoke_spawned()   | |
+    |                         +---------------------------------+ |
+    +--------------------------------------------------------------+
 
 Usage:
     from core.execution_pkg.execution.agent_tools import AgentToolRegistry

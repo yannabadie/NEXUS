@@ -265,19 +265,19 @@ class ModeSelector:
     # REASONING domains benefit from independent voting (PARALLEL): +13.2%
     # KNOWLEDGE domains benefit from consensus (PING_PONG): +2.8%
     DOMAIN_PROTOCOL_BIAS: dict[str, dict[CollaborationMode, float]] = {
-        # Reasoning-heavy: independent work + voting → PARALLEL
+        # Reasoning-heavy: independent work + voting -> PARALLEL
         "coding": {CollaborationMode.PARALLEL: 0.08, CollaborationMode.LEAD_SUPPORT: 0.03},
         "debugging": {CollaborationMode.PARALLEL: 0.08, CollaborationMode.RED_BLUE: 0.04},
         "analysis": {CollaborationMode.PARALLEL: 0.06, CollaborationMode.LEAD_SUPPORT: 0.03},
         "architecture": {CollaborationMode.PARALLEL: 0.06, CollaborationMode.RED_BLUE: 0.04},
         "testing": {CollaborationMode.PARALLEL: 0.06},
-        # Knowledge-heavy: consensus building → PING_PONG
+        # Knowledge-heavy: consensus building -> PING_PONG
         "research": {CollaborationMode.PING_PONG: 0.06, CollaborationMode.SEQUENTIAL: 0.03},
         "documentation": {CollaborationMode.PING_PONG: 0.04, CollaborationMode.SEQUENTIAL: 0.03},
         "web_interaction": {CollaborationMode.PARALLEL: 0.05, CollaborationMode.PING_PONG: 0.03},
-        # Creative: iterative refinement → PING_PONG
+        # Creative: iterative refinement -> PING_PONG
         "creative": {CollaborationMode.PING_PONG: 0.08, CollaborationMode.LEAD_SUPPORT: 0.03},
-        # Security: adversarial review → RED_BLUE
+        # Security: adversarial review -> RED_BLUE
         "security": {CollaborationMode.RED_BLUE: 0.10, CollaborationMode.LEAD_SUPPORT: 0.03},
     }
 
@@ -312,7 +312,7 @@ class ModeSelector:
         score += requirements_fit * 0.20
 
         # 5. V12.4: Task-adaptive domain-protocol bias (arxiv:2502.19130)
-        # Applies research-backed preference: REASONING→voting, KNOWLEDGE→consensus
+        # Applies research-backed preference: REASONING->voting, KNOWLEDGE->consensus
         domain_key = analysis.primary_domain.value.lower()
         bias_map = self.DOMAIN_PROTOCOL_BIAS.get(domain_key, {})
         score += bias_map.get(mode, 0.0)
@@ -412,22 +412,22 @@ class ModeSelector:
         """Score based on task requirements"""
         score = 0.5  # Base score
 
-        # Web requirement → prefer parallel (can search while coding)
+        # Web requirement -> prefer parallel (can search while coding)
         if analysis.requires_web and char.parallelism_benefit > 0.5:
             score += 0.2
 
-        # Deep reasoning → prefer ping-pong or lead-support
+        # Deep reasoning -> prefer ping-pong or lead-support
         if analysis.requires_deep_reasoning and char.mode in [
             CollaborationMode.PING_PONG,
             CollaborationMode.LEAD_SUPPORT,
         ]:
             score += 0.2
 
-        # Iteration → prefer ping-pong
+        # Iteration -> prefer ping-pong
         if analysis.requires_iteration and char.mode == CollaborationMode.PING_PONG:
             score += 0.3
 
-        # Security → require RED_BLUE
+        # Security -> require RED_BLUE
         if analysis.needs_adversarial_mode:
             if char.adversarial:
                 score += 0.5

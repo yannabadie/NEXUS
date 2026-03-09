@@ -22,30 +22,30 @@ NEXUS V7.5 implements a **multi-layer defense-in-depth** security architecture t
 ## Security Layers
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           LAYER 4: INTEGRITY MONITOR                         │
-│  IntegrityMonitor - Post-hoc detection of unauthorized changes              │
-│  → KERNEL.py SHA-256 verification at startup                                │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                      ▲
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        LAYER 3: MUTATION VALIDATOR                           │
-│  MutationValidator - AST-based behavioral analysis of mutation code         │
-│  → Detects dangerous calls (exec, eval, os.system)                          │
-│  → Mode: WARN + CONTINUE (logs but doesn't block)                           │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                      ▲
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        LAYER 2: PATH GUARDIAN                                │
-│  PathGuardian - Centralized path validation for ALL file operations         │
-│  → Validates zones (Workspace, Agents, Parent)                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                      ▲
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        LAYER 1: TOOL FIREWALL                                │
-│  Bash Blacklist + Git Restrictions - First line of defense                  │
-│  → Blocks dangerous shell commands, git push/commit                         │
-└─────────────────────────────────────────────────────────────────────────────┘
++-----------------------------------------------------------------------------+
+|                           LAYER 4: INTEGRITY MONITOR                         |
+|  IntegrityMonitor - Post-hoc detection of unauthorized changes              |
+|  -> KERNEL.py SHA-256 verification at startup                                |
++-----------------------------------------------------------------------------+
+                                      ^
++-----------------------------------------------------------------------------+
+|                        LAYER 3: MUTATION VALIDATOR                           |
+|  MutationValidator - AST-based behavioral analysis of mutation code         |
+|  -> Detects dangerous calls (exec, eval, os.system)                          |
+|  -> Mode: WARN + CONTINUE (logs but doesn't block)                           |
++-----------------------------------------------------------------------------+
+                                      ^
++-----------------------------------------------------------------------------+
+|                        LAYER 2: PATH GUARDIAN                                |
+|  PathGuardian - Centralized path validation for ALL file operations         |
+|  -> Validates zones (Workspace, Agents, Parent)                              |
++-----------------------------------------------------------------------------+
+                                      ^
++-----------------------------------------------------------------------------+
+|                        LAYER 1: TOOL FIREWALL                                |
+|  Bash Blacklist + Git Restrictions - First line of defense                  |
+|  -> Blocks dangerous shell commands, git push/commit                         |
++-----------------------------------------------------------------------------+
 ```
 
 ---
@@ -56,12 +56,12 @@ The filesystem is divided into strict security zones:
 
 | Zone | Path | READ | WRITE | Description |
 |------|------|------|-------|-------------|
-| **Workspace** | `workspace/` | ✅ | ✅ | General working area |
-| **Agents** | `workspace/agents/` | ✅ | ✅ | **NEW V7.5**: Specialized agents home |
-| **Memory** | `workspace/memory/` | ✅ | ✅ | **NEW V7.5**: Auto-Memory logs |
-| **Evolution** | `GENERATION_ACTIVE/` | ✅ | ✅* | Evolution sandbox (*only in evolve mode) |
-| **Parent** | `core/` | ✅ | ❌ | Parent code - READ ONLY |
-| **Prompts** | `prompts/` | ✅ | ❌ | System prompts - READ ONLY |
+| **Workspace** | `workspace/` | [OK] | [OK] | General working area |
+| **Agents** | `workspace/agents/` | [OK] | [OK] | **NEW V7.5**: Specialized agents home |
+| **Memory** | `workspace/memory/` | [OK] | [OK] | **NEW V7.5**: Auto-Memory logs |
+| **Evolution** | `GENERATION_ACTIVE/` | [OK] | [OK]* | Evolution sandbox (*only in evolve mode) |
+| **Parent** | `core/` | [OK] | [NO] | Parent code - READ ONLY |
+| **Prompts** | `prompts/` | [OK] | [NO] | System prompts - READ ONLY |
 
 ### Sacred Files (Immutable)
 
@@ -82,13 +82,13 @@ In V7.5 HIVE MIND, specialized agents are isolated in their own directories:
 
 ```
 workspace/agents/
-├── sql_expert/           # Agent 1 Sandbox
-│   ├── workspace/        # Agent 1 Working directory
-│   ├── BIRTH_CERTIFICATE.json
-│   └── system_prompt.md
-└── vue_frontend/         # Agent 2 Sandbox
-    ├── workspace/
-    └── ...
++-- sql_expert/           # Agent 1 Sandbox
+|   +-- workspace/        # Agent 1 Working directory
+|   +-- BIRTH_CERTIFICATE.json
+|   +-- system_prompt.md
++-- vue_frontend/         # Agent 2 Sandbox
+    +-- workspace/
+    +-- ...
 ```
 
 Each agent operates within its subdirectory. Cross-agent writing is technically possible within `workspace/` but discouraged by the Swarm protocols.

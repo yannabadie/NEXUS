@@ -107,15 +107,15 @@ class TestShouldMonitorMetacognition:
 
     def test_custom_threshold(self):
         """Custom threshold should work."""
-        # SIMPLE task (40 chars) with SIMPLE threshold → should monitor
+        # SIMPLE task (40 chars) with SIMPLE threshold -> should monitor
         simple_task = "How does the swarm engine work in NEXUS?"
         assert estimate_complexity(simple_task) == TaskComplexity.SIMPLE
         assert should_monitor_metacognition(simple_task, threshold=TaskComplexity.SIMPLE)
 
-        # TRIVIAL task with TRIVIAL threshold → should monitor
+        # TRIVIAL task with TRIVIAL threshold -> should monitor
         assert should_monitor_metacognition("/help", threshold=TaskComplexity.TRIVIAL)
 
-        # SIMPLE task with COMPLEX threshold → should NOT monitor
+        # SIMPLE task with COMPLEX threshold -> should NOT monitor
         assert not should_monitor_metacognition(simple_task, threshold=TaskComplexity.COMPLEX)
 
 

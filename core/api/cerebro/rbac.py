@@ -66,7 +66,7 @@ class Permission(str, Enum):
 
 
 # =============================================================================
-# Role → Permission Mapping
+# Role -> Permission Mapping
 # =============================================================================
 
 ROLE_PERMISSIONS: dict[str, set[Permission]] = {

@@ -8,7 +8,7 @@ Consolidated execution components for tool execution, model routing, and orchest
 ## 📦 Subpackages
 
 - **execution/**: Tool execution engine, validation, workflow engine, retry handling, timeout management
-- **routing/**: Model routing (TaskType → Model), cascaded router, resource optimizer, decision cache
+- **routing/**: Model routing (TaskType -> Model), cascaded router, resource optimizer, decision cache
 - **orchestration/**: Context building, agent invoker, swarm bridge, guard pipeline, dependency injection
 
 ## 🎯 Key Features

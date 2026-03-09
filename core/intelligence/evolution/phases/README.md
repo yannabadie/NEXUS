@@ -7,23 +7,23 @@ The **phases** module contains the implementation of individual evolution phases
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                      EVOLUTION PHASES                                    │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
-│  ┌─────────────┐      ┌─────────────┐      ┌─────────────┐              │
-│  │ BRAINSTORM  │─────▶│   CREATE    │─────▶│  PROMOTE    │              │
-│  │             │      │             │      │             │              │
-│  │ Gemini +    │      │ Apply JSON  │      │ Validate &  │              │
-│  │ Claude      │      │ patches to  │      │ replace     │              │
-│  │ debate      │      │ create child│      │ parent      │              │
-│  └─────────────┘      └─────────────┘      └─────────────┘              │
-│        │                    │                    │                       │
-│        ▼                    ▼                    ▼                       │
-│  MutationProposal     ChildCreation        PromotionResult              │
-│                        Result                                            │
-│                                                                          │
-└─────────────────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------------------+
+|                      EVOLUTION PHASES                                    |
++-------------------------------------------------------------------------+
+|                                                                          |
+|  +-------------+      +-------------+      +-------------+              |
+|  | BRAINSTORM  |----->|   CREATE    |----->|  PROMOTE    |              |
+|  |             |      |             |      |             |              |
+|  | Gemini +    |      | Apply JSON  |      | Validate &  |              |
+|  | Claude      |      | patches to  |      | replace     |              |
+|  | debate      |      | create child|      | parent      |              |
+|  +-------------+      +-------------+      +-------------+              |
+|        |                    |                    |                       |
+|        v                    v                    v                       |
+|  MutationProposal     ChildCreation        PromotionResult              |
+|                        Result                                            |
+|                                                                          |
++-------------------------------------------------------------------------+
 ```
 
 ## Component Map
@@ -95,25 +95,25 @@ class PromotePhase:
 
 ```
 1. BRAINSTORM
-   │
-   ├─► Gemini proposes mutation ideas
-   ├─► Claude critiques and refines
-   ├─► Consensus on JSON patches (30 turns max)
-   │
-   ▼
+   |
+   +-► Gemini proposes mutation ideas
+   +-► Claude critiques and refines
+   +-► Consensus on JSON patches (30 turns max)
+   |
+   v
 2. CREATE
-   │
-   ├─► Parse JSON patches
-   ├─► Apply to parent code
-   ├─► Create child directory
-   │
-   ▼
+   |
+   +-► Parse JSON patches
+   +-► Apply to parent code
+   +-► Create child directory
+   |
+   v
 3. PROMOTE (if validation passes)
-   │
-   ├─► Run 5-tier validation
-   ├─► Archive parent
-   ├─► Promote child to parent location
-   └─► Update LINEAGE.json
+   |
+   +-► Run 5-tier validation
+   +-► Archive parent
+   +-► Promote child to parent location
+   +-► Update LINEAGE.json
 ```
 
 ## Usage

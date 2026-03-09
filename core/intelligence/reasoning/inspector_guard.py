@@ -95,8 +95,8 @@ class GuardStats:
 
     total_inspections: int
     total_flags: int  # Steps flagged for diagnosis
-    risk_distribution: dict[str, int]  # risk_level → count
-    patterns_detected: dict[str, int]  # pattern → count
+    risk_distribution: dict[str, int]  # risk_level -> count
+    patterns_detected: dict[str, int]  # pattern -> count
     avg_risk_score: float
 
 

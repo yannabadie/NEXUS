@@ -1285,8 +1285,8 @@ graph TD
 |-----------|-------|-----------|
 {routing_table}
 
-**Claude Tasks**: Opus → {', '.join(opus_tasks) if opus_tasks else 'N/A'} | Sonnet → {', '.join(sonnet_tasks) if sonnet_tasks else 'N/A'}
-**Gemini Tasks**: Pro → {', '.join(pro_tasks) if pro_tasks else 'N/A'} | Flash → {', '.join(flash_tasks) if flash_tasks else 'N/A'}
+**Claude Tasks**: Opus -> {', '.join(opus_tasks) if opus_tasks else 'N/A'} | Sonnet -> {', '.join(sonnet_tasks) if sonnet_tasks else 'N/A'}
+**Gemini Tasks**: Pro -> {', '.join(pro_tasks) if pro_tasks else 'N/A'} | Flash -> {', '.join(flash_tasks) if flash_tasks else 'N/A'}
 
 ### Spawned Agent Provider Selection
 
@@ -1578,7 +1578,7 @@ graph TD
 
         health_table = "\n".join(f"| `{s}` |" for s in health_states) if health_states else "| None |"
         prediction_table = "\n".join(f"| `{p}` |" for p in prediction_levels) if prediction_levels else "| None |"
-        saga_table = " → ".join(saga_phases) if saga_phases else "Not found"
+        saga_table = " -> ".join(saga_phases) if saga_phases else "Not found"
         recovery_table = "\n".join(f"| `{s}` |" for s in recovery_strategies) if recovery_strategies else "| None |"
 
         return f"""## 7. ZOOM: Blind Spot Remediations
@@ -1590,9 +1590,9 @@ The current runtime addresses architectural blind spots with dedicated modules.
 ```mermaid
 graph TD
     subgraph P0["P0: NexusJSONEncoder"]
-        JSON[Serialization] --> DT[datetime → isoformat]
-        JSON --> EN[Enum → value]
-        JSON --> UUID[UUID → str]
+        JSON[Serialization] --> DT[datetime -> isoformat]
+        JSON --> EN[Enum -> value]
+        JSON --> UUID[UUID -> str]
     end
 
     subgraph P2["P2: SagaManager"]
@@ -1630,7 +1630,7 @@ graph TD
 |-------|
 {health_table}
 
-**Transitions**: HEALTHY → DEGRADED (1 error) → CRITICAL (3 errors) → RECOVERING/PANIC
+**Transitions**: HEALTHY -> DEGRADED (1 error) -> CRITICAL (3 errors) -> RECOVERING/PANIC
 
 ### Recovery Strategies
 
@@ -1655,7 +1655,7 @@ graph TD
 |-------|
 {prediction_table}
 
-**Thresholds**: CONTINUE (<0.4) → MONITOR (0.4-0.6) → NUDGE (0.6-0.8) → INTERVENE (>0.8)
+**Thresholds**: CONTINUE (<0.4) -> MONITOR (0.4-0.6) -> NUDGE (0.6-0.8) -> INTERVENE (>0.8)
 
 ### Implementation Summary
 

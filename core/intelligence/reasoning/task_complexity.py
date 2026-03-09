@@ -13,11 +13,11 @@ Solution:
 - Only run deep monitoring for MODERATE+ complexity
 
 Heuristics (no LLM calls, <1ms overhead):
-1. Command pattern: / prefix → TRIVIAL
-2. Length: <30 chars + no complex verbs → TRIVIAL
-3. Simple queries: single factual request → SIMPLE
-4. Multi-step: "then", "after", "also" → MODERATE
-5. Complex verbs: "analyze", "compare", "design" → MODERATE+
+1. Command pattern: / prefix -> TRIVIAL
+2. Length: <30 chars + no complex verbs -> TRIVIAL
+3. Simple queries: single factual request -> SIMPLE
+4. Multi-step: "then", "after", "also" -> MODERATE
+5. Complex verbs: "analyze", "compare", "design" -> MODERATE+
 
 Sprint 2 (P5.5): Adaptive Metacognition
 Ref: MASTER_ACTION_PLAN.md P5.5, nexus-audit-nxcg-1.md P2.1
@@ -113,11 +113,11 @@ def estimate_complexity(task: str) -> TaskComplexity:
         TaskComplexity.COMPLEX
 
     Heuristics (checked in order):
-    1. Known trivial command → TRIVIAL
-    2. Short text (<30 chars) without complex verbs → TRIVIAL
-    3. Contains complex verbs (analyze, design, etc.) → COMPLEX
-    4. Contains moderate indicators (then, also, etc.) → MODERATE
-    5. Default for longer queries → SIMPLE
+    1. Known trivial command -> TRIVIAL
+    2. Short text (<30 chars) without complex verbs -> TRIVIAL
+    3. Contains complex verbs (analyze, design, etc.) -> COMPLEX
+    4. Contains moderate indicators (then, also, etc.) -> MODERATE
+    5. Default for longer queries -> SIMPLE
     """
     if not task or not task.strip():
         return TaskComplexity.TRIVIAL
@@ -147,13 +147,13 @@ def estimate_complexity(task: str) -> TaskComplexity:
 
     # 5. Length-based heuristics (only if no keywords found)
     if len(task) < 30:
-        # Very short without complex markers → TRIVIAL
+        # Very short without complex markers -> TRIVIAL
         return TaskComplexity.TRIVIAL
     elif len(task) < 100:
-        # Moderate length, single-step → SIMPLE
+        # Moderate length, single-step -> SIMPLE
         return TaskComplexity.SIMPLE
     else:
-        # Long query without markers → likely multi-context, MODERATE
+        # Long query without markers -> likely multi-context, MODERATE
         return TaskComplexity.MODERATE
 
 

@@ -68,7 +68,7 @@ def mock_agents():
 
 
 # ============================================================================
-# Scenario 1: High Confidence Mode Boost (>= 0.8 → +0.30)
+# Scenario 1: High Confidence Mode Boost (>= 0.8 -> +0.30)
 # ============================================================================
 
 
@@ -127,7 +127,7 @@ class TestHighConfidenceModeBoost:
 
 
 # ============================================================================
-# Scenario 2: Medium Confidence Mode Boost (>= 0.7, < 0.8 → +0.25)
+# Scenario 2: Medium Confidence Mode Boost (>= 0.7, < 0.8 -> +0.25)
 # ============================================================================
 
 
@@ -156,7 +156,7 @@ class TestMediumConfidenceModeBoost:
 
     def test_mode_boost_exactly_070_confidence(self, mock_auto_memory, mock_task_analysis, mock_agents):
         """
-        Test: Confidence 0.70 → weighted 0.28 (below 0.3 threshold).
+        Test: Confidence 0.70 -> weighted 0.28 (below 0.3 threshold).
         V11.2: MemoryCoordinator ignores recommendations below threshold.
         """
         mock_auto_memory.get_recommendation.return_value = {
@@ -175,7 +175,7 @@ class TestMediumConfidenceModeBoost:
 
 
 # ============================================================================
-# Scenario 3: Low Confidence Mode Boost (>= 0.5, < 0.7 → +0.10)
+# Scenario 3: Low Confidence Mode Boost (>= 0.5, < 0.7 -> +0.10)
 # ============================================================================
 
 
@@ -191,7 +191,7 @@ class TestLowConfidenceModeBoost:
 
     def test_mode_boost_060_confidence(self, mock_auto_memory, mock_task_analysis, mock_agents):
         """
-        Scenario 3a: AutoMemory confidence 0.60 → weighted 0.24.
+        Scenario 3a: AutoMemory confidence 0.60 -> weighted 0.24.
         V11.2: Below MIN_CONFIDENCE threshold, recommendation ignored.
         """
         mock_auto_memory.get_recommendation.return_value = {
@@ -210,7 +210,7 @@ class TestLowConfidenceModeBoost:
 
     def test_mode_boost_exactly_050_confidence(self, mock_auto_memory, mock_task_analysis, mock_agents):
         """
-        Boundary test: Confidence 0.50 → weighted 0.20.
+        Boundary test: Confidence 0.50 -> weighted 0.20.
         V11.2: Below MIN_CONFIDENCE threshold, recommendation ignored.
         """
         mock_auto_memory.get_recommendation.return_value = {
@@ -229,7 +229,7 @@ class TestLowConfidenceModeBoost:
 
 
 # ============================================================================
-# Scenario 4: Below Threshold (< 0.5 → ignore)
+# Scenario 4: Below Threshold (< 0.5 -> ignore)
 # ============================================================================
 
 
@@ -272,7 +272,7 @@ class TestBelowThresholdIgnored:
 
 
 # ============================================================================
-# Scenario 5: Lead Bonus (confidence > 0.7 → promote to front)
+# Scenario 5: Lead Bonus (confidence > 0.7 -> promote to front)
 # ============================================================================
 
 

@@ -7,7 +7,7 @@ Extracted from repl.py to decouple evolution from UI.
 This manager coordinates:
 - Brainstorming: AI-driven mutation proposals (Gemini + Claude debate)
 - Child Creation: Applying mutations to create new instances
-- Validation: Tiered validation (syntax → smoke → benchmark → redteam)
+- Validation: Tiered validation (syntax -> smoke -> benchmark -> redteam)
 - Evaluation: Fitness scoring and parent comparison
 - Promotion: Winner selection and parent replacement
 
@@ -49,7 +49,7 @@ from core.intelligence.evolution.tiered_validator import TieredValidator, Valida
 ProgressCallback = Callable[[str, float], None]
 
 # Type alias for approval callback
-# Receives (child_id, fitness_score, improvement_pct, metrics) → bool
+# Receives (child_id, fitness_score, improvement_pct, metrics) -> bool
 ApprovalCallback = Callable[[str, float, float, dict], bool]
 
 
@@ -408,9 +408,9 @@ class EvolutionManager:
         Request human approval before promoting a child.
 
         Decision logic:
-        1. If approval_callback is set → call it and return its result
-        2. If auto_promotion is enabled → approve automatically
-        3. Otherwise → reject (safe default: no silent auto-promotion)
+        1. If approval_callback is set -> call it and return its result
+        2. If auto_promotion is enabled -> approve automatically
+        3. Otherwise -> reject (safe default: no silent auto-promotion)
 
         Args:
             winner: EvaluationResult of the winning child
@@ -450,7 +450,7 @@ class EvolutionManager:
             )
             return False
 
-        # Path 3: No callback, no auto-promotion → safe default = reject
+        # Path 3: No callback, no auto-promotion -> safe default = reject
         self._report_progress(
             f"Promotion blocked: no approval_callback and auto_promotion=False. "
             f"Winner {child_id} (+{improvement:.1f}%) archived.",

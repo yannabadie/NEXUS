@@ -73,21 +73,21 @@ In Jaeger UI:
 
 ```
 NEXUS Backend
-    │
-    ├─ OTel SDK (Python)
-    │   └─ Traces, Metrics, Logs
-    │
-    ▼
+    |
+    +- OTel SDK (Python)
+    |   +- Traces, Metrics, Logs
+    |
+    v
 OTel Collector (port 4317)
-    │
-    ├─ Batch processing
-    ├─ Memory limits
-    └─ Resource attributes
-    │
-    ▼
+    |
+    +- Batch processing
+    +- Memory limits
+    +- Resource attributes
+    |
+    v
 Jaeger (port 16686)
-    │
-    └─ Trace Visualization UI
+    |
+    +- Trace Visualization UI
 ```
 
 ---
@@ -109,16 +109,16 @@ NEXUS instruments all 7 HiveMind phases:
 **Trace Structure:**
 ```
 hive_mind.execution (parent)
-  ├─ hive_mind.phase.analysis
-  │   ├─ llm.anthropic (Claude analysis)
-  │   └─ llm.gemini (Gemini analysis)
-  ├─ hive_mind.phase.debate (if needed)
-  ├─ hive_mind.phase.architecture
-  ├─ hive_mind.phase.execution
-  │   └─ swarm.ping_pong (if delegated to Swarm)
-  ├─ hive_mind.phase.diagnosis (if error)
-  ├─ hive_mind.phase.retry (if retry)
-  └─ hive_mind.phase.consolidation
+  +- hive_mind.phase.analysis
+  |   +- llm.anthropic (Claude analysis)
+  |   +- llm.gemini (Gemini analysis)
+  +- hive_mind.phase.debate (if needed)
+  +- hive_mind.phase.architecture
+  +- hive_mind.phase.execution
+  |   +- swarm.ping_pong (if delegated to Swarm)
+  +- hive_mind.phase.diagnosis (if error)
+  +- hive_mind.phase.retry (if retry)
+  +- hive_mind.phase.consolidation
 ```
 
 ---
@@ -130,14 +130,14 @@ NEXUS uses OpenTelemetry Semantic Conventions for GenAI (v1.36.0+):
 **LLM Call Spans:**
 ```
 llm.anthropic (operation: chat)
-├─ gen_ai.operation.name: "chat"
-├─ gen_ai.system: "anthropic"
-├─ gen_ai.request.model: "claude-sonnet-4-5-20250929"
-├─ gen_ai.usage.input_tokens: 1523
-├─ gen_ai.usage.output_tokens: 847
-├─ gen_ai.response.id: "msg_01abc123..."
-├─ gen_ai.response.finish_reasons: ["end_turn"]
-└─ nexus.driver.cache_hit: false
++- gen_ai.operation.name: "chat"
++- gen_ai.system: "anthropic"
++- gen_ai.request.model: "claude-sonnet-4-5-20250929"
++- gen_ai.usage.input_tokens: 1523
++- gen_ai.usage.output_tokens: 847
++- gen_ai.response.id: "msg_01abc123..."
++- gen_ai.response.finish_reasons: ["end_turn"]
++- nexus.driver.cache_hit: false
 ```
 
 **Key Attributes**:
@@ -155,15 +155,15 @@ Swarm modes are instrumented with nested spans:
 **Example: PING_PONG mode**
 ```
 swarm.ping_pong
-  ├─ swarm.negotiation
-  │   └─ llm.anthropic (Claude proposes mode)
-  └─ swarm.execution
-      ├─ swarm.round.1
-      │   └─ llm.gemini (Gemini responds)
-      ├─ swarm.round.2
-      │   └─ llm.anthropic (Claude responds)
-      └─ swarm.round.3
-          └─ llm.gemini (Gemini finalizes)
+  +- swarm.negotiation
+  |   +- llm.anthropic (Claude proposes mode)
+  +- swarm.execution
+      +- swarm.round.1
+      |   +- llm.gemini (Gemini responds)
+      +- swarm.round.2
+      |   +- llm.anthropic (Claude responds)
+      +- swarm.round.3
+          +- llm.gemini (Gemini finalizes)
 ```
 
 **Attributes**:

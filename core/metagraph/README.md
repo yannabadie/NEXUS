@@ -113,7 +113,7 @@ from core.metagraph import get_impact_before_edit
 impact = get_impact_before_edit("core/drivers/protocol.py")
 
 if impact["impact_score"] > 0.5:
-    print(f"⚠️ WARNING: High-impact file!")
+    print(f"[warning]️ WARNING: High-impact file!")
     print(f"  Affects {len(impact['affected_files'])} files")
     print(f"  {impact['symbols_affected']} symbols will be impacted")
 ```
@@ -271,41 +271,41 @@ graph = get_graph(force_refresh=True)
 
 ```
 MetagraphRAG Architecture
-┌─────────────────────────────────────────────────────────────┐
-│ Integration Helpers (auto_manager.py)                        │
-│  - get_graph() → Auto-scan on first use                     │
-│  - auto_refresh() → Incremental updates                     │
-│  - get_impact_before_edit() → Workflow integration          │
-└─────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------+
+| Integration Helpers (auto_manager.py)                        |
+|  - get_graph() -> Auto-scan on first use                     |
+|  - auto_refresh() -> Incremental updates                     |
+|  - get_impact_before_edit() -> Workflow integration          |
++-------------------------------------------------------------+
                               ↓
-┌─────────────────────────────────────────────────────────────┐
-│ Self-Auditing (auditor.py)                                   │
-│  - Track query performance (latency, throughput)            │
-│  - Monitor graph freshness                                   │
-│  - Integration with TelemetryCollector                       │
-└─────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------+
+| Self-Auditing (auditor.py)                                   |
+|  - Track query performance (latency, throughput)            |
+|  - Monitor graph freshness                                   |
+|  - Integration with TelemetryCollector                       |
++-------------------------------------------------------------+
                               ↓
-┌─────────────────────────────────────────────────────────────┐
-│ Query Engine (query_engine.py)                               │
-│  - query_dependencies() → Direct + transitive deps          │
-│  - analyze_impact() → Reverse dependencies                  │
-│  - semantic_search() → Name/docstring search                │
-└─────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------+
+| Query Engine (query_engine.py)                               |
+|  - query_dependencies() -> Direct + transitive deps          |
+|  - analyze_impact() -> Reverse dependencies                  |
+|  - semantic_search() -> Name/docstring search                |
++-------------------------------------------------------------+
                               ↓
-┌─────────────────────────────────────────────────────────────┐
-│ Code Graph (code_graph.py)                                   │
-│  - In-memory graph: {qualified_name → Symbol}               │
-│  - Dependencies: {source → [Dependency]}                    │
-│  - Reverse deps: {target → [Dependency]}                    │
-└─────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------+
+| Code Graph (code_graph.py)                                   |
+|  - In-memory graph: {qualified_name -> Symbol}               |
+|  - Dependencies: {source -> [Dependency]}                    |
+|  - Reverse deps: {target -> [Dependency]}                    |
++-------------------------------------------------------------+
                               ↓
-┌─────────────────────────────────────────────────────────────┐
-│ Scanner & Parser (scanner.py, ast_parser.py)                 │
-│  - Walk directory tree                                       │
-│  - Parse Python files with AST                               │
-│  - Extract symbols (classes, functions, imports)             │
-│  - Build dependency edges                                    │
-└─────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------+
+| Scanner & Parser (scanner.py, ast_parser.py)                 |
+|  - Walk directory tree                                       |
+|  - Parse Python files with AST                               |
+|  - Extract symbols (classes, functions, imports)             |
+|  - Build dependency edges                                    |
++-------------------------------------------------------------+
 ```
 
 ## 🧪 Testing
@@ -357,12 +357,12 @@ from core.metagraph import get_graph, analyze_impact
 impact = analyze_impact(get_graph(), "core/drivers/protocol.py")
 
 if impact.impact_score > 0.7:
-    print("⚠️ High-impact file! Refactor carefully.")
+    print("[warning]️ High-impact file! Refactor carefully.")
     print(f"Affects {len(impact.affected_files)} files:")
     for file in sorted(impact.affected_files)[:10]:
         print(f"  - {file}")
 else:
-    print("✅ Low-impact file, safe to refactor.")
+    print("[OK] Low-impact file, safe to refactor.")
 ```
 
 ### Example 2: Find All Drivers

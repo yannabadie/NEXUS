@@ -7,7 +7,7 @@ This module provides a state machine for tracking system health and
 automatically attempting recovery strategies before escalating to PANIC.
 
 States:
-    HEALTHY → DEGRADED → CRITICAL → RECOVERING → HEALTHY
+    HEALTHY -> DEGRADED -> CRITICAL -> RECOVERING -> HEALTHY
                                        ↓
                                      PANIC
 
@@ -362,7 +362,7 @@ class HealthStateMachine:
         self._state = new_state
         self._last_state_change = datetime.now()
 
-        logger.info(f"Health state: {old_state.value} → {new_state.value} ({reason})")
+        logger.info(f"Health state: {old_state.value} -> {new_state.value} ({reason})")
 
         # Call callbacks
         for callback in self._on_state_change:

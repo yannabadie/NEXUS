@@ -20,8 +20,8 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.config import Config
-from core.version import NEXUS_CODENAME, NEXUS_VERSION
 from core.fsm.states import OrchestratorState
+from core.version import NEXUS_CODENAME, NEXUS_VERSION
 
 
 class MockDriver:

@@ -183,7 +183,7 @@ class NexusLogger:
         )
 
         # Update metrics
-        transition_key = f"{from_state}→{to_state}"
+        transition_key = f"{from_state}->{to_state}"
         self.metrics["fsm_transitions"][transition_key] = self.metrics["fsm_transitions"].get(transition_key, 0) + 1
 
     def log_agent_invocation(self, agent: str, iteration: int, context_size: int = 0):

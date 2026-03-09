@@ -34,7 +34,7 @@ class ExecutingToolHandler(BaseHandler):
         self._orch.active_agent = self._registry.get_alternate(self._orch.active_agent) or self._orch.active_agent
         if self._orch.config.ui_verbose:
             print(
-                f"[CFL] {self._registry.get_display_name(requesting_agent)} tool → {self._registry.get_display_name(self._orch.active_agent)} validates",
+                f"[CFL] {self._registry.get_display_name(requesting_agent)} tool -> {self._registry.get_display_name(self._orch.active_agent)} validates",
                 file=sys.stderr,
             )
 

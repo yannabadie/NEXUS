@@ -6,14 +6,14 @@ Enables crash recovery by replaying transition history.
 
 Architecture:
     FSM Transition
-        → TransitionEvent created
-        → Appended to event store (Redis stream or local file)
-        → Published to CEREBRO event bus (fire-and-forget)
+        -> TransitionEvent created
+        -> Appended to event store (Redis stream or local file)
+        -> Published to CEREBRO event bus (fire-and-forget)
 
     On Boot (crash recovery):
-        → Read event store
-        → Replay transitions to reconstruct state
-        → Resume from last known state
+        -> Read event store
+        -> Replay transitions to reconstruct state
+        -> Resume from last known state
 
 Event Store Backends:
     1. Redis Streams (production) - append-only, auto-trimmed

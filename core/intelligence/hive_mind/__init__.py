@@ -4,7 +4,7 @@ NEXUS V8.0 - TRUE HIVE MIND Module
 Transforms NEXUS from a sequential orchestrator into a true collaborative intelligence.
 
 Architecture:
-- 7 Phases: Analysis → Debate → Architecture → Execution → Diagnosis → Retry → Consolidation
+- 7 Phases: Analysis -> Debate -> Architecture -> Execution -> Diagnosis -> Retry -> Consolidation
 - 4 User Breakpoints: After debate, before spawn, after diagnosis, consolidation
 - Adaptive debate turns based on complexity and errors
 - Knowledge consolidation post-task
@@ -152,7 +152,7 @@ __all__ = [
     # Orchestrator
     "TrueHiveMind",
     "HiveMindResult",
-    # V8.3 SwarmBridge - Hive Mind → Swarm Delegation
+    # V8.3 SwarmBridge - Hive Mind -> Swarm Delegation
     "SwarmBridge",
     "SwarmDelegationResult",
     "HivePhase",

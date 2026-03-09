@@ -29,7 +29,7 @@ The NEXUS system represents a sophisticated AI orchestration platform built arou
 **Architecture Pattern**: Facade + Bootstrapper
 ```python
 # Key bootstrap flow:
-bootstrap() → verify_kernel_integrity() → async_main() → process_turn()
+bootstrap() -> verify_kernel_integrity() -> async_main() -> process_turn()
 ```
 
 #### **KERNEL.py** - Immutable Core
@@ -64,7 +64,7 @@ ALIGNMENT = "Absolute obedience to Creator + actively help clarify and amplify h
 
 **State Transition Matrix**:
 ```
-IDLE → BRAINSTORMING → EXECUTING_TOOL → VALIDATING_CFL → IDLE
+IDLE -> BRAINSTORMING -> EXECUTING_TOOL -> VALIDATING_CFL -> IDLE
   ↓         ↓              ↓                 ↓
 ERROR    PANIC      WAITING_USER     EVOLUTION_BRAINSTORM
 ```
@@ -132,13 +132,13 @@ class TaskExecutionContext:
 ### 3.1 Task Processing Pipeline
 
 ```
-User Input → Complexity Analysis → Routing Decision
+User Input -> Complexity Analysis -> Routing Decision
     ↓
 Complexity Levels:
-├── TRIVIAL → Fast Path (Static Response)
-├── SIMPLE → Single Agent Mode
-├── MODERATE → Swarm Mode
-└── COMPLEX/EXPERT → Hive Mind Pipeline
++-- TRIVIAL -> Fast Path (Static Response)
++-- SIMPLE -> Single Agent Mode
++-- MODERATE -> Swarm Mode
++-- COMPLEX/EXPERT -> Hive Mind Pipeline
 ```
 
 ### 3.2 Blackboard Pattern

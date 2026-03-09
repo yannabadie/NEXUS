@@ -4,18 +4,18 @@
 
 ```
 prompts/
-├── _shared/                    # Sections réutilisables
-│   ├── vision.md              # Vision HIVE MIND + V7.9 capabilities
-│   ├── collaboration.md       # Philosophie égalitaire
-│   ├── security.md            # Règles KERNEL + SandboxPolicy + Budget
-│   ├── auto_memory.md         # Auto-Memory + Project Memory RAG
-│   ├── tools.md               # Liste des 15+ outils (Dynamic, Agent-as-Tool)
-│   └── commands.md            # Commandes REPL (V7.9)
-├── system_gemini_v7.md        # Prompt Gemini (JSON strict)
-├── system_claude_v7.md        # Prompt Claude (hybride XML)
-├── evolution_brainstorm.md    # Mode /evolve
-├── specialization_mission.md  # Mode /specialize
-└── README.md                  # Ce fichier
++-- _shared/                    # Sections réutilisables
+|   +-- vision.md              # Vision HIVE MIND + V7.9 capabilities
+|   +-- collaboration.md       # Philosophie égalitaire
+|   +-- security.md            # Règles KERNEL + SandboxPolicy + Budget
+|   +-- auto_memory.md         # Auto-Memory + Project Memory RAG
+|   +-- tools.md               # Liste des 15+ outils (Dynamic, Agent-as-Tool)
+|   +-- commands.md            # Commandes REPL (V7.9)
++-- system_gemini_v7.md        # Prompt Gemini (JSON strict)
++-- system_claude_v7.md        # Prompt Claude (hybride XML)
++-- evolution_brainstorm.md    # Mode /evolve
++-- specialization_mission.md  # Mode /specialize
++-- README.md                  # Ce fichier
 ```
 
 ## V7.9 Updates

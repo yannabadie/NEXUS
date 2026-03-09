@@ -253,7 +253,7 @@ class TestV2Architecture:
         assert "ProjectMemory" in blacklist_source
 
     def test_v2_has_migration_logic(self):
-        """V2 classes should have V1→V2 migration logic."""
+        """V2 classes should have V1->V2 migration logic."""
         import inspect
 
         # SuccessMemoryV2 should have _migrate_from_v1 method

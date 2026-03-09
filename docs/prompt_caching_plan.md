@@ -36,8 +36,8 @@ response = await driver.send_message_async(prompt)  # NO CACHING
 
 ### Optimal Prompt Structure (ArXiv 2601.06007)
 ```
-[Static System Prompt - CACHED]      ← 500+ tokens (cached after first request)
-[Dynamic User Prompt - NOT CACHED]   ← ~50 tokens (task description)
+[Static System Prompt - CACHED]      <- 500+ tokens (cached after first request)
+[Dynamic User Prompt - NOT CACHED]   <- ~50 tokens (task description)
 ```
 
 **Savings:**
@@ -94,7 +94,7 @@ if principles_context:
 # SDK driver handles caching automatically
 response = await driver.invoke(
     prompt,
-    system_prompt=ANALYSIS_SYSTEM_PROMPT,  # ← CACHED by SDK
+    system_prompt=ANALYSIS_SYSTEM_PROMPT,  # <- CACHED by SDK
 )
 ```
 
@@ -196,7 +196,7 @@ class IndependentAnalysisPhase:
         response = await self.gemini.invoke(
             prompt,
             session_id=session_uuid,
-            system_prompt=ANALYSIS_SYSTEM_PROMPT,  # ← CACHED
+            system_prompt=ANALYSIS_SYSTEM_PROMPT,  # <- CACHED
             agent_name="gemini",
             agent_id="gemini",
         )
@@ -219,9 +219,9 @@ class IndependentAnalysisPhase:
 ```
 
 ### Step 3: Replicate Pattern for All 7 Phases
-- Extract static instructions → `prompts.py`
+- Extract static instructions -> `prompts.py`
 - Update `_analyze_with_gemini()` and `_analyze_with_claude()` methods
-- Change `send_message_async()` → `invoke(system_prompt=...)`
+- Change `send_message_async()` -> `invoke(system_prompt=...)`
 - Update response parsing (`DriverResponse.content` instead of raw string)
 - Update cost tracking (use actual `input_tokens`/`output_tokens`)
 
@@ -361,18 +361,18 @@ async def test_ttft_improvement_with_caching():
 
 ## Success Criteria
 
-✅ **P0 (Must Have):**
+[OK] **P0 (Must Have):**
 1. All 7 HiveMind phases use split system/user prompts
 2. Cache hit rate >60% on repeated tasks
 3. Cost reduction >50% on 100-task benchmark
 4. No regressions in test suite (2500+ tests pass)
 
-✅ **P1 (Should Have):**
+[OK] **P1 (Should Have):**
 5. TTFT improvement >15%
 6. Cache metrics in OTel spans
 7. Feature flag for gradual rollout
 
-✅ **P2 (Nice to Have):**
+[OK] **P2 (Nice to Have):**
 8. Swarm Engine tool definitions cached
 9. Orchestrator system prompts cached
 10. Automatic cache invalidation on prompt changes

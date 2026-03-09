@@ -46,32 +46,32 @@ This guide provides concrete implementation patterns for integrating OpenTelemet
 
 ```
 NEXUS V8.3 Architecture:
-┌──────────────────────────────────────────────────────────────┐
-│ User Input                                                    │
-│   ↓                                                           │
-│ FSM Orchestrator (orchestration_v7.py)                       │
-│   ├─→ HiveMind Pipeline (7 phases) ──→ SwarmBridge          │
-│   │    Phase 1: ANALYSIS                                     │
-│   │    Phase 2: DEBATE                                       │
-│   │    Phase 3: ARCHITECTURE                                 │
-│   │    Phase 4: EXECUTION (with Swarm delegation)            │
-│   │    Phase 5: DIAGNOSIS                                    │
-│   │    Phase 6: CONSOLIDATION                                │
-│   │    Phase 7: COMPLETION                                   │
-│   │                                                           │
-│   └─→ Swarm Engine (6 modes)                                │
-│        - PARALLEL, SEQUENTIAL, LEAD_SUPPORT                  │
-│        - PING_PONG, SPECIALIST, RED_BLUE                     │
-│                                                               │
-│ LLM Drivers (CLI wrappers)                                   │
-│   ├─→ Gemini Driver (JSON protocol)                          │
-│   └─→ Claude Driver (XML tools + natural language)           │
-└──────────────────────────────────────────────────────────────┘
++--------------------------------------------------------------+
+| User Input                                                    |
+|   ↓                                                           |
+| FSM Orchestrator (orchestration_v7.py)                       |
+|   +--> HiveMind Pipeline (7 phases) ---> SwarmBridge          |
+|   |    Phase 1: ANALYSIS                                     |
+|   |    Phase 2: DEBATE                                       |
+|   |    Phase 3: ARCHITECTURE                                 |
+|   |    Phase 4: EXECUTION (with Swarm delegation)            |
+|   |    Phase 5: DIAGNOSIS                                    |
+|   |    Phase 6: CONSOLIDATION                                |
+|   |    Phase 7: COMPLETION                                   |
+|   |                                                           |
+|   +--> Swarm Engine (6 modes)                                |
+|        - PARALLEL, SEQUENTIAL, LEAD_SUPPORT                  |
+|        - PING_PONG, SPECIALIST, RED_BLUE                     |
+|                                                               |
+| LLM Drivers (CLI wrappers)                                   |
+|   +--> Gemini Driver (JSON protocol)                          |
+|   +--> Claude Driver (XML tools + natural language)           |
++--------------------------------------------------------------+
 ```
 
 ### Instrumentation Points
 
-1. **Session Level**: Entire user request → response cycle
+1. **Session Level**: Entire user request -> response cycle
 2. **Phase Level**: Each HiveMind phase (ANALYSIS, DEBATE, etc.)
 3. **Swarm Level**: Swarm mode execution (PARALLEL, SEQUENTIAL, etc.)
 4. **Agent Level**: Individual Gemini/Claude invocations
@@ -601,7 +601,7 @@ def execute_session(session_id: str):
 ### 1. Session Structure for Replay
 
 To enable session replay, we need to capture:
-- Conversation flow (user → agents → tools → agents → user)
+- Conversation flow (user -> agents -> tools -> agents -> user)
 - Full message history (prompts, completions)
 - Tool calls and results
 - Agent negotiations (Swarm mode selection)
@@ -1365,23 +1365,23 @@ if __name__ == "__main__":
 
 ```
 nexus_session (root)
-├── phase_analysis
-│   ├── invoke_agent gemini-3-pro
-│   └── invoke_agent claude-opus-4-5
-├── phase_debate
-│   ├── invoke_agent gemini-3-pro
-│   └── invoke_agent claude-opus-4-5
-├── phase_architecture
-│   └── invoke_agent claude-opus-4-5
-├── phase_execution
-│   ├── swarm_parallel
-│   │   ├── invoke_agent gemini-3-pro
-│   │   └── invoke_agent claude-opus-4-5
-│   ├── tool_read_file
-│   ├── tool_grep
-│   └── tool_write_file
-└── phase_consolidation
-    └── invoke_agent claude-opus-4-5
++-- phase_analysis
+|   +-- invoke_agent gemini-3-pro
+|   +-- invoke_agent claude-opus-4-5
++-- phase_debate
+|   +-- invoke_agent gemini-3-pro
+|   +-- invoke_agent claude-opus-4-5
++-- phase_architecture
+|   +-- invoke_agent claude-opus-4-5
++-- phase_execution
+|   +-- swarm_parallel
+|   |   +-- invoke_agent gemini-3-pro
+|   |   +-- invoke_agent claude-opus-4-5
+|   +-- tool_read_file
+|   +-- tool_grep
+|   +-- tool_write_file
++-- phase_consolidation
+    +-- invoke_agent claude-opus-4-5
 ```
 
 ### 2. Attribute Naming Convention

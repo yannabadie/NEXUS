@@ -35,7 +35,7 @@ if not JWT_SECRET:
     # Development fallback - REMOVE IN PRODUCTION
     JWT_SECRET = "nexus-dev-insecure-secret-CHANGE-ME"
     logger.warning(
-        "⚠️  NEXUS_JWT_SECRET not set! Using insecure dev secret. "
+        "[warning]️  NEXUS_JWT_SECRET not set! Using insecure dev secret. "
         "Set NEXUS_JWT_SECRET environment variable for production."
     )
 

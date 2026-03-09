@@ -7,39 +7,39 @@ The **swarm** module implements the Hybrid Swarm Engine - a dynamic multi-agent 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                      SWARM ENGINE ARCHITECTURE                           │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
-│  ┌──────────────────────────────────────────────────────────────────┐   │
-│  │                       HybridSwarmEngine                           │   │
-│  │  process_task() → Analyze → Negotiate → Execute → Validate        │   │
-│  └────────────────────────────┬─────────────────────────────────────┘   │
-│                               │                                          │
-│         ┌─────────────────────┼─────────────────────────────────────┐   │
-│         │                     │                     │               │   │
-│         ▼                     ▼                     ▼               │   │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────────────┐  │   │
-│  │ TaskAnalyzer │    │ ModeSelector │    │NegotiationProtocol   │  │   │
-│  │ Complexity   │    │ DyLAN Scores │    │ Natural + JSON       │  │   │
-│  │ + Domains    │    │              │    │                      │  │   │
-│  └──────────────┘    └──────────────┘    └──────────────────────┘  │   │
-│                                                                     │   │
-│  ┌──────────────────────────────────────────────────────────────┐  │   │
-│  │                     EXECUTOR_REGISTRY                         │  │   │
-│  ├──────────────────────────────────────────────────────────────┤  │   │
-│  │  PARALLEL    │ SEQUENTIAL  │ LEAD_SUPPORT │ PING_PONG        │  │   │
-│  │  ───────     │ ──────────  │ ───────────  │ ─────────        │  │   │
-│  │  Both work   │ Ordered     │ 80% Lead     │ Rapid            │  │   │
-│  │  parallel    │ execution   │ 20% Support  │ alternation      │  │   │
-│  ├──────────────┼─────────────┼──────────────┼──────────────────┤  │   │
-│  │  SPECIALIST  │ RED_BLUE                                       │  │   │
-│  │  ──────────  │ ────────                                       │  │   │
-│  │  Single      │ Adversarial                                    │  │   │
-│  │  expert      │ propose/attack                                 │  │   │
-│  └──────────────┴────────────────────────────────────────────────┘  │   │
-│                                                                          │
-└─────────────────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------------------+
+|                      SWARM ENGINE ARCHITECTURE                           |
++-------------------------------------------------------------------------+
+|                                                                          |
+|  +------------------------------------------------------------------+   |
+|  |                       HybridSwarmEngine                           |   |
+|  |  process_task() -> Analyze -> Negotiate -> Execute -> Validate        |   |
+|  +----------------------------+-------------------------------------+   |
+|                               |                                          |
+|         +---------------------+-------------------------------------+   |
+|         |                     |                     |               |   |
+|         v                     v                     v               |   |
+|  +--------------+    +--------------+    +----------------------+  |   |
+|  | TaskAnalyzer |    | ModeSelector |    |NegotiationProtocol   |  |   |
+|  | Complexity   |    | DyLAN Scores |    | Natural + JSON       |  |   |
+|  | + Domains    |    |              |    |                      |  |   |
+|  +--------------+    +--------------+    +----------------------+  |   |
+|                                                                     |   |
+|  +--------------------------------------------------------------+  |   |
+|  |                     EXECUTOR_REGISTRY                         |  |   |
+|  +--------------------------------------------------------------+  |   |
+|  |  PARALLEL    | SEQUENTIAL  | LEAD_SUPPORT | PING_PONG        |  |   |
+|  |  -------     | ----------  | -----------  | ---------        |  |   |
+|  |  Both work   | Ordered     | 80% Lead     | Rapid            |  |   |
+|  |  parallel    | execution   | 20% Support  | alternation      |  |   |
+|  +--------------+-------------+--------------+------------------+  |   |
+|  |  SPECIALIST  | RED_BLUE                                       |  |   |
+|  |  ----------  | --------                                       |  |   |
+|  |  Single      | Adversarial                                    |  |   |
+|  |  expert      | propose/attack                                 |  |   |
+|  +--------------+------------------------------------------------+  |   |
+|                                                                          |
++-------------------------------------------------------------------------+
 ```
 
 ## Component Map
@@ -74,68 +74,68 @@ The **swarm** module implements the Hybrid Swarm Engine - a dynamic multi-agent 
 
 #### PARALLEL
 ```
-┌─────────┐     ┌─────────┐
-│ Gemini  │     │ Claude  │  Both work simultaneously
-│  Task   │     │  Task   │  Results merged via strategy
-└────┬────┘     └────┬────┘
-     │               │
-     └───────┬───────┘
-             ▼
-        ┌─────────┐
-        │  MERGE  │  CONCATENATE | INTERLEAVE | BEST_FIRST
-        └─────────┘
++---------+     +---------+
+| Gemini  |     | Claude  |  Both work simultaneously
+|  Task   |     |  Task   |  Results merged via strategy
++----+----+     +----+----+
+     |               |
+     +-------+-------+
+             v
+        +---------+
+        |  MERGE  |  CONCATENATE | INTERLEAVE | BEST_FIRST
+        +---------+
 ```
 
 #### SEQUENTIAL
 ```
-┌─────────┐     ┌─────────┐
-│ Agent 1 │────▶│ Agent 2 │  Ordered execution
-│ Execute │     │ Refine  │  Second builds on first
-└─────────┘     └─────────┘
++---------+     +---------+
+| Agent 1 |---->| Agent 2 |  Ordered execution
+| Execute |     | Refine  |  Second builds on first
++---------+     +---------+
 ```
 
 #### LEAD_SUPPORT
 ```
-┌─────────────────────┐
-│       LEAD (80%)    │  Drives main implementation
-│  ┌───────────────┐  │
-│  │   SUPPORT     │  │  Reviews, assists, validates
-│  │    (20%)      │  │
-│  └───────────────┘  │
-└─────────────────────┘
++---------------------+
+|       LEAD (80%)    |  Drives main implementation
+|  +---------------+  |
+|  |   SUPPORT     |  |  Reviews, assists, validates
+|  |    (20%)      |  |
+|  +---------------+  |
++---------------------+
 ```
 
 #### PING_PONG
 ```
-┌─────────┐     ┌─────────┐     ┌─────────┐     ┌─────────┐
-│ Agent 1 │────▶│ Agent 2 │────▶│ Agent 1 │────▶│ Agent 2 │
-│ Round 1 │     │ Round 2 │     │ Round 3 │     │ Round 4 │
-└─────────┘     └─────────┘     └─────────┘     └─────────┘
++---------+     +---------+     +---------+     +---------+
+| Agent 1 |---->| Agent 2 |---->| Agent 1 |---->| Agent 2 |
+| Round 1 |     | Round 2 |     | Round 3 |     | Round 4 |
++---------+     +---------+     +---------+     +---------+
 ```
 
 #### SPECIALIST
 ```
-┌─────────────────────┐
-│    SPECIALIST       │  Single expert handles everything
-│    (100%)           │
-│  ┌───────────────┐  │
-│  │   Observer    │  │  Other agent observes only
-│  │    (0%)       │  │
-│  └───────────────┘  │
-└─────────────────────┘
++---------------------+
+|    SPECIALIST       |  Single expert handles everything
+|    (100%)           |
+|  +---------------+  |
+|  |   Observer    |  |  Other agent observes only
+|  |    (0%)       |  |
+|  +---------------+  |
++---------------------+
 ```
 
 #### RED_BLUE (Adversarial)
 ```
-┌─────────┐         ┌─────────┐
-│  BLUE   │────────▶│   RED   │
-│ Propose │         │ Attack  │
-└────┬────┘         └────┬────┘
-     │                   │
-     │    ┌─────────┐    │
-     └───▶│  BLUE   │◀───┘
-          │ Defend  │
-          └─────────┘
++---------+         +---------+
+|  BLUE   |-------->|   RED   |
+| Propose |         | Attack  |
++----+----+         +----+----+
+     |                   |
+     |    +---------+    |
+     +--->|  BLUE   |<---+
+          | Defend  |
+          +---------+
 ```
 
 ## Key Interfaces
@@ -193,11 +193,11 @@ class NegotiationProtocol:
 ## Self-Healing Fallback Chain (V7.5)
 
 ```
-PARALLEL      → SEQUENTIAL    (simplify parallelism)
-RED_BLUE      → LEAD_SUPPORT  (remove adversarial)
-LEAD_SUPPORT  → SPECIALIST    (simplify to single agent)
-PING_PONG     → SEQUENTIAL    (simplify alternation)
-SEQUENTIAL    → SPECIALIST    (last resort)
+PARALLEL      -> SEQUENTIAL    (simplify parallelism)
+RED_BLUE      -> LEAD_SUPPORT  (remove adversarial)
+LEAD_SUPPORT  -> SPECIALIST    (simplify to single agent)
+PING_PONG     -> SEQUENTIAL    (simplify alternation)
+SEQUENTIAL    -> SPECIALIST    (last resort)
 ```
 
 ## DyLAN Agent Metrics

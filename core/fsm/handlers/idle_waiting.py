@@ -83,18 +83,18 @@ class IdleWaitingHandler(BaseHandler):
 
         # Step 2: Route based on complexity
 
-        # TRIVIAL → Fast Path
+        # TRIVIAL -> Fast Path
         if complexity == TaskComplexity.TRIVIAL:
             return self._handle_trivial(user_input)
 
-        # SIMPLE → Single agent mode
+        # SIMPLE -> Single agent mode
         if complexity == TaskComplexity.SIMPLE:
             self._logger.debug(
                 "SIMPLE task - single agent mode", {"input": user_input, "lead": task_analysis.recommended_lead}
             )
             return self._execute_simple_task(user_input, task_analysis)
 
-        # MODERATE/COMPLEX/EXPERT → Swarm or Brainstorming
+        # MODERATE/COMPLEX/EXPERT -> Swarm or Brainstorming
         return self._handle_moderate_plus(user_input, task_analysis)
 
     def handle_waiting_user(self, user_input: str | None) -> dict:
@@ -395,9 +395,9 @@ class IdleWaitingHandler(BaseHandler):
 
                 if status == "error" or content.startswith("Error:") or not content.strip():
                     error_msg = agent_data.get("error") or content or "[No response]"
-                    formatted_output += f"\n{agent_name} ❌ ERREUR:\n{error_msg}\n{'─' * 40}\n"
+                    formatted_output += f"\n{agent_name} [NO] ERREUR:\n{error_msg}\n{'-' * 40}\n"
                 else:
-                    formatted_output += f"\n{agent_name}:\n{content}\n{'─' * 40}\n"
+                    formatted_output += f"\n{agent_name}:\n{content}\n{'-' * 40}\n"
         else:
             raw_output = swarm_result.get("output", "")
             if raw_output.startswith("[Swarm]"):

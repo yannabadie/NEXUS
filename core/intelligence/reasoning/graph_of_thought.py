@@ -306,8 +306,8 @@ class ThoughtGraph:
         status_icons = {
             ThoughtStatus.PENDING: "⏳",
             ThoughtStatus.IN_PROGRESS: "🔄",
-            ThoughtStatus.COMPLETED: "✅",
-            ThoughtStatus.FAILED: "❌",
+            ThoughtStatus.COMPLETED: "[OK]",
+            ThoughtStatus.FAILED: "[NO]",
             ThoughtStatus.SKIPPED: "⏭️",
         }
 
@@ -321,7 +321,7 @@ class ThoughtGraph:
             if node.children:
                 for child_id in node.children:
                     child_name = self.nodes[child_id].name or child_id
-                    lines.append(f"{indent}  └─> {child_name}")
+                    lines.append(f"{indent}  +-> {child_name}")
 
         return "\n".join(lines)
 
@@ -671,8 +671,8 @@ class GraphOfThought:
         status_icons = {
             ThoughtStatus.PENDING: "⏳",
             ThoughtStatus.IN_PROGRESS: "🔄",
-            ThoughtStatus.COMPLETED: "✅",
-            ThoughtStatus.FAILED: "❌",
+            ThoughtStatus.COMPLETED: "[OK]",
+            ThoughtStatus.FAILED: "[NO]",
             ThoughtStatus.SKIPPED: "⏭️",
         }
 
@@ -691,7 +691,7 @@ class GraphOfThought:
                 preview = node.answer[:50]
                 if len(node.answer) > 50:
                     preview += "..."
-                line += f" → {preview}"
+                line += f" -> {preview}"
             lines.append(line)
 
         return "\n".join(lines)

@@ -11,7 +11,7 @@
 ## 🎯 Objectives
 
 Complete Sprint 1 architectural debt consolidation (P5.2):
-- ✅ Rate limiter consolidation (3→1 implementation)
+- [OK] Rate limiter consolidation (3->1 implementation)
 - [ ] Remove core/drivers/legacy/ (6 imports to update)
 - Deferred: OrchestratorV7 decomposition (Sprint 2)
 
@@ -19,17 +19,17 @@ Complete Sprint 1 architectural debt consolidation (P5.2):
 
 ## 📊 Results
 
-### ✅ COMPLETED: Rate Limiter Consolidation (3→1)
+### [OK] COMPLETED: Rate Limiter Consolidation (3->1)
 
 **Achievement**: Consolidated 3 duplicate token bucket implementations into single unified module with backward compatibility.
 
 **Files Changed** (commit `9ed84f2`):
 ```
 NEW:  core/resilience/unified_rate_limiter.py  (+880 lines)
-MOD:  core/resilience/rate_limiter.py          (359→29 lines, -330)
-MOD:  core/security/rate_limiter.py            (365→41 lines, -324)
-MOD:  core/api/rate_limiter.py                 (384→33 lines, -351)
-───────────────────────────────────────────────────────────────────
+MOD:  core/resilience/rate_limiter.py          (359->29 lines, -330)
+MOD:  core/security/rate_limiter.py            (365->41 lines, -324)
+MOD:  core/api/rate_limiter.py                 (384->33 lines, -351)
+-------------------------------------------------------------------
 Total: 4 files, +962/-1087 lines (-125 net)
 ```
 
@@ -86,27 +86,27 @@ $ python -c "from core.api.rate_limiter import APIRateLimiter"
 # Test 1: ProviderRateLimiter
 limiter = ProviderRateLimiter()
 limiter.configure('gemini', ProviderLimits(rpm=60, tpm=1000))
-assert limiter.acquire('gemini', estimated_tokens=100)  # ✅ PASS
-limiter.record_tokens('gemini', input_tokens=50, output_tokens=50)  # ✅ PASS
-state = limiter.get_state('gemini')  # ✅ PASS (total_requests=1, total_tokens=100)
+assert limiter.acquire('gemini', estimated_tokens=100)  # [OK] PASS
+limiter.record_tokens('gemini', input_tokens=50, output_tokens=50)  # [OK] PASS
+state = limiter.get_state('gemini')  # [OK] PASS (total_requests=1, total_tokens=100)
 
 # Test 2: SecurityRateLimiter
 sec_limiter = get_security_rate_limiter()
 sec_limiter.configure('api', tokens_per_second=10, bucket_size=20)
-assert sec_limiter.allow('api', 'user-123')  # ✅ PASS
-assert sec_limiter.remaining('api', 'user-123') < 20  # ✅ PASS (19.0)
+assert sec_limiter.allow('api', 'user-123')  # [OK] PASS
+assert sec_limiter.remaining('api', 'user-123') < 20  # [OK] PASS (19.0)
 
 # Test 3: APIRateLimiter
 api_limiter = APIRateLimiter(requests_per_minute=60, provider='test')
-api_limiter.acquire_sync(timeout=1.0)  # ✅ PASS
-assert api_limiter.get_stats()['total_requests'] == 1  # ✅ PASS
+api_limiter.acquire_sync(timeout=1.0)  # [OK] PASS
+assert api_limiter.get_stats()['total_requests'] == 1  # [OK] PASS
 ```
 
 **Import Locations Verified**:
-- ✅ core/resilience/__init__.py (imports RateLimiter, ProviderLimits, TokenBucket)
-- ✅ core/swarm/executors/base.py (imports get_rate_limiter, RateLimitExceeded)
-- ✅ tests/test_provider_rate_limiter.py (all imports work via re-export)
-- ✅ tests/test_rate_limiter.py (all imports work via re-export)
+- [OK] core/resilience/__init__.py (imports RateLimiter, ProviderLimits, TokenBucket)
+- [OK] core/swarm/executors/base.py (imports get_rate_limiter, RateLimitExceeded)
+- [OK] tests/test_provider_rate_limiter.py (all imports work via re-export)
+- [OK] tests/test_rate_limiter.py (all imports work via re-export)
 
 **Files NOT Consolidated** (kept separate):
 - `core/evolution/rate_limiter.py` (149 lines) - Time-based evolution policy, not token bucket
@@ -164,9 +164,9 @@ assert api_limiter.get_stats()['total_requests'] == 1  # ✅ PASS
 - **Domain-specific features** (HTTP headers, JSON persistence, Redis backends)
 
 **Example**:
-- ✅ CONSOLIDATE: 3 token bucket implementations (same algorithm, different scopes)
-- ❌ DON'T CONSOLIDATE: Evolution rate limiter (time-based, JSON history, no token bucket)
-- ❌ DON'T CONSOLIDATE: CEREBRO rate limiter (slowapi library, HTTP-specific)
+- [OK] CONSOLIDATE: 3 token bucket implementations (same algorithm, different scopes)
+- [NO] DON'T CONSOLIDATE: Evolution rate limiter (time-based, JSON history, no token bucket)
+- [NO] DON'T CONSOLIDATE: CEREBRO rate limiter (slowapi library, HTTP-specific)
 
 ### Backward Compatibility Architecture
 
@@ -195,22 +195,22 @@ DEPRECATED: Remove in V13.0. Update imports to:
 - Transparent for existing code
 
 **Used In**:
-- SuccessMemory V1→V2 migration (commit 3164cbf, previous session)
+- SuccessMemory V1->V2 migration (commit 3164cbf, previous session)
 - Rate limiter consolidation (commit 9ed84f2, this session)
 
 ### Consolidation ROI
 
 **High ROI Indicators**:
-- ✅ Multiple implementations of **same algorithm** (token bucket × 3)
-- ✅ High line count duplication (1,108 lines)
-- ✅ Simple migration path (re-exports)
-- ✅ Clear separation of concerns preserved
+- [OK] Multiple implementations of **same algorithm** (token bucket × 3)
+- [OK] High line count duplication (1,108 lines)
+- [OK] Simple migration path (re-exports)
+- [OK] Clear separation of concerns preserved
 
 **Low ROI Indicators**:
-- ❌ Different algorithms (token bucket vs. time-based)
-- ❌ External dependencies (slowapi library)
-- ❌ Domain-specific features (HTTP headers, JSON files)
-- ❌ Would violate separation of concerns
+- [NO] Different algorithms (token bucket vs. time-based)
+- [NO] External dependencies (slowapi library)
+- [NO] Domain-specific features (HTTP headers, JSON files)
+- [NO] Would violate separation of concerns
 
 ---
 
@@ -225,8 +225,8 @@ DEPRECATED: Remove in V13.0. Update imports to:
 **Plan**:
 1. Find all imports of legacy drivers (grep)
 2. Update imports to use SDK drivers:
-   - `legacy/anthropic_driver.py` → `anthropic_sdk_driver.py`
-   - `legacy/google_genai_driver.py` → `google_genai_sdk_driver.py`
+   - `legacy/anthropic_driver.py` -> `anthropic_sdk_driver.py`
+   - `legacy/google_genai_driver.py` -> `google_genai_sdk_driver.py`
 3. Verify tests pass
 4. Delete `core/drivers/legacy/` directory
 5. Commit
@@ -241,7 +241,7 @@ DEPRECATED: Remove in V13.0. Update imports to:
 **OrchestratorV7 Decomposition** (P5.5)
 - Complexity: High (5-8 days)
 - Extract: GuardPipeline, TaskRouter, StateHandler, TaskExecutor
-- Reduce: 1224 lines → ~100 lines
+- Reduce: 1224 lines -> ~100 lines
 - Risk: High (core orchestration logic)
 
 ---
@@ -273,7 +273,7 @@ DEPRECATED: Remove in V13.0. Update imports to:
 
 ---
 
-## ✅ COMPLETED: Legacy Driver Cleanup
+## [OK] COMPLETED: Legacy Driver Cleanup
 
 **Achievement**: Deleted obsolete CLI subprocess drivers after full SDK migration (Epic 1.5-1.6).
 
@@ -283,18 +283,18 @@ D  core/drivers/legacy/__init__.py              (-95 lines)
 D  core/drivers/legacy/claude_driver_hybrid.py  (-512 lines)
 D  core/drivers/legacy/gemini_driver_v7.py      (-582 lines)
 D  tests/test_gemini_driver_session.py          (-205 lines)
-──────────────────────────────────────────────────────────────
+--------------------------------------------------------------
 Total deleted: 1,394 lines of dead code
 ```
 
 **Tests Cleaned** (removed legacy tests, preserved good ones):
 ```
-M  tests/test_simple.py (95→49 lines, -46 lines)
+M  tests/test_simple.py (95->49 lines, -46 lines)
    - Removed test_imports() (imported ClaudeDriverHybrid)
    - Removed test_claude_parser() (tested _parse_hybrid_response)
    - Kept test_config(), test_stagnation_detector()
 
-M  tests/test_workspace_isolation.py (469→389 lines, -80 lines)
+M  tests/test_workspace_isolation.py (469->389 lines, -80 lines)
    - Removed TestGeminiDriverIsolatedEnv class (tested GeminiDriverV7)
    - Kept all other test classes (HomeIsolator, SessionWorkspaceManager, etc.)
 ```
@@ -333,11 +333,11 @@ Epic 1.5-1.6 (V12.4) migrated to SDK-native drivers:
 - GoogleGenAISDKDriver: Native `google-generativeai` Python SDK
 
 **Benefits of SDK Migration**:
-- ✅ Better performance (no subprocess overhead)
-- ✅ More reliable (no CLI parsing errors)
-- ✅ More features (streaming, function calling, structured outputs)
-- ✅ Better error handling (SDK exceptions vs CLI stderr parsing)
-- ✅ Simpler architecture (no subprocess management)
+- [OK] Better performance (no subprocess overhead)
+- [OK] More reliable (no CLI parsing errors)
+- [OK] More features (streaming, function calling, structured outputs)
+- [OK] Better error handling (SDK exceptions vs CLI stderr parsing)
+- [OK] Simpler architecture (no subprocess management)
 
 **Legacy drivers are dead code post-migration.**
 
@@ -353,7 +353,7 @@ Epic 1.5-1.6 (V12.4) migrated to SDK-native drivers:
 
 | Session | Task | Lines Removed | Lines Added | Net |
 |---------|------|---------------|-------------|-----|
-| **1** | success_memory V1→V2 migration | 943 | 15 | **-928** |
+| **1** | success_memory V1->V2 migration | 943 | 15 | **-928** |
 | **2** | Rate limiter consolidation | 1,087 | 962 | **-125** |
 | **2** | Legacy driver cleanup | 1,921 | 277 | **-1,644** |
 | **TOTAL** | **3 consolidations** | **3,951** | **1,254** | **-2,697** |
@@ -362,12 +362,12 @@ Epic 1.5-1.6 (V12.4) migrated to SDK-native drivers:
 
 ### Consolidation Details
 
-**1. success_memory.py → V2 (Session 1, commit 3164cbf)**:
+**1. success_memory.py -> V2 (Session 1, commit 3164cbf)**:
 - Eliminated 928-line legacy file
 - Migrated 15 import locations transparently
 - Zero breaking changes (backward compat aliases)
 
-**2. Rate Limiters 3→1 (Session 2, commit 9ed84f2)**:
+**2. Rate Limiters 3->1 (Session 2, commit 9ed84f2)**:
 - Consolidated 3 token bucket implementations
 - Created unified module (880 lines)
 - Backward compat re-exports (3 files, 103 lines)
@@ -428,7 +428,7 @@ Epic 1.5-1.6 (V12.4) migrated to SDK-native drivers:
 - [x] swarm_bridge.py (2 different bridge patterns for different layers)
 
 **Deferred to Sprint 2**:
-- [ ] OrchestratorV7 decomposition (1224→100 lines, 5-8 days, high complexity)
+- [ ] OrchestratorV7 decomposition (1224->100 lines, 5-8 days, high complexity)
 
 ---
 

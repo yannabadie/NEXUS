@@ -1135,7 +1135,7 @@ class TrueHiveMind:
         if execution_result:
             lines.append("## Execution Results")
             for step_result in execution_result.step_results:
-                status = "✓" if step_result.status == "success" else "✗"
+                status = "[OK]" if step_result.status == "success" else "[NO]"
                 lines.append(f"{status} {step_result.step_name}: {step_result.output[:200]}")
 
             if execution_result.artifacts_created:

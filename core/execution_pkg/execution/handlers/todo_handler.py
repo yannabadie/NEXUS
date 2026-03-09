@@ -25,7 +25,7 @@ class TodoWriteHandler(BaseHandler):
     """
 
     # Status icons for display
-    STATUS_ICONS = {"pending": "⏳", "in_progress": "🔄", "completed": "✅", "failed": "❌"}
+    STATUS_ICONS = {"pending": "⏳", "in_progress": "🔄", "completed": "[OK]", "failed": "[NO]"}
 
     @property
     def tool_name(self) -> str:

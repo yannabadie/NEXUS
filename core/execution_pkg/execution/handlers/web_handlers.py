@@ -14,7 +14,7 @@ from __future__ import annotations
 import ipaddress
 import re
 import socket
-import subprocess
+import subprocess  # nosec B404
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -73,7 +73,8 @@ SSRF_BLOCKED_HOST_PATTERNS = [
 # Special IPs to block explicitly (bypass attempts)
 SSRF_BLOCKED_IPS = frozenset(
     [
-        "0.0.0.0",
+        # Blocked SSRF target, not a bind address.
+        "0.0.0.0",  # nosec B104
         "0",
         "[::]",
         "[::1]",
@@ -125,7 +126,8 @@ class WebSearchHandler(BaseHandler):
                 f"Provide a detailed summary of the top {num_results} results including titles and URLs.",
             ]
 
-            result = subprocess.run(
+            # Controlled Gemini CLI invocation, validated command construction.
+            result = subprocess.run(  # nosec B603
                 command,
                 capture_output=True,
                 text=True,
@@ -280,7 +282,8 @@ class WebFetchHandler(BaseHandler):
             req = urllib.request.Request(url, headers={"User-Agent": self.USER_AGENT})
 
             # Fetch URL
-            with urllib.request.urlopen(req, timeout=30) as response:
+            # URL was SSRF-validated and resolved before fetch.
+            with urllib.request.urlopen(req, timeout=30) as response:  # nosec B310
                 content_type = response.headers.get("Content-Type", "")
 
                 # Read content

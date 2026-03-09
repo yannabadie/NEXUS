@@ -1,10 +1,10 @@
 """Tests for V12.4 task-adaptive decision protocol bias (arxiv:2502.19130).
 
 Verifies that ModeSelector applies domain-specific protocol biases:
-- REASONING domains (coding, debugging) → PARALLEL mode boosted
-- KNOWLEDGE domains (research, docs) → PING_PONG mode boosted
-- CREATIVE domains → PING_PONG mode boosted
-- SECURITY domains → RED_BLUE mode boosted
+- REASONING domains (coding, debugging) -> PARALLEL mode boosted
+- KNOWLEDGE domains (research, docs) -> PING_PONG mode boosted
+- CREATIVE domains -> PING_PONG mode boosted
+- SECURITY domains -> RED_BLUE mode boosted
 """
 
 from core.intelligence.swarm.agent_metrics import AgentProfile

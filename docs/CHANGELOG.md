@@ -149,11 +149,11 @@ Analyse complète de la codebase pour identifier incohérences, bugs et code mor
    - Ajout aliases outils (read_file/read, write_file/write, etc.)
 
 3. **Modèles Gemini synchronisés** (`CLAUDE.md:225-234`)
-   - "Gemini 2.5 Flash" → "Gemini 3 Pro" (reflète la config réelle)
+   - "Gemini 2.5 Flash" -> "Gemini 3 Pro" (reflète la config réelle)
    - Note: Flash routing prêt mais utilise Pro pour toutes les tâches
 
 4. **Documentation Swarm corrigée** (`CLAUDE.md`, `GEMINI.md`)
-   - "Swarm | Auto" → "Swarm | `/swarm` ou `SWARM_AUTO_ROUTE=True`"
+   - "Swarm | Auto" -> "Swarm | `/swarm` ou `SWARM_AUTO_ROUTE=True`"
    - Ajout note: Swarm OFF par défaut
 
 ### Nettoyage (P3)
@@ -165,7 +165,7 @@ Analyse complète de la codebase pour identifier incohérences, bugs et code mor
 - `NEXUS.md.bak` - Fichier backup
 
 **Archivage:**
-- `workspace_archive/` → `workspace_archive.tar.gz` (26 MB → 7.8 MB)
+- `workspace_archive/` -> `workspace_archive.tar.gz` (26 MB -> 7.8 MB)
 
 **Tests mis à jour:**
 - `tests/test_integration.py` - Import GoT conditionnel
@@ -243,10 +243,10 @@ Analyse complète de la codebase pour identifier incohérences, bugs et code mor
 **Nouveau fichier :** `tests/verify_stability.py`
 
 Test automatisé qui vérifie :
-- ✓ Transitions FSM correctes (IDLE → BRAINSTORMING → EXECUTING_TOOL → VALIDATING_CFL → IDLE)
-- ✓ Injection des sections MODE, PLAN STRATÉGIQUE, CAPABILITIES dans le contexte
-- ✓ Collaboration Gemini ↔ Claude avec délégation
-- ✓ Exécution d'outil et validation (Closed Feedback Loop)
+- [OK] Transitions FSM correctes (IDLE -> BRAINSTORMING -> EXECUTING_TOOL -> VALIDATING_CFL -> IDLE)
+- [OK] Injection des sections MODE, PLAN STRATÉGIQUE, CAPABILITIES dans le contexte
+- [OK] Collaboration Gemini ↔ Claude avec délégation
+- [OK] Exécution d'outil et validation (Closed Feedback Loop)
 
 **Utilisation :**
 ```bash
@@ -262,7 +262,7 @@ SUCCESS: Turn 1 completed.
 ### Corrections de Bugs (par Claude)
 
 1. **Fix encodage Unicode** (`core/orchestration_v7.py`)
-   - **Problème :** Caractère '→' (U+2192) causait UnicodeEncodeError sur Windows (cp1252)
+   - **Problème :** Caractère '->' (U+2192) causait UnicodeEncodeError sur Windows (cp1252)
    - **Solution :** Remplacé par '->' (ASCII compatible)
    - **Impact :** Le verbose mode fonctionne maintenant sur tous les terminaux Windows
 
@@ -280,8 +280,8 @@ SUCCESS: Turn 1 completed.
 - verify_stability.py: 125 lignes (nouveau fichier)
 
 **Tests :**
-- ✓ verify_stability.py : PASS
-- ✓ NEXUS bootstrap : OK (--verify fonctionne)
+- [OK] verify_stability.py : PASS
+- [OK] NEXUS bootstrap : OK (--verify fonctionne)
 
 ### Documentation Ajoutée
 

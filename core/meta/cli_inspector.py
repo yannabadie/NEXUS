@@ -79,7 +79,7 @@ class CLIInspector:
 
                 output_lower = models_result.stdout.lower()
 
-                # Parse output for active model (Gemini 3 → 2.5 → 2.0 → 1.5)
+                # Parse output for active model (Gemini 3 -> 2.5 -> 2.0 -> 1.5)
                 if "3-pro" in output_lower or "gemini 3" in output_lower:
                     model = "gemini-3-pro-preview"
                     context_window = 1000000  # Gemini 3 Pro: 1M token context window

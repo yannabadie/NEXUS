@@ -109,7 +109,7 @@ class SnapshotManager:
     Performance:
         - Without snapshots: O(n) recovery time (n = total events)
         - With snapshots: O(k) recovery time (k = events since last snapshot)
-        - For 10k events with interval=100: 100× speedup (5s → 50ms)
+        - For 10k events with interval=100: 100× speedup (5s -> 50ms)
     """
 
     def __init__(

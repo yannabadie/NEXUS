@@ -39,16 +39,16 @@ class NexusJSONEncoder(json.JSONEncoder):
     Custom JSON encoder for NEXUS types.
 
     Handles serialization of:
-    - datetime, date, time → ISO 8601 format
-    - timedelta → total seconds
-    - Enum → value
-    - UUID → string
-    - Path → string
-    - dataclass → dict (via to_dict() if available, else asdict())
-    - Pydantic models → dict (via model_dump() or dict())
-    - Objects with to_dict() method → dict
-    - Sets → list
-    - bytes → base64 string
+    - datetime, date, time -> ISO 8601 format
+    - timedelta -> total seconds
+    - Enum -> value
+    - UUID -> string
+    - Path -> string
+    - dataclass -> dict (via to_dict() if available, else asdict())
+    - Pydantic models -> dict (via model_dump() or dict())
+    - Objects with to_dict() method -> dict
+    - Sets -> list
+    - bytes -> base64 string
 
     Example:
         >>> import json
@@ -76,7 +76,7 @@ class NexusJSONEncoder(json.JSONEncoder):
         Raises:
             TypeError: If object cannot be serialized
         """
-        # datetime types → ISO 8601
+        # datetime types -> ISO 8601
         if isinstance(obj, datetime):
             return obj.isoformat()
         if isinstance(obj, date):
@@ -86,23 +86,23 @@ class NexusJSONEncoder(json.JSONEncoder):
         if isinstance(obj, timedelta):
             return obj.total_seconds()
 
-        # Enum → value
+        # Enum -> value
         if isinstance(obj, Enum):
             return obj.value
 
-        # UUID → string
+        # UUID -> string
         if isinstance(obj, UUID):
             return str(obj)
 
-        # Path → string
+        # Path -> string
         if isinstance(obj, Path):
             return str(obj)
 
-        # Sets → list (JSON doesn't support sets)
+        # Sets -> list (JSON doesn't support sets)
         if isinstance(obj, (set, frozenset)):
             return list(obj)
 
-        # bytes → base64
+        # bytes -> base64
         if isinstance(obj, bytes):
             import base64
 

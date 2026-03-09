@@ -29,12 +29,12 @@
 
 ```
 NEXUS/
-├── core/                    # 176 modules bien séparés
-│   ├── fsm/                 # Machine à états explicite
-│   ├── swarm/               # 6 modes de collaboration
-│   ├── hive_mind/           # Pipeline 7 phases
-│   ├── security/            # Guards multi-couches
-│   └── orchestration/       # Composition V7.8
++-- core/                    # 176 modules bien séparés
+|   +-- fsm/                 # Machine à états explicite
+|   +-- swarm/               # 6 modes de collaboration
+|   +-- hive_mind/           # Pipeline 7 phases
+|   +-- security/            # Guards multi-couches
+|   +-- orchestration/       # Composition V7.8
 ```
 
 **Points forts:**
@@ -73,7 +73,7 @@ class CircuitBreaker:          # V9.3 - Resilience
 
 - **Circuit Breaker** (V9.3): `core/resilience/circuit_breaker.py`
   - Exponential backoff
-  - 3 états: CLOSED → OPEN → HALF_OPEN
+  - 3 états: CLOSED -> OPEN -> HALF_OPEN
 
 - **Self-Healing Swarm** (V8.1.3): `core/swarm/self_healing.py`
   - Fallback automatique entre modes
@@ -91,7 +91,7 @@ class CircuitBreaker:          # V9.3 - Resilience
 
 ---
 
-## ⚠️ FAIBLESSES (WEAKNESSES)
+## [warning]️ FAIBLESSES (WEAKNESSES)
 
 ### 1. Fichiers Monolithiques
 
@@ -109,7 +109,7 @@ class CircuitBreaker:          # V9.3 - Resilience
 
 ```python
 # 5 occurrences détectées
-except:  # ❌ Attrape tout, masque les erreurs
+except:  # [NO] Attrape tout, masque les erreurs
 ```
 
 **Fichiers concernés à vérifier:**
@@ -130,10 +130,10 @@ from core.agents.unified_registry import get_registry
 
 | Module (V9.x) | Tests | Status |
 |---------------|-------|--------|
-| `sync_bridge.py` | `test_sync_bridge.py` | ✅ 31 tests |
-| `circuit_breaker.py` | `test_circuit_breaker.py` | ✅ 13 tests |
-| `context_scope.py` | - | ❌ Non testé |
-| `session_integration.py` | - | ❌ Non testé |
+| `sync_bridge.py` | `test_sync_bridge.py` | [OK] 31 tests |
+| `circuit_breaker.py` | `test_circuit_breaker.py` | [OK] 13 tests |
+| `context_scope.py` | - | [NO] Non testé |
+| `session_integration.py` | - | [NO] Non testé |
 
 ### 5. Subprocess/Exec Usage Élevé
 
@@ -147,7 +147,7 @@ from core.agents.unified_registry import get_registry
 
 ## 👁️ ANGLES MORTS (BLIND SPOTS)
 
-### 1. Flux de Données HiveMind → Swarm
+### 1. Flux de Données HiveMind -> Swarm
 
 ```mermaid
 graph TD
@@ -156,7 +156,7 @@ graph TD
     C -->|???| D[HybridSwarmEngine]
 ```
 
-**Problème:** La synchronisation bidirectionnelle est implémentée (V9.4) mais le flux inverse Swarm→HiveMind manque de documentation.
+**Problème:** La synchronisation bidirectionnelle est implémentée (V9.4) mais le flux inverse Swarm->HiveMind manque de documentation.
 
 ### 2. Gestion d'Erreurs Async
 
@@ -217,7 +217,7 @@ expected_asi_impact  # Legacy - mappe vers fitness score
 
 | # | Action | Fichier | Effort |
 |---|--------|---------|--------|
-| 4 | Refactorer `tool_manager.py` (1848 → 3×600) | `core/execution/` | 1j |
+| 4 | Refactorer `tool_manager.py` (1848 -> 3×600) | `core/execution/` | 1j |
 | 5 | Extraire modes de `mode_executors.py` | `core/swarm/executors/` | 1j |
 | 6 | Créer `core/config/constants.py` | `core/config/` | 2h |
 
@@ -225,7 +225,7 @@ expected_asi_impact  # Legacy - mappe vers fitness score
 
 | # | Action | Fichier | Effort |
 |---|--------|---------|--------|
-| 7 | Documenter flux Swarm→HiveMind | `docs/ARCHITECTURE.md` | 2h |
+| 7 | Documenter flux Swarm->HiveMind | `docs/ARCHITECTURE.md` | 2h |
 | 8 | Audit async error handling | `core/drivers/async_*.py` | 4h |
 | 9 | Nettoyer références ASI legacy | `core/evolution/` | 2h |
 
@@ -233,7 +233,7 @@ expected_asi_impact  # Legacy - mappe vers fitness score
 
 | # | Action | Fichier | Effort |
 |---|--------|---------|--------|
-| 10 | Améliorer ratio tests (0.40 → 0.60) | `tests/` | 1sem |
+| 10 | Améliorer ratio tests (0.40 -> 0.60) | `tests/` | 1sem |
 | 11 | Réduire couplage unified_registry | Multiple | 2j |
 | 12 | Séparer UI/Logic dans `repl.py` | `core/interface/` | 1j |
 
@@ -287,11 +287,11 @@ graph TB
 
 NEXUS V9.4 présente une architecture **mature et bien structurée** avec:
 
-- ✅ Séparation claire des responsabilités
-- ✅ Typage fort avec dataclasses
-- ✅ Sécurité multi-couches
-- ✅ Patterns de résilience (Circuit Breaker, Saga, Self-Healing)
-- ✅ Documentation inline abondante
+- [OK] Séparation claire des responsabilités
+- [OK] Typage fort avec dataclasses
+- [OK] Sécurité multi-couches
+- [OK] Patterns de résilience (Circuit Breaker, Saga, Self-Healing)
+- [OK] Documentation inline abondante
 
 **Axes d'amélioration prioritaires:**
 1. Refactoring des fichiers monolithiques (>1000 lignes)

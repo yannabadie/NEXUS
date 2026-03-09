@@ -56,7 +56,7 @@ result = engine.execute(tool_request)  # Returns ToolResult
 - `get_stats()` - Get execution statistics
 
 ### ToolRegistry
-Tool registration and name normalization. Handles aliases (Gemini CLI → NEXUS).
+Tool registration and name normalization. Handles aliases (Gemini CLI -> NEXUS).
 
 ```python
 registry = ToolRegistry()
@@ -72,12 +72,12 @@ handler = registry.get_handler("my_tool")
 
 **Aliases:**
 ```python
-read_file → read
-write_file → write
-edit_file → edit
-list_directory → list_dir
-run_shell_command → bash
-google_web_search → web_search
+read_file -> read
+write_file -> write
+edit_file -> edit
+list_directory -> list_dir
+run_shell_command -> bash
+google_web_search -> web_search
 ```
 
 ### ValidationService

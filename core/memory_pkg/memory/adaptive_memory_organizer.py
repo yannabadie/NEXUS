@@ -16,13 +16,13 @@ NEXUS Adaptation:
 - Thread-safe singleton pattern
 
 Architecture:
-    ┌─────────────────────────────────────────┐
-    │         AdaptiveMemoryOrganizer         │
-    │  ┌────────┐  ┌────────┐  ┌──────────┐  │
-    │  │ Notes  │──│ Index  │──│ Linker   │  │
-    │  │ Store  │  │ (tags) │  │ (trigram) │  │
-    │  └────────┘  └────────┘  └──────────┘  │
-    └─────────────────────────────────────────┘
+    +-----------------------------------------+
+    |         AdaptiveMemoryOrganizer         |
+    |  +--------+  +--------+  +----------+  |
+    |  | Notes  |--| Index  |--| Linker   |  |
+    |  | Store  |  | (tags) |  | (trigram) |  |
+    |  +--------+  +--------+  +----------+  |
+    +-----------------------------------------+
 
 Author: Claude (NEXUS V12.4 COGNITIVE BOOST)
 Date: 2026-02-17
@@ -383,8 +383,8 @@ class AdaptiveMemoryOrganizer:
             max_notes: Maximum notes before compaction triggers
         """
         self._notes: dict[str, MemoryNote] = {}
-        self._tag_index: dict[str, set[str]] = defaultdict(set)  # tag → note_ids
-        self._keyword_index: dict[str, set[str]] = defaultdict(set)  # keyword → note_ids
+        self._tag_index: dict[str, set[str]] = defaultdict(set)  # tag -> note_ids
+        self._keyword_index: dict[str, set[str]] = defaultdict(set)  # keyword -> note_ids
         self._persistence_path = persistence_path
         self._link_threshold = link_threshold
         self._max_notes = max_notes

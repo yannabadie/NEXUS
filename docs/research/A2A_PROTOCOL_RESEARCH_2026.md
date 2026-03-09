@@ -61,21 +61,21 @@ The Agent2Agent Protocol is an **open standard enabling communication and intero
 The A2A specification organizes around three interconnected layers:
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│ PROTOCOL BINDINGS LAYER                                      │
-│ ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │
-│ │ JSON-RPC 2.0│  │    gRPC     │  │  HTTP/REST  │          │
-│ └─────────────┘  └─────────────┘  └─────────────┘          │
-├─────────────────────────────────────────────────────────────┤
-│ OPERATIONS LAYER (Transport-Independent)                     │
-│ • Send Message      • Get Task        • Cancel Task         │
-│ • Stream Message    • List Tasks      • Subscribe           │
-│ • Get Extended Card                                          │
-├─────────────────────────────────────────────────────────────┤
-│ DATA MODEL LAYER                                             │
-│ • Task            • Message           • Part                │
-│ • AgentCard       • Artifact          • Extension           │
-└─────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------+
+| PROTOCOL BINDINGS LAYER                                      |
+| +-------------+  +-------------+  +-------------+          |
+| | JSON-RPC 2.0|  |    gRPC     |  |  HTTP/REST  |          |
+| +-------------+  +-------------+  +-------------+          |
++-------------------------------------------------------------+
+| OPERATIONS LAYER (Transport-Independent)                     |
+| - Send Message      - Get Task        - Cancel Task         |
+| - Stream Message    - List Tasks      - Subscribe           |
+| - Get Extended Card                                          |
++-------------------------------------------------------------+
+| DATA MODEL LAYER                                             |
+| - Task            - Message           - Part                |
+| - AgentCard       - Artifact          - Extension           |
++-------------------------------------------------------------+
 ```
 
 ### 2.2 Core Components
@@ -137,7 +137,7 @@ The fundamental unit of work with:
 
 **Task Lifecycle**:
 ```
-submitted → working → { completed | failed | canceled }
+submitted -> working -> { completed | failed | canceled }
                ↓
         input-required (human-in-the-loop)
                ↓
@@ -584,7 +584,7 @@ if __name__ == "__main__":
 
 ### 6.1 Architecture Mapping
 
-**NEXUS → A2A Protocol Mapping**:
+**NEXUS -> A2A Protocol Mapping**:
 
 | NEXUS Component | A2A Equivalent | Integration Point |
 |-----------------|----------------|-------------------|
@@ -601,7 +601,7 @@ if __name__ == "__main__":
 
 1. **Wrap Orchestrator**:
    - Create `NexusAgentExecutor` implementing `AgentExecutor`
-   - Map user input → `execute()` method
+   - Map user input -> `execute()` method
    - Stream NEXUS output via `EventQueue`
 
 2. **Define Agent Card**:
@@ -829,14 +829,14 @@ class SwarmBridge:
 **Integration Pattern**:
 ```
 NEXUS Agent (A2A Server)
-    ├─> MCP Tools (internal capabilities)
-    │   ├─> File system access
-    │   ├─> Database queries
-    │   └─> Web search
-    └─> A2A Clients (external agents)
-        ├─> Security Specialist Agent
-        ├─> Data Analysis Agent
-        └─> Code Generation Agent
+    +-> MCP Tools (internal capabilities)
+    |   +-> File system access
+    |   +-> Database queries
+    |   +-> Web search
+    +-> A2A Clients (external agents)
+        +-> Security Specialist Agent
+        +-> Data Analysis Agent
+        +-> Code Generation Agent
 ```
 
 **Implementation**:
@@ -968,31 +968,31 @@ print(f"Agent available at: {child_agent_card.url}")
 ### 8.2 Deployment Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│ Load Balancer (HTTPS, TLS termination)                      │
-└────────────────────┬────────────────────────────────────────┘
-                     │
-┌────────────────────┴────────────────────────────────────────┐
-│ API Gateway (Rate limiting, Auth, Metrics)                  │
-└────────────────────┬────────────────────────────────────────┘
-                     │
-┌────────────────────┴────────────────────────────────────────┐
-│ NEXUS A2A Server (Multiple instances)                       │
-│ ┌──────────────────────────────────────────────────────────┤
-│ │ A2AStarletteApplication                                  │
-│ │   ├─> NexusAgentExecutor (Orchestrator FSM)             │
-│ │   ├─> TaskStore (Redis backend)                         │
-│ │   └─> EventQueue (Streaming support)                    │
-│ └──────────────────────────────────────────────────────────┤
-└────────────────────┬────────────────────────────────────────┘
-                     │
-┌────────────────────┴────────────────────────────────────────┐
-│ Persistence Layer                                            │
-│ ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │
-│ │   Redis     │  │ PostgreSQL  │  │   S3/Blob   │          │
-│ │ (Tasks)     │  │ (Audit)     │  │ (Artifacts) │          │
-│ └─────────────┘  └─────────────┘  └─────────────┘          │
-└─────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------+
+| Load Balancer (HTTPS, TLS termination)                      |
++--------------------+----------------------------------------+
+                     |
++--------------------+----------------------------------------+
+| API Gateway (Rate limiting, Auth, Metrics)                  |
++--------------------+----------------------------------------+
+                     |
++--------------------+----------------------------------------+
+| NEXUS A2A Server (Multiple instances)                       |
+| +----------------------------------------------------------+
+| | A2AStarletteApplication                                  |
+| |   +-> NexusAgentExecutor (Orchestrator FSM)             |
+| |   +-> TaskStore (Redis backend)                         |
+| |   +-> EventQueue (Streaming support)                    |
+| +----------------------------------------------------------+
++--------------------+----------------------------------------+
+                     |
++--------------------+----------------------------------------+
+| Persistence Layer                                            |
+| +-------------+  +-------------+  +-------------+          |
+| |   Redis     |  | PostgreSQL  |  |   S3/Blob   |          |
+| | (Tasks)     |  | (Audit)     |  | (Artifacts) |          |
+| +-------------+  +-------------+  +-------------+          |
++-------------------------------------------------------------+
 ```
 
 ### 8.3 Configuration
@@ -1068,8 +1068,8 @@ OTEL_SERVICE_NAME=nexus-a2a-server
 - Validate Agent Card structure
 
 **Integration Tests**:
-- Test full A2A server (request → response)
-- Test A2A client (discovery → task → result)
+- Test full A2A server (request -> response)
+- Test A2A client (discovery -> task -> result)
 - Test authentication flows (JWT, OAuth)
 
 **End-to-End Tests**:

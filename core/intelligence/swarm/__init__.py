@@ -13,7 +13,7 @@ Architecture:
 
 Collaboration Modes:
 - PARALLEL: Simultaneous work, merge results
-- SEQUENTIAL: Ordered execution (first → second)
+- SEQUENTIAL: Ordered execution (first -> second)
 - LEAD_SUPPORT: Lead drives, support reviews
 - PING_PONG: Rapid alternation until convergence
 - SPECIALIST: Single expert handles all

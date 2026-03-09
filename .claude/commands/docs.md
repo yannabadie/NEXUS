@@ -11,7 +11,7 @@ Invoke the documentation agent to generate, update, or audit documentation.
 - `/docs audit` - Audit all docs for gaps and version mismatches
 - `/docs generate core/swarm` - Generate README for module
 - `/docs update CHANGELOG` - Update changelog with recent changes
-- `/docs fix-versions` - Fix version references (V8.x → V12.4)
+- `/docs fix-versions` - Fix version references (V8.x -> V12.4)
 - `/docs "Add docstrings to MemoryService"` - Add specific documentation
 
 ## Arguments
@@ -86,6 +86,6 @@ Begin documentation work based on the specified task.
 
 Report:
 - Files updated (list with change summary)
-- Version fixes (old → new)
+- Version fixes (old -> new)
 - Gaps identified
 - Quality score

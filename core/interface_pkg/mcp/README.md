@@ -6,41 +6,22 @@ The **mcp** module implements the Model Context Protocol (MCP) for bidirectional
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                        MCP ARCHITECTURE                                  │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
-│  ┌─────────────────────────────────────────────────────────────────┐    │
-│  │                    NEXUS (Client Mode)                           │    │
-│  │              Consumes external MCP servers                       │    │
-│  └────────────────────────────┬────────────────────────────────────┘    │
-│                               │                                          │
-│                          MCPClient                                       │
-│                               │                                          │
-│  ┌────────────────────────────┴────────────────────────────────────┐    │
-│  │  External MCP Servers (via MCPRegistry config)                   │    │
-│  │  • @modelcontextprotocol/server-filesystem                       │    │
-│  │  • @modelcontextprotocol/server-github                           │    │
-│  │  • Custom servers...                                              │    │
-│  └──────────────────────────────────────────────────────────────────┘    │
-│                                                                          │
-│  ═══════════════════════════════════════════════════════════════════════ │
-│                                                                          │
-│  ┌─────────────────────────────────────────────────────────────────┐    │
-│  │                    NEXUS (Server Mode) - V9.0                    │    │
-│  │              Exposes NEXUS to external clients                   │    │
-│  └────────────────────────────┬────────────────────────────────────┘    │
-│                               │                                          │
-│                          server.py                                       │
-│                               │                                          │
-│  ┌────────────────────────────┴────────────────────────────────────┐    │
-│  │  External Clients                                                │    │
-│  │  • Claude Desktop                                                 │    │
-│  │  • Other MCP-compatible tools                                     │    │
-│  └──────────────────────────────────────────────────────────────────┘    │
-│                                                                          │
-└─────────────────────────────────────────────────────────────────────────┘
+```text
+MCP ARCHITECTURE
+================
+
+Client mode:
+  NEXUS -> MCPClient -> external MCP servers
+  Examples:
+    - @modelcontextprotocol/server-filesystem
+    - @modelcontextprotocol/server-github
+    - custom MCP servers
+
+Server mode:
+  external clients -> server.py -> NEXUS
+  Examples:
+    - Claude Desktop
+    - other MCP-compatible tools
 ```
 
 ## Component Map

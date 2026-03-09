@@ -14,7 +14,7 @@ Flow:
 2. Monitor for issues (timeout, errors, hallucinations)
 3. Verify artifacts created
 4. Report step-by-step results
-5. If failure detected → Phase 5 (Diagnosis)
+5. If failure detected -> Phase 5 (Diagnosis)
 
 Key Features:
 - Real-time monitoring with issue detection
@@ -840,7 +840,7 @@ class MonitoredExecutionPhase:
 
         lines = []
         for r in results[-3:]:  # Last 3 steps
-            status_icon = "✓" if r.status == "success" else "✗" if r.status == "error" else "⚠"
+            status_icon = "[OK]" if r.status == "success" else "[NO]" if r.status == "error" else "[warning]"
             lines.append(f"{status_icon} {r.step_name}: {r.output[:100]}...")
         return "\n".join(lines)
 
@@ -1046,7 +1046,7 @@ Execute using {mode.value.upper()} collaboration mode."""
             # Record fallback chain if any
             if len(delegation_result.fallback_chain) > 1:
                 modes_tried = [m.value for m in delegation_result.fallback_chain]
-                logger.info(f"Swarm fallback chain: {' → '.join(modes_tried)}")
+                logger.info(f"Swarm fallback chain: {' -> '.join(modes_tried)}")
 
             # Inject results back into HiveMind context
             self.swarm_bridge.inject_results_into_context(delegation_result)

@@ -409,7 +409,7 @@ class FailureDiagnosisPhase:
         """Format execution results for context."""
         lines = []
         for r in results:
-            status_icon = "✓" if r.status == "success" else "✗" if r.status == "error" else "⚠"
+            status_icon = "[OK]" if r.status == "success" else "[NO]" if r.status == "error" else "[warning]"
             lines.append(f"{status_icon} [{r.step_name}] ({r.agent_id})")
             lines.append(f"   Output: {r.output[:200]}...")
             lines.append(f"   Duration: {r.duration:.1f}s (expected {r.expected_duration}s)")

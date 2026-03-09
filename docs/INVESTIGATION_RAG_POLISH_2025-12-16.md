@@ -10,33 +10,33 @@
 ### 1.1 Architecture du Système RAG
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    NEXUS RAG SYSTEM (V12.4)                     │
-├─────────────────────────────────────────────────────────────────┤
-│  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────┐  │
-│  │  MiniLM-L6-v2   │    │    BM25S        │    │   TF-IDF    │  │
-│  │  (Dense 384d)   │    │   (Sparse)      │    │ (Fallback)  │  │
-│  └────────┬────────┘    └────────┬────────┘    └──────┬──────┘  │
-│           │                      │                     │        │
-│           └──────────┬───────────┘                     │        │
-│                      ▼                                 │        │
-│           ┌─────────────────────┐                     │        │
-│           │ HybridBackend RRF   │◄────────────────────┘        │
-│           │ (Reciprocal Rank    │                              │
-│           │  Fusion +15% recall)│                              │
-│           └──────────┬──────────┘                              │
-│                      ▼                                          │
-│           ┌─────────────────────┐                              │
-│           │  MemoryCoordinator  │                              │
-│           │  (Poids adaptatifs  │                              │
-│           │   EMA par domaine)  │                              │
-│           └──────────┬──────────┘                              │
-│                      ▼                                          │
-│           ┌─────────────────────┐                              │
-│           │     LanceDB         │                              │
-│           │ (.nexus/lancedb/)   │                              │
-│           └─────────────────────┘                              │
-└─────────────────────────────────────────────────────────────────┘
++-----------------------------------------------------------------+
+|                    NEXUS RAG SYSTEM (V12.4)                     |
++-----------------------------------------------------------------+
+|  +-----------------+    +-----------------+    +-------------+  |
+|  |  MiniLM-L6-v2   |    |    BM25S        |    |   TF-IDF    |  |
+|  |  (Dense 384d)   |    |   (Sparse)      |    | (Fallback)  |  |
+|  +--------+--------+    +--------+--------+    +------+------+  |
+|           |                      |                     |        |
+|           +----------+-----------+                     |        |
+|                      v                                 |        |
+|           +---------------------+                     |        |
+|           | HybridBackend RRF   |◄--------------------+        |
+|           | (Reciprocal Rank    |                              |
+|           |  Fusion +15% recall)|                              |
+|           +----------+----------+                              |
+|                      v                                          |
+|           +---------------------+                              |
+|           |  MemoryCoordinator  |                              |
+|           |  (Poids adaptatifs  |                              |
+|           |   EMA par domaine)  |                              |
+|           +----------+----------+                              |
+|                      v                                          |
+|           +---------------------+                              |
+|           |     LanceDB         |                              |
+|           | (.nexus/lancedb/)   |                              |
+|           +---------------------+                              |
++-----------------------------------------------------------------+
 ```
 
 ### 1.2 Question 1: RAG Local Sans Internet?
@@ -54,10 +54,10 @@
 **Fichiers locaux créés:**
 ```
 .nexus/
-├── lancedb/                 # Base vectorielle (embeddings)
-│   └── [tables...]
-├── project_knowledge.json   # Métadonnées indexation
-└── master.db               # SQLite sessions/config
++-- lancedb/                 # Base vectorielle (embeddings)
+|   +-- [tables...]
++-- project_knowledge.json   # Métadonnées indexation
++-- master.db               # SQLite sessions/config
 ```
 
 **Preuve code** (`core/memory/embeddings.py`):
@@ -106,11 +106,11 @@ self.model = SentenceTransformer('all-MiniLM-L6-v2')
 
 | Commande | Description | Statut |
 |----------|-------------|--------|
-| `/learn <file/dir>` | Ajouter fichiers à la mémoire | ✅ Fonctionnel |
-| `/forget <file>` | Retirer fichier de la mémoire | ✅ Fonctionnel |
-| `/rag <query>` | Recherche RAG directe | ✅ Fonctionnel |
-| `/memory-status` | Stats indexation | ✅ Fonctionnel |
-| `/memory index <dir>` | Forcer réindexation | ✅ Fonctionnel |
+| `/learn <file/dir>` | Ajouter fichiers à la mémoire | [OK] Fonctionnel |
+| `/forget <file>` | Retirer fichier de la mémoire | [OK] Fonctionnel |
+| `/rag <query>` | Recherche RAG directe | [OK] Fonctionnel |
+| `/memory-status` | Stats indexation | [OK] Fonctionnel |
+| `/memory index <dir>` | Forcer réindexation | [OK] Fonctionnel |
 
 #### Intégration HiveMind - EXCELLENTE
 
@@ -124,10 +124,10 @@ self.model = SentenceTransformer('all-MiniLM-L6-v2')
 
 | Element | Statut |
 |---------|--------|
-| Widget "Memory" | ❌ NON IMPLÉMENTÉ |
-| Indicateur d'indexation | ❌ NON IMPLÉMENTÉ |
-| Stats RAG temps réel | ❌ NON IMPLÉMENTÉ |
-| Bouton Learn/Forget | ❌ NON IMPLÉMENTÉ |
+| Widget "Memory" | [NO] NON IMPLÉMENTÉ |
+| Indicateur d'indexation | [NO] NON IMPLÉMENTÉ |
+| Stats RAG temps réel | [NO] NON IMPLÉMENTÉ |
+| Bouton Learn/Forget | [NO] NON IMPLÉMENTÉ |
 
 **GAP CRITIQUE**: CEREBRO est le dashboard visuel mais n'expose pas le système RAG.
 
@@ -143,7 +143,7 @@ self.model = SentenceTransformer('all-MiniLM-L6-v2')
 | **Mémoire projet** | NEXUS "connaît" la codebase | Perceptible après /learn |
 | **Recall +15%** | HybridBackend RRF améliore pertinence | Invisible |
 | **Apprentissage continu** | MemoryCoordinator ajuste poids | Invisible |
-| **Fallback graceful** | Dense → BM25 → TF-IDF | Invisible |
+| **Fallback graceful** | Dense -> BM25 -> TF-IDF | Invisible |
 
 **Perception utilisateur CLI:**
 ```
@@ -170,24 +170,24 @@ nexus7> Où est la fonction validate_token?
 
 | Aspect | CLI (REPL) | CEREBRO UI |
 |--------|------------|------------|
-| Commandes memory | ✅ Toutes disponibles | ❌ Aucune |
-| Stats indexation | ✅ /memory-status | ❌ Absent |
-| Feedback indexation | ✅ Messages console | ❌ Absent |
-| Progression | ✅ Barre de progression | ❌ Absent |
+| Commandes memory | [OK] Toutes disponibles | [NO] Aucune |
+| Stats indexation | [OK] /memory-status | [NO] Absent |
+| Feedback indexation | [OK] Messages console | [NO] Absent |
+| Progression | [OK] Barre de progression | [NO] Absent |
 
 **Recommandation OPERATION POLISH Phase 5 (nouvelle):**
 
 Ajouter un panneau "Memory" dans CEREBRO:
 ```
-┌─────────────────────────────────────────┐
-│ 🧠 Project Memory                        │
-├─────────────────────────────────────────┤
-│ Indexed: 42 files | 1,234 chunks        │
-│ Last update: 5 min ago                  │
-│ ████████████░░░░░░░░ 60% coverage       │
-├─────────────────────────────────────────┤
-│ [Learn Directory] [Refresh] [Clear]     │
-└─────────────────────────────────────────┘
++-----------------------------------------+
+| 🧠 Project Memory                        |
++-----------------------------------------+
+| Indexed: 42 files | 1,234 chunks        |
+| Last update: 5 min ago                  |
+| ████████████░░░░░░░░ 60% coverage       |
++-----------------------------------------+
+| [Learn Directory] [Refresh] [Clear]     |
++-----------------------------------------+
 ```
 
 ---
@@ -257,8 +257,8 @@ import rehypeHighlight from 'rehype-highlight';
 ```
 
 **Risques:**
-- ⚠️ Markdown parsing pourrait être lent si beaucoup d'events
-- ⚠️ Styling Tailwind/prose pourrait confliter
+- [warning]️ Markdown parsing pourrait être lent si beaucoup d'events
+- [warning]️ Styling Tailwind/prose pourrait confliter
 - Mitigation: Lazy-load le parser, limiter aux events "content"
 
 ### 2.3 Impact Auto-Scroll
@@ -372,16 +372,16 @@ api.interceptors.response.use(
 
 ### RAG/MiniLM
 Le système RAG de NEXUS est **mature et production-ready**:
-- ✅ 100% local après premier download
-- ✅ Protection données excellente
-- ✅ Bien intégré CLI/HiveMind
-- ⚠️ **GAP**: Non visible dans CEREBRO UI
+- [OK] 100% local après premier download
+- [OK] Protection données excellente
+- [OK] Bien intégré CLI/HiveMind
+- [warning]️ **GAP**: Non visible dans CEREBRO UI
 
 ### OPERATION POLISH
 Le polish UX est **partiellement implémenté** (50%):
-- ✅ Animations HiveMap
-- ✅ Color-coded events
-- ⚠️ Manque: auto-scroll, toasts, markdown, memory panel
+- [OK] Animations HiveMap
+- [OK] Color-coded events
+- [warning]️ Manque: auto-scroll, toasts, markdown, memory panel
 
 ### Verdict
 NEXUS est **fonctionnel** mais pas **polish-ready** pour une démo impressionnante.

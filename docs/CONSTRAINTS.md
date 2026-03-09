@@ -145,13 +145,13 @@ class TaskAnalysis:
 
 ```
 workspace/
-├── .nexus/
-│   ├── blackboard.json      # Persistent state (DO NOT encrypt yet)
-│   ├── dylan_metrics.json   # Agent performance
-│   └── success_memory.json  # Mode recommendations
-├── agents/                  # Spawned agent definitions
-├── logs/                    # Structured logs (JSONL)
-└── memory/                  # RAG indexes
++-- .nexus/
+|   +-- blackboard.json      # Persistent state (DO NOT encrypt yet)
+|   +-- dylan_metrics.json   # Agent performance
+|   +-- success_memory.json  # Mode recommendations
++-- agents/                  # Spawned agent definitions
++-- logs/                    # Structured logs (JSONL)
++-- memory/                  # RAG indexes
 ```
 
 ### File Naming
@@ -226,8 +226,8 @@ subprocess.run(["claude", "-p", prompt, "--output-format", "json"])
 ### No HTTP APIs
 
 NEXUS uses CLI tools, NOT HTTP APIs:
-- ❌ `requests.post("https://api.anthropic.com/...")`
-- ✅ `subprocess.run(["claude", ...])`
+- [NO] `requests.post("https://api.anthropic.com/...")`
+- [OK] `subprocess.run(["claude", ...])`
 
 **Exception**: `anthropic` and `google-generativeai` SDKs for specific features.
 

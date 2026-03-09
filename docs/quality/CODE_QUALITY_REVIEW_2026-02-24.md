@@ -65,9 +65,9 @@ NEXUS V12.4 exhibits **mature architecture** with strong type-safety progress, b
 | `core/metagraph/` | 12 | P3 |
 
 ### Quick Wins
-- All `to_dict()` methods → standard docstring: "Serialize to dictionary."
-- All `from_dict()` methods → standard docstring: "Deserialize from dictionary."
-- All `get_stats()` methods → standard docstring: "Get statistics dictionary."
+- All `to_dict()` methods -> standard docstring: "Serialize to dictionary."
+- All `from_dict()` methods -> standard docstring: "Deserialize from dictionary."
+- All `get_stats()` methods -> standard docstring: "Get statistics dictionary."
 
 **Effort**: 4 hours (use template generator script)
 
@@ -260,7 +260,7 @@ class EvolutionManager:
 
 **Analysis**: Most duplication is **intentional polymorphism** (handler pattern). Not a concern.
 
-**Exception**: Some `to_dict()` implementations are unnecessarily complex → use `dataclasses.asdict()` or Pydantic
+**Exception**: Some `to_dict()` implementations are unnecessarily complex -> use `dataclasses.asdict()` or Pydantic
 
 **Effort**: 1 hour (replace 20 complex `to_dict()` methods)
 
@@ -329,7 +329,7 @@ class EvolutionManager:
 
 ### Priority 1 (2-4 hours total)
 
-1. **Replace print statements** → `logger.info()` (142 occurrences)
+1. **Replace print statements** -> `logger.info()` (142 occurrences)
    - Script: `find . -name "*.py" -exec sed -i 's/print(/logger.info(/g' {} \;`
    - Effort: 2 hours
 
@@ -354,13 +354,13 @@ class EvolutionManager:
 
 ### Detected Patterns
 
-#### Good Patterns ✅
+#### Good Patterns [OK]
 - **Handler Registry**: `ToolRegistry`, `ExecutorRegistry`
 - **Phase Pipeline**: 7-phase Hive Mind architecture
 - **Saga Pattern**: Checkpoint/rollback for resilience
 - **Dataclass Models**: ~60% of models use `@dataclass`
 
-#### Anti-Patterns ❌
+#### Anti-Patterns [NO]
 - **Singleton Abuse**: 106 global singletons
 - **God Objects**: 21 classes >500 lines
 - **Mega Functions**: 10 functions >100 lines
@@ -371,11 +371,11 @@ class EvolutionManager:
 ## 11. Recommendations by Priority
 
 ### P0 - Critical (Do Now)
-1. **Decompose `fsm_handlers.py`** (1845 lines → 4 modules)
+1. **Decompose `fsm_handlers.py`** (1845 lines -> 4 modules)
    - Extract: `BrainstormHandler`, `ExecutionHandler`, `ValidationHandler`, `ErrorHandler`
    - Effort: 8 hours
 
-2. **Refactor `TrueHiveMind.process_task()`** (770 lines → 8 methods)
+2. **Refactor `TrueHiveMind.process_task()`** (770 lines -> 8 methods)
    - Extract: `_run_analysis()`, `_run_debate()`, `_run_architecture()`, etc.
    - Effort: 6 hours
 

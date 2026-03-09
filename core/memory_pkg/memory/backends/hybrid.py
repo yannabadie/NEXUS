@@ -251,7 +251,7 @@ class HybridBackend(MemoryBackend):
                 results.append(chunk)
 
         self._logger.debug(
-            f"Hybrid retrieval: {len(dense_results)} dense + {len(sparse_results)} sparse → {len(results)} after RRF"
+            f"Hybrid retrieval: {len(dense_results)} dense + {len(sparse_results)} sparse -> {len(results)} after RRF"
         )
 
         return results

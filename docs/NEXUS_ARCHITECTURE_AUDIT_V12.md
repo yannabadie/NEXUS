@@ -41,11 +41,11 @@ NEXUS est un **orchestrateur multi-agents de production** avec ~40,000 lignes de
 
 ### États FSM
 ```
-IDLE → BRAINSTORMING → EXECUTING_TOOL → VALIDATING_CFL → IDLE
+IDLE -> BRAINSTORMING -> EXECUTING_TOOL -> VALIDATING_CFL -> IDLE
          ↓                                      ↓
-    WAITING_USER ←─────────────────────── ERROR → PANIC
+    WAITING_USER <------------------------ ERROR -> PANIC
 
-États Swarm: SWARM_ANALYZING → SWARM_NEGOTIATING → SWARM_EXECUTING
+États Swarm: SWARM_ANALYZING -> SWARM_NEGOTIATING -> SWARM_EXECUTING
 ```
 
 ### Points Forts
@@ -62,7 +62,7 @@ IDLE → BRAINSTORMING → EXECUTING_TOOL → VALIDATING_CFL → IDLE
 | Mode | Description | Affinity | Rounds |
 |------|-------------|----------|--------|
 | PARALLEL | Travail simultané, fusion | 0.5 | 1 |
-| SEQUENTIAL | Exécution ordonnée A→B | 0.6 | 2 |
+| SEQUENTIAL | Exécution ordonnée A->B | 0.6 | 2 |
 | LEAD_SUPPORT | Lead 80%, Support 20% | 0.7 | 3 |
 | PING_PONG | Alternance rapide | 0.6 | 6 |
 | SPECIALIST | Expert unique | 0.8 | 1 |
@@ -82,8 +82,8 @@ selection_score = complexity_fit(0.30) + domain_fit(0.25) +
 
 ### Self-Healing Fallback (V7.5 Phase 8)
 ```
-PARALLEL → SEQUENTIAL → SPECIALIST
-RED_BLUE → LEAD_SUPPORT → SPECIALIST
+PARALLEL -> SEQUENTIAL -> SPECIALIST
+RED_BLUE -> LEAD_SUPPORT -> SPECIALIST
 ```
 
 ---
@@ -131,17 +131,17 @@ RED_BLUE → LEAD_SUPPORT → SPECIALIST
 ### Driver Architecture (V11 F31)
 ```
 DriverProtocol (ABC)
-├── AsyncGeminiDriver (JSON strict)
-├── AsyncClaudeDriver (Hybrid: XML + natural)
-└── Future: OllamaDriver
++-- AsyncGeminiDriver (JSON strict)
++-- AsyncClaudeDriver (Hybrid: XML + natural)
++-- Future: OllamaDriver
 ```
 
 ### Evolution Pipeline (5 Phases)
-1. BRAINSTORM → Mutation proposals via debate
-2. CREATE → Clone + apply patches
-3. VALIDATE → 4-tier validation
-4. EVALUATE → Fitness benchmarking
-5. PROMOTE → Winner replacement
+1. BRAINSTORM -> Mutation proposals via debate
+2. CREATE -> Clone + apply patches
+3. VALIDATE -> 4-tier validation
+4. EVALUATE -> Fitness benchmarking
+5. PROMOTE -> Winner replacement
 
 ### Agent-as-Tool (Vision Fractale Phase 15)
 - Spawned agents exposés comme tools
@@ -232,51 +232,51 @@ DriverProtocol (ABC)
 
 ### Workflow 1: Simple Task (TRIVIAL)
 ```
-User Input → InputGuard → FSM IDLE → BRAINSTORMING (1 turn) → Response
+User Input -> InputGuard -> FSM IDLE -> BRAINSTORMING (1 turn) -> Response
 ```
 
 ### Workflow 2: Standard Task (MODERATE)
 ```
-User Input → TaskAnalyzer → Swarm Auto-Route →
-  → Mode Selection (DyLAN) → Negotiation →
-  → Execution (LEAD_SUPPORT typical) → CFL Validation → Response
+User Input -> TaskAnalyzer -> Swarm Auto-Route ->
+  -> Mode Selection (DyLAN) -> Negotiation ->
+  -> Execution (LEAD_SUPPORT typical) -> CFL Validation -> Response
 ```
 
 ### Workflow 3: Complex Task (COMPLEX/EXPERT)
 ```
-User Input → HiveMind Gate →
-  → Phase 1: Independent Analysis (Gemini + Claude)
-  → Phase 2: Debate (if disagreement >15%)
-  → Phase 3: Architecture (SwarmBridge delegation)
-  → Phase 4: Monitored Execution
-  → [If fail: Phase 5 Diagnosis → Phase 6 Retry]
-  → Phase 7: Consolidation (RAG archival)
+User Input -> HiveMind Gate ->
+  -> Phase 1: Independent Analysis (Gemini + Claude)
+  -> Phase 2: Debate (if disagreement >15%)
+  -> Phase 3: Architecture (SwarmBridge delegation)
+  -> Phase 4: Monitored Execution
+  -> [If fail: Phase 5 Diagnosis -> Phase 6 Retry]
+  -> Phase 7: Consolidation (RAG archival)
 ```
 
 ### Workflow 4: Agent Spawning
 ```
-/spawn "Role" → BrainstormPhase (debate) →
-  → InferenceConfig extraction → Validation →
-  → BIRTH_CERTIFICATE.json + system_prompt.md →
-  → AgentPool registration → agent_{id} tool available
+/spawn "Role" -> BrainstormPhase (debate) ->
+  -> InferenceConfig extraction -> Validation ->
+  -> BIRTH_CERTIFICATE.json + system_prompt.md ->
+  -> AgentPool registration -> agent_{id} tool available
 ```
 
 ### Workflow 5: Evolution
 ```
-/evolve → BrainstormPhase (mutations) →
-  → CreatePhase (clone + patch) →
-  → ValidatePhase (4-tier) →
-  → EvaluatePhase (benchmark) →
-  → PromotePhase (if >10% improvement)
+/evolve -> BrainstormPhase (mutations) ->
+  -> CreatePhase (clone + patch) ->
+  -> ValidatePhase (4-tier) ->
+  -> EvaluatePhase (benchmark) ->
+  -> PromotePhase (if >10% improvement)
 ```
 
 ### Workflow 6: CEREBRO Real-Time
 ```
-Frontend Login → JWT → WebSocket Connect →
-  → Event Subscription (tenant-scoped) →
-  → HiveMap updates (graph.* events) →
-  → InteractionModal (interaction.* events) →
-  → F5 Recovery (/api/state/snapshot)
+Frontend Login -> JWT -> WebSocket Connect ->
+  -> Event Subscription (tenant-scoped) ->
+  -> HiveMap updates (graph.* events) ->
+  -> InteractionModal (interaction.* events) ->
+  -> F5 Recovery (/api/state/snapshot)
 ```
 
 ---

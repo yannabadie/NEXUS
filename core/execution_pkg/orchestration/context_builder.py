@@ -188,8 +188,8 @@ User objective: {objective}
 
 ## YOUR TASK (IMPORTANT)
 1. Check if the tool executed successfully
-2. If SUCCESS: Say "✓" and briefly note what was accomplished
-3. If FAILURE: Say "✗" and note the error
+2. If SUCCESS: Say "[OK]" and briefly note what was accomplished
+3. If FAILURE: Say "[NO]" and note the error
 4. If task is COMPLETE: Add "FINISHED" to your response
 
 **DO NOT:**

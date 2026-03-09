@@ -113,7 +113,7 @@ class UserRole(Enum):
 **V10 PRISM Architecture:**
 The context module is the "invisible spine" of NEXUS multi-tenancy:
 ```
-Request → Middleware → Set SessionContext (contextvars)
+Request -> Middleware -> Set SessionContext (contextvars)
    ↓
 All code paths see tenant_id via get_current_session()
    ↓

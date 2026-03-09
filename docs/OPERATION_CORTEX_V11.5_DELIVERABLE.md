@@ -262,7 +262,7 @@ async def read_file(path: str):
 
 | Élément | Comportement |
 |---------|--------------|
-| `HeadlessProvider()` | `interactive=False` par défaut → comportement legacy |
+| `HeadlessProvider()` | `interactive=False` par défaut -> comportement legacy |
 | `TelemetryBridge.emit()` | Toujours fire-and-forget, `_persist_state()` silencieux si Redis absent |
 | `.env.example` | `PROJECT_MEMORY_BACKEND=auto` (était `tfidf`, code utilisait déjà `auto`) |
 | Endpoints existants | Inchangés (`/ws/stream`, `/health`, etc.) |
@@ -304,7 +304,7 @@ core/api/cerebro/routes/__init__.py       # +6 LOC (exports)
 | `/api/workflow/{id}` | GET | Status d'une tâche | 200, 404 |
 | `/api/workflow/{id}/stop` | POST | Arrêter une tâche | 200, 400, 404 |
 | `/api/workflow/` | GET | Liste workflows | 200 |
-| `/api/files/content` | GET | Lire un fichier (≤1MB) | 200, 403, 404, 413 |
+| `/api/files/content` | GET | Lire un fichier (<=1MB) | 200, 403, 404, 413 |
 | `/api/files/save` | POST | Écrire un fichier | 200, 403, 500 |
 | `/api/files/info` | GET | Métadonnées fichier | 200, 403 |
 

@@ -116,7 +116,7 @@ class HybridSwarmEngine:
     Main Hybrid Swarm Engine for dynamic multi-agent collaboration.
 
     Coordinates the full pipeline:
-    Task → Analysis → Mode Selection → Negotiation → Execution → Result
+    Task -> Analysis -> Mode Selection -> Negotiation -> Execution -> Result
 
     The engine can operate in different modes:
     - Full: Analysis + Selection + Negotiation + Execution

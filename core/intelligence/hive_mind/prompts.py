@@ -7,8 +7,8 @@ All system prompts are defined here as constants to enable SDK-level caching.
 Dynamic content (task descriptions, context, results) is passed as user prompts.
 
 **Caching Strategy:**
-- Static system prompts (this file) → CACHED by SDK (90% cost reduction)
-- Dynamic user prompts (task, principles, results) → NOT CACHED
+- Static system prompts (this file) -> CACHED by SDK (90% cost reduction)
+- Dynamic user prompts (task, principles, results) -> NOT CACHED
 
 **Expected Savings:**
 - Phase 1 Analysis: ~500 tokens cached per agent = 80% reduction

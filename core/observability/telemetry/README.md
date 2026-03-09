@@ -144,10 +144,10 @@ The Telemetry module provides comprehensive file-based telemetry and budget trac
 
 ```
 workspace/
-├── telemetry.jsonl          # Main telemetry log (append-only)
-├── budget_state.json        # Budget state (daily spend, lifetime spend)
-└── reports/                 # Exported reports (CSV, etc.)
-    └── telemetry_YYYYMMDD.csv
++-- telemetry.jsonl          # Main telemetry log (append-only)
++-- budget_state.json        # Budget state (daily spend, lifetime spend)
++-- reports/                 # Exported reports (CSV, etc.)
+    +-- telemetry_YYYYMMDD.csv
 ```
 
 ### Usage Examples

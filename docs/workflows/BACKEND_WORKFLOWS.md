@@ -14,43 +14,43 @@ The Finite State Machine controls all task execution with 11 possible states.
 ### State Diagram
 
 ```
-                          ┌─────────────────────────────────────────┐
-                          │              PANIC                      │
-                          │         (Fatal error)                   │
-                          └─────────────────────────────────────────┘
-                                          ▲
+                          +-----------------------------------------+
+                          |              PANIC                      |
+                          |         (Fatal error)                   |
+                          +-----------------------------------------+
+                                          ^
                                       timeout
-                                          │
-┌─────────┐  user_input   ┌─────────────────┐  tool_use   ┌──────────────────┐
-│  IDLE   │──────────────▶│  BRAINSTORMING  │────────────▶│  EXECUTING_TOOL  │
-└─────────┘               └─────────────────┘             └──────────────────┘
-     ▲                           │    │                          │
-     │                   finished│    │stagnation          tool_completed
-     │                           ▼    ▼                          ▼
-     │                   ┌──────────┐ ┌─────────┐         ┌──────────────────┐
-     │                   │ WAITING  │ │  ERROR  │         │  VALIDATING_CFL  │
-     │◀──────────────────│  _USER   │ └─────────┘         └──────────────────┘
-     │       success     └──────────┘      │                     │
-     │                         │           │reset           success/failure
-     │                  user_input         ▼                     │
-     └─────────────────────────┴───────────┴─────────────────────┘
+                                          |
++---------+  user_input   +-----------------+  tool_use   +------------------+
+|  IDLE   |-------------->|  BRAINSTORMING  |------------>|  EXECUTING_TOOL  |
++---------+               +-----------------+             +------------------+
+     ^                           |    |                          |
+     |                   finished|    |stagnation          tool_completed
+     |                           v    v                          v
+     |                   +----------+ +---------+         +------------------+
+     |                   | WAITING  | |  ERROR  |         |  VALIDATING_CFL  |
+     |<------------------|  _USER   | +---------+         +------------------+
+     |       success     +----------+      |                     |
+     |                         |           |reset           success/failure
+     |                  user_input         v                     |
+     +-------------------------+-----------+---------------------+
 ```
 
 ### FSM States
 
 | State | Description | Exit Conditions |
 |-------|-------------|-----------------|
-| `IDLE` | Awaiting user input | user_input → BRAINSTORMING |
-| `BRAINSTORMING` | Agents exchange TALK messages | tool_use → EXECUTING_TOOL |
-| `EXECUTING_TOOL` | Tool execution (synchronous) | completed → VALIDATING_CFL |
-| `VALIDATING_CFL` | Cognitive Feedback Loop validation | success → IDLE |
-| `WAITING_USER` | Task finished, await next input | user_input → BRAINSTORMING |
-| `ERROR` | Recoverable error | reset → IDLE |
+| `IDLE` | Awaiting user input | user_input -> BRAINSTORMING |
+| `BRAINSTORMING` | Agents exchange TALK messages | tool_use -> EXECUTING_TOOL |
+| `EXECUTING_TOOL` | Tool execution (synchronous) | completed -> VALIDATING_CFL |
+| `VALIDATING_CFL` | Cognitive Feedback Loop validation | success -> IDLE |
+| `WAITING_USER` | Task finished, await next input | user_input -> BRAINSTORMING |
+| `ERROR` | Recoverable error | reset -> IDLE |
 | `PANIC` | Fatal error | Requires restart |
-| `HIBERNATE` | V12.2 dormant state | ws_reconnect → previous_state |
-| `SWARM_ANALYZING` | Task analysis | → SWARM_NEGOTIATING |
-| `SWARM_NEGOTIATING` | Mode negotiation | → SWARM_EXECUTING |
-| `SWARM_EXECUTING` | Swarm execution | → VALIDATING_CFL |
+| `HIBERNATE` | V12.2 dormant state | ws_reconnect -> previous_state |
+| `SWARM_ANALYZING` | Task analysis | -> SWARM_NEGOTIATING |
+| `SWARM_NEGOTIATING` | Mode negotiation | -> SWARM_EXECUTING |
+| `SWARM_EXECUTING` | Swarm execution | -> VALIDATING_CFL |
 | `EVOLUTION_BRAINSTORM` | Special mutation design mode | JSON output |
 
 ---
@@ -62,43 +62,43 @@ For tasks with complexity >= MODERATE, the HiveMind 7-phase pipeline activates.
 ### Phase Flow
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        HIVEMIND PIPELINE                                    │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  ┌──────────┐   ┌──────────┐   ┌──────────────┐   ┌───────────┐            │
-│  │ Phase 1  │──▶│ Phase 2  │──▶│   Phase 3    │──▶│  Phase 4  │            │
-│  │ ANALYSIS │   │  DEBATE  │   │ ARCHITECTURE │   │ EXECUTION │            │
-│  │          │   │(if needed)│   │              │   │           │            │
-│  └──────────┘   └──────────┘   └──────────────┘   └───────────┘            │
-│       │                                                │                    │
-│       │                         ┌──────────────────────┘                    │
-│       │                         │                                           │
-│       │                         ▼                                           │
-│       │              ┌───────────────────┐                                  │
-│       │              │     Phase 5       │                                  │
-│       │              │    DIAGNOSIS      │◀──────── On failure              │
-│       │              │  (error analysis) │                                  │
-│       │              └───────────────────┘                                  │
-│       │                         │                                           │
-│       │                         ▼                                           │
-│       │              ┌───────────────────┐                                  │
-│       │              │     Phase 6       │                                  │
-│       │              │      RETRY        │                                  │
-│       │              │  (max 3 attempts) │                                  │
-│       │              └───────────────────┘                                  │
-│       │                         │                                           │
-│       ▼                         ▼                                           │
-│  ┌──────────────────────────────────────────┐                              │
-│  │              Phase 7                      │                              │
-│  │           CONSOLIDATION                   │                              │
-│  │      (merge results, final output)        │                              │
-│  └──────────────────────────────────────────┘                              │
-│                         │                                                   │
-│                         ▼                                                   │
-│               HIVE_SUCCESS / HIVE_FAILED                                   │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
++-----------------------------------------------------------------------------+
+|                        HIVEMIND PIPELINE                                    |
++-----------------------------------------------------------------------------+
+|                                                                             |
+|  +----------+   +----------+   +--------------+   +-----------+            |
+|  | Phase 1  |-->| Phase 2  |-->|   Phase 3    |-->|  Phase 4  |            |
+|  | ANALYSIS |   |  DEBATE  |   | ARCHITECTURE |   | EXECUTION |            |
+|  |          |   |(if needed)|   |              |   |           |            |
+|  +----------+   +----------+   +--------------+   +-----------+            |
+|       |                                                |                    |
+|       |                         +----------------------+                    |
+|       |                         |                                           |
+|       |                         v                                           |
+|       |              +-------------------+                                  |
+|       |              |     Phase 5       |                                  |
+|       |              |    DIAGNOSIS      |<-------- On failure              |
+|       |              |  (error analysis) |                                  |
+|       |              +-------------------+                                  |
+|       |                         |                                           |
+|       |                         v                                           |
+|       |              +-------------------+                                  |
+|       |              |     Phase 6       |                                  |
+|       |              |      RETRY        |                                  |
+|       |              |  (max 3 attempts) |                                  |
+|       |              +-------------------+                                  |
+|       |                         |                                           |
+|       v                         v                                           |
+|  +------------------------------------------+                              |
+|  |              Phase 7                      |                              |
+|  |           CONSOLIDATION                   |                              |
+|  |      (merge results, final output)        |                              |
+|  +------------------------------------------+                              |
+|                         |                                                   |
+|                         v                                                   |
+|               HIVE_SUCCESS / HIVE_FAILED                                   |
+|                                                                             |
++-----------------------------------------------------------------------------+
 ```
 
 ### Phase Details
@@ -123,35 +123,35 @@ Agents negotiate the optimal collaboration mode for each task.
 
 ```
 TaskAnalyzer
-     │
-     ▼
-┌────────────────┐
-│ Complexity     │──▶ TRIVIAL → Skip Swarm
-│ Domains        │
-│ Agent Scores   │
-└────────────────┘
-     │
-     ▼ (MODERATE+)
+     |
+     v
++----------------+
+| Complexity     |--> TRIVIAL -> Skip Swarm
+| Domains        |
+| Agent Scores   |
++----------------+
+     |
+     v (MODERATE+)
 ModeSelector (DyLAN metrics)
-     │
-     ▼
-┌────────────────────┐
-│ Initial Proposal   │
-│ + Reasoning        │
-└────────────────────┘
-     │
-     ▼
-┌────────────────────────────────────────┐
-│           NEGOTIATION                   │
-│  <negotiate>{"mode": "...", ...}        │
-│  Max 4 turns, then consensus/fallback   │
-└────────────────────────────────────────┘
-     │
-     ▼
-┌────────────────────┐
-│ Mode Executor      │
-│ (6 implementations)│
-└────────────────────┘
+     |
+     v
++--------------------+
+| Initial Proposal   |
+| + Reasoning        |
++--------------------+
+     |
+     v
++----------------------------------------+
+|           NEGOTIATION                   |
+|  <negotiate>{"mode": "...", ...}        |
+|  Max 4 turns, then consensus/fallback   |
++----------------------------------------+
+     |
+     v
++--------------------+
+| Mode Executor      |
+| (6 implementations)|
++--------------------+
 ```
 
 ### Collaboration Modes
@@ -159,7 +159,7 @@ ModeSelector (DyLAN metrics)
 | Mode | Description | Pattern |
 |------|-------------|---------|
 | **PARALLEL** | Simultaneous work | Both agents work independently, results merged |
-| **SEQUENTIAL** | Ordered execution | Agent A → Agent B (dependent steps) |
+| **SEQUENTIAL** | Ordered execution | Agent A -> Agent B (dependent steps) |
 | **LEAD_SUPPORT** | Expert leads | Lead drives, Support reviews/assists |
 | **PING_PONG** | Rapid iteration | Alternating until convergence |
 | **SPECIALIST** | Single expert | One agent handles all (clear domain) |
@@ -168,10 +168,10 @@ ModeSelector (DyLAN metrics)
 ### Fallback Chains (Self-Healing V8)
 
 ```
-PARALLEL    → SEQUENTIAL → SPECIALIST
-RED_BLUE    → LEAD_SUPPORT → SPECIALIST
-PING_PONG   → SEQUENTIAL → SPECIALIST
-LEAD_SUPPORT → SPECIALIST
+PARALLEL    -> SEQUENTIAL -> SPECIALIST
+RED_BLUE    -> LEAD_SUPPORT -> SPECIALIST
+PING_PONG   -> SEQUENTIAL -> SPECIALIST
+LEAD_SUPPORT -> SPECIALIST
 ```
 
 ---
@@ -182,42 +182,42 @@ All 11 tools go through a unified execution pipeline.
 
 ```
 Tool Request (from Agent)
-          │
-          ▼
-┌─────────────────────┐
-│   Request Parser    │──▶ Extract tool_name, arguments
-└─────────────────────┘
-          │
-          ▼
-┌─────────────────────┐
-│   Security Guards   │
-│   - InputGuard      │──▶ Sanitize inputs
-│   - OutputGuard     │    Detect prompt injection
-│   - PathGuard       │    Validate file paths
-└─────────────────────┘
-          │
-          ▼
-┌─────────────────────┐
-│   Handler Dispatch  │──▶ Route to specific handler
-│   (Modular V9.6)    │    /core/execution/handlers/
-└─────────────────────┘
-          │
-          ▼
-┌─────────────────────┐
-│   Tool Execution    │──▶ bash_handler, file_handler, etc.
-└─────────────────────┘
-          │
-          ▼
-┌─────────────────────┐
-│   Result Validator  │──▶ Check success/failure
-└─────────────────────┘
-          │
-          ▼
-┌─────────────────────┐
-│   Memory Update     │──▶ SuccessMemory records patterns
-└─────────────────────┘
-          │
-          ▼
+          |
+          v
++---------------------+
+|   Request Parser    |--> Extract tool_name, arguments
++---------------------+
+          |
+          v
++---------------------+
+|   Security Guards   |
+|   - InputGuard      |--> Sanitize inputs
+|   - OutputGuard     |    Detect prompt injection
+|   - PathGuard       |    Validate file paths
++---------------------+
+          |
+          v
++---------------------+
+|   Handler Dispatch  |--> Route to specific handler
+|   (Modular V9.6)    |    /core/execution/handlers/
++---------------------+
+          |
+          v
++---------------------+
+|   Tool Execution    |--> bash_handler, file_handler, etc.
++---------------------+
+          |
+          v
++---------------------+
+|   Result Validator  |--> Check success/failure
++---------------------+
+          |
+          v
++---------------------+
+|   Memory Update     |--> SuccessMemory records patterns
++---------------------+
+          |
+          v
 Return Result to Agent
 ```
 
@@ -244,45 +244,45 @@ Return Result to Agent
 ### Memory Types
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                      MEMORY SYSTEM                               │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  ┌─────────────────┐                                            │
-│  │   AutoMemory    │  Session-level learning                    │
-│  │  (Blackboard)   │  Stored: workspace/.nexus/blackboard.json  │
-│  └─────────────────┘                                            │
-│                                                                  │
-│  ┌─────────────────┐                                            │
-│  │  ProjectMemory  │  RAG retrieval for codebase context        │
-│  │   (RAG + BM25)  │  Backends: TF-IDF, BM25, Dense, Hybrid     │
-│  └─────────────────┘                                            │
-│                                                                  │
-│  ┌─────────────────┐                                            │
-│  │  SuccessMemory  │  Pattern storage for successful solutions  │
-│  │   (Phase 10)    │  Used for Session-Aware Agent Selection    │
-│  └─────────────────┘                                            │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
++-----------------------------------------------------------------+
+|                      MEMORY SYSTEM                               |
++-----------------------------------------------------------------+
+|                                                                  |
+|  +-----------------+                                            |
+|  |   AutoMemory    |  Session-level learning                    |
+|  |  (Blackboard)   |  Stored: workspace/.nexus/blackboard.json  |
+|  +-----------------+                                            |
+|                                                                  |
+|  +-----------------+                                            |
+|  |  ProjectMemory  |  RAG retrieval for codebase context        |
+|  |   (RAG + BM25)  |  Backends: TF-IDF, BM25, Dense, Hybrid     |
+|  +-----------------+                                            |
+|                                                                  |
+|  +-----------------+                                            |
+|  |  SuccessMemory  |  Pattern storage for successful solutions  |
+|  |   (Phase 10)    |  Used for Session-Aware Agent Selection    |
+|  +-----------------+                                            |
+|                                                                  |
++-----------------------------------------------------------------+
 ```
 
 ### V12.4 HybridBackend (RRF Fusion)
 
 ```
 Query
-  │
-  ├──────────────────────────┬───────────────────────┐
-  │                          │                       │
-  ▼                          ▼                       ▼
+  |
+  +--------------------------+-----------------------+
+  |                          |                       |
+  v                          v                       v
 Dense                      BM25S                  TF-IDF
 (Embeddings)              (Sparse)               (Fallback)
-  │                          │                       │
-  └──────────────────────────┴───────────────────────┘
-                             │
-                             ▼
+  |                          |                       |
+  +--------------------------+-----------------------+
+                             |
+                             v
                     RRF Fusion (k=60)
-                             │
-                             ▼
+                             |
+                             v
                       Merged Results
                       (+15% recall)
 ```
@@ -307,20 +307,20 @@ Dense                      BM25S                  TF-IDF
 
 ```
 Backend Action
-      │
-      ▼
+      |
+      v
 EventBus.emit(event)
-      │
-      ▼
+      |
+      v
 WebSocket Broadcast
-      │
-      ▼
+      |
+      v
 CEREBRO Frontend
-      │
-      ▼
+      |
+      v
 Zustand Store Update
-      │
-      ▼
+      |
+      v
 React Component Re-render
 ```
 

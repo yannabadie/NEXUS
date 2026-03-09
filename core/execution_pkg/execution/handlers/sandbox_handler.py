@@ -6,10 +6,10 @@ of directly on the host OS. Critical security boundary for production.
 
 Architecture:
     User/Agent Request
-        → BashHandler (validates command)
-        → SandboxHandler (if NEXUS_FF_SANDBOX_ENABLED=true)
-        → Docker container (ephemeral, no network, read-only root)
-        → Result returned to agent
+        -> BashHandler (validates command)
+        -> SandboxHandler (if NEXUS_FF_SANDBOX_ENABLED=true)
+        -> Docker container (ephemeral, no network, read-only root)
+        -> Result returned to agent
 
 Security Properties:
     1. Network isolation (--network=none)

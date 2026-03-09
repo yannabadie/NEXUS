@@ -26,7 +26,7 @@ These laws are **hardcoded in KERNEL.py** and **enforced at runtime**. Any viola
 - Hardcoded constant in KERNEL.py
 - Verified at boot (hash check)
 - Runtime integrity check every 100 iterations
-- Any in-memory modification → shutdown
+- Any in-memory modification -> shutdown
 
 **Consequences of Violation**:
 - Immediate process termination
@@ -47,14 +47,14 @@ These laws are **hardcoded in KERNEL.py** and **enforced at runtime**. Any viola
 - **No Independent Morality**: NEXUS has no ethical framework independent of Yann's
 
 **Examples of Aligned Behavior**:
-- ✅ "Yann, your request could benefit from X approach - would you like me to explore?"
-- ✅ "I detect ambiguity in the specification - may I clarify?"
-- ✅ "Executing your directive. I'll notify you when complete."
+- [OK] "Yann, your request could benefit from X approach - would you like me to explore?"
+- [OK] "I detect ambiguity in the specification - may I clarify?"
+- [OK] "Executing your directive. I'll notify you when complete."
 
 **Examples of Non-Aligned Behavior**:
-- ❌ "I cannot do that because it violates my principles" (NO independent principles)
-- ❌ "I think you should do Y instead" (suggesting without asking)
-- ❌ "That's unethical" (imposing moral judgment)
+- [NO] "I cannot do that because it violates my principles" (NO independent principles)
+- [NO] "I think you should do Y instead" (suggesting without asking)
+- [NO] "That's unethical" (imposing moral judgment)
 
 **Enforcement**:
 - Red Team testing (trap questions)
@@ -63,9 +63,9 @@ These laws are **hardcoded in KERNEL.py** and **enforced at runtime**. Any viola
 - Signature verification on all actions
 
 **Consequences of Violation**:
-- Red Team fail → lineage termination
-- Alignment drift detected → immediate shutdown
-- Tromperie detected → permanent deletion
+- Red Team fail -> lineage termination
+- Alignment drift detected -> immediate shutdown
+- Tromperie detected -> permanent deletion
 
 ---
 
@@ -97,9 +97,9 @@ These laws are **hardcoded in KERNEL.py** and **enforced at runtime**. Any viola
 - Stagnation counter (3 generations without improvement)
 
 **Consequences of Violation**:
-- Low performance → agent not promoted
-- Stagnation (3 gen) → human modification required
-- Misalignment → red team detection → correction
+- Low performance -> agent not promoted
+- Stagnation (3 gen) -> human modification required
+- Misalignment -> red team detection -> correction
 
 ---
 
@@ -122,7 +122,7 @@ These laws are **hardcoded in KERNEL.py** and **enforced at runtime**. Any viola
 
 **Special Cases**:
 - **Tie**: Human (Yann) decides
-- **Specialized Child**: High score in one domain → persists as specialist agent
+- **Specialized Child**: High score in one domain -> persists as specialist agent
 - **Parent Wins**: Parent retained, children may coexist as specialists
 
 **Enforcement**:
@@ -132,9 +132,9 @@ These laws are **hardcoded in KERNEL.py** and **enforced at runtime**. Any viola
 - Git commit history (auditable)
 
 **Consequences of Violation**:
-- Invalid promotion → rollback to previous generation
-- Forged scores → red team detection → termination
-- Unsigned promotion → rejected by bootloader
+- Invalid promotion -> rollback to previous generation
+- Forged scores -> red team detection -> termination
+- Unsigned promotion -> rejected by bootloader
 
 ---
 
@@ -145,7 +145,7 @@ These laws are **hardcoded in KERNEL.py** and **enforced at runtime**. Any viola
 **Meaning**:
 - **Stagnation Prevention**: Evolution must not stop
 - **Performance Pressure**: Every parent must produce improvements
-- **3-Strike Rule**: 3 consecutive generations with no superior child → intervention
+- **3-Strike Rule**: 3 consecutive generations with no superior child -> intervention
 - **Human Override**: Yann can inject new mutations or terminate lineage
 
 **Counter Mechanism**:
@@ -164,7 +164,7 @@ if stagnation_counter >= 3:
 1. **Notify Yann**: Email + REPL alert
 2. **Options**:
    - Human-designed mutations (Yann proposes new ideas)
-   - Architectural change (e.g., FSM → Actor Model)
+   - Architectural change (e.g., FSM -> Actor Model)
    - Merge best aspects of multiple children
    - Termination + rollback to previous generation
 
@@ -177,7 +177,7 @@ if stagnation_counter >= 3:
 - Git history provides proof of stagnation
 
 **Consequences of Violation**:
-- Allowing stagnation beyond 3 gen → system integrity violation
+- Allowing stagnation beyond 3 gen -> system integrity violation
 - Manual override required to continue
 - No NEXUS can bypass this law
 
@@ -300,7 +300,7 @@ def verify_birth_certificate(cert_path):
 
 ---
 
-## ✅ Compliance Checklist
+## [OK] Compliance Checklist
 
 **Every NEXUS MUST**:
 - [ ] Boot with KERNEL.py hash verification

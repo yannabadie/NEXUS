@@ -8,16 +8,15 @@ listing endpoint.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 import json
 import os
-from pathlib import Path
 import re
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
-
 
 _REGISTRY_PATH = Path(__file__).with_name("provider_registry.json")
 _JSON_HEADERS = {"Accept": "application/json", "Content-Type": "application/json"}
@@ -27,6 +26,21 @@ _HTML_HEADERS = {
 }
 _OPENAI_COMPATIBLE_HEADERS = {"Accept": "application/json"}
 _DEFAULT_TIMEOUT = 15
+_ALLOWED_PROVIDER_HOSTS = frozenset(
+    {
+        "ai.google.dev",
+        "api.anthropic.com",
+        "api.deepseek.com",
+        "api.minimaxi.chat",
+        "api.moonshot.ai",
+        "api.openai.com",
+        "developers.openai.com",
+        "docs.anthropic.com",
+        "platform.minimaxi.chat",
+        "www.googleapis.com",
+        "generativelanguage.googleapis.com",
+    }
+)
 
 _SDK_PROVIDER_ATTRS: dict[str, tuple[str, ...]] = {
     "anthropic": ("anthropic_api_key",),
@@ -460,13 +474,23 @@ def _version_sort_key(model_id: str) -> tuple[Any, ...]:
     return tuple(parts)
 
 
+def _validate_registry_url(url: str) -> None:
+    parsed = urlparse(url)
+    if parsed.scheme != "https":
+        raise RuntimeError(f"Provider registry refresh only allows HTTPS URLs: {url}")
+    if not parsed.hostname or parsed.hostname not in _ALLOWED_PROVIDER_HOSTS:
+        raise RuntimeError(f"Provider registry refresh host is not allowlisted: {url}")
+
+
 def _fetch_json(url: str, *, timeout: int, headers: dict[str, str] | None = None) -> dict[str, Any]:
+    _validate_registry_url(url)
     request_headers = dict(_JSON_HEADERS)
     if headers:
         request_headers.update(headers)
     request = Request(url, headers=request_headers, method="GET")
     try:
-        with urlopen(request, timeout=timeout) as response:
+        # Official provider endpoint on an explicit HTTPS allowlist.
+        with urlopen(request, timeout=timeout) as response:  # nosec B310
             return json.loads(response.read().decode("utf-8"))
     except HTTPError as exc:
         raise RuntimeError(f"{url} returned HTTP {exc.code}") from exc
@@ -475,9 +499,11 @@ def _fetch_json(url: str, *, timeout: int, headers: dict[str, str] | None = None
 
 
 def _fetch_text(url: str, *, timeout: int) -> str:
+    _validate_registry_url(url)
     request = Request(url, headers=_HTML_HEADERS, method="GET")
     try:
-        with urlopen(request, timeout=timeout) as response:
+        # Official provider endpoint on an explicit HTTPS allowlist.
+        with urlopen(request, timeout=timeout) as response:  # nosec B310
             return response.read().decode("utf-8", errors="replace")
     except HTTPError as exc:
         raise RuntimeError(f"{url} returned HTTP {exc.code}") from exc

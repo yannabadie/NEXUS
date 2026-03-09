@@ -35,8 +35,8 @@ Ce document consolide l'analyse complète de NEXUS (~40,000 lignes) et propose u
 1. **Simple Task** (TRIVIAL) - Direct response
 2. **Standard Task** (MODERATE) - Swarm auto-route + DyLAN
 3. **Complex Task** (COMPLEX/EXPERT) - HiveMind 7 phases
-4. **Agent Spawning** - `/spawn` → BrainstormPhase → Registration
-5. **Evolution** - `/evolve` → 5 phases → Promotion si >10% improvement
+4. **Agent Spawning** - `/spawn` -> BrainstormPhase -> Registration
+5. **Evolution** - `/evolve` -> 5 phases -> Promotion si >10% improvement
 6. **CEREBRO Real-Time** - WebSocket events + F5 recovery
 
 ### Gaps Critiques (P0)
@@ -54,60 +54,60 @@ Ce document consolide l'analyse complète de NEXUS (~40,000 lignes) et propose u
 ### NEXUS comme Intelligence Déployable
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│              NEXUS Collaborative Intelligence                │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│   ┌─────────┐     ┌─────────┐     ┌─────────┐              │
-│   │  USER   │────►│ CEREBRO │────►│ BACKEND │              │
-│   │ (Human) │◄────│   UI    │◄────│  (API)  │              │
-│   └─────────┘     └─────────┘     └─────────┘              │
-│                        │               │                    │
-│                        ▼               ▼                    │
-│               ┌────────────────────────────────┐           │
-│               │        HiveMind Pipeline       │           │
-│               │  ┌────────────────────────┐   │           │
-│               │  │ Gemini ◄──► Claude     │   │           │
-│               │  │    (Collaboration)     │   │           │
-│               │  └────────────────────────┘   │           │
-│               │            │                   │           │
-│               │            ▼                   │           │
-│               │    ┌──────────────┐           │           │
-│               │    │ Swarm Engine │           │           │
-│               │    │  (6 Modes)   │           │           │
-│               │    └──────────────┘           │           │
-│               └────────────────────────────────┘           │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------+
+|              NEXUS Collaborative Intelligence                |
++-------------------------------------------------------------+
+|                                                             |
+|   +---------+     +---------+     +---------+              |
+|   |  USER   |----►| CEREBRO |----►| BACKEND |              |
+|   | (Human) |◄----|   UI    |◄----|  (API)  |              |
+|   +---------+     +---------+     +---------+              |
+|                        |               |                    |
+|                        v               v                    |
+|               +--------------------------------+           |
+|               |        HiveMind Pipeline       |           |
+|               |  +------------------------+   |           |
+|               |  | Gemini ◄--► Claude     |   |           |
+|               |  |    (Collaboration)     |   |           |
+|               |  +------------------------+   |           |
+|               |            |                   |           |
+|               |            v                   |           |
+|               |    +--------------+           |           |
+|               |    | Swarm Engine |           |           |
+|               |    |  (6 Modes)   |           |           |
+|               |    +--------------+           |           |
+|               +--------------------------------+           |
+|                                                             |
++-------------------------------------------------------------+
 ```
 
 ### Interface Optimale (CEREBRO V12.1)
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│ NEXUS CEREBRO                                    [usr] [▣]  │
-├─────────────────────────────────────────┬───────────────────┤
-│                                         │ MISSION CONTROL   │
-│  [HiveMap] [Files] [Memory] [Agents]    │ ┌───────────────┐ │
-│ ┌───────────────────────────────────┐   │ │ Objective:    │ │
-│ │                                   │   │ │ [           ] │ │
-│ │     ┌─────┐       ┌─────┐        │   │ └───────────────┘ │
-│ │     │ G   │──────►│ C   │        │   │                   │
-│ │     │emi  │       │lau  │        │   │ Mode:             │
-│ │     │ ni  │◄──────│ de  │        │   │ [PAR][SEQ][L-S]   │
-│ │     └─────┘       └─────┘        │   │ [P-P][SPE][R-B]   │
-│ │         │             │          │   │                   │
-│ │         ▼             ▼          │   │ [   ENGAGE   ]    │
-│ │     ┌───────────────────┐        │   │ [   ABORT    ]    │
-│ │     │    HiveMind       │        │   │                   │
-│ │     └───────────────────┘        │   ├───────────────────┤
-│ │                                   │   │ EVENT STREAM     │
-│ └───────────────────────────────────┘   │ ► agent.speak    │
-│                                         │ ► tool_call      │
-│                                         │ ► phase_change   │
-├─────────────────────────────────────────┴───────────────────┤
-│ ● Connected | Tokens: 12.4k/100k | Session: 2h34m           │
-└─────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------+
+| NEXUS CEREBRO                                    [usr] [▣]  |
++-----------------------------------------+-------------------+
+|                                         | MISSION CONTROL   |
+|  [HiveMap] [Files] [Memory] [Agents]    | +---------------+ |
+| +-----------------------------------+   | | Objective:    | |
+| |                                   |   | | [           ] | |
+| |     +-----+       +-----+        |   | +---------------+ |
+| |     | G   |------►| C   |        |   |                   |
+| |     |emi  |       |lau  |        |   | Mode:             |
+| |     | ni  |◄------| de  |        |   | [PAR][SEQ][L-S]   |
+| |     +-----+       +-----+        |   | [P-P][SPE][R-B]   |
+| |         |             |          |   |                   |
+| |         v             v          |   | [   ENGAGE   ]    |
+| |     +-------------------+        |   | [   ABORT    ]    |
+| |     |    HiveMind       |        |   |                   |
+| |     +-------------------+        |   +-------------------+
+| |                                   |   | EVENT STREAM     |
+| +-----------------------------------+   | ► agent.speak    |
+|                                         | ► tool_call      |
+|                                         | ► phase_change   |
++-----------------------------------------+-------------------+
+| - Connected | Tokens: 12.4k/100k | Session: 2h34m           |
++-------------------------------------------------------------+
 ```
 
 ---
@@ -299,7 +299,7 @@ const SWARM_MODES = [
 
 ### Phase A (V12.1)
 - [ ] `npm run build` passe sans erreur
-- [ ] Login → Dashboard avec tabs
+- [ ] Login -> Dashboard avec tabs
 - [ ] Onglet Files charge l'arborescence
 - [ ] MissionControl affiche 6 modes et envoie `/workflow/start`
 - [ ] HiveMap affiche nodes quand events `graph.*` arrivent
@@ -313,7 +313,7 @@ const SWARM_MODES = [
 
 ### Phase C (V12.3)
 - [ ] 2+ instances peuvent tourner en parallèle
-- [ ] Failover Redis → fallback gracieux
+- [ ] Failover Redis -> fallback gracieux
 - [ ] State recovery après restart
 
 ### Phase D (V12.4)
@@ -338,10 +338,10 @@ const SWARM_MODES = [
 ## 7. Timeline Indicative
 
 ```
-V12.1 RETINA COMPLETE    → Interface complète
-V12.2 IRONCLAD COMPLETE  → Auth production-ready
-V12.3 SCALE-OUT READY    → Multi-instance
-V12.4 COGNITIVE BOOST    → Intelligence avancée
+V12.1 RETINA COMPLETE    -> Interface complète
+V12.2 IRONCLAD COMPLETE  -> Auth production-ready
+V12.3 SCALE-OUT READY    -> Multi-instance
+V12.4 COGNITIVE BOOST    -> Intelligence avancée
 ```
 
 ---

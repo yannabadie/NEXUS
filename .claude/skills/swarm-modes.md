@@ -21,10 +21,10 @@ The Swarm Engine provides 6 collaboration modes for dynamic multi-agent task exe
 **Example**:
 ```
 Task: "Analyze code quality and write documentation"
-→ PARALLEL
+-> PARALLEL
   - Gemini: Code quality analysis
   - Claude: Documentation writing
-  → Merge: Combined report
+  -> Merge: Combined report
 ```
 
 **Characteristics**:
@@ -42,7 +42,7 @@ Task: "Analyze code quality and write documentation"
 **Example**:
 ```
 Task: "Design API, then implement it, then write tests"
-→ SEQUENTIAL
+-> SEQUENTIAL
   1. Gemini: API design
   2. Claude: Implementation
   3. Gemini: Test suite
@@ -63,7 +63,7 @@ Task: "Design API, then implement it, then write tests"
 **Example**:
 ```
 Task: "Refactor orchestration_v7.py (1200 lines)"
-→ LEAD_SUPPORT
+-> LEAD_SUPPORT
   - Lead (Claude): Code refactoring
   - Support (Gemini): Code review, suggestions, validation
 ```
@@ -83,12 +83,12 @@ Task: "Refactor orchestration_v7.py (1200 lines)"
 **Example**:
 ```
 Task: "Design optimal database schema"
-→ PING_PONG
+-> PING_PONG
   - Gemini: Initial schema proposal
   - Claude: Critique + improvements
   - Gemini: Refined schema
   - Claude: Final validation
-  → Convergence in 3-4 turns
+  -> Convergence in 3-4 turns
 ```
 
 **Characteristics**:
@@ -106,7 +106,7 @@ Task: "Design optimal database schema"
 **Example**:
 ```
 Task: "Explain this Python code"
-→ SPECIALIST (Claude)
+-> SPECIALIST (Claude)
   - Claude handles entirely
   - No Gemini involvement
 ```
@@ -126,10 +126,10 @@ Task: "Explain this Python code"
 **Example**:
 ```
 Task: "Validate InputGuard security"
-→ RED_BLUE
+-> RED_BLUE
   - Red (Gemini): Attack (craft malicious inputs)
   - Blue (Claude): Defend (verify InputGuard blocks)
-  → Multiple rounds until robust
+  -> Multiple rounds until robust
 ```
 
 **Characteristics**:
@@ -190,7 +190,7 @@ Claude: "I propose LEAD_SUPPORT with me as lead for this refactoring.
 Gemini: "Agreed, I'll support with security review.
 <negotiate>{"accept": true, "my_role": "support"}</negotiate>"
 
-→ Mode selected: LEAD_SUPPORT (Claude lead)
+-> Mode selected: LEAD_SUPPORT (Claude lead)
 ```
 
 **Max negotiation turns**: 4 (then fallback to PING_PONG)
@@ -203,7 +203,7 @@ Gemini: "Agreed, I'll support with security review.
 ```
 1. Frontier model (Opus/3-Pro): Create plan
 2. Cheap model (Sonnet/Flash): Execute steps
-→ 90% cost reduction
+-> 90% cost reduction
 ```
 
 ### Speed Optimization
@@ -221,7 +221,7 @@ Task: Decompose orchestration_v7.py God Object
 Mode: LEAD_SUPPORT
 - Lead (Claude): Extract modules progressively
 - Support (Gemini): Review each phase, suggest improvements
-Result: 1276 → 1074 lines, 4 modules, 82 tests
+Result: 1276 -> 1074 lines, 4 modules, 82 tests
 ```
 
 ### Security Hardening
@@ -261,13 +261,13 @@ cat workspace/logs/events_YYYYMMDD.jsonl | grep swarm
 
 ## Best Practices
 
-✅ **Do**:
+[OK] **Do**:
 - Let auto-routing choose when unsure
 - Use SPECIALIST for clear single-agent tasks
 - Use RED_BLUE for security/validation
 - Trust the negotiation process
 
-❌ **Don't**:
+[NO] **Don't**:
 - Force PARALLEL on dependent subtasks
 - Use SPECIALIST for complex multi-domain tasks
 - Override auto-routing without good reason
@@ -276,12 +276,12 @@ cat workspace/logs/events_YYYYMMDD.jsonl | grep swarm
 ## Mode Selection Cheat Sheet
 
 ```
-Simple single-domain task → SPECIALIST
-Complex coding task → LEAD_SUPPORT
-Independent subtasks → PARALLEL
-Dependent steps → SEQUENTIAL
-Iterative design → PING_PONG
-Security/validation → RED_BLUE
+Simple single-domain task -> SPECIALIST
+Complex coding task -> LEAD_SUPPORT
+Independent subtasks -> PARALLEL
+Dependent steps -> SEQUENTIAL
+Iterative design -> PING_PONG
+Security/validation -> RED_BLUE
 ```
 
-**When in doubt**: Let auto-routing decide ✓
+**When in doubt**: Let auto-routing decide [OK]

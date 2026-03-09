@@ -133,7 +133,7 @@ class ExecutionResult:
 @dataclass
 class AnalysisPhaseResult:
     """Result of Phase 1 - Independent Analysis."""
-    gemini_analysis: IndependentAnalysis   # ⚠️ NOT .payload!
+    gemini_analysis: IndependentAnalysis   # [warning]️ NOT .payload!
     claude_analysis: IndependentAnalysis
     comparison: AnalysisComparison
     needs_debate: bool

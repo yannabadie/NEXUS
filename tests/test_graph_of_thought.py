@@ -492,7 +492,7 @@ class TestParallelExecution:
 
         assert "test_graph" in viz  # Graph name in header
         assert "%" in viz  # Progress percentage
-        assert "⏳" in viz or "✅" in viz  # Status icons
+        assert "⏳" in viz or "[OK]" in viz  # Status icons
         assert "main_problem" in viz  # Node name
 
 

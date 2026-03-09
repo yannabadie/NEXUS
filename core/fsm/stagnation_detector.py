@@ -7,7 +7,7 @@ Solution: Détecte la similarité textuelle des messages TALK
 Méthode:
 1. Stocke les 3 derniers messages TALK
 2. Compare la similarité pairwise (difflib.SequenceMatcher)
-3. Si 2+ paires sont similaires (> 0.8) → stagnation détectée
+3. Si 2+ paires sont similaires (> 0.8) -> stagnation détectée
 4. Injecte warning système pour forcer décision
 
 V8.0 Integration: Feeds into StrategyBlacklist
@@ -133,12 +133,12 @@ class StagnationDetector:
             Message 1: "Je pense qu'on devrait lire auth.py"
             Message 2: "Oui, lisons auth.py d'abord"
             Message 3: "D'accord, lire auth.py"
-            → Similarité élevée + no tool usage + no progress → stagnation = True
+            -> Similarité élevée + no tool usage + no progress -> stagnation = True
 
             Message 1: "Je pense qu'on devrait lire auth.py"
             Message 2: "Oui, lisons auth.py d'abord"
             Message 3: "<tool_use>reading auth.py...</tool_use>"
-            → Even if similar, tool usage detected → stagnation = False
+            -> Even if similar, tool usage detected -> stagnation = False
         """
         if len(self.message_history) < self.window_size:
             return False
@@ -152,7 +152,7 @@ class StagnationDetector:
                 sim = self._similarity(recent[i], recent[j])
                 similarities.append(sim)
 
-        # Si au moins 2 paires sont très similaires → potentielle stagnation
+        # Si au moins 2 paires sont très similaires -> potentielle stagnation
         high_similarity_pairs = [s for s in similarities if s > self.similarity_threshold]
         text_similarity_high = len(high_similarity_pairs) >= 2
 
@@ -177,8 +177,8 @@ class StagnationDetector:
             Score 0.0 - 1.0 (0 = différent, 1 = identique)
 
         Example:
-            _similarity("lire auth.py", "lisons auth.py") → 0.85
-            _similarity("lire auth.py", "écrire test.py") → 0.30
+            _similarity("lire auth.py", "lisons auth.py") -> 0.85
+            _similarity("lire auth.py", "écrire test.py") -> 0.30
         """
         return SequenceMatcher(None, text1, text2).ratio()
 
@@ -247,7 +247,7 @@ class StagnationDetector:
         return """
 ---
 
-## ⚠️ ALERTE STAGNATION DÉTECTÉE
+## [warning]️ ALERTE STAGNATION DÉTECTÉE
 
 **Vous vous répétez depuis 3 tours sans prendre d'action concrète.**
 

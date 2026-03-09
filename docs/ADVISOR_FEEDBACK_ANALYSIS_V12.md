@@ -145,7 +145,7 @@ class UserRole(Enum):
 | **Effort** | Large (mapper 16 types AG-UI) |
 | **Impact** | Interop écosystème |
 
-**Mapping NEXUS → AG-UI**:
+**Mapping NEXUS -> AG-UI**:
 
 | NEXUS Event | AG-UI Equivalent |
 |-------------|------------------|

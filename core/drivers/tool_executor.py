@@ -23,19 +23,19 @@ Benefits:
 Supported Tools:
 ```
 File Operations:
-├── read_file      - Read file contents
-├── write_file     - Write file contents
-├── edit_file      - Edit file (search/replace)
-├── list_directory - List directory contents
++-- read_file      - Read file contents
++-- write_file     - Write file contents
++-- edit_file      - Edit file (search/replace)
++-- list_directory - List directory contents
 
 Search Operations:
-├── grep           - Search file contents
-├── glob           - Find files by pattern
-├── read_many_files - Read multiple files
++-- grep           - Search file contents
++-- glob           - Find files by pattern
++-- read_many_files - Read multiple files
 
 Web Operations:
-├── web_fetch      - Fetch URL content
-└── google_web_search - Web search (requires API key)
++-- web_fetch      - Fetch URL content
++-- google_web_search - Web search (requires API key)
 ```
 
 Author: Claude (NEXUS V11)

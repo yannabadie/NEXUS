@@ -78,10 +78,10 @@ if __name__ == "__main__":
 ### File Structure
 ```
 core/mcp/
-├── __init__.py      # Existing
-├── client.py        # Existing MCP client
-├── server.py        # NEW - MCP server
-└── tools.py         # NEW - Tool definitions
++-- __init__.py      # Existing
++-- client.py        # Existing MCP client
++-- server.py        # NEW - MCP server
++-- tools.py         # NEW - Tool definitions
 
 nexus_mcp_server.py  # NEW - Entry point
 ```
@@ -154,10 +154,10 @@ mcp dev nexus_mcp_server.py
 One-click installation via `.mcpb` bundle:
 ```
 nexus-extension.mcpb/
-├── manifest.json
-├── server.py
-├── requirements.txt
-└── README.md
++-- manifest.json
++-- server.py
++-- requirements.txt
++-- README.md
 ```
 
 ---

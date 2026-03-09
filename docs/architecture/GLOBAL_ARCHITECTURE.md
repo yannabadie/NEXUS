@@ -227,34 +227,34 @@ The FSM Orchestrator (Layer 6) manages 12 states with explicit transition rules:
 
 ```
 IDLE
-  ├─→ BRAINSTORMING (user input received)
-  └─→ WAITING_USER (no active task)
+  +--> BRAINSTORMING (user input received)
+  +--> WAITING_USER (no active task)
 
 BRAINSTORMING
-  ├─→ EXECUTING_TOOL (agent requests tool)
-  ├─→ WAITING_USER (agent declares FINISHED)
-  ├─→ SWARM_ANALYZING (task complexity > MODERATE)
-  ├─→ EVOLUTION_BRAINSTORM (/evolve command)
-  └─→ ERROR (validation failure)
+  +--> EXECUTING_TOOL (agent requests tool)
+  +--> WAITING_USER (agent declares FINISHED)
+  +--> SWARM_ANALYZING (task complexity > MODERATE)
+  +--> EVOLUTION_BRAINSTORM (/evolve command)
+  +--> ERROR (validation failure)
 
 EXECUTING_TOOL
-  ├─→ VALIDATING_CFL (tool completed successfully)
-  └─→ ERROR (tool execution failed)
+  +--> VALIDATING_CFL (tool completed successfully)
+  +--> ERROR (tool execution failed)
 
 VALIDATING_CFL
-  ├─→ BRAINSTORMING (continue task)
-  ├─→ WAITING_USER (task finished)
-  └─→ ERROR (validation failed)
+  +--> BRAINSTORMING (continue task)
+  +--> WAITING_USER (task finished)
+  +--> ERROR (validation failed)
 
-SWARM_ANALYZING → SWARM_NEGOTIATING → SWARM_EXECUTING → WAITING_USER
+SWARM_ANALYZING -> SWARM_NEGOTIATING -> SWARM_EXECUTING -> WAITING_USER
 
-EVOLUTION_BRAINSTORM → WAITING_USER (mutation proposal generated)
+EVOLUTION_BRAINSTORM -> WAITING_USER (mutation proposal generated)
 
 ERROR
-  ├─→ IDLE (/reset command)
-  └─→ PANIC (max retries exceeded)
+  +--> IDLE (/reset command)
+  +--> PANIC (max retries exceeded)
 
-PANIC → [Requires restart]
+PANIC -> [Requires restart]
 ```
 
 ---
@@ -455,10 +455,10 @@ graph LR
 
 Pydantic validators automatically fix common errors:
 
-- `DELEGATION` → `DELEGATE`
-- `FINISHED` → `FINISHED` (status)
-- Missing `next_agent` → Auto-alternate to other agent
-- Invalid sender casing → Capitalized
+- `DELEGATION` -> `DELEGATE`
+- `FINISHED` -> `FINISHED` (status)
+- Missing `next_agent` -> Auto-alternate to other agent
+- Invalid sender casing -> Capitalized
 
 ---
 
@@ -513,18 +513,18 @@ NEXUS supports multiple deployment architectures based on scale requirements.
 ### Single-Machine Deployment (Default)
 
 ```
-┌─────────────────────────────────────────┐
-│        Single Process (nexus7.py)      │
-│  ┌───────────────────────────────────┐  │
-│  │   FSM Orchestrator (Persistent)   │  │
-│  │         ↓         ↓               │  │
-│  │   Gemini CLI   Claude CLI         │  │
-│  └───────────────────────────────────┘  │
-│                                         │
-│  Storage: workspace/ (local disk)       │
-│  State: blackboard.json                 │
-│  Memory: SQLite (project_memory.db)     │
-└─────────────────────────────────────────┘
++-----------------------------------------+
+|        Single Process (nexus7.py)      |
+|  +-----------------------------------+  |
+|  |   FSM Orchestrator (Persistent)   |  |
+|  |         ↓         ↓               |  |
+|  |   Gemini CLI   Claude CLI         |  |
+|  +-----------------------------------+  |
+|                                         |
+|  Storage: workspace/ (local disk)       |
+|  State: blackboard.json                 |
+|  Memory: SQLite (project_memory.db)     |
++-----------------------------------------+
 ```
 
 **Use Case**: Local development, single-user projects
@@ -533,30 +533,30 @@ NEXUS supports multiple deployment architectures based on scale requirements.
 ### CEREBRO Distributed (V12.3 SCALE-OUT)
 
 ```
-┌─────────────────────────────────────────────────────┐
-│              CEREBRO Orchestrator                   │
-│  ┌─────────────────────────────────────────────┐    │
-│  │   WebSocket API (core/api/cerebro)          │    │
-│  │   ├─ /ws/telemetry (real-time metrics)      │    │
-│  │   ├─ /ws/graph (live visualization)         │    │
-│  │   └─ /ws/control (task control)             │    │
-│  └─────────────────────────────────────────────┘    │
-│                       ↕                             │
-│  ┌─────────────────────────────────────────────┐    │
-│  │         Redis (Shared State)                │    │
-│  │   - Distributed locks                       │    │
-│  │   - Session synchronization                 │    │
-│  │   - Event pub/sub                           │    │
-│  └─────────────────────────────────────────────┘    │
-│                       ↕                             │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐ │
-│  │  NEXUS #1   │  │  NEXUS #2   │  │  NEXUS #N   │ │
-│  │ (Worker)    │  │ (Worker)    │  │ (Worker)    │ │
-│  └─────────────┘  └─────────────┘  └─────────────┘ │
-│                                                     │
-│  Metrics: Prometheus + Grafana                      │
-│  Logs: Centralized JSON logging                     │
-└─────────────────────────────────────────────────────┘
++-----------------------------------------------------+
+|              CEREBRO Orchestrator                   |
+|  +---------------------------------------------+    |
+|  |   WebSocket API (core/api/cerebro)          |    |
+|  |   +- /ws/telemetry (real-time metrics)      |    |
+|  |   +- /ws/graph (live visualization)         |    |
+|  |   +- /ws/control (task control)             |    |
+|  +---------------------------------------------+    |
+|                       ↕                             |
+|  +---------------------------------------------+    |
+|  |         Redis (Shared State)                |    |
+|  |   - Distributed locks                       |    |
+|  |   - Session synchronization                 |    |
+|  |   - Event pub/sub                           |    |
+|  +---------------------------------------------+    |
+|                       ↕                             |
+|  +-------------+  +-------------+  +-------------+ |
+|  |  NEXUS #1   |  |  NEXUS #2   |  |  NEXUS #N   | |
+|  | (Worker)    |  | (Worker)    |  | (Worker)    | |
+|  +-------------+  +-------------+  +-------------+ |
+|                                                     |
+|  Metrics: Prometheus + Grafana                      |
+|  Logs: Centralized JSON logging                     |
++-----------------------------------------------------+
 ```
 
 **Use Case**: Enterprise, multi-tenant, horizontal scaling
@@ -570,20 +570,20 @@ NEXUS supports multiple deployment architectures based on scale requirements.
 ### Hybrid Deployment
 
 ```
-┌─────────────────────────────────────────────────────┐
-│         Primary NEXUS (Interactive)                 │
-│  - User interaction (REPL)                          │
-│  - Task orchestration                               │
-│  - HiveMind coordination                            │
-│                                                     │
-│         ↓ Delegates heavy tasks ↓                   │
-│                                                     │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐ │
-│  │ Swarm #1    │  │ Swarm #2    │  │ Swarm #N    │ │
-│  │ (Background)│  │ (Background)│  │ (Background)│ │
-│  │ - PARALLEL  │  │ - RED_BLUE  │  │ - SPECIALIST│ │
-│  └─────────────┘  └─────────────┘  └─────────────┘ │
-└─────────────────────────────────────────────────────┘
++-----------------------------------------------------+
+|         Primary NEXUS (Interactive)                 |
+|  - User interaction (REPL)                          |
+|  - Task orchestration                               |
+|  - HiveMind coordination                            |
+|                                                     |
+|         ↓ Delegates heavy tasks ↓                   |
+|                                                     |
+|  +-------------+  +-------------+  +-------------+ |
+|  | Swarm #1    |  | Swarm #2    |  | Swarm #N    | |
+|  | (Background)|  | (Background)|  | (Background)| |
+|  | - PARALLEL  |  | - RED_BLUE  |  | - SPECIALIST| |
+|  +-------------+  +-------------+  +-------------+ |
++-----------------------------------------------------+
 ```
 
 **Use Case**: Complex multi-step workflows with parallel execution
@@ -625,9 +625,9 @@ sequenceDiagram
     U->>R: "Fix auth bug in auth.py"
     R->>O: process_turn(input)
     O->>O: InputGuard.validate()
-    O->>O: State: IDLE → BRAINSTORMING
+    O->>O: State: IDLE -> BRAINSTORMING
 
-    O->>HM: Complexity MODERATE → HiveMind
+    O->>HM: Complexity MODERATE -> HiveMind
 
     Note over HM: Phase 1: Analysis
     HM->>G: analyze(task)
@@ -666,7 +666,7 @@ sequenceDiagram
     M->>M: Store pattern
     HM-->>O: Task complete
 
-    O->>O: State: BRAINSTORMING → WAITING_USER
+    O->>O: State: BRAINSTORMING -> WAITING_USER
     O-->>R: Result
     R-->>U: "Bug fixed in auth.py"
 ```
@@ -681,7 +681,7 @@ sequenceDiagram
 2. **Complexity Gating** (Layer 6)
    - TaskAnalyzer determines complexity = MODERATE
    - Orchestrator delegates to HiveMind pipeline
-   - FSM state: IDLE → BRAINSTORMING
+   - FSM state: IDLE -> BRAINSTORMING
 
 3. **Phase 1: Analysis** (HiveMind)
    - Gemini and Claude analyze independently
@@ -698,7 +698,7 @@ sequenceDiagram
    - Identify required tools and sequence
    - User breakpoint (optional): approve plan
 
-6. **Phase 4: Execution** (SwarmBridge → Swarm)
+6. **Phase 4: Execution** (SwarmBridge -> Swarm)
    - SwarmBridge delegates to Swarm Engine
    - Swarm selects optimal mode (e.g., PING_PONG)
    - Agents alternate tool executions
@@ -895,36 +895,36 @@ Areas identified for refactoring:
 
 ```
 core/
-├── orchestration_v7.py                 [Layer 6: FSM Orchestrator - 1123 lines]
-├── intelligence/
-│   ├── hive_mind/
-│   │   ├── orchestrator.py             [Layer 6: HiveMind Pipeline - 916 lines]
-│   │   ├── phases/                     [7 phase implementations]
-│   │   ├── swarm_bridge.py             [HiveMind-Swarm integration]
-│   │   └── saga_manager.py             [Transaction rollback]
-│   ├── swarm/
-│   │   ├── hybrid_swarm_engine.py      [Layer 6: Swarm Engine - 797 lines]
-│   │   ├── executors/                  [6 mode implementations]
-│   │   ├── task_analyzer.py            [Complexity analysis]
-│   │   └── mode_selector.py            [DyLAN-based selection]
-│   └── evolution/                      [Agent spawning & mutation]
-├── execution_pkg/
-│   ├── execution/
-│   │   ├── tool_manager.py             [Layer 5: Tool coordination - 650 lines]
-│   │   └── handlers/                   [21+ tool implementations]
-│   └── routing/                        [Model routing & optimization]
-├── drivers/
-│   ├── gemini_driver_v7.py             [Layer 4: Gemini CLI - 800 lines]
-│   └── claude_driver_hybrid.py         [Layer 4: Claude CLI - 700 lines]
-├── memory_pkg/memory/
-│   ├── auto_memory.py                  [Layer 3: Success/failure learning]
-│   ├── project_memory.py               [Layer 3: RAG memory]
-│   └── success_memory_v2.py            [Layer 3: Pattern consolidation]
-├── security_pkg/security/
-│   ├── path_guardian.py                [Layer 3: Path validation]
-│   └── execution_policy.py            [Layer 3: Command security]
-├── KERNEL.py                           [Layer 3: Immutable alignment - ROOT]
-└── [150+ other modules]
++-- orchestration_v7.py                 [Layer 6: FSM Orchestrator - 1123 lines]
++-- intelligence/
+|   +-- hive_mind/
+|   |   +-- orchestrator.py             [Layer 6: HiveMind Pipeline - 916 lines]
+|   |   +-- phases/                     [7 phase implementations]
+|   |   +-- swarm_bridge.py             [HiveMind-Swarm integration]
+|   |   +-- saga_manager.py             [Transaction rollback]
+|   +-- swarm/
+|   |   +-- hybrid_swarm_engine.py      [Layer 6: Swarm Engine - 797 lines]
+|   |   +-- executors/                  [6 mode implementations]
+|   |   +-- task_analyzer.py            [Complexity analysis]
+|   |   +-- mode_selector.py            [DyLAN-based selection]
+|   +-- evolution/                      [Agent spawning & mutation]
++-- execution_pkg/
+|   +-- execution/
+|   |   +-- tool_manager.py             [Layer 5: Tool coordination - 650 lines]
+|   |   +-- handlers/                   [21+ tool implementations]
+|   +-- routing/                        [Model routing & optimization]
++-- drivers/
+|   +-- gemini_driver_v7.py             [Layer 4: Gemini CLI - 800 lines]
+|   +-- claude_driver_hybrid.py         [Layer 4: Claude CLI - 700 lines]
++-- memory_pkg/memory/
+|   +-- auto_memory.py                  [Layer 3: Success/failure learning]
+|   +-- project_memory.py               [Layer 3: RAG memory]
+|   +-- success_memory_v2.py            [Layer 3: Pattern consolidation]
++-- security_pkg/security/
+|   +-- path_guardian.py                [Layer 3: Path validation]
+|   +-- execution_policy.py            [Layer 3: Command security]
++-- KERNEL.py                           [Layer 3: Immutable alignment - ROOT]
++-- [150+ other modules]
 ```
 
 ### B. Token Budget Management

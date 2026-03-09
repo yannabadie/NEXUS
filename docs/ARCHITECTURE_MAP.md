@@ -41,8 +41,8 @@ graph TD
 
     USER --> REPL
     REPL --> KERNEL
-    KERNEL -->|✅ Aligned| ORCH
-    KERNEL -->|❌ Rejected| REJECT[Reject]
+    KERNEL -->|[OK] Aligned| ORCH
+    KERNEL -->|[NO] Rejected| REJECT[Reject]
 
     ORCH --> GATE
     GATE -->|TRIVIAL| FAST[Fast Path]
@@ -69,10 +69,10 @@ graph TD
 
 | Flow | Path | Description |
 |------|------|-------------|
-| **User → Response** | REPL → KERNEL → Orchestrator → Swarm/HiveMind → Drivers → Response |
+| **User -> Response** | REPL -> KERNEL -> Orchestrator -> Swarm/HiveMind -> Drivers -> Response |
 | **Security** | KERNEL.py checked at startup + every action |
-| **Model Selection** | TaskType → ModelRouter → (Opus/Sonnet) or (Pro/Flash) |
-| **Memory Boost** | SuccessMemory → ModeSelector (+0-30% boost) |
+| **Model Selection** | TaskType -> ModelRouter -> (Opus/Sonnet) or (Pro/Flash) |
+| **Memory Boost** | SuccessMemory -> ModeSelector (+0-30% boost) |
 | **Budget** | BudgetTracker.enforce_budget() before each LLM call |
 
 ---
@@ -116,17 +116,17 @@ stateDiagram-v2
 
 | State | Description | Transitions |
 |-------|-------------|-------------|
-| `IDLE` | Waiting for user input (initial) | → BRAINSTORMING, SWARM_ANALYZING |
-| `BRAINSTORMING` | Agents exchange TALK messages | → EXECUTING_TOOL, WAITING_USER, ERROR |
-| `EXECUTING_TOOL` | Tool execution (synchronous) | → VALIDATING_CFL |
-| `VALIDATING_CFL` | Cognitive Feedback Loop | → BRAINSTORMING, WAITING_USER |
-| `WAITING_USER` | Task complete | → IDLE |
-| `ERROR` | Recoverable error | → IDLE (/reset), PANIC |
-| `PANIC` | Fatal error | → [restart] |
-| `EVOLUTION_BRAINSTORM` | Mutation design mode | → IDLE |
-| `SWARM_ANALYZING` | Task complexity analysis | → SWARM_NEGOTIATING, SWARM_EXECUTING |
-| `SWARM_NEGOTIATING` | Mode negotiation (max 4 turns) | → SWARM_EXECUTING |
-| `SWARM_EXECUTING` | Execute negotiated mode | → VALIDATING_CFL, ERROR |
+| `IDLE` | Waiting for user input (initial) | -> BRAINSTORMING, SWARM_ANALYZING |
+| `BRAINSTORMING` | Agents exchange TALK messages | -> EXECUTING_TOOL, WAITING_USER, ERROR |
+| `EXECUTING_TOOL` | Tool execution (synchronous) | -> VALIDATING_CFL |
+| `VALIDATING_CFL` | Cognitive Feedback Loop | -> BRAINSTORMING, WAITING_USER |
+| `WAITING_USER` | Task complete | -> IDLE |
+| `ERROR` | Recoverable error | -> IDLE (/reset), PANIC |
+| `PANIC` | Fatal error | -> [restart] |
+| `EVOLUTION_BRAINSTORM` | Mutation design mode | -> IDLE |
+| `SWARM_ANALYZING` | Task complexity analysis | -> SWARM_NEGOTIATING, SWARM_EXECUTING |
+| `SWARM_NEGOTIATING` | Mode negotiation (max 4 turns) | -> SWARM_EXECUTING |
+| `SWARM_EXECUTING` | Execute negotiated mode | -> VALIDATING_CFL, ERROR |
 
 ### 2.3 Key Files
 
@@ -206,7 +206,7 @@ graph TD
 
 | File | LOC | Purpose |
 |------|-----|---------|
-| `core/routing/model_router.py` | 217 | TaskType → Model routing |
+| `core/routing/model_router.py` | 217 | TaskType -> Model routing |
 | `core/drivers/gemini_driver_v7.py` | 624 | Gemini CLI wrapper |
 | `core/drivers/claude_driver_hybrid.py` | 483 | Claude API wrapper |
 | `core/drivers/async_adapter.py` | ~200 | Async/sync bridge |
@@ -247,7 +247,7 @@ graph TD
 
     subgraph Execution["6 Collaboration Modes"]
         EXEC --> M1["🔀 PARALLEL<br/>Independent work"]
-        EXEC --> M2["➡️ SEQUENTIAL<br/>Pipeline A→B"]
+        EXEC --> M2["➡️ SEQUENTIAL<br/>Pipeline A->B"]
         EXEC --> M3["👑 LEAD_SUPPORT<br/>80/20 split"]
         EXEC --> M4["🏓 PING_PONG<br/>Rapid alternation"]
         EXEC --> M5["🎯 SPECIALIST<br/>Single expert"]
@@ -351,7 +351,7 @@ graph TD
         BP3 --> P6A{Retry?<br/>max 3}
         P6A -->|Yes| P6B[HIVE_APPLYING_CHANGES]
         P6B --> P3A
-        P6A -->|No| FAIL["❌ HIVE_FAILED"]
+        P6A -->|No| FAIL["[NO] HIVE_FAILED"]
     end
 
     subgraph Phase7["Phase 7: Knowledge Consolidation"]
@@ -359,7 +359,7 @@ graph TD
         P7A --> P7B[HIVE_DECIDING_RETENTION]
         P7B --> BP4["🔴 BREAKPOINT<br/>CONSOLIDATION"]
         BP4 --> P7C[HIVE_CONSOLIDATING]
-        P7C --> SUCCESS["✅ HIVE_SUCCESS"]
+        P7C --> SUCCESS["[OK] HIVE_SUCCESS"]
     end
 
     style BP1 fill:#ff6b6b,color:#fff
@@ -467,9 +467,9 @@ graph TD
 
 ```
 Session UUID Structure:
-├── task_id (from generate_task_id())
-├── role ("lead", "support", "blue", "red", etc.)
-└── agent_id ("gemini", "claude")
++-- task_id (from generate_task_id())
++-- role ("lead", "support", "blue", "red", etc.)
++-- agent_id ("gemini", "claude")
 
 UUID Generation:
 session_uuid = f"{task_id}_{role}_{agent_id}"
@@ -486,15 +486,15 @@ session_uuid = f"{task_id}_{role}_{agent_id}"
 
 ```
 core/swarm/executors/           # V9.6 Extracted
-├── __init__.py                 # All exports
-├── base.py                     # ModeExecutor + execute_with_fallback
-├── registry.py                 # get_executor(), EXECUTOR_REGISTRY
-├── parallel_executor.py        # async PARALLEL (asyncio.gather)
-├── sequential_executor.py      # SEQUENTIAL (A→B pipeline)
-├── specialist_executor.py      # SPECIALIST (single expert + failover)
-├── lead_support_executor.py    # LEAD_SUPPORT (80/20 split)
-├── ping_pong_executor.py       # PING_PONG (convergence + validation)
-└── red_blue_executor.py        # RED_BLUE (adversarial + artifacts)
++-- __init__.py                 # All exports
++-- base.py                     # ModeExecutor + execute_with_fallback
++-- registry.py                 # get_executor(), EXECUTOR_REGISTRY
++-- parallel_executor.py        # async PARALLEL (asyncio.gather)
++-- sequential_executor.py      # SEQUENTIAL (A->B pipeline)
++-- specialist_executor.py      # SPECIALIST (single expert + failover)
++-- lead_support_executor.py    # LEAD_SUPPORT (80/20 split)
++-- ping_pong_executor.py       # PING_PONG (convergence + validation)
++-- red_blue_executor.py        # RED_BLUE (adversarial + artifacts)
 ```
 
 **V9.6 Metrics:**
@@ -515,7 +515,7 @@ core/swarm/executors/           # V9.6 Extracted
 graph TD
     subgraph Command["User Command"]
         CMD["/spawn SQL Expert"] --> BUDGET{Budget<br/>OK?}
-        BUDGET -->|No| REJECT["❌ Reject<br/>Budget exceeded"]
+        BUDGET -->|No| REJECT["[NO] Reject<br/>Budget exceeded"]
         BUDGET -->|Yes| EXIST{Agent<br/>Exists?}
         EXIST -->|Yes| CHOICE["Options:<br/>- /spawn-force<br/>- /spawn X_v2"]
         EXIST -->|No| UUID[Generate UUID]
@@ -530,7 +530,7 @@ graph TD
 
     subgraph Validation["Anti-Hallucination"]
         PROMPT --> VALIDATE{Valid<br/>Tools?}
-        VALIDATE -->|No| WARN["⚠️ Warning:<br/>Unknown tools"]
+        VALIDATE -->|No| WARN["[warning]️ Warning:<br/>Unknown tools"]
         VALIDATE -->|Yes| SAVE
         WARN --> SAVE
     end
@@ -793,7 +793,7 @@ graph TD
 
 ## 10. QUICK REFERENCE
 
-### 10.1 File → Feature Map
+### 10.1 File -> Feature Map
 
 | Feature | Primary File |
 |---------|--------------|

@@ -35,7 +35,7 @@ Implemented semantic memory storage (V2) for successes and failures using LanceD
 - `core/memory/types.py` (134 lines) - Chunk dataclass
 
 **Key Findings**:
-- V1 uses `AtomicJsonStore` → JSON files (Jaccard similarity)
+- V1 uses `AtomicJsonStore` -> JSON files (Jaccard similarity)
 - ProjectMemory has LanceDB backend with semantic embeddings
 - Shared `EmbeddingEngine` for efficient compute
 - Chunk dataclass is frozen but can be extended
@@ -65,7 +65,7 @@ class SuccessMemoryV2:
         self._migrate_from_v1()  # Auto-migration on first init
 
     def record_success(self, task_id, analysis, result, quality_score=None):
-        # Convert SuccessEntry → Chunk with metadata
+        # Convert SuccessEntry -> Chunk with metadata
         entry = SuccessEntry(...)
         chunk = Chunk(
             file_path=f"{VIRTUAL_FILE_PREFIX}{task_id}",
@@ -106,7 +106,7 @@ def _migrate_from_v1(self):
         data = json.loads(v1_path.read_text())
         for entry_dict in data.get("entries", []):
             entry = SuccessEntry.from_dict(entry_dict)
-            self._index_success_entry(entry)  # → LanceDB
+            self._index_success_entry(entry)  # -> LanceDB
 
         migration_marker.touch()
 ```
@@ -334,66 +334,66 @@ Total: 1 file, +315 insertions
 ### Data Flow
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│ HiveMind Phase 1 (Analysis)                                 │
-│   ↓                                                          │
-│   Query: "implement JWT authentication"                     │
-└───────────────────────────┬─────────────────────────────────┘
++-------------------------------------------------------------+
+| HiveMind Phase 1 (Analysis)                                 |
+|   ↓                                                          |
+|   Query: "implement JWT authentication"                     |
++---------------------------+---------------------------------+
                             ↓
-┌─────────────────────────────────────────────────────────────┐
-│ SuccessMemoryV2                                              │
-│   ↓                                                          │
-│   find_similar_tasks("implement JWT authentication")        │
-│   ↓                                                          │
-│   ProjectMemory.retrieve() → LanceDB semantic search        │
-│   ↓                                                          │
-│   Filter chunks by prefix: "success_memory://"              │
-│   ↓                                                          │
-│   Convert Chunk.metadata → SuccessEntry                      │
-│   ↓                                                          │
-│   Return: [(entry1, 0.92), (entry2, 0.88), ...]            │
-└─────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------+
+| SuccessMemoryV2                                              |
+|   ↓                                                          |
+|   find_similar_tasks("implement JWT authentication")        |
+|   ↓                                                          |
+|   ProjectMemory.retrieve() -> LanceDB semantic search        |
+|   ↓                                                          |
+|   Filter chunks by prefix: "success_memory://"              |
+|   ↓                                                          |
+|   Convert Chunk.metadata -> SuccessEntry                      |
+|   ↓                                                          |
+|   Return: [(entry1, 0.92), (entry2, 0.88), ...]            |
++-------------------------------------------------------------+
                             ↓
-┌─────────────────────────────────────────────────────────────┐
-│ StrategyBlacklistV2                                          │
-│   ↓                                                          │
-│   is_blacklisted("implement JWT authentication")            │
-│   ↓                                                          │
-│   ProjectMemory.retrieve() → LanceDB semantic search        │
-│   ↓                                                          │
-│   Filter chunks by prefix: "strategy_blacklist://"          │
-│   ↓                                                          │
-│   Check similarity > 0.65 threshold                          │
-│   ↓                                                          │
-│   If match: Return (True, "Similar strategy failed...")     │
-│   Else: Return (False, None)                                 │
-└─────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------+
+| StrategyBlacklistV2                                          |
+|   ↓                                                          |
+|   is_blacklisted("implement JWT authentication")            |
+|   ↓                                                          |
+|   ProjectMemory.retrieve() -> LanceDB semantic search        |
+|   ↓                                                          |
+|   Filter chunks by prefix: "strategy_blacklist://"          |
+|   ↓                                                          |
+|   Check similarity > 0.65 threshold                          |
+|   ↓                                                          |
+|   If match: Return (True, "Similar strategy failed...")     |
+|   Else: Return (False, None)                                 |
++-------------------------------------------------------------+
 ```
 
 ### Storage Layout
 
 ```
 workspace/
-├── .nexus/
-│   ├── project_knowledge.json      # Chunk index (includes V2 chunks)
-│   ├── lancedb/                    # Vector database
-│   │   ├── table_*.lance           # LanceDB files
-│   │   └── ...
-│   ├── .blacklist_migrated_to_v2   # Migration marker
-│   └── strategy_blacklist.json     # V1 data (preserved)
-│
-└── memory/
-    ├── successes.json              # V1 data (preserved)
-    └── .migrated_to_v2              # Migration marker
++-- .nexus/
+|   +-- project_knowledge.json      # Chunk index (includes V2 chunks)
+|   +-- lancedb/                    # Vector database
+|   |   +-- table_*.lance           # LanceDB files
+|   |   +-- ...
+|   +-- .blacklist_migrated_to_v2   # Migration marker
+|   +-- strategy_blacklist.json     # V1 data (preserved)
+|
++-- memory/
+    +-- successes.json              # V1 data (preserved)
+    +-- .migrated_to_v2              # Migration marker
 ```
 
 ### Backend Selection
 
 ```
 ProjectMemory Backend Auto-Selection:
-1. Try DENSE (LanceDB + embeddings)    → Best recall (+10%)
-2. Fallback BM25S (lexical search)     → Good (+15% vs TF-IDF)
-3. Fallback TF-IDF (Jaccard)           → Always available
+1. Try DENSE (LanceDB + embeddings)    -> Best recall (+10%)
+2. Fallback BM25S (lexical search)     -> Good (+15% vs TF-IDF)
+3. Fallback TF-IDF (Jaccard)           -> Always available
 
 Environment: PROJECT_MEMORY_BACKEND=auto|dense|bm25|tfidf
 ```
@@ -419,13 +419,13 @@ Environment: PROJECT_MEMORY_BACKEND=auto|dense|bm25|tfidf
 **V1 Matches** (hash-based Jaccard):
 1. "implement JWT authentication" (exact) - 1.00
 2. "add JWT auth to API" (partial) - 0.45
-3. ❌ "use token-based auth" (paraphrase) - 0.12 (MISSED)
+3. [NO] "use token-based auth" (paraphrase) - 0.12 (MISSED)
 
 **V2 Matches** (semantic):
 1. "implement JWT authentication" (exact) - 1.00
-2. "use token-based auth" (paraphrase) - 0.87 ✓
-3. "add bearer token authentication" (synonym) - 0.82 ✓
-4. "JWT integration for auth" (reordered) - 0.79 ✓
+2. "use token-based auth" (paraphrase) - 0.87 [OK]
+3. "add bearer token authentication" (synonym) - 0.82 [OK]
+4. "JWT integration for auth" (reordered) - 0.79 [OK]
 
 **Recall Improvement**: V1 found 2/4 relevant tasks (50%), V2 found 4/4 (100%) = **+50% recall**
 
@@ -451,15 +451,15 @@ Environment: PROJECT_MEMORY_BACKEND=auto|dense|bm25|tfidf
 ```
 HISTORICAL MEMORY CONTEXT:
 
-⚠️  BLACKLIST WARNING (if applicable)
+[warning]️  BLACKLIST WARNING (if applicable)
 ============================================================
 Similar strategy failed N times before.
 Failed approach: <description>
 Error: <error_message>
 
 💡 Suggested Alternatives:
-  • alternative_mode_1
-  • alternative_mode_2
+  - alternative_mode_1
+  - alternative_mode_2
 
 📚 SIMILAR PAST SUCCESSES
 ============================================================
@@ -495,7 +495,7 @@ async def analyze_task_independent(...):
 
     if is_blocked:
         context_additions.append(
-            f"⚠️ WARNING: This approach may be blacklisted:\n{block_reason}"
+            f"[warning]️ WARNING: This approach may be blacklisted:\n{block_reason}"
         )
         alternatives = blacklist.suggest_alternatives(user_input)
         context_additions.append(f"Suggested alternatives: {alternatives}")
@@ -626,7 +626,7 @@ def bench_semantic_vs_jaccard():
 
 ### 3. Auto-Migration Strategy
 
-**Pattern**: Check for migration marker file on __init__, migrate V1 → V2 if marker absent.
+**Pattern**: Check for migration marker file on __init__, migrate V1 -> V2 if marker absent.
 
 **Benefits**:
 - Zero user intervention required
@@ -712,7 +712,7 @@ def _migrate_from_v1(self):
 
 ### Risk 1: LanceDB Optional Dependency
 
-**Risk**: LanceDB not installed → V2 classes fail to import.
+**Risk**: LanceDB not installed -> V2 classes fail to import.
 
 **Mitigation**:
 - ProjectMemory has fallback backends (BM25S, TF-IDF)
@@ -722,7 +722,7 @@ def _migrate_from_v1(self):
 
 ### Risk 2: Migration Failures
 
-**Risk**: V1 JSON data corrupted → migration fails.
+**Risk**: V1 JSON data corrupted -> migration fails.
 
 **Mitigation**:
 - Try/except around migration logic
@@ -799,16 +799,16 @@ else:
 
 **Intelligent Metadata Extraction**:
 - **Complexity**: Inferred from duration + steps_completed
-- **Domains**: Keywords → coding, security, testing, research
+- **Domains**: Keywords -> coding, security, testing, research
 - **Quality**: From consolidation.confidence_in_decisions
 - **Error**: From learned_antipatterns
 - **Retry Count**: From issues_count
 
 **Complete Learning Loop**:
 ```
-Phase 1 (Query) → Phases 2-6 (Execute) → Phase 7 (Record) → Next Task (Learn)
+Phase 1 (Query) -> Phases 2-6 (Execute) -> Phase 7 (Record) -> Next Task (Learn)
        ↑                                          ↓
-       └──────────── V2 Memories Updated ─────────┘
+       +------------ V2 Memories Updated ---------+
 ```
 
 ---
@@ -841,48 +841,48 @@ Phase 1 (Query) → Phases 2-6 (Execute) → Phase 7 (Record) → Next Task (Lea
 ### Full Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│ User Task: "implement token-based authentication"          │
-└────────────────────────┬────────────────────────────────────┘
++-------------------------------------------------------------+
+| User Task: "implement token-based authentication"          |
++------------------------+------------------------------------+
                          ↓
-┌─────────────────────────────────────────────────────────────┐
-│ Phase 1: Analysis                                           │
-│   ↓                                                         │
-│ _retrieve_memory_context()                                 │
-│   ↓ Query SuccessMemoryV2                                  │
-│     → "user auth" succeeded (lead_support, 0.95 quality)   │
-│   ↓ Query StrategyBlacklistV2                              │
-│     → "JWT tokens" failed 3x ⚠️ BLOCKED                    │
-│   ↓ Inject memory context into prompt                      │
-│   ↓                                                         │
-│ Agents analyze WITH:                                        │
-│   - Blacklist warning                                       │
-│   - Similar success examples                                │
-│   - Mode recommendation (lead_support, 87%)                 │
-└─────────────────────────┬───────────────────────────────────┘
++-------------------------------------------------------------+
+| Phase 1: Analysis                                           |
+|   ↓                                                         |
+| _retrieve_memory_context()                                 |
+|   ↓ Query SuccessMemoryV2                                  |
+|     -> "user auth" succeeded (lead_support, 0.95 quality)   |
+|   ↓ Query StrategyBlacklistV2                              |
+|     -> "JWT tokens" failed 3x [warning]️ BLOCKED                    |
+|   ↓ Inject memory context into prompt                      |
+|   ↓                                                         |
+| Agents analyze WITH:                                        |
+|   - Blacklist warning                                       |
+|   - Similar success examples                                |
+|   - Mode recommendation (lead_support, 87%)                 |
++-------------------------+-----------------------------------+
                          ↓
-┌─────────────────────────────────────────────────────────────┐
-│ Phases 2-6: Execute task (with informed analysis)          │
-└─────────────────────────┬───────────────────────────────────┘
++-------------------------------------------------------------+
+| Phases 2-6: Execute task (with informed analysis)          |
++-------------------------+-----------------------------------+
                          ↓
-┌─────────────────────────────────────────────────────────────┐
-│ Phase 7: Consolidation                                      │
-│   ↓                                                         │
-│ AutoMemory: Record procedural learning ✓                   │
-│   ↓                                                         │
-│ SuccessMemoryV2: Record semantic success ✓                 │
-│   → Vectorize to LanceDB                                    │
-│   → Domain-tagged (security, coding)                        │
-│   → Quality scored (0.95)                                   │
-│   ↓                                                         │
-│ OR StrategyBlacklistV2: Record semantic failure ✓          │
-│   → Vectorize antipattern                                   │
-│   → Suggest alternative modes                               │
-└─────────────────────────┬───────────────────────────────────┘
++-------------------------------------------------------------+
+| Phase 7: Consolidation                                      |
+|   ↓                                                         |
+| AutoMemory: Record procedural learning [OK]                   |
+|   ↓                                                         |
+| SuccessMemoryV2: Record semantic success [OK]                 |
+|   -> Vectorize to LanceDB                                    |
+|   -> Domain-tagged (security, coding)                        |
+|   -> Quality scored (0.95)                                   |
+|   ↓                                                         |
+| OR StrategyBlacklistV2: Record semantic failure [OK]          |
+|   -> Vectorize antipattern                                   |
+|   -> Suggest alternative modes                               |
++-------------------------+-----------------------------------+
                          ↓
-┌─────────────────────────────────────────────────────────────┐
-│ V2 Memories Updated → Future Tasks Learn                    │
-└─────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------+
+| V2 Memories Updated -> Future Tasks Learn                    |
++-------------------------------------------------------------+
 ```
 
 ### Performance Impact (Projected)
@@ -903,7 +903,7 @@ After 100 task executions:
 
 ## Future Work
 
-### Epic 1.4: ✅ 100% COMPLETE
+### Epic 1.4: [OK] 100% COMPLETE
 
 - [x] V2 infrastructure
 - [x] Phase 1 integration (query)
@@ -951,4 +951,4 @@ See todo3.md for remaining epics:
 **Branch State**: Clean, all changes committed
 **Documentation**: Updated
 
-**Ready for handoff** ✓
+**Ready for handoff** [OK]

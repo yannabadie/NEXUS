@@ -10,17 +10,17 @@ description: NEXUS testing patterns and conventions. Use when writing tests, deb
 - `test_*.py` - Unit tests
 - `test_*_integration.py` - Integration tests (require real API keys)
 - `test_*_e2e.py` - End-to-end tests
-- Mirror module structure: `core/memory/rag.py` → `tests/test_memory_rag.py`
+- Mirror module structure: `core/memory/rag.py` -> `tests/test_memory_rag.py`
 
 ## Test Organization
 
 ```
 tests/
-├── conftest.py              # Shared fixtures
-├── test_*.py                # Unit tests (fast, no external deps)
-├── test_*_integration.py    # Integration (GEMINI_API_KEY, ANTHROPIC_API_KEY)
-├── torture_v8.py            # Stress tests (nightly CI)
-└── benchmark_professional.py # Performance benchmarks
++-- conftest.py              # Shared fixtures
++-- test_*.py                # Unit tests (fast, no external deps)
++-- test_*_integration.py    # Integration (GEMINI_API_KEY, ANTHROPIC_API_KEY)
++-- torture_v8.py            # Stress tests (nightly CI)
++-- benchmark_professional.py # Performance benchmarks
 ```
 
 ## Fixtures Pattern (conftest.py)
@@ -45,10 +45,10 @@ def isolated_test():
 
 **Informative failures**:
 ```python
-# ❌ Bad
+# [NO] Bad
 assert result.status == "success"
 
-# ✅ Good
+# [OK] Good
 assert result.status == "success", f"Expected success, got {result.status}: {result.error}"
 ```
 
@@ -97,10 +97,10 @@ SKIP_LLM_TESTS=0 pytest tests/test_*_integration.py
 
 **V12.4 Mock Updates** (after P5.1 refactoring):
 ```python
-# ❌ Old (fails - driver not imported directly)
+# [NO] Old (fails - driver not imported directly)
 with patch('core.orchestration_v7.GeminiDriverV7'):
 
-# ✅ New (correct - mock factory)
+# [OK] New (correct - mock factory)
 with patch('core.drivers.async_factory.AsyncDriverFactory.get_best_gemini'):
 ```
 
@@ -196,4 +196,4 @@ python -m py_compile $(find core -name "*.py")
 4. Fix and verify: Run tests before pushing
 5. **VERIFY CI passes**: `gh run list` after push
 
-Remember: **NEVER claim "tests pass" without running them** ✓
+Remember: **NEVER claim "tests pass" without running them** [OK]

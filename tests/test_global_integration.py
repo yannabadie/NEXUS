@@ -70,9 +70,9 @@ def test_global_integration():
 
         agent_dir = workspace_path / "agents" / "python_refactoring_expert"
         if agent_dir.exists() and (agent_dir / "BIRTH_CERTIFICATE.json").exists():
-            print(f"✅ Agent Spawned: {agent_dir}")
+            print(f"[OK] Agent Spawned: {agent_dir}")
         else:
-            print("❌ Agent Spawn Failed")
+            print("[NO] Agent Spawn Failed")
 
         # --- TEST 2: SWARM & AUTO-MEMORY ---
         print("\n🧪 TEST 2: SWARM EXECUTION & AUTO-MEMORY...")
@@ -93,7 +93,7 @@ def test_global_integration():
         # We need to manually trigger the record because process_with_swarm mocks the whole flow
         # Let's check if AutoMemory was initialized
         if hasattr(repl.orchestrator, "auto_memory"):
-            print("✅ Auto-Memory Initialized")
+            print("[OK] Auto-Memory Initialized")
 
             # Manually record a success to test persistence
             repl.orchestrator.auto_memory.record_success(
@@ -110,13 +110,13 @@ def test_global_integration():
             if success_file.exists():
                 content = success_file.read_text()
                 if "Refactor core" in content and "LEAD_SUPPORT" in content:
-                    print("✅ Auto-Memory Persistence Verified")
+                    print("[OK] Auto-Memory Persistence Verified")
                 else:
-                    print(f"❌ Memory Content Mismatch: {content}")
+                    print(f"[NO] Memory Content Mismatch: {content}")
             else:
-                print("❌ Memory File Not Created")
+                print("[NO] Memory File Not Created")
         else:
-            print("❌ Auto-Memory Missing from Orchestrator")
+            print("[NO] Auto-Memory Missing from Orchestrator")
 
     # Cleanup
     try:

@@ -222,7 +222,7 @@ async def get_current_user_optional(
     """
     Dependency that optionally extracts authentication.
 
-    ⚠️ SECURITY WARNING (V11.6.1 IRONCLAD):
+    [warning]️ SECURITY WARNING (V11.6.1 IRONCLAD):
     This function should ONLY be used for routes that are genuinely public.
     For ANY route that accesses tenant-scoped data, use `require_auth` instead.
 

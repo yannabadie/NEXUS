@@ -10,29 +10,29 @@ Modular state handlers for the FSM orchestrator. Extracted from the monolithic `
 
 ```
 core/fsm/handlers/
-├── __init__.py                 # Facade pattern - delegates to handler modules
-├── base.py                     # BaseHandler - common infrastructure
-├── error.py                    # ERROR, PANIC states (30 lines)
-├── brainstorming.py            # BRAINSTORMING state (125 lines)
-├── executing_tool.py           # EXECUTING_TOOL state (47 lines)
-├── validating_cfl.py           # VALIDATING_CFL state (108 lines)
-├── evolution.py                # EVOLUTION_BRAINSTORM state (153 lines)
-└── swarm.py                    # SWARM_* states (107 lines)
++-- __init__.py                 # Facade pattern - delegates to handler modules
++-- base.py                     # BaseHandler - common infrastructure
++-- error.py                    # ERROR, PANIC states (30 lines)
++-- brainstorming.py            # BRAINSTORMING state (125 lines)
++-- executing_tool.py           # EXECUTING_TOOL state (47 lines)
++-- validating_cfl.py           # VALIDATING_CFL state (108 lines)
++-- evolution.py                # EVOLUTION_BRAINSTORM state (153 lines)
++-- swarm.py                    # SWARM_* states (107 lines)
 ```
 
 ## Migration Status
 
-### ✅ Completed Modules
+### [OK] Completed Modules
 
 | Module | States | Lines | Status |
 |--------|--------|-------|--------|
-| `error.py` | ERROR, PANIC | 30 | ✅ Extracted & tested |
-| `brainstorming.py` | BRAINSTORMING | 125 | ✅ Extracted & tested |
-| `executing_tool.py` | EXECUTING_TOOL | 47 | ✅ Extracted & tested |
-| `validating_cfl.py` | VALIDATING_CFL | 108 | ✅ Extracted & tested |
-| `evolution.py` | EVOLUTION_BRAINSTORM | 153 | ✅ Extracted & tested |
-| `swarm.py` | SWARM_ANALYZING, SWARM_NEGOTIATING, SWARM_EXECUTING | 107 | ✅ Extracted & tested |
-| `idle_waiting.py` | IDLE, WAITING_USER | 391 | ✅ Extracted & tested |
+| `error.py` | ERROR, PANIC | 30 | [OK] Extracted & tested |
+| `brainstorming.py` | BRAINSTORMING | 125 | [OK] Extracted & tested |
+| `executing_tool.py` | EXECUTING_TOOL | 47 | [OK] Extracted & tested |
+| `validating_cfl.py` | VALIDATING_CFL | 108 | [OK] Extracted & tested |
+| `evolution.py` | EVOLUTION_BRAINSTORM | 153 | [OK] Extracted & tested |
+| `swarm.py` | SWARM_ANALYZING, SWARM_NEGOTIATING, SWARM_EXECUTING | 107 | [OK] Extracted & tested |
+| `idle_waiting.py` | IDLE, WAITING_USER | 391 | [OK] Extracted & tested |
 
 **Total:** 8/8 handler groups (100% coverage), 1,181 lines extracted
 
@@ -98,7 +98,7 @@ result = self.fsm_handlers.handle_brainstorming()
 
 ### IdleWaitingHandler (TODO)
 - Task complexity analysis
-- Routing logic (TRIVIAL → SIMPLE → MODERATE+)
+- Routing logic (TRIVIAL -> SIMPLE -> MODERATE+)
 - HiveMind integration
 - Fast path optimization
 - Simple task execution
@@ -120,10 +120,10 @@ result = self.fsm_handlers.handle_brainstorming()
 
 ## Benefits
 
-✅ **Maintainability**: Small, focused modules instead of 1,845-line monolith
-✅ **Testability**: Each handler can be tested independently
-✅ **Clarity**: State handling logic is self-contained
-✅ **Scalability**: Easy to add new states or modify existing ones
+[OK] **Maintainability**: Small, focused modules instead of 1,845-line monolith
+[OK] **Testability**: Each handler can be tested independently
+[OK] **Clarity**: State handling logic is self-contained
+[OK] **Scalability**: Easy to add new states or modify existing ones
 
 ## Next Steps
 

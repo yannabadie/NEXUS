@@ -173,8 +173,8 @@ def invoke_with_retry(self, context: str, max_retries: int = 3) -> Dict:
 
 ```
 TrueHiveMind.process_task()      # ASYNC (line 235)
-    └── calls GeminiDriverV7.invoke()  # SYNC (blocks event loop!)
-    └── calls ClaudeDriverHybrid.invoke()  # SYNC (blocks event loop!)
+    +-- calls GeminiDriverV7.invoke()  # SYNC (blocks event loop!)
+    +-- calls ClaudeDriverHybrid.invoke()  # SYNC (blocks event loop!)
 ```
 
 ### Why PARALLEL Mode is Actually Sequential

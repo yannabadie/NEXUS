@@ -19,9 +19,9 @@ class PlanHealthMonitor:
     def __init__(self, warning_threshold: int = 10, stagnant_threshold: int = 20, zombie_threshold: int = 30):
         """
         Args:
-            warning_threshold: Nombre de tours sans progrès → WARNING
-            stagnant_threshold: Nombre de tours sans completion → STAGNANT
-            zombie_threshold: Nombre de tours sans aucun progrès → ZOMBIE
+            warning_threshold: Nombre de tours sans progrès -> WARNING
+            stagnant_threshold: Nombre de tours sans completion -> STAGNANT
+            zombie_threshold: Nombre de tours sans aucun progrès -> ZOMBIE
         """
         self.warning_threshold = warning_threshold
         self.stagnant_threshold = stagnant_threshold

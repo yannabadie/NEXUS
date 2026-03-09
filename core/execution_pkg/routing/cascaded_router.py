@@ -19,21 +19,21 @@ NEXUS Adaptation:
 - Thread-safe singleton pattern
 
 Architecture:
-    ┌──────────────────────────────────────────┐
-    │           CascadedRouter                  │
-    │  ┌──────────┐                            │
-    │  │ Stage 1  │ → Collaboration Mode       │
-    │  │ (Task)   │   (PARALLEL, SEQUENTIAL..) │
-    │  └────┬─────┘                            │
-    │  ┌────▼─────┐                            │
-    │  │ Stage 2  │ → Role Assignment          │
-    │  │ (Mode)   │   (lead, support, peer)    │
-    │  └────┬─────┘                            │
-    │  ┌────▼─────┐                            │
-    │  │ Stage 3  │ → Model Selection          │
-    │  │ (Role)   │   (Opus/Sonnet, Pro/Flash) │
-    │  └──────────┘                            │
-    └──────────────────────────────────────────┘
+    +------------------------------------------+
+    |           CascadedRouter                  |
+    |  +----------+                            |
+    |  | Stage 1  | -> Collaboration Mode       |
+    |  | (Task)   |   (PARALLEL, SEQUENTIAL..) |
+    |  +----+-----+                            |
+    |  +----v-----+                            |
+    |  | Stage 2  | -> Role Assignment          |
+    |  | (Mode)   |   (lead, support, peer)    |
+    |  +----+-----+                            |
+    |  +----v-----+                            |
+    |  | Stage 3  | -> Model Selection          |
+    |  | (Role)   |   (Opus/Sonnet, Pro/Flash) |
+    |  +----------+                            |
+    +------------------------------------------+
 
 Author: Claude (NEXUS V12.4 COGNITIVE BOOST)
 Date: 2026-02-17
@@ -54,16 +54,16 @@ logger = logging.getLogger(__name__)
 # Configuration
 # =============================================================================
 
-# Stage 1: Task complexity → mode mapping thresholds
+# Stage 1: Task complexity -> mode mapping thresholds
 COMPLEXITY_THRESHOLDS = {
-    "trivial": 0.2,  # Below 0.2 complexity → SPECIALIST
-    "simple": 0.4,  # 0.2-0.4 → SEQUENTIAL
-    "moderate": 0.6,  # 0.4-0.6 → LEAD_SUPPORT or PING_PONG
-    "complex": 0.8,  # 0.6-0.8 → PARALLEL or RED_BLUE
-    "expert": 1.0,  # 0.8-1.0 → full PARALLEL
+    "trivial": 0.2,  # Below 0.2 complexity -> SPECIALIST
+    "simple": 0.4,  # 0.2-0.4 -> SEQUENTIAL
+    "moderate": 0.6,  # 0.4-0.6 -> LEAD_SUPPORT or PING_PONG
+    "complex": 0.8,  # 0.6-0.8 -> PARALLEL or RED_BLUE
+    "expert": 1.0,  # 0.8-1.0 -> full PARALLEL
 }
 
-# Stage 2: Mode → default role assignments
+# Stage 2: Mode -> default role assignments
 DEFAULT_ROLE_ASSIGNMENTS = {
     "parallel": {"claude": "peer", "gemini": "peer"},
     "sequential": {"claude": "first", "gemini": "second"},
@@ -73,7 +73,7 @@ DEFAULT_ROLE_ASSIGNMENTS = {
     "red_blue": {"claude": "blue_team", "gemini": "red_team"},
 }
 
-# Stage 3: Role → model tier mapping
+# Stage 3: Role -> model tier mapping
 ROLE_MODEL_MAPPING = {
     # Roles that need the strongest model
     "lead": "high",
@@ -90,7 +90,7 @@ ROLE_MODEL_MAPPING = {
     "idle": "low",
 }
 
-# Model tier → concrete model names
+# Model tier -> concrete model names
 # V12.4: Added DeepSeek (98% cheaper) and Kimi (90% cheaper) for cost optimization
 MODEL_TIERS = {
     "high": {
@@ -209,9 +209,9 @@ class CascadedRouter:
     """
     Three-stage cascaded routing for multi-agent systems.
 
-    Stage 1: Task Analysis → Collaboration Mode
-    Stage 2: Mode + Agent Capabilities → Role Assignment
-    Stage 3: Role + Task Type → Model Selection
+    Stage 1: Task Analysis -> Collaboration Mode
+    Stage 2: Mode + Agent Capabilities -> Role Assignment
+    Stage 3: Role + Task Type -> Model Selection
 
     Each stage narrows the decision space for the next stage,
     reducing the overall routing complexity.
@@ -376,8 +376,8 @@ class CascadedRouter:
         - EXPERT (> 0.8): PARALLEL
 
         Domain overrides:
-        - "security" domain → RED_BLUE (adversarial)
-        - Mixed domains → PARALLEL (each agent tackles their strength)
+        - "security" domain -> RED_BLUE (adversarial)
+        - Mixed domains -> PARALLEL (each agent tackles their strength)
 
         Args:
             complexity: 0.0-1.0 complexity score
@@ -429,7 +429,7 @@ class CascadedRouter:
             agent_scores: DyLAN importance scores per agent
 
         Returns:
-            Dict mapping agent_id → role
+            Dict mapping agent_id -> role
         """
         # Start with default roles for this mode
         roles = dict(DEFAULT_ROLE_ASSIGNMENTS.get(mode, {}))
@@ -505,7 +505,7 @@ class CascadedRouter:
         V12.4: Cost-optimized policy uses DeepSeek/Kimi for significant savings.
 
         Args:
-            roles: Agent → role mapping
+            roles: Agent -> role mapping
             complexity: Task complexity (for cost estimation)
 
         Returns:
@@ -547,7 +547,7 @@ class CascadedRouter:
                 role=role,
                 model_tier=tier,
                 model_name=model_name,
-                reasoning=f"Role '{role}' → tier '{tier}' (policy={self._routing_policy})",
+                reasoning=f"Role '{role}' -> tier '{tier}' (policy={self._routing_policy})",
             )
 
             # Cost estimation (relative, V12.4: updated for DeepSeek/Kimi)
@@ -578,7 +578,7 @@ class CascadedRouter:
     ) -> str:
         """Build human-readable reasoning for the routing decision."""
         parts = [
-            f"Complexity {complexity:.2f} → {mode} mode.",
+            f"Complexity {complexity:.2f} -> {mode} mode.",
         ]
         if domains:
             parts.append(f"Domains: {', '.join(domains)}.")

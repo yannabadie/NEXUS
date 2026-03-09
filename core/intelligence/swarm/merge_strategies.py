@@ -115,7 +115,7 @@ class NaiveMergeStrategy(MergeStrategy):
         for output in context.outputs:
             agent_name = self._get_agent_name(output.agent_id)
             if output.status == "error":
-                merged_parts.append(f"[{agent_name}] ❌ Error:\n{output.error or output.content}")
+                merged_parts.append(f"[{agent_name}] [NO] Error:\n{output.error or output.content}")
             else:
                 merged_parts.append(f"[{agent_name}]:\n{output.content}")
 
@@ -189,7 +189,7 @@ class DeduplicateMergeStrategy(MergeStrategy):
         for output in context.outputs:
             if output.status == "error":
                 agent_name = self._get_agent_name(output.agent_id)
-                merged_parts.append(f"[{agent_name}] ❌ Error:\n{output.error or output.content}")
+                merged_parts.append(f"[{agent_name}] [NO] Error:\n{output.error or output.content}")
 
         return MergeResult(
             content="\n\n---\n\n".join(merged_parts),
@@ -270,7 +270,7 @@ class WeightedMergeStrategy(MergeStrategy):
             fit_score = get_fit_score(output)
 
             if output.status == "error":
-                merged_parts.append(f"[{agent_name}] ❌ Error:\n{output.error or output.content}")
+                merged_parts.append(f"[{agent_name}] [NO] Error:\n{output.error or output.content}")
             else:
                 # Add fit indicator for high-scoring agents
                 fit_indicator = ""

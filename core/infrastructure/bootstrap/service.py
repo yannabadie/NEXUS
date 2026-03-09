@@ -268,9 +268,9 @@ class SpinoffService:
             mission_slug = "".join(c if c.isalnum() else "_" for c in mission)[:30].upper()
             spinoff_id = f"NEXUS_SPECIALIST_{mission_slug}_{datetime.now().strftime('%Y%m%d')}"
 
-            self.console.print(f"\n{'─' * 60}")
+            self.console.print(f"\n{'-' * 60}")
             self.console.print(f"Creating Specialist: {spinoff_id}")
-            self.console.print(f"{'─' * 60}")
+            self.console.print(f"{'-' * 60}")
 
             # 3. Create Directory
             child_dir = parent_path.parent / "GENERATION_ACTIVE" / spinoff_id

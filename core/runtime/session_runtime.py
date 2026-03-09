@@ -63,7 +63,7 @@ class NexusSessionRuntime:
         workspace_path: Path | None = None,
         interaction_mode: str = "cli",
         strict_interaction: bool = False,
-    ) -> "NexusSessionRuntime":
+    ) -> NexusSessionRuntime:
         workspace = Path(workspace_path or getattr(config, "workspace_path", "./workspace"))
         gemini_info = {"model": config.gemini_pro_model, "provider": "gemini"}
         claude_info = {"model": config.claude_opus_model, "provider": "claude"}

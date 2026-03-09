@@ -91,25 +91,25 @@ See ROADMAP V8.1.6 for fix plan.
 
 ---
 
-## 3. Call Graph: Async → Sync Problem
+## 3. Call Graph: Async -> Sync Problem
 
 ```
 ASYNC CONTEXT
-│
-└── TrueHiveMind.process_task() [ASYNC]
-    │
-    ├── PhaseAnalysis.execute() [ASYNC]
-    │   │
-    │   ├── _analyze_with_gemini() [ASYNC]
-    │   │   └── self.gemini.invoke() [SYNC] ← BLOCKS EVENT LOOP!
-    │   │
-    │   └── _analyze_with_claude() [ASYNC]
-    │       └── self.claude.invoke() [SYNC] ← BLOCKS EVENT LOOP!
-    │
-    ├── PhaseDebate.execute() [ASYNC]
-    │   └── ... same pattern ...
-    │
-    └── ... other phases ...
+|
++-- TrueHiveMind.process_task() [ASYNC]
+    |
+    +-- PhaseAnalysis.execute() [ASYNC]
+    |   |
+    |   +-- _analyze_with_gemini() [ASYNC]
+    |   |   +-- self.gemini.invoke() [SYNC] <- BLOCKS EVENT LOOP!
+    |   |
+    |   +-- _analyze_with_claude() [ASYNC]
+    |       +-- self.claude.invoke() [SYNC] <- BLOCKS EVENT LOOP!
+    |
+    +-- PhaseDebate.execute() [ASYNC]
+    |   +-- ... same pattern ...
+    |
+    +-- ... other phases ...
 ```
 
 ---

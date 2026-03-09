@@ -5,7 +5,7 @@ Coordinates SuccessMemory (episodic) and AutoMemory (procedural) for:
 1. Unified query interface
 2. Conflict resolution
 3. Score normalization
-4. Consolidation (episodic → procedural)
+4. Consolidation (episodic -> procedural)
 5. V12.4: Adaptive weights per domain
 
 Design Pattern: Adapter + Facade
@@ -14,30 +14,30 @@ Design Pattern: Adapter + Facade
 - Gradual migration path
 
 Architecture:
-    ┌─────────────────┐   ┌─────────────────┐
-    │  SuccessMemory  │   │   AutoMemory    │
-    │  (Episodic)     │   │  (Procedural)   │
-    │                 │   │                 │
-    │  - Similarity   │   │  - Task type    │
-    │  - Time decay   │   │  - Lead/Mode    │
-    └────────┬────────┘   └────────┬────────┘
-             │                     │
-             └──────────┬──────────┘
-                        │
-              ┌─────────▼─────────┐
-              │ MemoryCoordinator │
-              │ - Normalize       │
-              │ - Adaptive Weight │ ← V12.4
-              │ - Resolve         │
-              └─────────┬─────────┘
-                        │
-              ┌─────────▼─────────┐
-              │ UnifiedRec        │
-              │ - mode            │
-              │ - lead            │
-              │ - confidence      │
-              │ - source          │
-              └───────────────────┘
+    +-----------------+   +-----------------+
+    |  SuccessMemory  |   |   AutoMemory    |
+    |  (Episodic)     |   |  (Procedural)   |
+    |                 |   |                 |
+    |  - Similarity   |   |  - Task type    |
+    |  - Time decay   |   |  - Lead/Mode    |
+    +--------+--------+   +--------+--------+
+             |                     |
+             +----------+----------+
+                        |
+              +---------v---------+
+              | MemoryCoordinator |
+              | - Normalize       |
+              | - Adaptive Weight | <- V12.4
+              | - Resolve         |
+              +---------+---------+
+                        |
+              +---------v---------+
+              | UnifiedRec        |
+              | - mode            |
+              | - lead            |
+              | - confidence      |
+              | - source          |
+              +-------------------+
 
 V12.4 Adaptive Weights:
 - Learns optimal semantic/procedural weights per domain

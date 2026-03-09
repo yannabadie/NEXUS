@@ -177,7 +177,7 @@ class TestSuccessEntry:
         assert entry.complexity == "COMPLEX"
 
     def test_roundtrip(self):
-        """Dict → Entry → Dict preserves data."""
+        """Dict -> Entry -> Dict preserves data."""
         original = SuccessEntry(
             task_id="task-003",
             task_hash="ghi012",

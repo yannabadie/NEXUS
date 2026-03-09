@@ -7,34 +7,34 @@ The **synapse** module defines the communication protocol between agents in NEXU
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                      SYNAPSE PROTOCOL V7                                 │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
-│  ┌──────────────────────────────────────────────────────────────────┐   │
-│  │                       Message Types                               │   │
-│  ├──────────────────────────────────────────────────────────────────┤   │
-│  │                                                                   │   │
-│  │  ┌─────────────────┐           ┌─────────────────────┐           │   │
-│  │  │ LightMessageV7  │           │   HeavyMessageV7    │           │   │
-│  │  │ ─────────────── │           │ ─────────────────── │           │   │
-│  │  │ TALK            │           │ TOOL_USE            │           │   │
-│  │  │ DELEGATE        │           │ FINISH              │           │   │
-│  │  │ CONTINUE        │           │ ERROR               │           │   │
-│  │  └─────────────────┘           └─────────────────────┘           │   │
-│  │                                                                   │   │
-│  └──────────────────────────────────────────────────────────────────┘   │
-│                                                                          │
-│  ┌──────────────────────────────────────────────────────────────────┐   │
-│  │                     Auto-Repair System                            │   │
-│  ├──────────────────────────────────────────────────────────────────┤   │
-│  │  • Typo correction: "DELEGATION" → "DELEGATE"                     │   │
-│  │  • Case normalization: "talk" → "TALK"                            │   │
-│  │  • Missing field defaults: next_agent → alternate agent           │   │
-│  │  • Sender capitalization: "gemini" → "Gemini"                     │   │
-│  └──────────────────────────────────────────────────────────────────┘   │
-│                                                                          │
-└─────────────────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------------------+
+|                      SYNAPSE PROTOCOL V7                                 |
++-------------------------------------------------------------------------+
+|                                                                          |
+|  +------------------------------------------------------------------+   |
+|  |                       Message Types                               |   |
+|  +------------------------------------------------------------------+   |
+|  |                                                                   |   |
+|  |  +-----------------+           +---------------------+           |   |
+|  |  | LightMessageV7  |           |   HeavyMessageV7    |           |   |
+|  |  | --------------- |           | ------------------- |           |   |
+|  |  | TALK            |           | TOOL_USE            |           |   |
+|  |  | DELEGATE        |           | FINISH              |           |   |
+|  |  | CONTINUE        |           | ERROR               |           |   |
+|  |  +-----------------+           +---------------------+           |   |
+|  |                                                                   |   |
+|  +------------------------------------------------------------------+   |
+|                                                                          |
+|  +------------------------------------------------------------------+   |
+|  |                     Auto-Repair System                            |   |
+|  +------------------------------------------------------------------+   |
+|  |  - Typo correction: "DELEGATION" -> "DELEGATE"                     |   |
+|  |  - Case normalization: "talk" -> "TALK"                            |   |
+|  |  - Missing field defaults: next_agent -> alternate agent           |   |
+|  |  - Sender capitalization: "gemini" -> "Gemini"                     |   |
+|  +------------------------------------------------------------------+   |
+|                                                                          |
++-------------------------------------------------------------------------+
 ```
 
 ## Component Map
@@ -126,10 +126,10 @@ from core.synapse.protocol_v7 import LightMessageV7, HeavyMessageV7
 
 # Parsing agent response (auto-repairs typos)
 msg = LightMessageV7.model_validate({
-    "sender": "gemini",          # → "Gemini"
-    "action_type": "delegation", # → "DELEGATE"
+    "sender": "gemini",          # -> "Gemini"
+    "action_type": "delegation", # -> "DELEGATE"
     "content": "Please analyze the code",
-    # next_agent missing → auto-set to "Claude"
+    # next_agent missing -> auto-set to "Claude"
 })
 
 # Tool use message

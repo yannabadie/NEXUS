@@ -15,11 +15,11 @@ After thorough diagnostic testing, the NEXUS memory system is **more functional 
 
 | Component | Status | Finding |
 |-----------|--------|---------|
-| **ProjectMemory (RAG)** | ✅ WORKS | NOT write-only! Retrieves in `ContextBuilder._get_project_knowledge()` |
-| **Dense Index** | ❌ BROKEN | `'list' object has no attribute 'tolist'` - falls back to BM25 |
-| **BM25 Fallback** | ✅ WORKS | Returns relevant results |
-| **SuccessMemory** | ✅ WORKS | Integrated with ModeSelector |
-| **AutoMemory** | ✅ WORKS | Integrated with ModeSelector |
+| **ProjectMemory (RAG)** | [OK] WORKS | NOT write-only! Retrieves in `ContextBuilder._get_project_knowledge()` |
+| **Dense Index** | [NO] BROKEN | `'list' object has no attribute 'tolist'` - falls back to BM25 |
+| **BM25 Fallback** | [OK] WORKS | Returns relevant results |
+| **SuccessMemory** | [OK] WORKS | Integrated with ModeSelector |
+| **AutoMemory** | [OK] WORKS | Integrated with ModeSelector |
 
 ### Original Audit Corrections
 
@@ -79,11 +79,11 @@ if isinstance(embeddings, list):
 
 | Component | RAG Retrieved? | Impact |
 |-----------|---------------|--------|
-| ContextBuilder (MODERATE+) | ✅ Yes | OK |
-| TaskAnalyzer | ❌ No | Complexity misclassification |
-| ModeSelector | ❌ No | Mode selection without project context |
-| Simple Mode | ❌ No | Single agent blind to codebase |
-| Executors | ❌ No | Agents lose context mid-execution |
+| ContextBuilder (MODERATE+) | [OK] Yes | OK |
+| TaskAnalyzer | [NO] No | Complexity misclassification |
+| ModeSelector | [NO] No | Mode selection without project context |
+| Simple Mode | [NO] No | Single agent blind to codebase |
+| Executors | [NO] No | Agents lose context mid-execution |
 
 ### 2A: RAG in TaskAnalyzer
 
@@ -160,9 +160,9 @@ async def _enrich_with_jit_rag(self, step_context: str) -> str:
 
 ```
 ModeSelector receives:
-├── SuccessMemory.get_best_mode_for_similar() → boost by similarity
-├── AutoMemory.get_recommendation() → boost by task_type
-└── Applied SEQUENTIALLY without normalization
++-- SuccessMemory.get_best_mode_for_similar() -> boost by similarity
++-- AutoMemory.get_recommendation() -> boost by task_type
++-- Applied SEQUENTIALLY without normalization
 ```
 
 ### Option A: Unified Memory (High Effort, Medium Risk)
@@ -179,7 +179,7 @@ Create `UnifiedSuccessMemory` that combines both.
 - Potential data loss
 - High regression risk
 
-### Option B: Memory Coordinator (Medium Effort, Low Risk) ✅ RECOMMENDED
+### Option B: Memory Coordinator (Medium Effort, Low Risk) [OK] RECOMMENDED
 
 Keep both memories, add a coordinator layer.
 
@@ -261,7 +261,7 @@ def retrieve_with_augmentation(self, query: str, limit: int = 5) -> List[Chunk]:
     # Extract domain keywords
     domain_terms = self._extract_domain_terms(query)
 
-    # Expand abbreviations (e.g., "auth" → "authentication")
+    # Expand abbreviations (e.g., "auth" -> "authentication")
     expanded = self._expand_abbreviations(query)
 
     # Build augmented query
@@ -275,46 +275,46 @@ def retrieve_with_augmentation(self, query: str, limit: int = 5) -> List[Chunk]:
 ## Implementation Order
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    IMPLEMENTATION PHASES                     │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  PHASE 1: Fix Dense Index Bug                               │
-│  ├── Effort: 1-2 hours                                      │
-│  ├── Risk: Low                                              │
-│  └── Deliverable: Semantic search working                   │
-│           │                                                 │
-│           ▼                                                 │
-│  PHASE 2A: RAG in TaskAnalyzer                              │
-│  ├── Effort: 2-3 hours                                      │
-│  ├── Risk: Low                                              │
-│  └── Deliverable: Better complexity classification          │
-│           │                                                 │
-│           ▼                                                 │
-│  PHASE 2B: RAG in Simple Mode                               │
-│  ├── Effort: 1-2 hours                                      │
-│  ├── Risk: Low                                              │
-│  └── Deliverable: Single agent sees project context         │
-│           │                                                 │
-│           ▼                                                 │
-│  PHASE 2C: JIT RAG in Executors                             │
-│  ├── Effort: 3-4 hours                                      │
-│  ├── Risk: Medium (token limits)                            │
-│  └── Deliverable: Context persistence during execution      │
-│           │                                                 │
-│           ▼                                                 │
-│  PHASE 3: Memory Coordinator                                │
-│  ├── Effort: 4-6 hours                                      │
-│  ├── Risk: Medium                                           │
-│  └── Deliverable: Unified memory recommendations            │
-│           │                                                 │
-│           ▼                                                 │
-│  PHASE 4: Query Augmentation (OPTIONAL)                     │
-│  ├── Effort: 2-3 hours                                      │
-│  ├── Risk: Low                                              │
-│  └── Deliverable: Better retrieval accuracy                 │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------+
+|                    IMPLEMENTATION PHASES                     |
++-------------------------------------------------------------+
+|                                                             |
+|  PHASE 1: Fix Dense Index Bug                               |
+|  +-- Effort: 1-2 hours                                      |
+|  +-- Risk: Low                                              |
+|  +-- Deliverable: Semantic search working                   |
+|           |                                                 |
+|           v                                                 |
+|  PHASE 2A: RAG in TaskAnalyzer                              |
+|  +-- Effort: 2-3 hours                                      |
+|  +-- Risk: Low                                              |
+|  +-- Deliverable: Better complexity classification          |
+|           |                                                 |
+|           v                                                 |
+|  PHASE 2B: RAG in Simple Mode                               |
+|  +-- Effort: 1-2 hours                                      |
+|  +-- Risk: Low                                              |
+|  +-- Deliverable: Single agent sees project context         |
+|           |                                                 |
+|           v                                                 |
+|  PHASE 2C: JIT RAG in Executors                             |
+|  +-- Effort: 3-4 hours                                      |
+|  +-- Risk: Medium (token limits)                            |
+|  +-- Deliverable: Context persistence during execution      |
+|           |                                                 |
+|           v                                                 |
+|  PHASE 3: Memory Coordinator                                |
+|  +-- Effort: 4-6 hours                                      |
+|  +-- Risk: Medium                                           |
+|  +-- Deliverable: Unified memory recommendations            |
+|           |                                                 |
+|           v                                                 |
+|  PHASE 4: Query Augmentation (OPTIONAL)                     |
+|  +-- Effort: 2-3 hours                                      |
+|  +-- Risk: Low                                              |
+|  +-- Deliverable: Better retrieval accuracy                 |
+|                                                             |
++-------------------------------------------------------------+
 ```
 
 ---
@@ -324,7 +324,7 @@ def retrieve_with_augmentation(self, query: str, limit: int = 5) -> List[Chunk]:
 | Metric | Current | Target | How to Measure |
 |--------|---------|--------|----------------|
 | RAG Retrieval Rate | ~30% (MODERATE+ only) | 80% (all code tasks) | Log analysis |
-| Dense Index Status | ❌ Broken | ✅ Working | Backend info check |
+| Dense Index Status | [NO] Broken | [OK] Working | Backend info check |
 | Memory Boost Rate | Unknown | Track in logs | Add telemetry |
 | Task Classification Accuracy | Unknown | Improve by 15% | A/B test |
 

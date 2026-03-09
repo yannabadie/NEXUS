@@ -123,8 +123,8 @@
 
 **Validation Chain:**
 ```
-User Command → ExecutionPolicy.analyze() → CommandType.SIMPLE/COMPLEX
-                                          → Blocked if dangerous
+User Command -> ExecutionPolicy.analyze() -> CommandType.SIMPLE/COMPLEX
+                                          -> Blocked if dangerous
 ```
 
 #### Path Traversal

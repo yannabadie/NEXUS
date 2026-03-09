@@ -246,10 +246,10 @@ class FaultDetector:
         Weight agent votes by their trust scores.
 
         Args:
-            votes: agent_id → vote_value mapping
+            votes: agent_id -> vote_value mapping
 
         Returns:
-            vote_value → weighted_score mapping (sum of trust scores per vote)
+            vote_value -> weighted_score mapping (sum of trust scores per vote)
         """
         weighted: dict[str, float] = defaultdict(float)
 

@@ -5,7 +5,7 @@ This module unifies several existing agent-related components:
 - AgentRegistry (hive_mind/) - Anti-duplication for spawns
 - AgentPool (swarm/) - DyLAN scoring + metrics
 - SpawnedAgentLoader (bootstrap/) - Discovery from workspace/agents/
-- AgentInvoker (orchestration/) - Routing task → driver
+- AgentInvoker (orchestration/) - Routing task -> driver
 
 Replaces 41+ hardcoded if/else chains like:
     if "gemini" in agent_id.lower()
@@ -108,7 +108,7 @@ class UnifiedAgentRegistry:
     def __init__(self) -> None:
         self._agents: dict[str, AgentDescriptor] = {}
         self._drivers: dict[str, DriverProtocol] = {}
-        self._aliases: dict[str, str] = {}  # "Gemini" → "gemini"
+        self._aliases: dict[str, str] = {}  # "Gemini" -> "gemini"
         self._register_builtins()
 
     def _register_builtins(self) -> None:

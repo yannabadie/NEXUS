@@ -63,7 +63,7 @@ recommendation = coordinator.recommend(
 - **Adaptive Weights**: Learns optimal semantic/procedural weights per domain
 - **Score Normalization**: Harmonizes different memory types
 - **Conflict Resolution**: Handles disagreements between memories
-- **Consolidation**: Migrates episodic → procedural over time
+- **Consolidation**: Migrates episodic -> procedural over time
 
 **V12.4 Adaptive Weights:**
 - Tracks recommendation outcomes (success/failure)

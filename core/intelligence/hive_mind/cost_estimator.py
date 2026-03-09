@@ -179,7 +179,7 @@ class CostEstimator:
         """
         Check if tokens would exceed USD budget.
 
-        V8.0 Integration: Chains CostEstimator → BudgetTracker
+        V8.0 Integration: Chains CostEstimator -> BudgetTracker
 
         Args:
             tokens: Tokens to spend

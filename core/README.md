@@ -7,37 +7,37 @@ The **core** module is the heart of NEXUS V12.4 "COGNITIVE BOOST" - a multi-agen
 ## Architecture Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         NEXUS CORE ARCHITECTURE                          │
-├─────────────────────────────────────────────────────────────────────────┤
-│  ┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐  │
-│  │   User Input     │───▶│   FSM Layer      │───▶│   Complexity     │  │
-│  │   (REPL/API)     │    │   (12 States)    │    │   Assessment     │  │
-│  └──────────────────┘    └────────┬─────────┘    └────────┬─────────┘  │
-│                                   │                        │            │
-│           ┌───────────────────────┼────────────────────────┘            │
-│           ▼                       ▼                                     │
-│  ┌──────────────────┐    ┌──────────────────┐                          │
-│  │   BRAINSTORMING  │    │   HiveMind       │  MODERATE+ Complexity    │
-│  │   (Simple Tasks) │    │   (7 Phases)     │                          │
-│  └────────┬─────────┘    └────────┬─────────┘                          │
-│           │                       │                                     │
-│           │              ┌────────▼─────────┐                          │
-│           │              │   SwarmBridge    │  Phase 4 Delegation      │
-│           │              └────────┬─────────┘                          │
-│           │                       │                                     │
-│           └───────────┬───────────┘                                     │
-│                       ▼                                                 │
-│           ┌──────────────────────┐                                     │
-│           │    Swarm Engine      │  6 Collaboration Modes              │
-│           │    (Negotiation)     │                                     │
-│           └──────────┬───────────┘                                     │
-│                      │                                                  │
-│           ┌──────────▼───────────┐                                     │
-│           │   Agent Drivers      │  Gemini + Claude                    │
-│           │   (JSON/XML)         │                                     │
-│           └──────────────────────┘                                     │
-└─────────────────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------------------+
+|                         NEXUS CORE ARCHITECTURE                          |
++-------------------------------------------------------------------------+
+|  +------------------+    +------------------+    +------------------+  |
+|  |   User Input     |--->|   FSM Layer      |--->|   Complexity     |  |
+|  |   (REPL/API)     |    |   (12 States)    |    |   Assessment     |  |
+|  +------------------+    +--------+---------+    +--------+---------+  |
+|                                   |                        |            |
+|           +-----------------------+------------------------+            |
+|           v                       v                                     |
+|  +------------------+    +------------------+                          |
+|  |   BRAINSTORMING  |    |   HiveMind       |  MODERATE+ Complexity    |
+|  |   (Simple Tasks) |    |   (7 Phases)     |                          |
+|  +--------+---------+    +--------+---------+                          |
+|           |                       |                                     |
+|           |              +--------v---------+                          |
+|           |              |   SwarmBridge    |  Phase 4 Delegation      |
+|           |              +--------+---------+                          |
+|           |                       |                                     |
+|           +-----------+-----------+                                     |
+|                       v                                                 |
+|           +----------------------+                                     |
+|           |    Swarm Engine      |  6 Collaboration Modes              |
+|           |    (Negotiation)     |                                     |
+|           +----------+-----------+                                     |
+|                      |                                                  |
+|           +----------v-----------+                                     |
+|           |   Agent Drivers      |  Gemini + Claude                    |
+|           |   (JSON/XML)         |                                     |
+|           +----------------------+                                     |
++-------------------------------------------------------------------------+
 ```
 
 ## Component Map
@@ -69,7 +69,7 @@ The **core** module is the heart of NEXUS V12.4 "COGNITIVE BOOST" - a multi-agen
 
 ### Layer 1: FSM (12 States)
 Low-level state machine managing basic orchestration flow:
-- `IDLE` → `BRAINSTORMING` → `EXECUTING_TOOL` → `VALIDATING_CFL` → `IDLE`
+- `IDLE` -> `BRAINSTORMING` -> `EXECUTING_TOOL` -> `VALIDATING_CFL` -> `IDLE`
 - Special states: `SWARM_*`, `HIBERNATE`, `ERROR`, `PANIC`
 
 ### Layer 2: HiveMind (7 Phases)
@@ -120,10 +120,10 @@ orch = create_orchestrator(
 ## Complexity Routing
 
 ```
-User Input → TaskAnalyzer → Complexity Assessment
-                               │
-    ┌──────────────────────────┼──────────────────────────┐
-    │                          │                          │
+User Input -> TaskAnalyzer -> Complexity Assessment
+                               |
+    +--------------------------+--------------------------+
+    |                          |                          |
  TRIVIAL               SIMPLE/MODERATE              COMPLEX/EXPERT
  Fast Path             Brainstorming                   HiveMind
  (regex)               + Swarm Auto                    7 Phases
@@ -148,9 +148,9 @@ User Input → TaskAnalyzer → Complexity Assessment
 
 ## Entry Points
 
-1. **REPL**: `nexus7.py` → Creates `OrchestratorV7`
-2. **REST API**: `core/api/cerebro/` → Session-based orchestrator
-3. **Commands**: `core/interface/commands/` → Invoke methods
+1. **REPL**: `nexus7.py` -> Creates `OrchestratorV7`
+2. **REST API**: `core/api/cerebro/` -> Session-based orchestrator
+3. **Commands**: `core/interface/commands/` -> Invoke methods
 
 ## Configuration
 

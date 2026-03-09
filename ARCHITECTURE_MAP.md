@@ -213,7 +213,7 @@ sequenceDiagram
 | **Santé** | 🟡 Complex - fsm_handlers.py trop grand |
 | **Couplage** | Medium - Dépend de HiveMind et Swarm |
 | **Points de Décision** | `_analyze_task_complexity()`, `FSM.can_transition()` |
-| **Chemin d'Erreur** | FSM → ERROR → PANIC (si non récupérable) |
+| **Chemin d'Erreur** | FSM -> ERROR -> PANIC (si non récupérable) |
 
 #### Recommandation
 - Extraire `fsm_handlers.py` en handlers individuels par état
@@ -259,7 +259,7 @@ sequenceDiagram
     alt Mode Fails (Self-Healing V8.1.3)
         X-->>E: ExecutionError
         E->>E: _fallback_chain()
-        Note over E: PARALLEL→SEQUENTIAL→SPECIALIST
+        Note over E: PARALLEL->SEQUENTIAL->SPECIALIST
         E->>X: execute_mode(fallback_mode)
     end
 
@@ -275,7 +275,7 @@ sequenceDiagram
 | **Santé** | 🟡 Complex - mode_executors.py contient 6 classes |
 | **Couplage** | Medium - Dépend de Drivers et Agents |
 | **Points de Décision** | `ModeSelector.select()`, `Negotiation.resolve()` |
-| **Self-Healing** | Fallback chains: PARALLEL→SEQUENTIAL→SPECIALIST |
+| **Self-Healing** | Fallback chains: PARALLEL->SEQUENTIAL->SPECIALIST |
 
 #### Recommandation
 - Extraire chaque mode dans `core/swarm/executors/{mode}.py`
@@ -369,7 +369,7 @@ sequenceDiagram
 | **Checkpoints** | 5 points: start, analysis, debate, architecture, consolidation |
 
 #### Recommandation
-- Documenter le flux inverse Swarm→HiveMind (actuellement un angle mort)
+- Documenter le flux inverse Swarm->HiveMind (actuellement un angle mort)
 
 ---
 
@@ -378,35 +378,35 @@ sequenceDiagram
 ### Vue d'Ensemble
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    NEXUS V9.4 "SYNC BRIDGE"                     │
-├─────────────────────────────────────────────────────────────────┤
-│  ┌─────────┐    ┌─────────────┐    ┌─────────────────────────┐  │
-│  │  REPL   │───▶│ Orchestrator│───▶│ HiveMind (7 phases)     │  │
-│  │ nexus7  │    │     V7      │    │ ┌───┬───┬───┬───┬───┬──┐│  │
-│  └─────────┘    │   + FSM     │    │ │ A │ D │ R │ E │ G │ C││  │
-│                 └──────┬──────┘    │ └───┴───┴───┴───┴───┴──┘│  │
-│                        │           └────────────┬────────────┘  │
-│                        │                        │               │
-│                        │    ┌───────────────────┼───────────┐   │
-│                        │    │  OrchestratorSyncBridge V9.4  │   │
-│                        │    └───────────────────┼───────────┘   │
-│                        │                        │               │
-│                        │           ┌────────────┴────────────┐  │
-│                        └──────────▶│ HybridSwarmEngine       │  │
-│                                    │ ┌────┬────┬────┬────┬──┐│  │
-│                                    │ │PAR │SEQ │L-S │P-P │SP││  │
-│                                    │ └────┴────┴────┴────┴──┘│  │
-│                                    └─────────────────────────┘  │
-│                                              │                  │
-│                        ┌─────────────────────┴───────────────┐  │
-│                        │           LLM Drivers               │  │
-│                        │  ┌─────────────┐  ┌──────────────┐  │  │
-│                        │  │GeminiDriver │  │ ClaudeDriver │  │  │
-│                        │  │   (JSON)    │  │    (XML)     │  │  │
-│                        │  └─────────────┘  └──────────────┘  │  │
-│                        └─────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
++-----------------------------------------------------------------+
+|                    NEXUS V9.4 "SYNC BRIDGE"                     |
++-----------------------------------------------------------------+
+|  +---------+    +-------------+    +-------------------------+  |
+|  |  REPL   |--->| Orchestrator|--->| HiveMind (7 phases)     |  |
+|  | nexus7  |    |     V7      |    | +---+---+---+---+---+--+|  |
+|  +---------+    |   + FSM     |    | | A | D | R | E | G | C||  |
+|                 +------+------+    | +---+---+---+---+---+--+|  |
+|                        |           +------------+------------+  |
+|                        |                        |               |
+|                        |    +-------------------+-----------+   |
+|                        |    |  OrchestratorSyncBridge V9.4  |   |
+|                        |    +-------------------+-----------+   |
+|                        |                        |               |
+|                        |           +------------+------------+  |
+|                        +---------->| HybridSwarmEngine       |  |
+|                                    | +----+----+----+----+--+|  |
+|                                    | |PAR |SEQ |L-S |P-P |SP||  |
+|                                    | +----+----+----+----+--+|  |
+|                                    +-------------------------+  |
+|                                              |                  |
+|                        +---------------------+---------------+  |
+|                        |           LLM Drivers               |  |
+|                        |  +-------------+  +--------------+  |  |
+|                        |  |GeminiDriver |  | ClaudeDriver |  |  |
+|                        |  |   (JSON)    |  |    (XML)     |  |  |
+|                        |  +-------------+  +--------------+  |  |
+|                        +-------------------------------------+  |
++-----------------------------------------------------------------+
 ```
 
 ### Patterns Architecturaux Principaux
@@ -419,7 +419,7 @@ sequenceDiagram
 | **Strategy** | Swarm | 6 modes interchangeables |
 | **Saga** | SagaManager | Checkpoints + Rollback distribué |
 | **Chain of Responsibility** | Security Guards, Fallback Chain | Traitement en cascade |
-| **Adapter** | Drivers | Abstraction CLI → Protocol unifié |
+| **Adapter** | Drivers | Abstraction CLI -> Protocol unifié |
 | **Repository** | Memory, AgentRegistry | Accès données centralisé |
 
 ### Points de Vigilance
@@ -429,7 +429,7 @@ sequenceDiagram
 | `tool_manager.py` | God Class (1848 LOC) | Maintenance difficile | 🔴 HIGH |
 | `fsm_handlers.py` | Fichier monolithique (1408 LOC) | Tests complexes | 🔴 HIGH |
 | `mode_executors.py` | 6 classes dans 1 fichier | Couplage artificiel | 🟡 MEDIUM |
-| Swarm→HiveMind | Flux non documenté | Angle mort | 🟡 MEDIUM |
+| Swarm->HiveMind | Flux non documenté | Angle mort | 🟡 MEDIUM |
 
 ---
 

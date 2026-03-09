@@ -83,10 +83,10 @@
 **Proposition Phase V8.6**:
 ```
 Phase 16: Observability Pipeline
-├── V8.6.0 - OTLP Exporter (spans per tool call)
-├── V8.6.1 - Token cost real-time tracking
-├── V8.6.2 - Session replay capability
-└── V8.6.3 - Langfuse/Phoenix integration optionnelle
++-- V8.6.0 - OTLP Exporter (spans per tool call)
++-- V8.6.1 - Token cost real-time tracking
++-- V8.6.2 - Session replay capability
++-- V8.6.3 - Langfuse/Phoenix integration optionnelle
 ```
 
 ### 3.2 Sécurité Agents (OWASP #1)
@@ -102,10 +102,10 @@ Phase 16: Observability Pipeline
 **Proposition Phase V8.7**:
 ```
 Phase 17: Security Hardening
-├── V8.7.0 - Input Guardrails (patterns détection)
-├── V8.7.1 - Output Validation (anti-hallucination)
-├── V8.7.2 - Agent Sandboxing (subprocess isolation)
-└── V8.7.3 - Behavioral Monitoring (anomaly detection)
++-- V8.7.0 - Input Guardrails (patterns détection)
++-- V8.7.1 - Output Validation (anti-hallucination)
++-- V8.7.2 - Agent Sandboxing (subprocess isolation)
++-- V8.7.3 - Behavioral Monitoring (anomaly detection)
 ```
 
 ### 3.3 Évaluation & Benchmarking
@@ -121,10 +121,10 @@ Phase 17: Security Hardening
 **Proposition Phase V8.8**:
 ```
 Phase 18: Evaluation Framework
-├── V8.8.0 - CLASSic Metrics Integration
-├── V8.8.1 - Automated Benchmark Suite
-├── V8.8.2 - Quality Score per Task
-└── V8.8.3 - Mode Comparison Dashboard
++-- V8.8.0 - CLASSic Metrics Integration
++-- V8.8.1 - Automated Benchmark Suite
++-- V8.8.2 - Quality Score per Task
++-- V8.8.3 - Mode Comparison Dashboard
 ```
 
 ### 3.4 Gouvernance & Compliance
@@ -140,10 +140,10 @@ Phase 18: Evaluation Framework
 **Proposition Phase V9.0**:
 ```
 Phase 19: Governance Framework
-├── V9.0.0 - Cryptographic Audit Trail
-├── V9.0.1 - Role-Based Access Control
-├── V9.0.2 - Data Lineage Tracking
-└── V9.0.3 - Compliance Dashboard (NIST AI RMF)
++-- V9.0.0 - Cryptographic Audit Trail
++-- V9.0.1 - Role-Based Access Control
++-- V9.0.2 - Data Lineage Tracking
++-- V9.0.3 - Compliance Dashboard (NIST AI RMF)
 ```
 
 ### 3.5 Interopérabilité Multi-Framework
@@ -159,10 +159,10 @@ Phase 19: Governance Framework
 **Proposition Phase V9.1**:
 ```
 Phase 20: Interoperability
-├── V9.1.0 - MCP Server (expose NEXUS comme tool)
-├── V9.1.1 - LangGraph Agent Export
-├── V9.1.2 - CrewAI Agent Import
-└── V9.1.3 - A2A Protocol Support (Google)
++-- V9.1.0 - MCP Server (expose NEXUS comme tool)
++-- V9.1.1 - LangGraph Agent Export
++-- V9.1.2 - CrewAI Agent Import
++-- V9.1.3 - A2A Protocol Support (Google)
 ```
 
 ---
@@ -177,7 +177,7 @@ Phase 20: Interoperability
 | V8.5.1 | Full async Hive Mind phases | 2 sem | P1 |
 | V8.5.2 | Async cleanup garantit (finally blocks) | 1 sem | P2 |
 | V8.5.3 | Audit exception swallowing (top 50) | 1 sem | P1 |
-| V8.5.4 | Replace print(stderr) → logger (32) | 3 jours | P2 |
+| V8.5.4 | Replace print(stderr) -> logger (32) | 3 jours | P2 |
 
 ### 4.2 Moyen Terme (V8.6-8.8) - Production Ready
 
@@ -218,10 +218,10 @@ Phase 20: Interoperability
 
 | Opportunité | Effort | ROI |
 |-------------|--------|-----|
-| OTLP → compatible tous dashboards | 1 sem | HAUTE |
-| CLASSic → benchmarks comparables | 1 sem | HAUTE |
-| MCP Server → NEXUS comme tool pour Claude/GPT | 1 sem | TRÈS HAUTE |
-| LangGraph export → interopérabilité | 2 sem | MOYENNE |
+| OTLP -> compatible tous dashboards | 1 sem | HAUTE |
+| CLASSic -> benchmarks comparables | 1 sem | HAUTE |
+| MCP Server -> NEXUS comme tool pour Claude/GPT | 1 sem | TRÈS HAUTE |
+| LangGraph export -> interopérabilité | 2 sem | MOYENNE |
 
 ---
 

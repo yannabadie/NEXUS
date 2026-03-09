@@ -452,7 +452,7 @@ class MetaPolicyMemory:
             score_str = f"{rule.score:.0%}"
             lines.append(
                 f"  {i}. [{rule.category}] (reliability: {score_str}) "
-                f"WHEN: {rule.predicate[:120]} → THEN: {rule.action[:120]}"
+                f"WHEN: {rule.predicate[:120]} -> THEN: {rule.action[:120]}"
             )
         lines.append("[END LEARNED RULES]")
         return "\n".join(lines)

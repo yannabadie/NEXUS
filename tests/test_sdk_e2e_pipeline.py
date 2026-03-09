@@ -139,7 +139,7 @@ async def test_fsm_state_transitions_with_sdk(mock_config, mock_sdk_response, tm
     """
     Test that FSM traverses expected states with SDK drivers.
 
-    Validates: IDLE → BRAINSTORMING → EXECUTING_TOOL → WAITING_USER
+    Validates: IDLE -> BRAINSTORMING -> EXECUTING_TOOL -> WAITING_USER
     """
     # Mock both Gemini and Claude info
     gemini_info = {"model": "gemini-3-pro-preview"}

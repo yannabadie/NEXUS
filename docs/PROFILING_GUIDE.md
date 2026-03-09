@@ -183,7 +183,7 @@ driver.claude.invoke                                  750.00     2800.00      15
 ### Optimization Order
 
 1. **Algorithmic** (biggest gains)
-   - O(n²) → O(n log n)
+   - O(n²) -> O(n log n)
    - Unnecessary work elimination
 
 2. **Caching** (easiest wins)
@@ -192,19 +192,19 @@ driver.claude.invoke                                  750.00     2800.00      15
    - Index caching
 
 3. **Language-Level** (last resort)
-   - Python → Rust
+   - Python -> Rust
    - Only for proven hot paths
    - Maintain Python interface
 
 ### Anti-Patterns
 
-❌ **Don't**:
+[NO] **Don't**:
 - Optimize without profiling
 - Rewrite everything in Rust
 - Sacrifice readability for 1% gains
 - Optimize rare code paths
 
-✅ **Do**:
+[OK] **Do**:
 - Profile realistic workloads
 - Surgical optimizations (4 modules max)
 - Maintain Python API compatibility

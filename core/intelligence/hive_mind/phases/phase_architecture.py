@@ -433,7 +433,7 @@ class ArchitectureGenerationPhase:
         - Gemini generates architecture alone
         """
         if COLLABORATIVE_ARCHITECTURE:
-            logger.info("Phase 3: Using COLLABORATIVE architecture (Claude → Gemini)")
+            logger.info("Phase 3: Using COLLABORATIVE architecture (Claude -> Gemini)")
             return await self._generate_collaborative(task, approach, capabilities, available_agents)
         else:
             logger.info("Phase 3: Using LEGACY architecture (Gemini only)")

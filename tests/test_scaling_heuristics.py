@@ -535,7 +535,7 @@ class TestSingleAgentThreshold:
 
     def test_below_threshold_becomes_single_agent(self, evaluator):
         """Benefits below 0.05 should force SINGLE_AGENT coordination."""
-        # CODE_GENERATION + simple → benefit = 0.10 but override sets it to 0.0
+        # CODE_GENERATION + simple -> benefit = 0.10 but override sets it to 0.0
         # when complexity is simple and benefit < 0.30
         rec = evaluator.evaluate("Write a function", complexity="simple")
         assert rec.coordination == CoordinationType.SINGLE_AGENT

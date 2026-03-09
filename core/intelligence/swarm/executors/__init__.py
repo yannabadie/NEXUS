@@ -5,7 +5,7 @@ Decomposed from mode_executors.py (1187 LOC) for Single Responsibility.
 
 Each executor implements one collaboration mode:
 - ParallelExecutor: Simultaneous work with result merging
-- SequentialExecutor: Ordered execution (first → second)
+- SequentialExecutor: Ordered execution (first -> second)
 - LeadSupportExecutor: Lead drives, support reviews
 - PingPongExecutor: Rapid alternation until convergence
 - SpecialistExecutor: Single expert handles all

@@ -12,19 +12,19 @@ a unified interface that matches DriverProtocol. This enables:
 
 Architecture:
 ```
-    ┌─────────────────────────┐
-    │     DriverProtocol      │
-    └────────────┬────────────┘
-                 │
-    ┌────────────┴────────────┐
-    │    CLIDriverAdapter     │ (this file)
-    └────────────┬────────────┘
-        ┌────────┴────────┐
-        ▼                 ▼
-  ┌───────────────┐ ┌───────────────┐
-  │ AsyncGemini   │ │ AsyncClaude   │
-  │ Driver (CLI)  │ │ Driver (CLI)  │
-  └───────────────┘ └───────────────┘
+    +-------------------------+
+    |     DriverProtocol      |
+    +------------+------------+
+                 |
+    +------------+------------+
+    |    CLIDriverAdapter     | (this file)
+    +------------+------------+
+        +--------+--------+
+        v                 v
+  +---------------+ +---------------+
+  | AsyncGemini   | | AsyncClaude   |
+  | Driver (CLI)  | | Driver (CLI)  |
+  +---------------+ +---------------+
 ```
 
 Usage:

@@ -113,9 +113,9 @@ def test_hive_mind_execution():
             # Verify child creation
             generation_dir = workspace_path / "GENERATION_ACTIVE"
             if generation_dir.exists() and any(generation_dir.iterdir()):
-                print("✅ Evolution Test PASSED: Child created.")
+                print("[OK] Evolution Test PASSED: Child created.")
             else:
-                print("❌ Evolution Test FAILED: No child created.")
+                print("[NO] Evolution Test FAILED: No child created.")
 
             # Test Swarm
             print("\n3. Testing SWARM execution...")
@@ -123,7 +123,7 @@ def test_hive_mind_execution():
 
             # Check if process_with_swarm was called (implicitly via success message)
             # Since we mocked the components, if we see output, it worked.
-            print("✅ Swarm Test PASSED (Logic executed without crash)")
+            print("[OK] Swarm Test PASSED (Logic executed without crash)")
 
     # Cleanup
     if workspace_path.exists():

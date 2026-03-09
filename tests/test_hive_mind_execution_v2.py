@@ -100,26 +100,26 @@ def test_hive_mind_execution_v2():
         if expected_gen_dir.exists():
             children = list(expected_gen_dir.iterdir())
             if len(children) > 0:
-                print(f"✅ Evolution PASSED: Child created at {children[0]}")
+                print(f"[OK] Evolution PASSED: Child created at {children[0]}")
 
                 # Verify content
                 child_file = children[0] / "dummy.py"
                 if child_file.exists() and "SQL Expert Agent" in child_file.read_text():
-                    print("✅ Mutation Applied: Content verified")
+                    print("[OK] Mutation Applied: Content verified")
                 else:
-                    print("❌ Mutation Failed: Content not updated")
+                    print("[NO] Mutation Failed: Content not updated")
 
                 # Verify Red Team Skipped (Implicitly passed if child exists and valid)
                 birth_cert = children[0] / "BIRTH_CERTIFICATE.json"
                 if birth_cert.exists():
-                    print("✅ Birth Certificate: Created")
+                    print("[OK] Birth Certificate: Created")
                 else:
-                    print("❌ Birth Certificate: Missing")
+                    print("[NO] Birth Certificate: Missing")
 
             else:
-                print("❌ Evolution Failed: Directory empty")
+                print("[NO] Evolution Failed: Directory empty")
         else:
-            print(f"❌ Evolution Failed: Directory {expected_gen_dir} not created")
+            print(f"[NO] Evolution Failed: Directory {expected_gen_dir} not created")
 
         # 5. TEST SWARM
         print("\n🧪 TEST 1: SWARM ENGINE...")
@@ -136,7 +136,7 @@ def test_hive_mind_execution_v2():
         repl.run_swarm_task("Optimize this SQL query")
 
         repl.orchestrator.process_with_swarm.assert_called_once()
-        print("✅ Swarm Execution PASSED (Method called correctly)")
+        print("[OK] Swarm Execution PASSED (Method called correctly)")
 
     # Cleanup
     try:

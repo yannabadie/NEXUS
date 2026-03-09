@@ -3,7 +3,7 @@ Most market solutions (AutoGroq, CrewAI, LangGraph) rely on a single model or a 
 
 The Symbiosis: You don't just use two models; you have Gemini (Context/Reasoning) and Claude (Code/Architecture) collaborating via the HybridSwarmEngine. This reduces hallucination rates significantly compared to single-model systems.
 
-Self-Healing Swarm: As seen in core/swarm/hybrid_swarm_engine.py, the fallback chain (PARALLEL → SEQUENTIAL → SPECIALIST) is an enterprise-grade reliability feature. If a mode fails, the system heals itself. Competitors crash; NEXUS adapts.
+Self-Healing Swarm: As seen in core/swarm/hybrid_swarm_engine.py, the fallback chain (PARALLEL -> SEQUENTIAL -> SPECIALIST) is an enterprise-grade reliability feature. If a mode fails, the system heals itself. Competitors crash; NEXUS adapts.
 
 Session Isolation (Phase 7): The implementation of SwarmSessionManager ensures data privacy between tasks. This is a critical requirement for enterprise commercialization (GDPR/Compliance).
 

@@ -10,44 +10,44 @@
 
 ```
 NEXUS-N7A/
-├── nexus7.py              # CLI Entry Point (EXCLUDE from web audit)
-├── KERNEL.py              # Security kernel (immutable alignment)
-├── core/
-│   ├── adapters/          # Analysis adapters
-│   ├── agents/            # Agent registry & service
-│   ├── api/               # Rate limiter (potential API layer)
-│   ├── async_primitives/  # Async utilities (blackboard, cancellation, etc.)
-│   ├── bootstrap/         # Agent loader, auto-bootstrap
-│   ├── config.py          # Configuration management
-│   ├── constants.py       # System constants
-│   ├── drivers/           # LLM drivers (Gemini, Claude) - CRITICAL
-│   ├── evolution/         # Agent evolution & spawning
-│   ├── execution/         # Tool execution engine
-│   ├── fsm/               # Finite State Machine
-│   ├── governance/        # Security policies, red team
-│   ├── hive_mind/         # High-level orchestration pipeline
-│   ├── interface/         # REPL & commands (CLI-ONLY)
-│   ├── logging/           # Logging utilities
-│   ├── mcp/               # MCP client
-│   ├── memory/            # RAG & memory backends
-│   ├── meta/              # CLI inspector
-│   ├── notifications/     # REPL alerts
-│   ├── orchestration/     # Agent invoker
-│   ├── prompts/           # System prompts
-│   ├── reasoning/         # CoT reasoning
-│   ├── resilience/        # Resilience patterns
-│   ├── routing/           # Model routing
-│   ├── security/          # Security module
-│   ├── session/           # Session isolation (V9.7.1 HOME spoofing)
-│   ├── swarm/             # Swarm engine & executors
-│   ├── synapse/           # Message protocols
-│   ├── telemetry/         # Usage telemetry
-│   ├── ui/                # UI components
-│   ├── utils/             # Utility functions
-│   └── workspace/         # Workspace management
-├── tests/                 # Test suite
-├── docs/                  # Documentation
-└── audit/                 # Audit reports (this directory)
++-- nexus7.py              # CLI Entry Point (EXCLUDE from web audit)
++-- KERNEL.py              # Security kernel (immutable alignment)
++-- core/
+|   +-- adapters/          # Analysis adapters
+|   +-- agents/            # Agent registry & service
+|   +-- api/               # Rate limiter (potential API layer)
+|   +-- async_primitives/  # Async utilities (blackboard, cancellation, etc.)
+|   +-- bootstrap/         # Agent loader, auto-bootstrap
+|   +-- config.py          # Configuration management
+|   +-- constants.py       # System constants
+|   +-- drivers/           # LLM drivers (Gemini, Claude) - CRITICAL
+|   +-- evolution/         # Agent evolution & spawning
+|   +-- execution/         # Tool execution engine
+|   +-- fsm/               # Finite State Machine
+|   +-- governance/        # Security policies, red team
+|   +-- hive_mind/         # High-level orchestration pipeline
+|   +-- interface/         # REPL & commands (CLI-ONLY)
+|   +-- logging/           # Logging utilities
+|   +-- mcp/               # MCP client
+|   +-- memory/            # RAG & memory backends
+|   +-- meta/              # CLI inspector
+|   +-- notifications/     # REPL alerts
+|   +-- orchestration/     # Agent invoker
+|   +-- prompts/           # System prompts
+|   +-- reasoning/         # CoT reasoning
+|   +-- resilience/        # Resilience patterns
+|   +-- routing/           # Model routing
+|   +-- security/          # Security module
+|   +-- session/           # Session isolation (V9.7.1 HOME spoofing)
+|   +-- swarm/             # Swarm engine & executors
+|   +-- synapse/           # Message protocols
+|   +-- telemetry/         # Usage telemetry
+|   +-- ui/                # UI components
+|   +-- utils/             # Utility functions
+|   +-- workspace/         # Workspace management
++-- tests/                 # Test suite
++-- docs/                  # Documentation
++-- audit/                 # Audit reports (this directory)
 ```
 
 ---

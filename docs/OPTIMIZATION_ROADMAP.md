@@ -10,13 +10,13 @@
 
 **Goal**: 41-90% cost reduction via prompt caching + observability improvements
 
-### ✅ Week 1: Prompt Caching Infrastructure (Feb 17-21)
+### [OK] Week 1: Prompt Caching Infrastructure (Feb 17-21)
 
 | Day | Task | Status | Files |
 |-----|------|--------|-------|
-| Mon | Meta-analysis complete | ✅ Done | `docs/meta_analysis_v12.4.1.md` |
-| Mon | Create static prompts module | ✅ Done | `core/hive_mind/prompts.py` |
-| Mon | Update Phase 1 (Analysis) | ✅ Done | `phase_analysis.py` |
+| Mon | Meta-analysis complete | [OK] Done | `docs/meta_analysis_v12.4.1.md` |
+| Mon | Create static prompts module | [OK] Done | `core/hive_mind/prompts.py` |
+| Mon | Update Phase 1 (Analysis) | [OK] Done | `phase_analysis.py` |
 | Tue | Update Phase 2 (Debate) | ⏳ Next | `phase_debate.py` |
 | Tue | Update Phase 3 (Architecture) | 📋 Pending | `phase_architecture.py` |
 | Wed | Update Phase 4 (Execution) | 📋 Pending | `phase_execution.py` |
@@ -25,8 +25,8 @@
 | Fri | Update Phase 7 (Consolidation) | 📋 Pending | `phase_consolidation.py` |
 
 **Expected Impact (Week 1):**
-- ✅ Infrastructure: 70-85% cost reduction enabled
-- ✅ Phase 1: Reference implementation complete
+- [OK] Infrastructure: 70-85% cost reduction enabled
+- [OK] Phase 1: Reference implementation complete
 - 📋 Phases 2-7: Rollout in progress
 
 ### Week 2: Validation + Snapshots (Feb 24-28)
@@ -80,10 +80,10 @@
 
 | Task | Days | Status | Deliverable |
 |------|------|--------|-------------|
-| PyO3 0.22 → 0.27 upgrade | 2 | 📋 Pending | Update existing `nexus_core` |
+| PyO3 0.22 -> 0.27 upgrade | 2 | 📋 Pending | Update existing `nexus_core` |
 | Port patterns to Rust `RegexSet` | 5 | 📋 Pending | Single-pass pattern bank |
 | Incremental migration (patterns first) | 3 | 📋 Pending | `rure` Python bindings |
-| Full PyO3 port (detection logic) | 3 | 📋 Pending | `input_guard.py` → Rust |
+| Full PyO3 port (detection logic) | 3 | 📋 Pending | `input_guard.py` -> Rust |
 | Security validation | 2 | 📋 Pending | ReDoS immunity test suite |
 
 **Crates**: `regex` 1.11, `regex-automata` 0.4, `unicode-normalization` 0.1
@@ -116,13 +116,13 @@
 ### Phase 4: ONNX Embedding Backend (Apr 21-May 10, 15 days)
 
 **Verdict**: CONDITIONAL GO (Docker/RAM, not speed)
-**Expected Impact**: 2.5GB → 600MB Docker (70% reduction)
+**Expected Impact**: 2.5GB -> 600MB Docker (70% reduction)
 
 | Task | Days | Status | Deliverable |
 |------|------|--------|-------------|
 | Export model to ONNX + INT8 quantization | 2 | 📋 Pending | `model.onnx` |
 | Validate retrieval quality (<3% loss) | 2 | 📋 Pending | Benchmark suite |
-| Replace `sentence-transformers` → `fastembed` | 3 | 📋 Pending | Python path (easier) |
+| Replace `sentence-transformers` -> `fastembed` | 3 | 📋 Pending | Python path (easier) |
 | OR: Rust `ort` + PyO3 (harder path) | 5 | 📋 Pending | Rust path (smaller) |
 | Docker image optimization | 2 | 📋 Pending | Verify 70% reduction |
 | RAM profiling | 1 | 📋 Pending | Confirm ~250-400 MB |
@@ -205,7 +205,7 @@ May 11-31  [=== Buffer + Documentation ===]
 
 **PyO3 Current Version**: 0.27.1 (Oct 2025)
 **NEXUS Current**: 0.22 (needs upgrade before new work)
-**Upgrade Budget**: 2-3 days for 0.22 → 0.27 migration
+**Upgrade Budget**: 2-3 days for 0.22 -> 0.27 migration
 
 ---
 
@@ -256,8 +256,8 @@ May 11-31  [=== Buffer + Documentation ===]
 - [ ] Recursion depth limited (DoS prevention)
 
 ### Rust Phase 4 (ONNX)
-- [ ] Docker: 2.5GB → 600MB (70% reduction)
-- [ ] RAM: 600-800MB → 250-400MB
+- [ ] Docker: 2.5GB -> 600MB (70% reduction)
+- [ ] RAM: 600-800MB -> 250-400MB
 - [ ] Retrieval quality: <3% accuracy loss
 
 ---
@@ -265,9 +265,9 @@ May 11-31  [=== Buffer + Documentation ===]
 ## Current Status (2026-02-17)
 
 **Python P0**:
-- ✅ Meta-analysis complete
-- ✅ Prompts infrastructure created
-- ✅ Phase 1 (Analysis) updated
+- [OK] Meta-analysis complete
+- [OK] Prompts infrastructure created
+- [OK] Phase 1 (Analysis) updated
 - ⏳ Phases 2-7 in progress
 
 **Rust Migration**:

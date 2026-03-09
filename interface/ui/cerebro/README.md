@@ -25,36 +25,36 @@ Web interface for NEXUS orchestration with real-time WebSocket events and multi-
 
 ```
 src/
-├── api/
-│   └── client.ts           # API client (JWT singleton, auto-inject auth)
-├── components/
-│   ├── controls/
-│   │   └── MissionControl.tsx    # Swarm mode selector + ENGAGE/ABORT
-│   ├── views/
-│   │   ├── FileCommander.tsx     # Monaco editor + file tree
-│   │   └── HiveMap.tsx           # SVG graph visualization
-│   ├── EventStream.tsx           # Real-time event display
-│   ├── Header.tsx                # Navigation bar
-│   ├── InteractionModal.tsx      # User interaction prompts
-│   ├── LoginForm.tsx             # Authentication form
-│   └── ProtectedRoute.tsx        # Auth guard
-├── context/
-│   └── AuthContext.tsx       # JWT auth (IN-MEMORY ONLY)
-├── hooks/
-│   └── useWebSocket.ts       # WebSocket with exponential backoff
-├── pages/
-│   ├── Dashboard.tsx         # Main dashboard (tabs + sidebar)
-│   └── Login.tsx             # Login page
-├── stores/
-│   ├── eventStore.ts         # Zustand store for events
-│   ├── graphStore.ts         # Zustand store for graph nodes
-│   └── interactionStore.ts   # Zustand store for interactions
-├── types/
-│   ├── api.ts                # API response types
-│   └── events.ts             # WebSocket event types
-├── App.tsx                   # Router setup
-├── main.tsx                  # Entry point
-└── index.css                 # Global styles
++-- api/
+|   +-- client.ts           # API client (JWT singleton, auto-inject auth)
++-- components/
+|   +-- controls/
+|   |   +-- MissionControl.tsx    # Swarm mode selector + ENGAGE/ABORT
+|   +-- views/
+|   |   +-- FileCommander.tsx     # Monaco editor + file tree
+|   |   +-- HiveMap.tsx           # SVG graph visualization
+|   +-- EventStream.tsx           # Real-time event display
+|   +-- Header.tsx                # Navigation bar
+|   +-- InteractionModal.tsx      # User interaction prompts
+|   +-- LoginForm.tsx             # Authentication form
+|   +-- ProtectedRoute.tsx        # Auth guard
++-- context/
+|   +-- AuthContext.tsx       # JWT auth (IN-MEMORY ONLY)
++-- hooks/
+|   +-- useWebSocket.ts       # WebSocket with exponential backoff
++-- pages/
+|   +-- Dashboard.tsx         # Main dashboard (tabs + sidebar)
+|   +-- Login.tsx             # Login page
++-- stores/
+|   +-- eventStore.ts         # Zustand store for events
+|   +-- graphStore.ts         # Zustand store for graph nodes
+|   +-- interactionStore.ts   # Zustand store for interactions
++-- types/
+|   +-- api.ts                # API response types
+|   +-- events.ts             # WebSocket event types
++-- App.tsx                   # Router setup
++-- main.tsx                  # Entry point
++-- index.css                 # Global styles
 ```
 
 ---
@@ -115,9 +115,9 @@ npx playwright test
 
 ```
 e2e/
-├── mission-control.spec.ts     # MissionControl interactions
-├── file-commander.spec.ts      # FileCommander operations
-└── dashboard-responsive.spec.ts # Responsive layout tests
++-- mission-control.spec.ts     # MissionControl interactions
++-- file-commander.spec.ts      # FileCommander operations
++-- dashboard-responsive.spec.ts # Responsive layout tests
 ```
 
 ---
@@ -127,16 +127,16 @@ e2e/
 ### Dashboard Layout
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│ CEREBRO V12.0 - Mission Cockpit                             │
-├───────────────────────────────────┬─────────────────────────┤
-│ Tabs: [Hive Map] [Files]          │ Mission Control         │
-│                                   │ - Mode selector (6)     │
-│ - HiveMap: Real-time graph        │ - ENGAGE / ABORT        │
-│ - FileCommander: Monaco editor    ├─────────────────────────┤
-│                                   │ Event Stream            │
-│                                   │ - WebSocket live feed   │
-└───────────────────────────────────┴─────────────────────────┘
++-------------------------------------------------------------+
+| CEREBRO V12.0 - Mission Cockpit                             |
++-----------------------------------+-------------------------+
+| Tabs: [Hive Map] [Files]          | Mission Control         |
+|                                   | - Mode selector (6)     |
+| - HiveMap: Real-time graph        | - ENGAGE / ABORT        |
+| - FileCommander: Monaco editor    +-------------------------+
+|                                   | Event Stream            |
+|                                   | - WebSocket live feed   |
++-----------------------------------+-------------------------+
 ```
 
 ### Key Components
@@ -209,10 +209,10 @@ VITE_WS_URL=ws://localhost:8765
 
 ```
 dist/
-├── index.html
-├── assets/
-│   ├── index-[hash].js    (~292KB)
-│   └── index-[hash].css   (~30KB)
++-- index.html
++-- assets/
+|   +-- index-[hash].js    (~292KB)
+|   +-- index-[hash].css   (~30KB)
 ```
 
 ---

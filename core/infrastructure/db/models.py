@@ -9,10 +9,10 @@ information.
 
 Architecture:
     .nexus/master.db (at NEXUS root, NOT inside workspace/)
-    ├── tenant        # Tenant accounts
-    ├── user          # Users per tenant
-    ├── workspace     # Workspaces per tenant
-    └── quota         # Usage limits and tracking
+    +-- tenant        # Tenant accounts
+    +-- user          # Users per tenant
+    +-- workspace     # Workspaces per tenant
+    +-- quota         # Usage limits and tracking
 
 Relationships:
     Tenant 1:N User

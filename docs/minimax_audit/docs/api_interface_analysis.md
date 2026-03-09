@@ -283,47 +283,47 @@ RATE_LIMITS = {
 
 **Authentication Flow:**
 ```
-1. Client → POST /api/auth/login
-2. Server → Database authentication + JWT generation
-3. Server → TokenResponse with 24h expiration
-4. Client → Store JWT in localStorage/sessionStorage
-5. Client → Include JWT in Authorization header
+1. Client -> POST /api/auth/login
+2. Server -> Database authentication + JWT generation
+3. Server -> TokenResponse with 24h expiration
+4. Client -> Store JWT in localStorage/sessionStorage
+5. Client -> Include JWT in Authorization header
 ```
 
 **Real-time Event Flow:**
 ```
-1. Client → WebSocket connection with JWT
-2. Server → Redis pub/sub subscription
-3. Server → Event filtering by tenant/workspace
-4. Server → JSON event transmission
-5. Client → UI state updates
+1. Client -> WebSocket connection with JWT
+2. Server -> Redis pub/sub subscription
+3. Server -> Event filtering by tenant/workspace
+4. Server -> JSON event transmission
+5. Client -> UI state updates
 ```
 
 **State Persistence Flow:**
 ```
-1. Client → Page load/refresh
-2. Client → GET /api/state/snapshot
-3. Server → Redis/memory state retrieval
-4. Server → Phase, nodes, logs, interactions
-5. Client → UI state hydration
+1. Client -> Page load/refresh
+2. Client -> GET /api/state/snapshot
+3. Server -> Redis/memory state retrieval
+4. Server -> Phase, nodes, logs, interactions
+5. Client -> UI state hydration
 ```
 
 **Interaction Flow:**
 ```
-1. Server → interaction.ask event via WebSocket
-2. Client → User input collection
-3. Client → POST /api/interactions/{id}/reply
-4. Server → Provider interaction resolution
-5. Server → Workflow continuation
+1. Server -> interaction.ask event via WebSocket
+2. Client -> User input collection
+3. Client -> POST /api/interactions/{id}/reply
+4. Server -> Provider interaction resolution
+5. Server -> Workflow continuation
 ```
 
 ### Error Handling & Resilience
 
 **Graceful Degradation:**
-- Redis unavailable → In-memory fallback
-- Authentication failure → 401 with WWW-Authenticate header
-- Rate limiting → 429 with Retry-After
-- WebSocket disconnect → Automatic reconnection
+- Redis unavailable -> In-memory fallback
+- Authentication failure -> 401 with WWW-Authenticate header
+- Rate limiting -> 429 with Retry-After
+- WebSocket disconnect -> Automatic reconnection
 
 **Development Mode Features:**
 - In-memory event bus when Redis unavailable
@@ -337,22 +337,22 @@ RATE_LIMITS = {
 ### Security Features
 
 **Authentication & Authorization:**
-- ✅ JWT-based stateless authentication
-- ✅ Role-based access control (RBAC)
-- ✅ Multi-tenant data isolation
-- ✅ Zero-trust WebSocket authentication
+- [OK] JWT-based stateless authentication
+- [OK] Role-based access control (RBAC)
+- [OK] Multi-tenant data isolation
+- [OK] Zero-trust WebSocket authentication
 
 **Rate Limiting & DDoS Protection:**
-- ✅ Endpoint-specific rate limits
-- ✅ IP-based throttling
-- ✅ Distributed rate limiting with Redis
-- ✅ Brute-force attack prevention
+- [OK] Endpoint-specific rate limits
+- [OK] IP-based throttling
+- [OK] Distributed rate limiting with Redis
+- [OK] Brute-force attack prevention
 
 **Data Protection:**
-- ✅ bcrypt password hashing
-- ✅ HTTPS enforcement via CORS
-- ✅ SQL injection prevention via SQLModel
-- ✅ XSS protection via proper encoding
+- [OK] bcrypt password hashing
+- [OK] HTTPS enforcement via CORS
+- [OK] SQL injection prevention via SQLModel
+- [OK] XSS protection via proper encoding
 
 ### Security Vulnerabilities Addressed
 

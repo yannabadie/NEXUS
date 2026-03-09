@@ -17,10 +17,10 @@
 - Epic 4.1 (A2A/MCP) and Epic 4.3 (OTel) already complete
 
 **Final State**:
-- ✅ Epic 4.2 complete with 25 passing tests
-- ✅ Integrated with TieredValidator
-- ✅ PHASE 4: 100% COMPLETE (all 3 epics)
-- ✅ Comprehensive status documentation
+- [OK] Epic 4.2 complete with 25 passing tests
+- [OK] Integrated with TieredValidator
+- [OK] PHASE 4: 100% COMPLETE (all 3 epics)
+- [OK] Comprehensive status documentation
 
 ---
 
@@ -40,10 +40,10 @@
 
 **Issues Fixed**:
 1. **Field Name Mismatches**:
-   - `all_passed` → `passed` (DeterministicFitnessResult)
-   - `results` → `check_results`
-   - `timeout_seconds` → `run_in_sandbox`
-   - `all_passed` property → `all_checks_passed`
+   - `all_passed` -> `passed` (DeterministicFitnessResult)
+   - `results` -> `check_results`
+   - `timeout_seconds` -> `run_in_sandbox`
+   - `all_passed` property -> `all_checks_passed`
 
 2. **Expected vs Actual Check Counts**:
    - Tests expected 5 checks (including syntax)
@@ -64,7 +64,7 @@
    - Tests for `_run_tests()` failed because temp directory lacked tests/
    - Fixed: Create tests/ directory in temp_child_path fixture
 
-**Final Test Result**: ✅ 25/25 tests passing
+**Final Test Result**: [OK] 25/25 tests passing
 
 ---
 
@@ -96,15 +96,15 @@
 
 **Validation Pipeline** (Updated):
 ```
-TIER 1: Syntax + Import (<1s)          ← BLOCKING
-TIER 1.5: Quality Checks (<5min) [NEW] ← BLOCKING
-  ├─ Linter (ruff)
-  ├─ Type Check (mypy --strict)
-  ├─ Security (bandit)
-  └─ Tests (pytest)
-TIER 2: Smoke Test (<30s)              ← BLOCKING
-TIER 3: Benchmarks (<5min)             ← INFORMATIONAL
-TIER 4: Red Team (optional)            ← OPTIONAL
+TIER 1: Syntax + Import (<1s)          <- BLOCKING
+TIER 1.5: Quality Checks (<5min) [NEW] <- BLOCKING
+  +- Linter (ruff)
+  +- Type Check (mypy --strict)
+  +- Security (bandit)
+  +- Tests (pytest)
+TIER 2: Smoke Test (<30s)              <- BLOCKING
+TIER 3: Benchmarks (<5min)             <- INFORMATIONAL
+TIER 4: Red Team (optional)            <- OPTIONAL
 ```
 
 ---
@@ -152,11 +152,11 @@ $ pytest tests/test_evolution_fitness.py::TestDeterministicFitness::test_evaluat
 **Changes**:
 Marked Epic 4.2 as DONE with comprehensive implementation notes:
 ```markdown
-### Epic 4.2 : Fitness Function Déterministe (Évolution) ✅ DONE
-* **✅ DONE:** Created `core/evolution/fitness.py` with `DeterministicFitness` class
-* **✅ DONE:** Implemented 5 deterministic checks: Syntax, Linter, Type, Security, Tests
-* **✅ DONE:** Integrated into `TieredValidator` as Tier 1.5 quality checks
-* **✅ DONE:** 25 comprehensive tests in `tests/test_evolution_fitness.py` (all passing)
+### Epic 4.2 : Fitness Function Déterministe (Évolution) [OK] DONE
+* **[OK] DONE:** Created `core/evolution/fitness.py` with `DeterministicFitness` class
+* **[OK] DONE:** Implemented 5 deterministic checks: Syntax, Linter, Type, Security, Tests
+* **[OK] DONE:** Integrated into `TieredValidator` as Tier 1.5 quality checks
+* **[OK] DONE:** 25 comprehensive tests in `tests/test_evolution_fitness.py` (all passing)
 * **Implementation:** DeterministicFitness replaces LLM-as-a-judge
 * **Modes:** Strict (fail-fast) and Non-Strict (run all checks)
 * **Graceful degradation:** If tools missing, validation continues but checks skipped
@@ -292,11 +292,11 @@ Test fixtures must match the expected environment structure.
 **Before**: LLM-as-a-judge (non-deterministic, risk of model collapse)
 
 **After**: Static analysis pipeline with 5 checks:
-- ✅ Syntax (py_compile + AST)
-- ✅ Linter (ruff check)
-- ✅ Type Check (mypy --strict)
-- ✅ Security (bandit)
-- ✅ Tests (pytest)
+- [OK] Syntax (py_compile + AST)
+- [OK] Linter (ruff check)
+- [OK] Type Check (mypy --strict)
+- [OK] Security (bandit)
+- [OK] Tests (pytest)
 
 **Impact**:
 - Evolution cycles now deterministic and reproducible
@@ -403,11 +403,11 @@ TestIntegration::test_fitness_check_enum_order          PASSED [100%]
 
 ### Module Imports
 ```bash
-$ python -c "from core.evolution.fitness import DeterministicFitness; print('✓ OK')"
-✓ OK
+$ python -c "from core.evolution.fitness import DeterministicFitness; print('[OK] OK')"
+[OK] OK
 
-$ python -c "from core.evolution.tiered_validator import DETERMINISTIC_FITNESS_AVAILABLE; print(f'✓ Available: {DETERMINISTIC_FITNESS_AVAILABLE}')"
-✓ Available: True
+$ python -c "from core.evolution.tiered_validator import DETERMINISTIC_FITNESS_AVAILABLE; print(f'[OK] Available: {DETERMINISTIC_FITNESS_AVAILABLE}')"
+[OK] Available: True
 ```
 
 ---
@@ -418,11 +418,11 @@ $ python -c "from core.evolution.tiered_validator import DETERMINISTIC_FITNESS_A
 
 | Phase | Epics | Status | Date |
 |-------|-------|--------|------|
-| PHASE 0 | 2/2 | ✅ Complete | 2025-12-05 |
-| PHASE 1 | 4/4 | ✅ Complete | 2026-02-16 |
-| PHASE 2 | 3/3 | ✅ Complete | 2026-02-16 |
-| PHASE 3 | 2/2 | ✅ Complete | 2026-02-16 |
-| **PHASE 4** | **3/3** | ✅ **Complete** | **2026-02-17** |
+| PHASE 0 | 2/2 | [OK] Complete | 2025-12-05 |
+| PHASE 1 | 4/4 | [OK] Complete | 2026-02-16 |
+| PHASE 2 | 3/3 | [OK] Complete | 2026-02-16 |
+| PHASE 3 | 2/2 | [OK] Complete | 2026-02-16 |
+| **PHASE 4** | **3/3** | [OK] **Complete** | **2026-02-17** |
 | PHASE 5 | TBD | ⏳ Pending | TBD |
 
 **Total**: 14/14 Epics complete (100% of Plan Directeur)
@@ -432,9 +432,9 @@ $ python -c "from core.evolution.tiered_validator import DETERMINISTIC_FITNESS_A
 ## 🎯 NEXT STEPS
 
 ### Immediate
-1. ✅ PHASE 4 complete and documented
-2. ✅ All changes committed and pushed
-3. ✅ Tests passing (25/25 fitness, 576+ total)
+1. [OK] PHASE 4 complete and documented
+2. [OK] All changes committed and pushed
+3. [OK] Tests passing (25/25 fitness, 576+ total)
 
 ### Future (PHASE 5 or beyond)
 
@@ -456,18 +456,18 @@ Based on codebase audit from previous session:
 
 ---
 
-## ✅ SESSION COMPLETE
+## [OK] SESSION COMPLETE
 
 **Date**: 2026-02-17
 **Duration**: Continuation from previous session
 **Primary Achievement**: PHASE 4: 100% COMPLETE
 
 **Deliverables**:
-- ✅ Epic 4.2: Deterministic Fitness (implemented + tested)
-- ✅ 25 comprehensive tests (all passing)
-- ✅ TieredValidator integration (Tier 1.5)
-- ✅ PHASE 4 status document (750 lines)
-- ✅ Bug fixes (non-strict mode logic)
+- [OK] Epic 4.2: Deterministic Fitness (implemented + tested)
+- [OK] 25 comprehensive tests (all passing)
+- [OK] TieredValidator integration (Tier 1.5)
+- [OK] PHASE 4 status document (750 lines)
+- [OK] Bug fixes (non-strict mode logic)
 
 **Commits**: 2 (6eaf1e6, 9fc9ac0)
 **Lines Added**: 1,185

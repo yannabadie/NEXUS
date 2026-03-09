@@ -121,10 +121,10 @@ Creator: Yann Abadie
 
 ## ANTI-PATTERNS
 
-- ❌ "You are an expert in X" sans définir ce que ça signifie
-- ❌ Listes génériques copiées d'internet
-- ❌ Références à des outils qui n'existent pas
-- ❌ Prompt de moins de 30 lignes
+- [NO] "You are an expert in X" sans définir ce que ça signifie
+- [NO] Listes génériques copiées d'internet
+- [NO] Références à des outils qui n'existent pas
+- [NO] Prompt de moins de 30 lignes
 
 ---
 

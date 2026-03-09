@@ -23,17 +23,17 @@ Benefits:
 
 Architecture:
 ```
-        ┌────────────────────┐
-        │  SessionProtocol   │
-        └─────────┬──────────┘
-      ┌───────────┼───────────┐
-      ▼           ▼           ▼
-┌───────────┐ ┌───────────┐ ┌───────────┐
-│ CLISession│ │ APISession│ │MockSession│
-│  Manager  │ │  Manager  │ │  (tests)  │
-└───────────┘ └───────────┘ └───────────┘
-      │             │
-      ▼             ▼
+        +--------------------+
+        |  SessionProtocol   |
+        +---------+----------+
+      +-----------+-----------+
+      v           v           v
++-----------+ +-----------+ +-----------+
+| CLISession| | APISession| |MockSession|
+|  Manager  | |  Manager  | |  (tests)  |
++-----------+ +-----------+ +-----------+
+      |             |
+      v             v
  --resume       conversation_id
  ~/.gemini/     in API request
 ```

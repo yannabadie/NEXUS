@@ -341,7 +341,7 @@ class TestIntegration:
         event_store: FSMEventStore,
     ):
         """
-        Test complete workflow: events → snapshots → recovery.
+        Test complete workflow: events -> snapshots -> recovery.
         """
         session_id = "integration-test"
 

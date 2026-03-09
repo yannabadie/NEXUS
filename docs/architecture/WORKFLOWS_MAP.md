@@ -342,11 +342,11 @@ graph LR
 
 **Fallback Chain**:
 ```
-PARALLEL → SEQUENTIAL (simplify parallelism)
-RED_BLUE → LEAD_SUPPORT (remove adversarial)
-LEAD_SUPPORT → SPECIALIST (simplify to single agent)
-PING_PONG → SEQUENTIAL (simplify alternation)
-SEQUENTIAL → SPECIALIST (last resort)
+PARALLEL -> SEQUENTIAL (simplify parallelism)
+RED_BLUE -> LEAD_SUPPORT (remove adversarial)
+LEAD_SUPPORT -> SPECIALIST (simplify to single agent)
+PING_PONG -> SEQUENTIAL (simplify alternation)
+SEQUENTIAL -> SPECIALIST (last resort)
 ```
 
 ---
@@ -356,19 +356,19 @@ SEQUENTIAL → SPECIALIST (last resort)
 ### Scenario 1: Simple Task (TRIVIAL)
 
 ```
-User Input → FSM (IDLE → BRAINSTORMING) → Swarm (TRIVIAL) → SPECIALIST → Result
+User Input -> FSM (IDLE -> BRAINSTORMING) -> Swarm (TRIVIAL) -> SPECIALIST -> Result
 ```
 
 ### Scenario 2: Moderate Task (MODERATE)
 
 ```
-User Input → FSM → HiveMind (7 phases) → SwarmBridge → Swarm (LEAD_SUPPORT) → Result
+User Input -> FSM -> HiveMind (7 phases) -> SwarmBridge -> Swarm (LEAD_SUPPORT) -> Result
 ```
 
 ### Scenario 3: Expert Security Review (EXPERT)
 
 ```
-User Input → FSM → HiveMind → SwarmBridge → Swarm (RED_BLUE) → Adversarial Execution → Result
+User Input -> FSM -> HiveMind -> SwarmBridge -> Swarm (RED_BLUE) -> Adversarial Execution -> Result
 ```
 
 ---
@@ -414,10 +414,10 @@ HIVE_MIND_BREAKPOINT_TIMEOUT=60     # User breakpoint timeout (seconds)
 | Use Case | Layer | Rationale |
 |----------|-------|-----------|
 | Instant commands (`/status`) | FSM only | TRIVIAL, no LLM needed |
-| Simple Q&A | FSM → Swarm (SPECIALIST) | Single agent handles |
-| Moderate task (refactoring) | FSM → HiveMind (7 phases) | Strategic planning needed |
+| Simple Q&A | FSM -> Swarm (SPECIALIST) | Single agent handles |
+| Moderate task (refactoring) | FSM -> HiveMind (7 phases) | Strategic planning needed |
 | Complex multi-step | HiveMind + SwarmBridge | High-level + fine-grained |
-| Expert security review | HiveMind → Swarm (RED_BLUE) | Adversarial rigor required |
+| Expert security review | HiveMind -> Swarm (RED_BLUE) | Adversarial rigor required |
 | Parallel research + coding | Swarm (PARALLEL mode) | Independent subtasks |
 | Creative brainstorming | Swarm (PING_PONG mode) | Iterative co-construction |
 

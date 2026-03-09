@@ -1,5 +1,5 @@
 """
-V8.3 SwarmBridge - Hive Mind → Swarm Delegation
+V8.3 SwarmBridge - Hive Mind -> Swarm Delegation
 
 Enables "Dictator Mode" where HiveMind commands Swarm execution.
 HiveMind acts as the strategist, Swarm as the tactician.

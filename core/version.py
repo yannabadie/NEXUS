@@ -9,11 +9,12 @@ The source of truth is:
 
 from __future__ import annotations
 
-from functools import lru_cache
-from importlib.metadata import PackageNotFoundError, version as package_version
-from pathlib import Path
 import tomllib
-
+from contextlib import suppress
+from functools import lru_cache
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as package_version
+from pathlib import Path
 
 PACKAGE_NAME = "nexus-swarm-os"
 _FALLBACK_VERSION = "12.4.0"
@@ -27,10 +28,8 @@ def _load_project_metadata() -> dict[str, str]:
     codename = None
     canonical_branch = _FALLBACK_CANONICAL_BRANCH
 
-    try:
+    with suppress(PackageNotFoundError):
         version = package_version(PACKAGE_NAME)
-    except PackageNotFoundError:
-        pass
 
     pyproject_path = Path(__file__).resolve().parent.parent / "pyproject.toml"
     if pyproject_path.exists():

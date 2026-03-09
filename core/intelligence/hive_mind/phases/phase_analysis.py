@@ -10,10 +10,10 @@ V9.2 Enhancement: Session Isolation for Parallel Agents
 - Model-aware context for capability reminders
 
 Flow:
-1. Gemini analyzes task → IndependentAnalysis (session: uuid-001)
-2. Claude analyzes task → IndependentAnalysis (session: uuid-002) [parallel]
-3. Compare analyses → AnalysisComparison
-4. Decide: needs_debate? → Phase 2 or skip to Phase 3
+1. Gemini analyzes task -> IndependentAnalysis (session: uuid-001)
+2. Claude analyzes task -> IndependentAnalysis (session: uuid-002) [parallel]
+3. Compare analyses -> AnalysisComparison
+4. Decide: needs_debate? -> Phase 2 or skip to Phase 3
 
 Key Innovation:
 - Agents DON'T see each other's analysis until both are complete
@@ -175,7 +175,7 @@ class IndependentAnalysisPhase:
             logger.debug(f"Memory retrieval failed: {e}")
 
         # V12.4.1 OPTIMIZATION: Build dynamic user prompt (static system prompt handled in methods)
-        # Only task + principles + memories go in user prompt → enables SDK caching of system prompt
+        # Only task + principles + memories go in user prompt -> enables SDK caching of system prompt
         user_prompt = f"TASK: {task}"
         if principles_context:
             user_prompt += f"\n\nRELEVANT PRINCIPLES:\n{principles_context}"
@@ -749,7 +749,7 @@ class IndependentAnalysisPhase:
             is_blacklisted, block_reason = blacklist.is_blacklisted(task)
 
             if is_blacklisted:
-                context_parts.append("⚠️  BLACKLIST WARNING")
+                context_parts.append("[warning]️  BLACKLIST WARNING")
                 context_parts.append("=" * 60)
                 context_parts.append(block_reason)
                 context_parts.append("")
@@ -759,7 +759,7 @@ class IndependentAnalysisPhase:
                 if alternatives:
                     context_parts.append("💡 Suggested Alternatives:")
                     for alt in alternatives:
-                        context_parts.append(f"  • {alt}")
+                        context_parts.append(f"  - {alt}")
                     context_parts.append("")
 
                 logger.warning("Phase 1: Task matches blacklisted strategy (semantic similarity)")

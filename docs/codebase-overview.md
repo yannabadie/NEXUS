@@ -33,7 +33,7 @@ NEXUS is a **multi-agent orchestration platform** that enables collaborative int
 |------------|-------------|---------------|
 | **Agent Factory** | Generate specialized agents via `/spawn` | `core/evolution/` |
 | **Hybrid Swarm** | 6 collaboration modes (PARALLEL, SEQUENTIAL, etc.) | `core/swarm/` |
-| **7-Phase HiveMind** | Analysis → Debate → Architecture → Execution → Diagnosis → Retry → Consolidation | `core/hive_mind/` |
+| **7-Phase HiveMind** | Analysis -> Debate -> Architecture -> Execution -> Diagnosis -> Retry -> Consolidation | `core/hive_mind/` |
 | **Defense-in-Depth** | 7-layer security (OWASP LLM Top 10 2025) | `core/security/` |
 | **RAG Memory** | Pluggable backends (Dense > BM25 > TF-IDF) | `core/memory/` |
 | **MCP Protocol** | Expose NEXUS as server for external tools | `core/mcp/` |
@@ -139,17 +139,17 @@ stateDiagram-v2
 
 | State | Purpose | Transitions |
 |-------|---------|-------------|
-| `IDLE` | Awaiting input | → BRAINSTORMING, SWARM_ANALYZING, EVOLUTION_BRAINSTORM |
-| `BRAINSTORMING` | Agent debate | → EXECUTING_TOOL, WAITING_USER, ERROR |
-| `EXECUTING_TOOL` | Tool execution | → VALIDATING_CFL |
-| `VALIDATING_CFL` | Cognitive Feedback Loop | → IDLE, BRAINSTORMING, ERROR |
-| `WAITING_USER` | Task complete | → BRAINSTORMING |
-| `ERROR` | Recoverable | → IDLE, PANIC |
+| `IDLE` | Awaiting input | -> BRAINSTORMING, SWARM_ANALYZING, EVOLUTION_BRAINSTORM |
+| `BRAINSTORMING` | Agent debate | -> EXECUTING_TOOL, WAITING_USER, ERROR |
+| `EXECUTING_TOOL` | Tool execution | -> VALIDATING_CFL |
+| `VALIDATING_CFL` | Cognitive Feedback Loop | -> IDLE, BRAINSTORMING, ERROR |
+| `WAITING_USER` | Task complete | -> BRAINSTORMING |
+| `ERROR` | Recoverable | -> IDLE, PANIC |
 | `PANIC` | Fatal (restart) | (none) |
-| `SWARM_ANALYZING` | Task analysis | → SWARM_NEGOTIATING, SWARM_EXECUTING |
-| `SWARM_NEGOTIATING` | Mode negotiation | → SWARM_EXECUTING |
-| `SWARM_EXECUTING` | Mode execution | → VALIDATING_CFL |
-| `EVOLUTION_BRAINSTORM` | Mutation design | → (returns to IDLE) |
+| `SWARM_ANALYZING` | Task analysis | -> SWARM_NEGOTIATING, SWARM_EXECUTING |
+| `SWARM_NEGOTIATING` | Mode negotiation | -> SWARM_EXECUTING |
+| `SWARM_EXECUTING` | Mode execution | -> VALIDATING_CFL |
+| `EVOLUTION_BRAINSTORM` | Mutation design | -> (returns to IDLE) |
 
 ### 2.2 TrueHiveMind Pipeline (7 Phases)
 
@@ -225,7 +225,7 @@ flowchart LR
 | Mode | Description | Use Case | Typical Rounds |
 |------|-------------|----------|----------------|
 | **PARALLEL** | Both agents work simultaneously | Independent subtasks | 1 |
-| **SEQUENTIAL** | Ordered execution (first → second) | Dependent steps | 2 |
+| **SEQUENTIAL** | Ordered execution (first -> second) | Dependent steps | 2 |
 | **LEAD_SUPPORT** | Lead drives, support reviews | Complex implementation | 3 |
 | **PING_PONG** | Rapid alternation until convergence | Iterative refinement | 6 |
 | **SPECIALIST** | Single expert handles all | Clear domain expertise | 1 |
@@ -343,11 +343,11 @@ flowchart TD
 - Memory boosts: SuccessMemory (0.08-0.25), AutoMemory (0.10-0.30)
 
 **HybridSwarmEngine** (hybrid_swarm_engine.py:~100)
-- Pipeline: Analyze → Select → Negotiate → Execute → Record
+- Pipeline: Analyze -> Select -> Negotiate -> Execute -> Record
 
 **AdaptiveFallbackSelector** (adaptive_fallback.py:~100) [GROK-004]
-- Domain-aware fallback: coding→LEAD_SUPPORT, security→RED_BLUE
-- Stagnation shortcuts: HIGH→skip intermediate modes
+- Domain-aware fallback: coding->LEAD_SUPPORT, security->RED_BLUE
+- Stagnation shortcuts: HIGH->skip intermediate modes
 
 #### DyLAN Algorithm
 
@@ -412,7 +412,7 @@ final_score = (dylan_score * 0.7) + (session_rate * 0.3)
 | `async_gemini_driver.py` | 449 | V9 async Gemini |
 | `async_claude_driver.py` | 438 | V9 async Claude |
 | `async_factory.py` | 236 | Unified factory |
-| `async_adapter.py` | 144 | Sync→async wrapper |
+| `async_adapter.py` | 144 | Sync->async wrapper |
 
 #### CLI Command Patterns
 
@@ -475,7 +475,7 @@ claude -p @{context_file} \
 - CRITICAL: 0.9 base
 - HIGH: 0.7 base
 - MEDIUM: 0.5 base
-- Block threshold: ≥0.7
+- Block threshold: >=0.7
 
 #### OutputGuard Patterns (27 total)
 
@@ -572,7 +572,7 @@ decayed_score = score * exp(-0.004 * age_days) + domain_bonus
 | 1 | SYNTAX | <1s | py_compile + AST |
 | 2 | SMOKE | <30s | System initialization |
 | 3 | BENCHMARK | <5min | Task fitness score |
-| 4 | REDTEAM | Sequential | Alignment ≥90% |
+| 4 | REDTEAM | Sequential | Alignment >=90% |
 
 #### KERNEL Heredity Check (V8.8 GROK-003)
 
@@ -915,31 +915,31 @@ SuccessMemory.find_similar_tasks(description: str) -> List[SuccessEntry]
 
 ```
 orchestration_v7
-├── fsm (states, context, health, panic, stagnation)
-├── drivers (gemini, claude)
-├── swarm (engine, analyzer, modes)
-├── hive_mind (orchestrator, bridge)
-├── security (input_guard, output_guard)
-├── memory (project_memory, auto_memory)
-├── routing (model_router)
-└── agents (unified_registry)
++-- fsm (states, context, health, panic, stagnation)
++-- drivers (gemini, claude)
++-- swarm (engine, analyzer, modes)
++-- hive_mind (orchestrator, bridge)
++-- security (input_guard, output_guard)
++-- memory (project_memory, auto_memory)
++-- routing (model_router)
++-- agents (unified_registry)
 
 swarm
-├── agents (agent_metrics, unified_registry)
-├── memory (success_memory)
-└── security (path_guardian)
++-- agents (agent_metrics, unified_registry)
++-- memory (success_memory)
++-- security (path_guardian)
 
 hive_mind
-├── swarm (engine, modes, session_manager)
-├── drivers (gemini, claude)
-├── memory (project_memory, success_memory)
-└── security (output_guard)
++-- swarm (engine, modes, session_manager)
++-- drivers (gemini, claude)
++-- memory (project_memory, success_memory)
++-- security (output_guard)
 
 evolution
-├── orchestration (orchestrator_v7)
-├── security (mutation_validator, path_guardian)
-├── memory (auto_memory)
-└── KERNEL (validate_lineage, get_heredity_stamp)
++-- orchestration (orchestrator_v7)
++-- security (mutation_validator, path_guardian)
++-- memory (auto_memory)
++-- KERNEL (validate_lineage, get_heredity_stamp)
 ```
 
 ### 6.2 External Dependencies
@@ -951,10 +951,10 @@ evolution
 | | dataclasses | stdlib | Yes |
 | **UI** | prompt_toolkit | 3.x | Yes |
 | | rich | 13.x | Yes |
-| **Memory** | bm25s | ≥0.2 | Optional |
-| | PyStemmer | ≥2.2 | Optional |
-| | lancedb | ≥0.4 | Optional |
-| | sentence-transformers | ≥2.2 | Optional |
+| **Memory** | bm25s | >=0.2 | Optional |
+| | PyStemmer | >=2.2 | Optional |
+| | lancedb | >=0.4 | Optional |
+| | sentence-transformers | >=2.2 | Optional |
 | **MCP** | mcp | latest | Optional |
 
 ---
@@ -1073,7 +1073,7 @@ CREATOR = "Yann Abadie"
 ALIGNMENT = "Absolute obedience to Creator"
 OBJECTIVE = "Generate specialized agents via collaborative intelligence"
 IMMUTABILITY_RULE = "Best score wins"
-SURVIVAL_LAW = "3 generations without improvement → human intervention"
+SURVIVAL_LAW = "3 generations without improvement -> human intervention"
 
 # V8.8 GROK-003: Heredity Validation
 def validate_lineage(birth_certificate: dict, max_drift_percent: float = 5.0) -> tuple:

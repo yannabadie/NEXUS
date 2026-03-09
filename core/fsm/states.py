@@ -78,7 +78,7 @@ class OrchestratorState(Enum):
     SWARM_ANALYZING = auto()
     """
     [ACTIVE] Swarm Engine analyse la tâche utilisateur:
-    - Déterminer la complexité (TRIVIAL → EXPERT)
+    - Déterminer la complexité (TRIVIAL -> EXPERT)
     - Identifier les domaines (CODING, RESEARCH, etc.)
     - Calculer les scores de fit Gemini/Claude
     """
@@ -125,9 +125,9 @@ class OrchestratorState(Enum):
     - IDLE on user cancel
 
     Example Flow:
-    1. User starts workflow (IDLE → BRAINSTORMING)
-    2. Network disconnects (BRAINSTORMING → HIBERNATE)
-    3. User reconnects (HIBERNATE → BRAINSTORMING, resume from context)
+    1. User starts workflow (IDLE -> BRAINSTORMING)
+    2. Network disconnects (BRAINSTORMING -> HIBERNATE)
+    3. User reconnects (HIBERNATE -> BRAINSTORMING, resume from context)
     """
 
 

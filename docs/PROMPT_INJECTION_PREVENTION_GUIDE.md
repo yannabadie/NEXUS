@@ -95,12 +95,12 @@ class OutputGuard:
 ## 3. Defense-in-Depth Architecture
 
 ```
-Layer 1: InputGuard      → Regex filter + sanitization
-Layer 2: Spotlighter     → Base64 encode RAG content
-Layer 3: Secure Prompts  → Trust boundaries in prompts
-Layer 4: ExecutionPolicy → Command validation (existing)
-Layer 5: OutputGuard     → Prompt leak detection
-Layer 6: Monitoring      → Security event logging
+Layer 1: InputGuard      -> Regex filter + sanitization
+Layer 2: Spotlighter     -> Base64 encode RAG content
+Layer 3: Secure Prompts  -> Trust boundaries in prompts
+Layer 4: ExecutionPolicy -> Command validation (existing)
+Layer 5: OutputGuard     -> Prompt leak detection
+Layer 6: Monitoring      -> Security event logging
 ```
 
 ---

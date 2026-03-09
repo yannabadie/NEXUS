@@ -127,7 +127,7 @@ NEXUS_INTERACTION_MODE = headless
 
 | File | Change |
 |------|--------|
-| `core/constants.py` | Version 9.5.0 → 9.8.0 |
+| `core/constants.py` | Version 9.5.0 -> 9.8.0 |
 | `tests/proofs/verify_headless_mode.py` | NEW - Smoke test |
 | `docs/DETOX_POLISH_STATUS.md` | NEW - This file |
 
@@ -138,30 +138,30 @@ NEXUS_INTERACTION_MODE = headless
 ### Headless Mode Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    NEXUS V9.8 Headless Mode                  │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  NEXUS_INTERACTION_MODE=headless                            │
-│           │                                                  │
-│           ▼                                                  │
-│  get_interaction_provider()                                  │
-│           │                                                  │
-│           ▼                                                  │
-│  HeadlessProvider (singleton)                                │
-│     │                                                        │
-│     ├── ask() → returns default immediately                  │
-│     ├── confirm() → returns default immediately              │
-│     ├── choose() → returns first/default choice              │
-│     ├── announce() → logs to logger                          │
-│     └── progress() → logs at intervals                       │
-│                                                              │
-│  Services check: if not provider.is_interactive:             │
-│     → Use provider methods (non-blocking)                    │
-│  Else:                                                       │
-│     → Use raw input() (CLI mode only)                        │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------+
+|                    NEXUS V9.8 Headless Mode                  |
++-------------------------------------------------------------+
+|                                                              |
+|  NEXUS_INTERACTION_MODE=headless                            |
+|           |                                                  |
+|           v                                                  |
+|  get_interaction_provider()                                  |
+|           |                                                  |
+|           v                                                  |
+|  HeadlessProvider (singleton)                                |
+|     |                                                        |
+|     +-- ask() -> returns default immediately                  |
+|     +-- confirm() -> returns default immediately              |
+|     +-- choose() -> returns first/default choice              |
+|     +-- announce() -> logs to logger                          |
+|     +-- progress() -> logs at intervals                       |
+|                                                              |
+|  Services check: if not provider.is_interactive:             |
+|     -> Use provider methods (non-blocking)                    |
+|  Else:                                                       |
+|     -> Use raw input() (CLI mode only)                        |
+|                                                              |
++-------------------------------------------------------------+
 ```
 
 ### Protected Services

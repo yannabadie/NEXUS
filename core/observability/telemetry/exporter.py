@@ -395,7 +395,7 @@ class TelemetryExporter:
         # Success rate
         lines.append("--- Performance ---")
         success_rate = report["success_rate"]
-        status_icon = "✓" if success_rate >= 80 else "⚠" if success_rate >= 50 else "✗"
+        status_icon = "[OK]" if success_rate >= 80 else "[warning]" if success_rate >= 50 else "[NO]"
         lines.append(f"Success Rate: {status_icon} {success_rate}%")
         lines.append(f"  Successes: {report['successes']:,}")
         lines.append(f"  Failures: {report['failures']:,}")

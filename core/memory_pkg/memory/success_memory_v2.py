@@ -13,8 +13,8 @@ Key Improvements over V1:
 - Backward compatible: migrates old JSON data automatically
 
 Architecture:
-    SuccessEntry → Chunk → LanceDB (via ProjectMemory)
-    Query: "authentication bug fix" → Semantic retrieval of similar past successes
+    SuccessEntry -> Chunk -> LanceDB (via ProjectMemory)
+    Query: "authentication bug fix" -> Semantic retrieval of similar past successes
 
 Usage:
     memory = SuccessMemoryV2(workspace_path)
@@ -180,7 +180,7 @@ class SuccessMemoryV2:
 
         # Skip if already migrated
         if migration_marker.exists():
-            self._logger.debug("V1→V2 migration already completed")
+            self._logger.debug("V1->V2 migration already completed")
             return
 
         # Skip if V1 data doesn't exist
@@ -218,7 +218,7 @@ class SuccessMemoryV2:
             self._logger.info(f"Migrated {migrated_count} V1 entries to LanceDB")
 
         except Exception as e:
-            self._logger.warning(f"V1→V2 migration failed: {e}")
+            self._logger.warning(f"V1->V2 migration failed: {e}")
 
     def _index_success_entry(self, entry: SuccessEntry) -> None:
         """

@@ -106,7 +106,7 @@ class EvolutionService:
         # Check rate limits with UI feedback
         can_evolve, reason = self.rate_limiter.can_evolve(child_count)
         if not can_evolve:
-            self.console.print(f"[red]❌ Evolution blocked: {reason}[/red]")
+            self.console.print(f"[red][NO] Evolution blocked: {reason}[/red]")
             self.console.print("\nRate limit statistics:")
             stats = self.rate_limiter.get_stats()
             self.console.print(
@@ -129,7 +129,7 @@ class EvolutionService:
             # Display results
             if result.success:
                 self.console.print("\n" + "=" * 60)
-                self.console.print("✅ ÉMERGENT EVOLUTION COMPLETE")
+                self.console.print("[OK] ÉMERGENT EVOLUTION COMPLETE")
                 self.console.print("=" * 60)
                 self.console.print("\n📊 Summary:")
                 self.console.print(f"  Mutations proposed: {result.mutations_proposed}")
@@ -139,7 +139,7 @@ class EvolutionService:
                     self.console.print(f"  🏆 Winner: {result.winner_id}")
                     self.console.print(f"  📈 Fitness Score: {result.winner_score:.3f}")
                 if result.promoted:
-                    self.console.print("  ✓ Winner promoted to parent")
+                    self.console.print("  [OK] Winner promoted to parent")
                 self.console.print(f"\n  Duration: {result.duration_seconds:.1f}s")
                 self.console.print("\nReview with: /review")
                 self.console.print("Status with: /evolve-status\n")
@@ -156,9 +156,9 @@ class EvolutionService:
                     },
                 )
             else:
-                self.console.print(f"\n[red]❌ Evolution failed at phase: {result.phase_reached}[/red]")
+                self.console.print(f"\n[red][NO] Evolution failed at phase: {result.phase_reached}[/red]")
                 for error in result.errors:
-                    self.console.print(f"  • {error}")
+                    self.console.print(f"  - {error}")
                 self.console.print("\nUse /evolve-status for more details.\n")
 
                 return EvolutionServiceResult(
@@ -196,23 +196,23 @@ class EvolutionService:
             score = parent.get("fitness_score") or parent.get("asi_proximity_score", 0.7)
             self.console.print(f"Fitness Score: {score}")
             self.console.print(f"Activated: {parent['activated_at']}")
-            self.console.print(f"\n{'─' * 60}")
+            self.console.print(f"\n{'-' * 60}")
             self.console.print("STATISTICS")
-            self.console.print(f"{'─' * 60}")
+            self.console.print(f"{'-' * 60}")
             self.console.print(f"Total Generations: {stats['total_generations']}")
             self.console.print(f"Total Children Created: {stats['total_children_created']}")
             self.console.print(f"Successful Promotions: {stats['successful_promotions']}")
             self.console.print(f"\nStagnation Counter: {stats['stagnation_counter']}/3")
 
             if stats["stagnation_counter"] >= 2:
-                self.console.print("⚠️  WARNING: Approaching SURVIVAL_LAW threshold!")
+                self.console.print("[warning]️  WARNING: Approaching SURVIVAL_LAW threshold!")
             elif stats["stagnation_counter"] >= 3:
                 self.console.print("🚨 CRITICAL: SURVIVAL_LAW triggered - human intervention required!")
 
             # Rate limiter statistics
-            self.console.print(f"\n{'─' * 60}")
+            self.console.print(f"\n{'-' * 60}")
             self.console.print("RATE LIMITING")
-            self.console.print(f"{'─' * 60}")
+            self.console.print(f"{'-' * 60}")
             rate_stats = self.rate_limiter.get_stats()
             self.console.print(f"Total Evolutions: {rate_stats['total_evolutions']}")
             self.console.print(f"Total Children Created: {rate_stats['total_children']}")
@@ -264,9 +264,9 @@ class EvolutionService:
         Returns:
             EvolutionServiceResult with promotion results
         """
-        self.console.print(f"\n{'─' * 60}")
+        self.console.print(f"\n{'-' * 60}")
         self.console.print("🔄 PROMOTION IN PROGRESS")
-        self.console.print(f"{'─' * 60}")
+        self.console.print(f"{'-' * 60}")
 
         # Define progress callback for UI output
         def progress_callback(message: str, progress: float):
@@ -277,7 +277,7 @@ class EvolutionService:
             elif "Updating" in message:
                 self.console.print(f"📝 {message}")
             elif "complete" in message.lower():
-                self.console.print(f"✓ {message}")
+                self.console.print(f"[OK] {message}")
 
         # Temporarily set progress callback
         original_callback = self.manager.progress_callback
@@ -292,9 +292,9 @@ class EvolutionService:
             )
 
             if result.success:
-                self.console.print(f"\n{'─' * 60}")
-                self.console.print("✅ PROMOTION COMPLETE")
-                self.console.print(f"{'─' * 60}")
+                self.console.print(f"\n{'-' * 60}")
+                self.console.print("[OK] PROMOTION COMPLETE")
+                self.console.print(f"{'-' * 60}")
                 self.console.print(f"New active parent: {child_id}")
                 self.console.print(f"Generation: {generation}")
                 self.console.print(f"Fitness Score: {fitness_score:.3f}")
@@ -349,8 +349,8 @@ class EvolutionService:
             )
 
             if result.success:
-                self.console.print(f"✓ Moved to {result.archive_path}")
-                self.console.print("✓ Updated lineage with rejection record")
+                self.console.print(f"[OK] Moved to {result.archive_path}")
+                self.console.print("[OK] Updated lineage with rejection record")
 
                 return EvolutionServiceResult(
                     success=True,
