@@ -2,7 +2,7 @@
 
 ## Synopsis
 
-Comprehensive test suite covering all NEXUS V12.4 components with 100+ test files organized by category. Tests validate FSM orchestration, swarm collaboration, memory systems, security, evolution, drivers, and torture testing for resilience.
+Test suite covering NEXUS runtime, API, memory, security, and workflow behavior. Exact counts and CI outcomes are published in the generated evidence ledger, not hardcoded in this document.
 
 ## Test Categories
 
@@ -14,7 +14,7 @@ Comprehensive test suite covering all NEXUS V12.4 components with 100+ test file
 | **Fixtures** | `tests/fixtures/` | Test fixtures and mocks | MockDriver, mock_mcp_server |
 | **FSM Tests** | `tests/fsm/` | Finite state machine tests | Hibernate, stagnation predictor |
 | **Interaction Tests** | `tests/interaction/` | Human-in-the-loop tests | HITL persistence |
-| **Proof Tests** | `tests/proofs/` | Smoke tests for major features | Headless mode verification |
+| **Smoke Checks** | `tests/proofs/` | Legacy path for smoke/regression checks | Headless mode verification |
 | **Torture Tests** | `tests/torture/` | Resilience and chaos testing | Saga crash recovery, compensation |
 | **Workflow Tests** | `tests/workflow/` | Distributed workflow tests | Redis registry, distributed locks |
 | **V10 Tests** | `tests/v10/` | PRISM isolation suite | Cerebro API, memory optimization |
@@ -240,7 +240,7 @@ def test_loop(orchestrator_with_mocks, run_orchestrator_loop):
 - Integration tests: Module interactions
 - E2E tests: Full system workflows
 - Torture tests: Edge cases and resilience
-- Proof tests: Smoke tests for major features
+- Smoke checks: Regression-oriented checks for major features
 
 **Anti-Patterns to Avoid**:
 - Testing mocks instead of implementation

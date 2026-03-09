@@ -13,6 +13,7 @@ Architecture FSM (Finite State Machine):
 
 import asyncio
 import json
+import os
 from collections.abc import Callable
 from pathlib import Path
 
@@ -53,12 +54,16 @@ from core.observability.logging import get_logger, init_logger
 from core.observability.telemetry import TelemetryCollector
 from core.synapse.memory_v7 import MemoryManagerV7
 
-# KERNEL import - path set by nexus7.py bootstrap
-try:
-    from KERNEL import runtime_integrity_check
+# Legacy KERNEL hook kept only for explicitly opted-in internal runs.
+if os.getenv("NEXUS_ENABLE_LEGACY_KERNEL_RUNTIME", "").lower() in ("true", "1"):
+    try:
+        from KERNEL import runtime_integrity_check
 
-    KERNEL_AVAILABLE = True
-except ImportError:
+        KERNEL_AVAILABLE = True
+    except ImportError:
+        KERNEL_AVAILABLE = False
+        runtime_integrity_check = None
+else:
     KERNEL_AVAILABLE = False
     runtime_integrity_check = None
 
@@ -147,6 +152,7 @@ class OrchestratorV7:
         # V7.7 Phase 15: Streaming callback
         # Set by REPL to receive real-time tokens during agent invocations
         self.on_token: Callable[[str], None] | None = None
+        self.on_agent_status: Callable[[dict[str, str]], None] | None = None
 
         # Stalemate counter
         self.stalemate_counter = 0

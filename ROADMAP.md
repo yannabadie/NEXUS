@@ -14,11 +14,11 @@
 | Backend | 355 Python files, 39 modules |
 | Frontend | React 19 + TypeScript (CEREBRO) |
 | Security | IRONCLAD (JWT, RBAC, Guards) |
-| Tests | 2500+ (200 test files) |
+| Tests | See CI evidence ledger for current collected/pass/fail counts |
 
 ---
 
-## V12 Series - Production Ready
+## V12 Series - Delivery Track
 
 ### V12.4 - COGNITIVE BOOST (2025-12-16 -> 2026-02-15)
 
@@ -46,7 +46,7 @@ security hardening, and infrastructure maturity.
 | Feature | Status | Description |
 |---------|--------|-------------|
 | **StagnationPredictor** | COMPLETE | Calibrated thresholds (0.15/0.25/0.40), 29 tests |
-| **HybridBackend** | COMPLETE | RRF fusion (Dense + BM25S) for +15% RAG recall |
+| **HybridBackend** | COMPLETE | RRF fusion (Dense + BM25S); publish performance deltas via the evaluation harness and evidence ledger |
 | **MemoryCoordinator** | COMPLETE | Adaptive domain weights with EMA learning |
 | **OutputGuard DialogueAct** | COMPLETE | Classification to reduce false positives |
 
@@ -146,7 +146,7 @@ security hardening, and infrastructure maturity.
 
 | Task | Status | Description |
 |------|--------|-------------|
-| **OTLP Exporter** | COMPLETE | OpenTelemetry in `core/telemetry/otel_provider.py` (full OTel SDK) |
+| **OTLP Exporter** | COMPLETE | OpenTelemetry in `core/observability/telemetry/otel_provider.py` (full OTel SDK) |
 | **Langfuse Integration** | PLANNED | Distributed tracing for CoT and costs |
 | **Waterfall Visualization** | PLANNED | Swarm interaction visualization |
 
@@ -156,7 +156,7 @@ security hardening, and infrastructure maturity.
 
 | Task | Status | Description |
 |------|--------|-------------|
-| **Docker Sandbox** | COMPLETE | Ephemeral containers via `core/execution/handlers/sandbox_handler.py`, feature-flagged |
+| **Docker Sandbox** | COMPLETE | Ephemeral containers via `core/execution_pkg/execution/handlers/sandbox_handler.py`, feature-flagged |
 | **Resource Limits** | PLANNED | CPU/RAM limits per agent |
 | **Multi-Tenancy** | COMPLETE | Full tenant isolation via `core/db/` and `core/context/` |
 
@@ -166,8 +166,8 @@ security hardening, and infrastructure maturity.
 
 | Task | Status | Description |
 |------|--------|-------------|
-| **Graph of Thought** | COMPLETE | Graph reasoning in `core/reasoning/graph_of_thought.py` |
-| **Skill Crystallization** | COMPLETE | Auto-compile repeated tool sequences via `core/skills/crystallizer.py` |
+| **Graph of Thought** | COMPLETE | Graph reasoning in `core/intelligence/reasoning/graph_of_thought.py` |
+| **Skill Crystallization** | COMPLETE | Auto-compile repeated tool sequences via `core/memory_pkg/skills/crystallizer.py` |
 
 ---
 
@@ -189,7 +189,7 @@ All 14 epics from the master plan have been implemented.
 | Context Compression | DONE | core/memory/context_compressor.py |
 | Structured Outputs | DONE | core/synapse/protocol_v7.py, schema_registry |
 | Saga Manager | DONE | core/workflow/, compensation patterns |
-| Persistence Layer | DONE | core/db/engine.py, SQLite backend |
+| Persistence Layer | DONE | core/infrastructure/db/engine.py, SQLite backend |
 
 ### Phase 2: RAG Chunk Fix + Python 3.14 + KERNEL Fail-Closed
 
@@ -206,16 +206,16 @@ All 14 epics from the master plan have been implemented.
 | Anthropic SDK Driver | DONE | core/drivers/anthropic_sdk_driver |
 | Google GenAI SDK Driver | DONE | core/drivers/google_genai_sdk_driver |
 | Ollama Driver | DONE | core/drivers/ollama_driver.py |
-| Docker Sandboxing | DONE | core/execution/handlers/sandbox_handler.py |
+| Docker Sandboxing | DONE | core/execution_pkg/execution/handlers/sandbox_handler.py |
 
 ### Phase 4: A2A/MCP + Deterministic Fitness + OpenTelemetry
 
 | Epic | Status | Evidence |
 |------|--------|----------|
-| MCP Client | DONE | core/mcp/client.py |
+| MCP Client | DONE | core/interface_pkg/mcp/client.py |
 | A2A Protocol | DONE | core/mcp/protocol.py |
 | Deterministic Fitness | DONE | core/evolution/evaluator.py |
-| OpenTelemetry | DONE | core/telemetry/otel_provider.py |
+| OpenTelemetry | DONE | core/observability/telemetry/otel_provider.py |
 
 ---
 
@@ -230,7 +230,7 @@ All 14 epics from the master plan have been implemented.
 | Agent Reaper | V9.7.2 | V12.4 (`core/evolution/agent_reaper.py`) |
 | Auto-Specialization | V9.3 vision | V12.4 (`core/evolution/auto_specializer.py`) |
 | Ollama Driver | V9 risk analysis | V12.4 (`core/drivers/ollama_driver.py`) |
-| MCP Client | V9.6 | V12.4 (`core/mcp/client.py`) |
+| MCP Client | V9.6 | V12.4 (`core/interface_pkg/mcp/client.py`) |
 | Encryption at Rest | V9 audit | V12.4 (`core/security/encryption.py`) |
 | CI/CD Pipeline | V9 risk analysis | V12.4 (`.github/workflows/ci.yml`) |
 

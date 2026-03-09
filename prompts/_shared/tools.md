@@ -159,7 +159,7 @@ SSRF Protection: Cloud metadata endpoint
 
 ### HybridBackend RRF
 Le RAG utilise maintenant une fusion Dense + BM25S avec Reciprocal Rank Fusion:
-- +15% recall par rapport a BM25S seul
+- Recall improvements must be supported by evaluation artifacts
 - Semantic search ("auth" trouve "authentication")
 - Fallback automatique si dense indisponible
 

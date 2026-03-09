@@ -25,7 +25,7 @@
 | Backend | Type | Performance | Disponibilite |
 |---------|------|-------------|---------------|
 | **Dense** | Semantic | +10% recall vs BM25S | Si `lancedb` + `sentence-transformers` |
-| **BM25S** | Lexical | +15% recall vs TF-IDF | Si `bm25s` installe |
+| **BM25S** | Lexical | Improvement tracked in evidence artifacts | Si `bm25s` installe |
 | **TF-IDF** | Lexical | Fallback fiable | Toujours (stdlib) |
 
 ### Dense Backend
@@ -45,7 +45,7 @@
 
 ## 3. HybridBackend RRF (V12.4)
 
-**Fusion Dense + BM25S avec Reciprocal Rank Fusion pour +15% recall.**
+**Fusion Dense + BM25S avec Reciprocal Rank Fusion.**
 
 ### Fonctionnement
 ```

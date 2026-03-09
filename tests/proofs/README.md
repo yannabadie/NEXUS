@@ -1,8 +1,8 @@
-# Proof Tests
+# Smoke Checks (Legacy `tests/proofs/` Path)
 
 ## Synopsis
 
-Smoke tests proving major features work correctly after significant refactorings. Quick validation scripts that verify critical functionality without full test suite overhead.
+Fast smoke checks for critical behavior after significant refactorings. The directory name is retained for compatibility, but these scripts are not formal proofs.
 
 ## Test Files
 
@@ -12,7 +12,7 @@ Smoke tests proving major features work correctly after significant refactorings
 
 ## verify_headless_mode.py
 
-Proof that NEXUS V9.8 DETOX operation successfully removed blocking calls from headless mode.
+Smoke validation that NEXUS V9.8 DETOX removed blocking calls from headless interaction providers.
 
 **Tests**:
 1. **InteractionProvider Factory** - Returns HeadlessProvider when `NEXUS_INTERACTION_MODE=headless`
@@ -28,15 +28,15 @@ python tests/proofs/verify_headless_mode.py
 
 ## Purpose
 
-Proof tests are:
+Smoke checks are:
 - **Fast** - Run in seconds, not minutes
 - **Focused** - Test one feature thoroughly
 - **Executable** - Can run standalone without pytest
-- **Demonstrative** - Prove a specific claim or fix
+- **Demonstrative** - Demonstrate a specific regression check or fix
 
-## When to Add Proof Tests
+## When to Add Smoke Checks
 
-Add a proof test when:
+Add a smoke check when:
 - Major refactoring needs validation
 - Critical bug fix needs verification
 - Feature requires demonstration

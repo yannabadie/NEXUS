@@ -3,6 +3,7 @@
 ## Prerequisites
 - Python 3.11+ installed.
 - Optional (companion server): `python -m pip install mcp`.
+- CI evidence for the current candidate is published in the `evidence-ledger` artifact from `NEXUS CI` on `NX-CG`.
 
 ## Flagship Quickstart (Research CLI)
 ```bash
@@ -21,7 +22,7 @@ powershell -ExecutionPolicy Bypass -File scripts/demo_flagship.ps1
 ## Companion Quickstart (MCP Server)
 ```bash
 python -m pip install mcp
-python -m core.mcp.server
+nexus-mcp
 ```
 
 Demo script (spawns server and calls MCP tools):
@@ -38,4 +39,4 @@ python -m pytest tests/test_mcp_companion.py -v
 ## Notes
 - `NEXUS_ROOT` controls the indexing base for research and MCP tools.
 - MCP evidence pack output is restricted to `WORKSPACE_PATH` for safety.
-- CI runs the full Python test suite and skips external LLM calls by default.
+- Release readiness should be read from the per-run `evidence-ledger.json` artifact, not from hardcoded counts in repository docs.

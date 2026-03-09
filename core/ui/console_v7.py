@@ -16,6 +16,7 @@ from rich.panel import Panel
 from rich.spinner import Spinner
 
 from core.foundation.agents.unified_registry import get_registry  # V8.4.0
+from core.version import NEXUS_CODENAME, NEXUS_VERSION
 
 
 class ConsoleV7:
@@ -34,6 +35,7 @@ class ConsoleV7:
         # Rich will use VT100 if available, fallback to Windows API otherwise
         self.console = Console()
         self.verbose = verbose
+        self._last_state: str | None = None
 
     def print_banner(self, gemini_model: str, claude_model: str, version: str = None, codename: str = None):
         """
@@ -46,8 +48,8 @@ class ConsoleV7:
             codename: Codename from config (e.g., "TRUE HIVE MIND")
         """
         # Default values if not provided (backward compatibility)
-        version = version or "8.3.1"
-        codename = codename or "TRUE HIVE MIND"
+        version = version or NEXUS_VERSION
+        codename = codename or NEXUS_CODENAME
 
         banner = f"""
 ╔═══════════════════════════════════════════════════════════╗
@@ -58,7 +60,7 @@ class ConsoleV7:
 🧠 Gemini: {gemini_model}
 🛠️  Claude: {claude_model} (Dynamic: Opus for evolution/brainstorm)
 
-Mode: Hybrid Drivers (Natural Language + XML Tools)
+Mode: Shared Runtime (CLI + SDK)
 Type your task or use slash commands (/help for list)
 """
         self.console.print(banner, style="bold cyan")
@@ -86,9 +88,11 @@ Type your task or use slash commands (/help for list)
         agent = result.get("agent")
         error = result.get("error")
 
-        # State transition (verbose only)
-        if self.verbose and state and state != "IDLE":
-            self.console.print(f"[dim][FSM: {state}][/dim]")
+        # State transition visibility matters even outside verbose mode.
+        if state and state != self._last_state:
+            style = "bold cyan" if self.verbose else "dim"
+            self.console.print(f"[{style}]Runtime -> {state}[/{style}]")
+            self._last_state = state
 
         # Agent message
         if output and agent:
@@ -195,6 +199,27 @@ Objective: {status["objective"]}"""
             self.console.print(message, style=style)
         else:
             self.console.print(message)
+
+    def print_runtime_plan(self, provider_snapshot: dict[str, object]) -> None:
+        """Display the current runtime/provider plan at session start."""
+        driver_mode = provider_snapshot.get("driver_mode", "auto")
+        available_sdk = provider_snapshot.get("available_sdk_providers", [])
+        warnings = provider_snapshot.get("warnings", [])
+        self.console.print(f"[dim]Runtime mode: {driver_mode}[/dim]")
+        if available_sdk:
+            self.console.print(f"[dim]SDK providers: {', '.join(available_sdk)}[/dim]")
+        for warning in warnings:
+            self.console.print(f"[yellow]Provider warning:[/yellow] {warning}")
+
+    def print_activity(self, event: dict[str, str]) -> None:
+        """Display compact runtime activity from orchestrator callbacks."""
+        if event.get("type") != "agent_status":
+            return
+        agent = event.get("agent", "agent")
+        status = event.get("status", "idle")
+        task_type = event.get("task_type", "")
+        suffix = f" ({task_type})" if task_type else ""
+        self.console.print(f"[dim]Activity -> {agent} {status}{suffix}[/dim]")
 
     def clear(self):
         """Clear terminal screen"""

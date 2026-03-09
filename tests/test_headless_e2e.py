@@ -10,6 +10,7 @@ Validates that:
 """
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -18,20 +19,103 @@ from pathlib import Path
 import pytest
 
 NEXUS_ENTRY = str(Path(__file__).parent.parent / "nexus7.py")
+NEXUS_CWD = str(Path(NEXUS_ENTRY).parent)
+SDK_ENV = {
+    "NEXUS_DRIVER_MODE": "sdk",
+    "GOOGLE_API_KEY": "test-google-key",
+    "ANTHROPIC_API_KEY": "test-anthropic-key",
+}
+NO_PROVIDER_ENV = {
+    "NEXUS_DRIVER_MODE": "cli",
+    "GOOGLE_API_KEY": "",
+    "GEMINI_API_KEY": "",
+    "ANTHROPIC_API_KEY": "",
+    "PATH": "",
+}
+
+
+def run_nexus(*args: str, timeout: int = 60, stdin=None, env_updates: dict[str, str] | None = None) -> subprocess.CompletedProcess:
+    """Run nexus7.py with deterministic environment overrides."""
+    env = os.environ.copy()
+    env.setdefault("PYTHONIOENCODING", "utf-8")
+    if env_updates:
+        env.update(env_updates)
+    return subprocess.run(
+        [sys.executable, NEXUS_ENTRY, *args],
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        stdin=stdin,
+        cwd=NEXUS_CWD,
+        env=env,
+    )
+
+
+def build_fake_cli_env(tmp_dir: Path) -> dict[str, str]:
+    """Create deterministic fake gemini/claude CLIs for bootstrap tests."""
+    cli_dir = tmp_dir / "fake-cli"
+    cli_dir.mkdir(parents=True, exist_ok=True)
+
+    if sys.platform == "win32":
+        gemini_path = cli_dir / "gemini.cmd"
+        claude_path = cli_dir / "claude.cmd"
+        gemini_path.write_text(
+            "@echo off\n"
+            'if "%1"=="--version" (\n'
+            "  echo gemini-cli 1.0.0\n"
+            "  exit /b 0\n"
+            ")\n"
+            'if "%1"=="models" (\n'
+            "  echo gemini-3-pro-preview\n"
+            "  exit /b 0\n"
+            ")\n"
+            "echo gemini-cli\n",
+            encoding="utf-8",
+        )
+        claude_path.write_text(
+            "@echo off\n"
+            "echo Claude Code 1.0.0\n",
+            encoding="utf-8",
+        )
+    else:
+        gemini_path = cli_dir / "gemini"
+        claude_path = cli_dir / "claude"
+        gemini_path.write_text(
+            "#!/usr/bin/env sh\n"
+            'if [ \"$1\" = \"--version\" ]; then\n'
+            "  echo gemini-cli 1.0.0\n"
+            "  exit 0\n"
+            "fi\n"
+            'if [ \"$1\" = \"models\" ]; then\n'
+            "  echo gemini-3-pro-preview\n"
+            "  exit 0\n"
+            "fi\n"
+            "echo gemini-cli\n",
+            encoding="utf-8",
+        )
+        claude_path.write_text(
+            "#!/usr/bin/env sh\n"
+            "echo Claude Code 1.0.0\n",
+            encoding="utf-8",
+        )
+        gemini_path.chmod(0o755)
+        claude_path.chmod(0o755)
+
+    return {
+        "NEXUS_DRIVER_MODE": "cli",
+        "GOOGLE_API_KEY": "",
+        "GEMINI_API_KEY": "",
+        "ANTHROPIC_API_KEY": "",
+        "PATH": f"{cli_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+    }
 
 
 class TestHeadlessBootValidation:
     """Test that headless mode boots cleanly."""
 
     def test_headless_boot_produces_json(self):
-        """Headless mode without --task should validate boot and return JSON."""
-        result = subprocess.run(
-            [sys.executable, NEXUS_ENTRY, "--headless"],
-            capture_output=True,
-            text=True,
-            timeout=60,
-            cwd=str(Path(NEXUS_ENTRY).parent),
-        )
+        """Headless boot should succeed in SDK mode without requiring CLIs."""
+        result = run_nexus("--headless", env_updates=SDK_ENV)
 
         # Should exit 0 (boot validation success)
         assert result.returncode == 0, f"stderr: {result.stderr}"
@@ -40,20 +124,14 @@ class TestHeadlessBootValidation:
         output = json.loads(result.stdout)
         assert output["mode"] == "headless"
         assert output["status"] == "success"
+        assert output["driver"] == "anthropic_sdk"
+        assert output["output"] == "Headless boot validation successful"
         assert "nexus_version" in output
         assert "timestamp" in output
 
     def test_headless_boot_no_tty_prompts(self):
         """Headless mode must never prompt for input."""
-        result = subprocess.run(
-            [sys.executable, NEXUS_ENTRY, "--headless"],
-            capture_output=True,
-            text=True,
-            timeout=30,
-            # No stdin pipe - headless must not read from it
-            stdin=subprocess.DEVNULL,
-            cwd=str(Path(NEXUS_ENTRY).parent),
-        )
+        result = run_nexus("--headless", timeout=30, stdin=subprocess.DEVNULL, env_updates=SDK_ENV)
 
         assert result.returncode == 0
         # No interactive prompts in output
@@ -62,13 +140,7 @@ class TestHeadlessBootValidation:
 
     def test_headless_version_in_output(self):
         """JSON output includes correct version."""
-        result = subprocess.run(
-            [sys.executable, NEXUS_ENTRY, "--headless"],
-            capture_output=True,
-            text=True,
-            timeout=30,
-            cwd=str(Path(NEXUS_ENTRY).parent),
-        )
+        result = run_nexus("--headless", timeout=30, env_updates=SDK_ENV)
 
         output = json.loads(result.stdout)
         assert output["nexus_version"] == "12.4.0"
@@ -79,22 +151,32 @@ class TestHeadlessTaskExecution:
     """Test headless mode with --task flag."""
 
     def test_headless_with_task(self):
-        """--headless --task should accept a task description and produce JSON."""
-        result = subprocess.run(
-            [sys.executable, NEXUS_ENTRY, "--headless", "--task", "Validate system health"],
-            capture_output=True,
-            text=True,
+        """A task run must fail cleanly when no valid provider path exists."""
+        result = run_nexus(
+            "--headless",
+            "--task",
+            "Validate system health",
             timeout=60,
             stdin=subprocess.DEVNULL,
-            cwd=str(Path(NEXUS_ENTRY).parent),
+            env_updates=NO_PROVIDER_ENV,
         )
 
-        # Should produce valid JSON regardless of success/failure
+        assert result.returncode == 1
         output = json.loads(result.stdout)
         assert output["task"] == "Validate system health"
         assert output["mode"] == "headless"
-        # Task may succeed or fail (orchestrator may not be fully wired)
-        assert output["status"] in ("success", "failure")
+        assert output["status"] == "failure"
+        assert output["error_code"] == "RUNTIMEERROR"
+        assert "required for the selected runtime path" in output["error"]
+
+    def test_headless_boot_fails_without_valid_provider(self):
+        """Boot validation should not report success when no provider path is usable."""
+        result = run_nexus("--headless", timeout=30, env_updates=NO_PROVIDER_ENV)
+
+        assert result.returncode == 1
+        output = json.loads(result.stdout)
+        assert output["status"] == "failure"
+        assert output["error_code"] == "RUNTIMEERROR"
 
     def test_headless_output_to_file(self):
         """--output should write JSON to file instead of stdout."""
@@ -102,15 +184,10 @@ class TestHeadlessTaskExecution:
             output_path = f.name
 
         try:
-            result = subprocess.run(
-                [sys.executable, NEXUS_ENTRY, "--headless", "--output", output_path],
-                capture_output=True,
-                text=True,
-                timeout=30,
-                cwd=str(Path(NEXUS_ENTRY).parent),
-            )
+            result = run_nexus("--headless", "--output", output_path, timeout=30, env_updates=SDK_ENV)
 
             assert result.returncode == 0
+            assert result.stdout == ""
 
             # File should contain valid JSON
             with open(output_path) as f:
@@ -126,32 +203,14 @@ class TestHeadlessExitCodes:
 
     def test_version_flag_exits_zero(self):
         """--version should exit 0."""
-        result = subprocess.run(
-            [sys.executable, NEXUS_ENTRY, "--version"],
-            capture_output=True,
-            text=True,
-            timeout=10,
-            cwd=str(Path(NEXUS_ENTRY).parent),
-        )
+        result = run_nexus("--version", timeout=10)
         assert result.returncode == 0
 
-    @pytest.mark.skipif(not Path(NEXUS_ENTRY).parent.joinpath("KERNEL.py").exists(), reason="KERNEL.py not available")
     def test_verify_flag_exits_deterministically(self):
-        """--verify should exit with a deterministic code (not hang)."""
-        # --verify runs full bootstrap which checks for CLI tools.
-        # In CI without gemini/claude CLIs, it exits 1. That's fine.
-        # We only care it doesn't hang indefinitely.
-        try:
-            result = subprocess.run(
-                [sys.executable, NEXUS_ENTRY, "--verify"],
-                capture_output=True,
-                text=True,
-                timeout=120,
-                cwd=str(Path(NEXUS_ENTRY).parent),
-            )
-            assert result.returncode in (0, 1)
-        except subprocess.TimeoutExpired:
-            pytest.skip("--verify timed out (CLI tools not available)")
+        """--verify should pass in CLI mode when valid CLIs are present."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            result = run_nexus("--verify", timeout=120, env_updates=build_fake_cli_env(Path(tmp_dir)))
+        assert result.returncode == 0
 
 
 class TestHeadlessJSONSchema:
@@ -159,17 +218,26 @@ class TestHeadlessJSONSchema:
 
     def test_output_schema_completeness(self):
         """All required fields must be present in JSON output."""
-        result = subprocess.run(
-            [sys.executable, NEXUS_ENTRY, "--headless"],
-            capture_output=True,
-            text=True,
-            timeout=30,
-            cwd=str(Path(NEXUS_ENTRY).parent),
-        )
+        result = run_nexus("--headless", timeout=30, env_updates=SDK_ENV)
 
         output = json.loads(result.stdout)
 
-        required_fields = ["nexus_version", "codename", "mode", "timestamp", "task", "status", "output", "error"]
+        required_fields = [
+            "nexus_version",
+            "codename",
+            "mode",
+            "timestamp",
+            "task",
+            "status",
+            "driver",
+            "output",
+            "error",
+            "error_code",
+            "warnings",
+            "artifacts",
+            "state",
+            "iterations",
+        ]
         for field in required_fields:
             assert field in output, f"Missing required field: {field}"
 
@@ -177,13 +245,7 @@ class TestHeadlessJSONSchema:
         """Timestamp must be valid ISO 8601."""
         from datetime import datetime
 
-        result = subprocess.run(
-            [sys.executable, NEXUS_ENTRY, "--headless"],
-            capture_output=True,
-            text=True,
-            timeout=30,
-            cwd=str(Path(NEXUS_ENTRY).parent),
-        )
+        result = run_nexus("--headless", timeout=30, env_updates=SDK_ENV)
 
         output = json.loads(result.stdout)
         # Should not raise ValueError

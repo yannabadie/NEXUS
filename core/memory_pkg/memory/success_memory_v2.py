@@ -7,7 +7,7 @@ This module replaces the JSON-based SuccessMemory with a LanceDB-backed
 implementation for true semantic search over successful task executions.
 
 Key Improvements over V1:
-- Semantic search instead of Jaccard similarity (~+15% recall)
+- Semantic search instead of Jaccard similarity
 - Shared EmbeddingEngine for efficient compute
 - Native integration with ProjectMemory architecture
 - Backward compatible: migrates old JSON data automatically

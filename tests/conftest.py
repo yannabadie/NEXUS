@@ -20,6 +20,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.config import Config
+from core.version import NEXUS_CODENAME, NEXUS_VERSION
 from core.fsm.states import OrchestratorState
 
 
@@ -87,8 +88,12 @@ class MockConfig(Config):
         from core.config import FeatureFlags
 
         self.features = FeatureFlags()
+        self.features.sandbox_enabled = False
+        self.features.host_execution_allowed = True
 
         # Set minimal required attributes
+        self.nexus_version = NEXUS_VERSION
+        self.nexus_codename = NEXUS_CODENAME
         self.gemini_cli_path = "gemini"
         self.claude_cli_path = "claude"
         self.max_stalemate_count = 5
@@ -135,15 +140,29 @@ class MockConfig(Config):
         self.auto_promote_min_red_team_score = 0.90
 
         # Model routing
-        self.claude_opus_model = "claude-opus-4-6-20250116"
-        self.claude_sonnet_model = "claude-sonnet-4-5-20250929"
+        self.driver_mode = "auto"
+        self.anthropic_api_key = None
+        self.google_api_key = None
+        self.deepseek_api_key = None
+        self.kimi_api_key = None
+        self.openai_api_key = None
+        self.minimax_api_key = None
+        self.claude_opus_model = "claude-opus-4-1-20250805"
+        self.claude_sonnet_model = "claude-sonnet-4-20250514"
         self.gemini_default_model = "gemini-3-pro-preview"
         self.gemini_pro_model = "gemini-3-pro-preview"
-        self.gemini_flash_model = "gemini-3-pro-preview"
+        self.gemini_flash_model = "gemini-3-flash-preview"
+        self.deepseek_model = "deepseek-chat"
+        self.kimi_model = "kimi-k2-thinking"
+        self.openai_model = "gpt-5.2"
+        self.openai_fast_model = "gpt-5.2-mini"
+        self.minimax_model = "MiniMax-M1"
+        self.minimax_fast_model = "MiniMax-M2.5"
         self.opus_task_types = ["brainstorm", "redteam", "architect", "evolution"]
         self.sonnet_task_types = ["tool", "validation", "simple", "format"]
         self.gemini_pro_tasks = ["reasoning", "research", "analysis", "brainstorm", "evolution"]
         self.gemini_flash_tasks = ["simple", "format", "validation", "tool"]
+        self.provider_snapshot = {"driver_mode": self.driver_mode, "warnings": [], "selected": {}}
 
         # Optimization
         self.benchmark_mode = "standard"
@@ -195,6 +214,13 @@ class MockConfig(Config):
 def mock_config():
     """Provide a mock configuration."""
     return MockConfig()
+
+
+@pytest.fixture(autouse=True)
+def default_test_execution_env(monkeypatch):
+    """Keep test execution deterministic without requiring Docker sandboxing."""
+    monkeypatch.setenv("NEXUS_FF_SANDBOX_ENABLED", "false")
+    monkeypatch.setenv("NEXUS_FF_HOST_EXECUTION_ALLOWED", "true")
 
 
 @pytest.fixture

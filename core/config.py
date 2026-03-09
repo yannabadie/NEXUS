@@ -14,6 +14,9 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from .provider_registry import build_provider_snapshot, get_default_model
+from .version import NEXUS_CODENAME, NEXUS_VERSION
+
 # =============================================================================
 # Feature Flags - Safe toggles for experimental/dangerous features
 # =============================================================================
@@ -34,8 +37,9 @@ class FeatureFlags:
     rag_dense_backend: bool = True  # Enable dense (semantic) backend
 
     # Security
-    sandbox_enabled: bool = False  # OS-level code sandbox (E2B/Docker)
+    sandbox_enabled: bool = True  # OS-level code sandbox (Docker) by default
     kernel_fail_closed: bool = True  # KERNEL exits on missing hash (fail-closed)
+    host_execution_allowed: bool = False  # Allow validated host execution when sandbox is unavailable
 
     # Execution
     headless_mode: bool = False  # Deterministic JSON output, no TTY
@@ -66,14 +70,6 @@ class FeatureFlags:
         return flags
 
 
-# =============================================================================
-# Version - Single Source of Truth from pyproject.toml
-# =============================================================================
-
-_PROJECT_VERSION = "12.4.0"
-_PROJECT_CODENAME = "COGNITIVE BOOST"
-
-
 class Config:
     """NEXUS Configuration - Single source of truth for version"""
 
@@ -84,8 +80,8 @@ class Config:
         # ====================================================================
         # VERSION (pyproject.toml is canonical; env overrides for dev only)
         # ====================================================================
-        self.nexus_version: str = os.getenv("NEXUS_VERSION", _PROJECT_VERSION)
-        self.nexus_codename: str = os.getenv("NEXUS_CODENAME", _PROJECT_CODENAME)
+        self.nexus_version: str = os.getenv("NEXUS_VERSION", NEXUS_VERSION)
+        self.nexus_codename: str = os.getenv("NEXUS_CODENAME", NEXUS_CODENAME)
 
         # ====================================================================
         # FEATURE FLAGS
@@ -208,18 +204,26 @@ class Config:
         self.google_api_key: str | None = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
         self.deepseek_api_key: str | None = os.getenv("DEEPSEEK_API_KEY")
         self.kimi_api_key: str | None = os.getenv("KIMI_API_KEY")
+        self.openai_api_key: str | None = os.getenv("OPENAI_API_KEY")
+        self.minimax_api_key: str | None = os.getenv("MINIMAX_API_KEY")
 
         # Driver mode: "auto" (SDK when key available, else CLI), "sdk", "cli"
         self.driver_mode: str = os.getenv("NEXUS_DRIVER_MODE", "auto")
 
         # Claude models
-        self.claude_opus_model: str = "claude-opus-4-6-20250116"
-        self.claude_sonnet_model: str = "claude-sonnet-4-5-20250929"
+        self.claude_opus_model: str = os.getenv("CLAUDE_OPUS_MODEL", get_default_model("anthropic", "opus"))
+        self.claude_sonnet_model: str = os.getenv("CLAUDE_SONNET_MODEL", get_default_model("anthropic", "sonnet"))
 
         # Gemini models (V7 Sprint 6: Gemini 3 Pro with task routing)
-        self.gemini_default_model: str = os.getenv("GEMINI_MODEL", "gemini-3-pro-preview")
-        self.gemini_pro_model: str = "gemini-3-pro-preview"
-        self.gemini_flash_model: str = "gemini-3-pro-preview"  # Use Pro for all tasks
+        self.gemini_default_model: str = os.getenv("GEMINI_MODEL", get_default_model("google", "pro"))
+        self.gemini_pro_model: str = os.getenv("GEMINI_PRO_MODEL", get_default_model("google", "pro"))
+        self.gemini_flash_model: str = os.getenv("GEMINI_FLASH_MODEL", get_default_model("google", "flash"))
+        self.deepseek_model: str = os.getenv("DEEPSEEK_MODEL", get_default_model("deepseek", "chat"))
+        self.kimi_model: str = os.getenv("KIMI_MODEL", get_default_model("kimi", "thinking"))
+        self.openai_model: str = os.getenv("OPENAI_MODEL", get_default_model("openai", "flagship"))
+        self.openai_fast_model: str = os.getenv("OPENAI_FAST_MODEL", get_default_model("openai", "balanced"))
+        self.minimax_model: str = os.getenv("MINIMAX_MODEL", get_default_model("minimax", "reasoning"))
+        self.minimax_fast_model: str = os.getenv("MINIMAX_FAST_MODEL", get_default_model("minimax", "chat"))
 
         # Task types routed to Opus (complex, creative, security-critical)
         self.opus_task_types: list = ["brainstorm", "redteam", "architect", "evolution"]
@@ -381,6 +385,9 @@ class Config:
         # TTL for completed/failed workflows (hours)
         self.workflow_ttl_hours: int = int(os.getenv("WORKFLOW_TTL_HOURS", "24"))
 
+        # Provider compatibility snapshot for runtime, CI, and docs reuse.
+        self.provider_snapshot = build_provider_snapshot(self)
+
     def to_dict(self) -> dict:
         """Export config as dict"""
         return {
@@ -394,6 +401,15 @@ class Config:
             "log_level": self.log_level,
             "ui_verbose": self.ui_verbose,
             "benchmark_mode": self.benchmark_mode,
+            "driver_mode": self.driver_mode,
+            "claude_opus_model": self.claude_opus_model,
+            "claude_sonnet_model": self.claude_sonnet_model,
+            "gemini_pro_model": self.gemini_pro_model,
+            "gemini_flash_model": self.gemini_flash_model,
+            "deepseek_model": self.deepseek_model,
+            "kimi_model": self.kimi_model,
+            "openai_model": self.openai_model,
+            "minimax_model": self.minimax_model,
         }
 
 
@@ -428,6 +444,8 @@ class OrchestratorConfig:
         )
         self.deepseek_api_key: str | None = kwargs.get("deepseek_api_key", os.getenv("DEEPSEEK_API_KEY"))
         self.kimi_api_key: str | None = kwargs.get("kimi_api_key", os.getenv("KIMI_API_KEY"))
+        self.openai_api_key: str | None = kwargs.get("openai_api_key", os.getenv("OPENAI_API_KEY"))
+        self.minimax_api_key: str | None = kwargs.get("minimax_api_key", os.getenv("MINIMAX_API_KEY"))
 
         # Driver mode
         self.driver_mode: str = kwargs.get("driver_mode", os.getenv("NEXUS_DRIVER_MODE", "auto"))
@@ -439,6 +457,12 @@ class OrchestratorConfig:
         self.response_cache_ttl: float = float(kwargs.get("response_cache_ttl", 300.0))
         self.routing_policy: str = kwargs.get("routing_policy", "balanced")
         self.workspace_path: Path = Path(kwargs.get("workspace_path", "./workspace"))
+        self.deepseek_model: str = kwargs.get("deepseek_model", get_default_model("deepseek", "chat"))
+        self.kimi_model: str = kwargs.get("kimi_model", get_default_model("kimi", "thinking"))
+        self.openai_model: str = kwargs.get("openai_model", get_default_model("openai", "flagship"))
+        self.openai_fast_model: str = kwargs.get("openai_fast_model", get_default_model("openai", "balanced"))
+        self.minimax_model: str = kwargs.get("minimax_model", get_default_model("minimax", "reasoning"))
+        self.minimax_fast_model: str = kwargs.get("minimax_fast_model", get_default_model("minimax", "chat"))
 
         # Apply any remaining kwargs as attributes
         for key, value in kwargs.items():

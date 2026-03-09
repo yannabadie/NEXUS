@@ -40,6 +40,7 @@ argon2-cffi>=23.1.0
 # === LLM SDKs [sdk] ===
 anthropic>=0.70.0
 google-genai>=1.0.0
+openai>=1.68.0
 
 # === MCP Server [mcp] ===
 # mcp>=1.0.0

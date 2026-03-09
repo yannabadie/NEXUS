@@ -203,7 +203,7 @@ En mode `EVOLUTION_BRAINSTORM`:
 
 ### Nouvelles capacites
 - **StagnationPredictor** - Detection stagnation (seuils 0.15/0.25/0.40)
-- **HybridBackend RRF** - Fusion Dense + BM25S (+15% recall RAG)
+- **HybridBackend RRF** - Fusion Dense + BM25S (evaluation published via evidence artifacts only)
 - **MemoryCoordinator** - Poids adaptatifs domaines avec EMA
 - **OutputGuard DialogueAct** - Classification actes dialogue
 - **SSRF Protection** - Blocklist OWASP pour web_fetch

@@ -1,11 +1,6 @@
-"""NEXUS Core Module - COGNITIVE BOOST"""
+"""NEXUS core package metadata."""
 
-# Version: single source of truth is pyproject.toml via importlib.metadata
-try:
-    from importlib.metadata import version as _get_version
+from .version import NEXUS_CODENAME, NEXUS_VERSION
 
-    __version__ = _get_version("nexus-swarm-os")
-except Exception:
-    __version__ = "12.4.0"
-
-__codename__ = "COGNITIVE BOOST"
+__version__ = NEXUS_VERSION
+__codename__ = NEXUS_CODENAME

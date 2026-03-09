@@ -40,7 +40,7 @@ install-rust:  ## Install Rust toolchain for native extensions
 # Testing
 # =============================================================================
 
-test:  ## Run full test suite (CAUTION: 6348 tests, may use 2-3GB RAM)
+test:  ## Run full test suite (see CI evidence ledger for current counts)
 	@echo "⚠️  Warning: Full test suite uses significant memory (2-3GB)"
 	@echo "   Consider 'make test-fast' or 'make test-unit' for development"
 	$(PYTHON) -m pytest tests/ $(PYTEST_ARGS) --ignore=tests/benchmark_professional.py

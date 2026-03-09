@@ -3,7 +3,7 @@
 NEXUS Documentation Engine V2.0
 
 Unified documentation synchronization system.
-Single source of truth: .env (NEXUS_VERSION, NEXUS_CODENAME)
+Single source of truth: pyproject.toml via core.version
 
 Modes:
     --check      : Read-only audit (CI-safe, returns exit code 1 if issues)
@@ -38,15 +38,15 @@ V2.0 Changes:
     - Dataclass field details
     - Anti-hallucination validation
 
-V2.1 Changes (V8.4.4):
+Recent Changes:
     - Added ZOOM: Async Primitives section
-    - Added ZOOM: V8.4.4 Blind Spot Remediations section
+    - Added ZOOM: Blind Spot Remediations section
     - Enhanced FSM extraction (async handlers detection)
     - Added SagaManager, HealthStateMachine, StagnationPredictor coverage
     - Added async_primitives module scanning
-    - Updated anti-hallucination with V8.4 structures
+    - Updated anti-hallucination with current runtime structures
 
-V2.2 Changes (V8.2.0d):
+Regression Coverage Changes:
     - Added Torture Protocol test scanning
     - Added torture test statistics to architecture map
     - Added torture scenario categories extraction
@@ -68,6 +68,8 @@ from collections import defaultdict
 # Add project root to path for imports
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
+
+from core.version import NEXUS_CODENAME, NEXUS_VERSION
 
 
 # =============================================================================
@@ -173,7 +175,7 @@ class DocEngine:
     Unified documentation synchronization engine.
 
     Design Principles:
-    1. Single Source of Truth: .env (NEXUS_VERSION, NEXUS_CODENAME)
+    1. Single Source of Truth: pyproject.toml via core.version
     2. Minimal Changes: Only version patterns, never content
     3. Idempotent: Same result if run multiple times
     4. Fail-Safe: Pattern not found = WARNING, not ERROR
@@ -197,25 +199,11 @@ class DocEngine:
 
     def __init__(self, project_root: Path):
         self.root = project_root
-        self.version = self._read_env_value("NEXUS_VERSION", "0.0.0")
-        self.codename = self._read_env_value("NEXUS_CODENAME", "UNKNOWN")
+        self.version = NEXUS_VERSION
+        self.codename = NEXUS_CODENAME
         self.major_minor = ".".join(self.version.split(".")[:2])
         self.issues: List[Issue] = []
         self.changes: List[Change] = []
-
-    def _read_env_value(self, key: str, default: str) -> str:
-        """Read a value from .env file."""
-        env_path = self.root / ".env"
-        if not env_path.exists():
-            return default
-        content = env_path.read_text(encoding="utf-8")
-        for line in content.splitlines():
-            if line.startswith(f"{key}="):
-                value = line.split("=", 1)[1].strip()
-                if value.startswith('"') and value.endswith('"'):
-                    value = value[1:-1]
-                return value
-        return default
 
     def _format_pattern(self, pattern: str) -> str:
         """Format a pattern with version variables."""
@@ -234,7 +222,7 @@ class DocEngine:
         self.issues = []
         print(f"\n{'='*60}")
         print(f"NEXUS Documentation Check")
-        print(f"Source of Truth: .env -> NEXUS_VERSION={self.version}")
+        print(f"Source of Truth: pyproject.toml -> NEXUS_VERSION={self.version}")
         print(f"{'='*60}\n")
 
         for filename, patterns in self.SYNC_FILES.items():
@@ -894,7 +882,7 @@ class StructureExtractor:
         return "Any"
 
     # =========================================================================
-    # V8.4.4 Extractors
+        # Async/runtime extractors
     # =========================================================================
 
     def _extract_async_primitives(self) -> Dict[str, List[str]]:
@@ -1021,7 +1009,7 @@ class StructureExtractor:
 
 
 # =============================================================================
-# MAP GENERATOR V2.2 - ENHANCED WITH V8.4.4 + V8.2.0d SUPPORT
+        # MAP GENERATOR - enhanced with async primitives and torture protocol coverage
 # =============================================================================
 
 class MapGeneratorV2:
@@ -1058,15 +1046,15 @@ class MapGeneratorV2:
             self._generate_llm_drivers_zoom(),
             self._generate_swarm_zoom(),
             self._generate_hive_mind_zoom(),
-            self._generate_async_primitives_zoom(),  # V8.4.4
-            self._generate_blind_spot_remediations_zoom(),  # V8.4.4
+            self._generate_async_primitives_zoom(),
+            self._generate_blind_spot_remediations_zoom(),
             self._generate_evolution_zoom(),
             self._generate_memory_zoom(),
             self._generate_security_zoom(),
             self._generate_functional_inventory(),
             self._generate_key_dataclasses(),
             self._generate_statistics(),
-            self._generate_torture_protocol_zoom(),  # V8.2.0d
+            self._generate_torture_protocol_zoom(),
             self._generate_anti_hallucination(),
             self._generate_footer(),
         ]
@@ -1096,15 +1084,15 @@ class MapGeneratorV2:
 3. [ZOOM: LLM Drivers & Routing](#3-zoom-llm-drivers--routing)
 4. [ZOOM: Swarm Engine](#4-zoom-swarm-engine)
 5. [ZOOM: Hive Mind Pipeline](#5-zoom-hive-mind-pipeline)
-6. [ZOOM: Async Primitives (V8.4.4)](#6-zoom-async-primitives-v844)
-7. [ZOOM: Blind Spot Remediations (V8.4.4)](#7-zoom-blind-spot-remediations-v844)
+6. [ZOOM: Async Primitives](#6-zoom-async-primitives)
+7. [ZOOM: Blind Spot Remediations](#7-zoom-blind-spot-remediations)
 8. [ZOOM: Evolution & Spawning](#8-zoom-evolution--spawning)
 9. [ZOOM: Memory Systems](#9-zoom-memory-systems)
 10. [ZOOM: Security & Governance](#10-zoom-security--governance)
 11. [Functional Inventory](#11-functional-inventory)
 12. [Key Dataclasses](#12-key-dataclasses)
 13. [Statistics](#13-statistics)
-14. [Torture Protocol (V8.2.0d)](#14-torture-protocol-v820d)
+14. [Torture Protocol](#14-torture-protocol)
 15. [Anti-Hallucination Reference](#15-anti-hallucination-reference)
 
 ---
@@ -1517,7 +1505,7 @@ graph TD
 """
 
     def _generate_async_primitives_zoom(self) -> str:
-        """Generate V8.4.4 Async Primitives section."""
+        """Generate Async Primitives section."""
         primitives = self.structures.get("async_primitives", {})
         classes = primitives.get("classes", [])
         files = primitives.get("files", [])
@@ -1527,11 +1515,11 @@ graph TD
         files_list = ", ".join(f"`{f}`" for f in files) if files else "None found"
         handlers_list = "\n".join(f"| `{h}()` | Non-blocking handler |" for h in async_handlers) if async_handlers else "| None | - |"
 
-        return f"""## 6. ZOOM: Async Primitives (V8.4.4)
+        return f"""## 6. ZOOM: Async Primitives
 
 ### Overview
 
-V8.4.4 introduces a complete async infrastructure for non-blocking operations.
+The current runtime exposes a complete async infrastructure for non-blocking operations.
 
 ```mermaid
 graph TD
@@ -1582,7 +1570,7 @@ graph TD
 """
 
     def _generate_blind_spot_remediations_zoom(self) -> str:
-        """Generate V8.4.4 Blind Spot Remediations section."""
+        """Generate Blind Spot Remediations section."""
         health_states = self.structures.get("health_states", [])
         prediction_levels = self.structures.get("prediction_levels", [])
         saga_phases = self.structures.get("saga_phases", [])
@@ -1593,11 +1581,11 @@ graph TD
         saga_table = " → ".join(saga_phases) if saga_phases else "Not found"
         recovery_table = "\n".join(f"| `{s}` |" for s in recovery_strategies) if recovery_strategies else "| None |"
 
-        return f"""## 7. ZOOM: Blind Spot Remediations (V8.4.4)
+        return f"""## 7. ZOOM: Blind Spot Remediations
 
 ### Overview
 
-V8.4.4 addresses 6 architectural blind spots with dedicated modules.
+The current runtime addresses architectural blind spots with dedicated modules.
 
 ```mermaid
 graph TD
@@ -2000,14 +1988,14 @@ The KERNEL.py file is the **immutable alignment core** that:
         ) + "\n"
 
     def _generate_torture_protocol_zoom(self) -> str:
-        """Generate Torture Protocol V8.2.0d section."""
+        """Generate Torture Protocol section."""
         torture = self.structures.get("torture_tests", {})
         total_tests = torture.get("total_tests", 0)
         categories = torture.get("categories", {})
         markers = torture.get("markers", [])
 
         if total_tests == 0:
-            return """## 14. TORTURE PROTOCOL (V8.2.0d)
+            return """## 14. TORTURE PROTOCOL
 
 > Torture Protocol tests not found. Run `pytest tests/torture_v8.py -m torture` to verify.
 
@@ -2019,7 +2007,7 @@ The KERNEL.py file is the **immutable alignment core** that:
 
         markers_list = ", ".join(f"`@pytest.mark.{m}`" for m in markers) if markers else "None"
 
-        return f"""## 14. TORTURE PROTOCOL (V8.2.0d)
+        return f"""## 14. TORTURE PROTOCOL
 
 ### Overview
 

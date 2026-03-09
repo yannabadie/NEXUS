@@ -51,6 +51,8 @@ if TYPE_CHECKING:
     from .deepseek_sdk_driver import DeepSeekSDKDriver
     from .google_genai_sdk_driver import GoogleGenAISDKDriver
     from .kimi_sdk_driver import KimiSDKDriver
+    from .minimax_sdk_driver import MiniMaxSDKDriver
+    from .openai_sdk_driver import OpenAISDKDriver
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +87,8 @@ class AsyncDriverFactory:
         self._google_api_key: str | None = getattr(config, "google_api_key", None)
         self._deepseek_api_key: str | None = getattr(config, "deepseek_api_key", None)
         self._kimi_api_key: str | None = getattr(config, "kimi_api_key", None)
+        self._openai_api_key: str | None = getattr(config, "openai_api_key", None)
+        self._minimax_api_key: str | None = getattr(config, "minimax_api_key", None)
 
         # Shared response cache for SDK drivers (deduplication)
         self._response_cache = ResponseCache(
@@ -110,6 +114,8 @@ class AsyncDriverFactory:
         self._gemini_sdk: GoogleGenAISDKDriver | None = None
         self._deepseek_sdk: DeepSeekSDKDriver | None = None
         self._kimi_sdk: KimiSDKDriver | None = None
+        self._openai_sdk: OpenAISDKDriver | None = None
+        self._minimax_sdk: MiniMaxSDKDriver | None = None
 
     # =========================================================================
     # CLI Drivers (backward compatible)
@@ -340,6 +346,62 @@ class AsyncDriverFactory:
 
         return self._kimi_sdk
 
+    def get_openai_sdk(
+        self,
+        model: str | None = None,
+    ) -> OpenAISDKDriver:
+        """Get or create the OpenAI SDK driver."""
+        if self._openai_sdk is None:
+            if not self._openai_api_key:
+                raise RuntimeError("OpenAISDKDriver requires OPENAI_API_KEY. Set it in .env or environment.")
+            from .openai_sdk_driver import OpenAISDKDriver
+
+            self._openai_sdk = OpenAISDKDriver(
+                model=model or getattr(self.config, "openai_model", "gpt-5.2"),
+                api_key=self._openai_api_key,
+                max_tokens=getattr(self.config, "max_tokens", 8192),
+                timeout=float(getattr(self.config, "timeout", 300)),
+                enable_caching=True,
+                response_cache=self._response_cache,
+            )
+            self._openai_sdk.set_budget_tracker(self._budget_tracker)
+            self._openai_sdk.set_health_monitor(self._health_monitor)
+            sdk_model = getattr(self._openai_sdk, "_model", "unknown")
+            self._failover.register_driver(f"openai/{sdk_model}", priority=2)
+            logger.info(f"Created OpenAISDKDriver (model={sdk_model})")
+        elif model and hasattr(self._openai_sdk, "_model"):
+            self._openai_sdk._model = model
+
+        return self._openai_sdk
+
+    def get_minimax_sdk(
+        self,
+        model: str | None = None,
+    ) -> MiniMaxSDKDriver:
+        """Get or create the MiniMax SDK driver."""
+        if self._minimax_sdk is None:
+            if not self._minimax_api_key:
+                raise RuntimeError("MiniMaxSDKDriver requires MINIMAX_API_KEY. Set it in .env or environment.")
+            from .minimax_sdk_driver import MiniMaxSDKDriver
+
+            self._minimax_sdk = MiniMaxSDKDriver(
+                model=model or getattr(self.config, "minimax_model", "MiniMax-M1"),
+                api_key=self._minimax_api_key,
+                max_tokens=getattr(self.config, "max_tokens", 8192),
+                timeout=float(getattr(self.config, "timeout", 300)),
+                enable_caching=True,
+                response_cache=self._response_cache,
+            )
+            self._minimax_sdk.set_budget_tracker(self._budget_tracker)
+            self._minimax_sdk.set_health_monitor(self._health_monitor)
+            sdk_model = getattr(self._minimax_sdk, "_model", "unknown")
+            self._failover.register_driver(f"minimax/{sdk_model}", priority=2)
+            logger.info(f"Created MiniMaxSDKDriver (model={sdk_model})")
+        elif model and hasattr(self._minimax_sdk, "_model"):
+            self._minimax_sdk._model = model
+
+        return self._minimax_sdk
+
     # =========================================================================
     # Smart Driver Selection (V12.4)
     # =========================================================================
@@ -363,6 +425,16 @@ class AsyncDriverFactory:
     def kimi_sdk_available(self) -> bool:
         """Check if Kimi SDK driver can be created (API key present)."""
         return bool(self._kimi_api_key) and self._driver_mode != "cli"
+
+    @property
+    def openai_sdk_available(self) -> bool:
+        """Check if OpenAI SDK driver can be created (API key present)."""
+        return bool(self._openai_api_key) and self._driver_mode != "cli"
+
+    @property
+    def minimax_sdk_available(self) -> bool:
+        """Check if MiniMax SDK driver can be created (API key present)."""
+        return bool(self._minimax_api_key) and self._driver_mode != "cli"
 
     def get_best_claude(self, model: str | None = None) -> Any:
         """
@@ -421,10 +493,10 @@ class AsyncDriverFactory:
         prefer_sdk: bool = False,
     ) -> Any:
         """
-        Get a driver by agent ID.
+        Get a driver by agent/provider ID.
 
         Args:
-            agent_id: "claude" or "gemini"
+            agent_id: "claude", "gemini", "deepseek", "kimi", "openai", or "minimax"
             model: Optional model override
             prefer_sdk: If True, use SDK driver when available (respects driver_mode)
 
@@ -441,13 +513,23 @@ class AsyncDriverFactory:
                 return self.get_best_claude(model)
             elif agent_lower == "gemini":
                 return self.get_best_gemini(model)
+            elif agent_lower == "deepseek":
+                return self.get_deepseek_sdk(model)
+            elif agent_lower == "kimi":
+                return self.get_kimi_sdk(model)
+            elif agent_lower == "openai":
+                return self.get_openai_sdk(model)
+            elif agent_lower == "minimax":
+                return self.get_minimax_sdk(model)
         else:
             if agent_lower == "claude":
                 return self.get_claude_driver(model)
             elif agent_lower == "gemini":
                 return self.get_gemini_driver(model)
 
-        raise ValueError(f"Unknown agent: {agent_id}. Use 'claude' or 'gemini'.")
+        raise ValueError(
+            f"Unknown agent/provider: {agent_id}. Use claude, gemini, deepseek, kimi, openai, or minimax."
+        )
 
     # =========================================================================
     # Driver Info (V12.4)
@@ -468,8 +550,20 @@ class AsyncDriverFactory:
             "gemini_cli_available": True,
             "gemini_sdk_available": self.gemini_sdk_available,
             "gemini_sdk_active": self._gemini_sdk is not None,
+            "deepseek_sdk_available": self.deepseek_sdk_available,
+            "deepseek_sdk_active": self._deepseek_sdk is not None,
+            "kimi_sdk_available": self.kimi_sdk_available,
+            "kimi_sdk_active": self._kimi_sdk is not None,
+            "openai_sdk_available": self.openai_sdk_available,
+            "openai_sdk_active": self._openai_sdk is not None,
+            "minimax_sdk_available": self.minimax_sdk_available,
+            "minimax_sdk_active": self._minimax_sdk is not None,
             "anthropic_api_key_set": bool(self._anthropic_api_key),
             "google_api_key_set": bool(self._google_api_key),
+            "deepseek_api_key_set": bool(self._deepseek_api_key),
+            "kimi_api_key_set": bool(self._kimi_api_key),
+            "openai_api_key_set": bool(self._openai_api_key),
+            "minimax_api_key_set": bool(self._minimax_api_key),
             "response_cache": self._response_cache.to_dict(),
             "health_monitor": self._health_monitor.to_dict(),
             "failover": self._failover.to_dict(),

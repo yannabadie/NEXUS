@@ -56,5 +56,5 @@ Main test fixtures defined in `tests/conftest.py`:
 ## Related
 
 - [tests/conftest.py](../conftest.py) - Main test fixtures
-- [tests/proofs/](../proofs/) - Proof tests using these fixtures
-- [core/mcp/](../../core/mcp/) - Real MCP implementation
+- [tests/proofs/](../proofs/) - Legacy smoke/regression checks using these fixtures
+- [core/interface_pkg/mcp/](../../core/interface_pkg/mcp/) - Real MCP implementation

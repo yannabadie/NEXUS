@@ -57,17 +57,24 @@ class BashHandler(BaseHandler):
         # V12.4 PHASE 3: Sandbox delegation with production enforcement
         self._sandbox = None
         self._sandbox_required = False
+        self._host_execution_allowed = False
+        self._effective_mode = "validated_host"
         try:
             import os
 
-            sandbox_enabled = os.getenv("NEXUS_FF_SANDBOX_ENABLED", "false").lower() in ("true", "1")
+            sandbox_enabled = os.getenv("NEXUS_FF_SANDBOX_ENABLED", "true").lower() in ("true", "1")
             self._sandbox_required = os.getenv("NEXUS_FF_SANDBOX_REQUIRED", "false").lower() in ("true", "1")
+            self._host_execution_allowed = os.getenv("NEXUS_FF_HOST_EXECUTION_ALLOWED", "false").lower() in (
+                "true",
+                "1",
+            )
 
             if sandbox_enabled or self._sandbox_required:
                 from .sandbox_handler import SandboxHandler
 
                 self._sandbox = SandboxHandler(workspace_path)
                 if self._sandbox.is_available():
+                    self._effective_mode = "sandboxed"
                     logger.info("BashHandler: sandbox mode ENABLED (Docker)")
                 else:
                     if self._sandbox_required:
@@ -76,13 +83,23 @@ class BashHandler(BaseHandler):
                             "Sandbox is REQUIRED (NEXUS_FF_SANDBOX_REQUIRED=true) but Docker is not available. "
                             "Cannot execute commands without sandbox in production mode."
                         )
+                    elif self._host_execution_allowed:
+                        logger.warning(
+                            "BashHandler: sandbox requested but Docker not available, falling back to validated host execution"
+                        )
+                        self._sandbox = None
+                        self._effective_mode = "validated_host"
                     else:
-                        logger.warning("BashHandler: sandbox requested but Docker not available, using host execution")
+                        logger.warning("BashHandler: sandbox requested but Docker not available, host execution blocked")
                         self._sandbox = None
         except Exception as e:
             if self._sandbox_required:
                 raise  # Re-raise if sandbox is required
             logger.debug(f"Sandbox initialization failed (optional): {e}")
+
+    def effective_mode(self) -> str:
+        """Return the active execution mode exposed to callers and MCP docs."""
+        return self._effective_mode
 
     @property
     def tool_name(self) -> str:
@@ -117,6 +134,17 @@ class BashHandler(BaseHandler):
         if self._sandbox is not None:
             logger.debug(f"Sandbox executing: {command[:80]}...")
             return self._sandbox.execute(args)
+
+        if not self._host_execution_allowed:
+            return ToolResult(
+                tool_name=self.tool_name,
+                status="BLOCKED",
+                output="",
+                error=(
+                    "Validated host execution is disabled. Enable NEXUS_FF_HOST_EXECUTION_ALLOWED=true "
+                    "for local development or provide a Docker sandbox."
+                ),
+            )
 
         # SECURITY LAYER 1: ExecutionPolicy validation
         is_valid, error = self.execution_policy.validate_command(command)

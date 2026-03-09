@@ -1,185 +1,114 @@
-# NEXUS Documentation Engine - CI/CD
-#
-# Unified documentation synchronization workflow.
-# Ensures all docs stay in sync with .env version.
-#
-# Features:
-# - Check consistency on all PRs (blocking)
-# - Auto-sync version on push to main branches
-# - Auto-generate architecture map on code changes
-#
-# V8.3.2: Replaces architecture-map.yml with unified doc_engine.py
-# V8.4.4: Added N9AF branch support, enhanced doc_engine coverage
-
-name: Documentation Sync
+name: Documentation Consistency
 
 on:
   push:
-    branches: [N9AF, N8THM, N7HM, main]
+    branches: [NX-CG]
     paths:
-      # Trigger on version change
-      - '.env'
-      # Trigger on core code changes
-      - 'core/**/*.py'
-      # Trigger on doc engine changes
-      - 'scripts/doc_engine.py'
-      # Trigger on prompt doc changes
-      - 'CLAUDE_PROMPTDOC.md'
-      # Don't trigger on generated docs (avoid infinite loop)
-      - '!docs/ARCHITECTURE_MAP_GENERATED.md'
-      - '!README.md'
-      - '!CLAUDE.md'
-
+      - ".env"
+      - "README.md"
+      - "CLAUDE.md"
+      - "docs/**"
+      - "scripts/doc_engine.py"
+      - "core/**/*.py"
   pull_request:
-    branches: [N9AF, N8THM, N7HM, main]
+    branches: [NX-CG]
     paths:
-      - '.env'
-      - 'core/**/*.py'
-
-  # Allow manual trigger
+      - ".env"
+      - "README.md"
+      - "CLAUDE.md"
+      - "docs/**"
+      - "scripts/doc_engine.py"
+      - "core/**/*.py"
   workflow_dispatch:
     inputs:
       apply:
-        description: 'Apply changes (true/false)'
+        description: "Apply generated documentation updates"
         required: false
-        default: 'true'
-      mode:
-        description: 'Mode to run (check/sync/gen-map/full)'
-        required: false
-        default: 'full'
+        default: "false"
+        type: boolean
 
-# Prevent concurrent runs on same branch
 concurrency:
   group: documentation-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  # ==========================================================================
-  # JOB 1: CHECK (runs on PRs - blocking)
-  # ==========================================================================
-  check:
-    name: Check Documentation Consistency
+  documentation-check:
+    name: Check generated documentation
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
+          cache: pip
 
       - name: Install dependencies
         run: pip install python-dotenv
 
-      - name: Check documentation consistency
-        run: python scripts/doc_engine.py --check
+      - name: Regenerate documentation
+        run: python scripts/doc_engine.py --full --apply
         env:
           PYTHONPATH: ${{ github.workspace }}
 
-  # ==========================================================================
-  # JOB 2: SYNC (runs on push - auto-commits)
-  # ==========================================================================
-  sync:
-    name: Sync Documentation
+      - name: Fail on documentation drift
+        run: |
+          git diff --exit-code README.md CLAUDE.md docs/ARCHITECTURE_MAP_GENERATED.md
+
+      - name: Upload generated docs for review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation-generated
+          path: |
+            README.md
+            CLAUDE.md
+            docs/ARCHITECTURE_MAP_GENERATED.md
+          retention-days: 14
+
+  documentation-apply:
+    name: Apply documentation updates
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-
-    # Don't run on commits from this workflow (avoid infinite loop)
-    # Also skip if commit message contains [skip-docs]
-    # Note: This check is in the job condition, not a separate if
-
+    if: github.event_name == 'workflow_dispatch' && inputs.apply
+    needs: [documentation-check]
     permissions:
       contents: write
 
     steps:
-      - name: Check if should skip
-        id: skip_check
-        run: |
-          if [[ "${{ github.event.head_commit.message }}" == *"[skip-docs]"* ]] || \
-             [[ "${{ github.event.head_commit.message }}" == *"Auto-sync documentation"* ]]; then
-            echo "skip=true" >> $GITHUB_OUTPUT
-            echo "Skipping: commit from documentation workflow"
-          else
-            echo "skip=false" >> $GITHUB_OUTPUT
-          fi
-
       - name: Checkout code
-        if: steps.skip_check.outputs.skip != 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
-        if: steps.skip_check.outputs.skip != 'true'
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
-          cache: 'pip'
+          python-version: "3.12"
+          cache: pip
 
       - name: Install dependencies
-        if: steps.skip_check.outputs.skip != 'true'
         run: pip install python-dotenv
 
-      - name: Get version from .env
-        if: steps.skip_check.outputs.skip != 'true'
-        id: version
-        run: |
-          VERSION=$(grep "^NEXUS_VERSION=" .env | cut -d'=' -f2)
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Current version: $VERSION"
-
-      - name: Run documentation engine (full)
-        if: steps.skip_check.outputs.skip != 'true'
+      - name: Apply documentation sync
         run: python scripts/doc_engine.py --full --apply
         env:
           PYTHONPATH: ${{ github.workspace }}
 
-      - name: Check for changes
-        if: steps.skip_check.outputs.skip != 'true'
-        id: changes
+      - name: Commit updates if needed
         run: |
-          if git diff --quiet README.md CLAUDE.md docs/ARCHITECTURE_MAP_GENERATED.md 2>/dev/null; then
-            echo "changed=false" >> $GITHUB_OUTPUT
-            echo "No documentation changes detected"
-          else
-            echo "changed=true" >> $GITHUB_OUTPUT
-            echo "Documentation changes detected:"
-            git diff --stat README.md CLAUDE.md docs/ARCHITECTURE_MAP_GENERATED.md 2>/dev/null || true
+          if git diff --quiet README.md CLAUDE.md docs/ARCHITECTURE_MAP_GENERATED.md; then
+            echo "No documentation updates to commit."
+            exit 0
           fi
 
-      - name: Commit and push changes
-        if: steps.skip_check.outputs.skip != 'true' && steps.changes.outputs.changed == 'true'
-        run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
           git add README.md CLAUDE.md docs/ARCHITECTURE_MAP_GENERATED.md
-
-          git commit -m "docs: Auto-sync documentation to V${{ steps.version.outputs.version }} [skip-docs]
-
-          Synchronized by NEXUS Documentation Engine after code/version changes.
-
-          Changes:
-          - README.md: Version badges and headers
-          - docs/ARCHITECTURE_MAP_GENERATED.md: Architecture statistics
-
-          🤖 Generated with NEXUS Documentation Engine"
-
+          git commit -m "docs: synchronize generated documentation [skip ci]"
           git push
-
-      - name: Summary
-        if: steps.skip_check.outputs.skip != 'true'
-        run: |
-          echo "## Documentation Sync Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Version**: ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ steps.changes.outputs.changed }}" == "true" ]; then
-            echo "✅ Documentation synchronized and committed" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "ℹ️ Documentation already in sync" >> $GITHUB_STEP_SUMMARY
-          fi

@@ -121,7 +121,7 @@ mode, task_id, score = memory.get_best_mode_for_similar(
 ```
 
 **Key Improvements over V1:**
-- **Semantic Search**: Uses LanceDB embeddings instead of Jaccard similarity (~+15% recall)
+- **Semantic Search**: Uses LanceDB embeddings instead of Jaccard similarity
 - **Shared Compute**: Uses global `EmbeddingEngine` for efficient batch processing
 - **Auto-Migration**: Migrates V1 JSON data to LanceDB on first run
 - **Domain Boosting**: Matches tasks by semantic similarity + domain overlap

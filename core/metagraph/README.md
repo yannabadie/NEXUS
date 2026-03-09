@@ -1,7 +1,7 @@
 # MetagraphRAG - Precise Codebase Knowledge Graph
 
 **Version**: 1.0.0 (Auto-Integration)
-**Status**: Production Ready
+**Status**: Experimental module; publish readiness via evidence ledger and benchmarks
 **Module**: `core.metagraph`
 
 ## 🎯 Purpose
@@ -539,4 +539,4 @@ graph = get_graph(force_refresh=True)
 
 **Author**: Claude (NEXUS V12.4 COGNITIVE BOOST)
 **License**: MIT
-**Status**: Production Ready
+**Status**: Experimental module; publish readiness via evidence ledger and benchmarks

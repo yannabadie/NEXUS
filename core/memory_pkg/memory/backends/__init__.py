@@ -7,7 +7,7 @@ Available backends:
 - TfidfBackend: Zero-dependency fallback (stdlib only)
 - Bm25Backend: Better recall (~15%), requires bm25s
 - DenseBackend: Semantic retrieval (~+10% recall), requires lancedb + sentence-transformers
-- HybridBackend: V12.4 RRF fusion of Dense + BM25S (~+15% recall)
+- HybridBackend: V12.4 RRF fusion of Dense + BM25S
 
 Usage:
     from core.memory_pkg.memory.backends import MemoryBackend, HybridBackend, DenseBackend, Bm25Backend

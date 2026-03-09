@@ -79,7 +79,7 @@ NEXUS/
 │   ├── foundation/                      # Agents, async primitives
 │   ├── fsm/                             # State machine (12 states)
 │   └── [30+ other modules]              # See docs/MODULE_MAP.md
-├── tests/                               # 2500+ tests (200+ files)
+├── tests/                               # Test suite (see CI evidence ledger for current counts)
 ├── workspace/                           # Runtime data (agents, logs, sessions)
 ├── KERNEL.py                            # Immutable alignment (NEVER modify)
 └── .claude/                             # Claude Code config

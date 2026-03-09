@@ -66,12 +66,11 @@ def _get_orchestrator():
     """
     try:
         from core.config import Config
-        from core.orchestration_v7 import OrchestratorV7
+        from core.runtime import NexusSessionRuntime
 
         config = Config()
-        gemini_info = {"model": config.gemini_pro_model, "provider": "gemini"}
-        claude_info = {"model": config.claude_opus_model, "provider": "claude"}
-        return OrchestratorV7(config.workspace_path, config, gemini_info, claude_info)
+        runtime = NexusSessionRuntime.from_config(config, interaction_mode="headless")
+        return runtime.orchestrator
     except Exception as e:
         logger.error(f"Failed to create orchestrator: {e}")
         raise

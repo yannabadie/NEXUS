@@ -36,7 +36,7 @@ from core.interface_pkg.interface.commands import (
     is_slash_command,
     parse_command,
 )
-from core.orchestration_v7 import OrchestratorV7
+from core.runtime import NexusSessionRuntime
 from core.ui.console_v7 import ConsoleV7
 
 
@@ -57,8 +57,9 @@ class InteractiveNexusV7:
         # Calculate NEXUS root path robustly (with validation)
         self.nexus_root = self._calculate_nexus_root()
 
-        # Create orchestrator ONCE (persistent!)
-        self.orchestrator = OrchestratorV7(workspace_path, self.config, gemini_info, claude_info)
+        # Create orchestrator ONCE via the shared session runtime facade.
+        self.runtime = NexusSessionRuntime(workspace_path, self.config, gemini_info, claude_info)
+        self.orchestrator = self.runtime.orchestrator
 
         # UI
         self.console = ConsoleV7(verbose=self.config.ui_verbose)
@@ -99,6 +100,7 @@ class InteractiveNexusV7:
         self._streaming_active = False  # Track if we're currently streaming
         if getattr(self.config, "streaming_enabled", False):
             self.orchestrator.on_token = self._stream_token
+        self.orchestrator.on_agent_status = self._display_runtime_event
 
     def _get_input(self, prompt: str = "nexus7> ") -> str:
         """Get user input with fallback for non-interactive terminals."""
@@ -130,6 +132,10 @@ class InteractiveNexusV7:
             print(token, end="", flush=True)
             self._streaming_active = True
 
+    def _display_runtime_event(self, event: dict[str, str]) -> None:
+        """Display runtime activity events emitted by the orchestrator."""
+        self.console.print_activity(event)
+
     def run(self):
         """Main REPL loop"""
         # Clear previous session state at startup (fresh start)
@@ -142,6 +148,7 @@ class InteractiveNexusV7:
             version=self.config.nexus_version,
             codename=self.config.nexus_codename,
         )
+        self.console.print_runtime_plan(self.config.provider_snapshot)
 
         # V7 Sprint 11: Display startup hints (bootstrap, swarm status)
         hints = self.orchestrator.get_startup_hints()
@@ -297,6 +304,7 @@ class InteractiveNexusV7:
             version=self.config.nexus_version,
             codename=self.config.nexus_codename,
         )
+        self.console.print_runtime_plan(self.config.provider_snapshot)
 
         self.console.print("\n⚡ V9 Async Mode Active")
 

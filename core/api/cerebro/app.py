@@ -1,21 +1,12 @@
 """
-NEXUS V12.2 CEREBRO - FastAPI Application Factory
+CEREBRO FastAPI application factory.
 
-Creates the CEREBRO API application with:
+Creates the API surface used by NEXUS for:
 - Redis connection lifecycle management
-- Tenant context middleware (HTTP only)
-- WebSocket streaming endpoint
-- Health check endpoints
-- V11.5 CORTEX: State snapshot, interactions, workflow, files endpoints
-- V11.6 KEYMAKER: JWT authentication endpoints
-- V12.1 RETINA: HTTP rate limiting (Conseiller 1 feedback)
-- V12.2 IRONCLAD: User management API, RBAC enforcement
-
-V11.3 HARDENING: CORS origins from environment variable.
-V11.5 CORTEX: API control & state persistence for CEREBRO UI.
-V11.6 KEYMAKER: Authentication endpoints (login, me, logout, refresh).
-V12.1 RETINA: Rate limiting on sensitive endpoints.
-V12.2 IRONCLAD: User management (invite, remove, change role).
+- Tenant context middleware
+- WebSocket streaming
+- Workflow, memory, files, and settings APIs
+- Authentication, RBAC, and rate limiting
 
 Usage:
     uvicorn core.api.cerebro.app:create_cerebro_app --factory --port 8080
@@ -34,6 +25,7 @@ except ImportError:
 
 
 from core.observability.events.redis_bus import get_redis_bus
+from core.version import NEXUS_CODENAME, NEXUS_VERSION
 
 logger = logging.getLogger(__name__)
 
@@ -92,8 +84,8 @@ def create_cerebro_app() -> FastAPI:
     """
     app = FastAPI(
         title="NEXUS CEREBRO API",
-        description="Real-time event streaming API for NEXUS V10",
-        version="10.0.0",
+        description=f"Real-time event streaming API for NEXUS V{NEXUS_VERSION} {NEXUS_CODENAME}",
+        version=NEXUS_VERSION,
         lifespan=lifespan,
         docs_url="/docs",
         redoc_url="/redoc",
@@ -155,6 +147,10 @@ def create_cerebro_app() -> FastAPI:
 
     app.include_router(timeline.router, prefix="/api/timeline", tags=["timeline"])
 
+    from .routes import settings
+
+    app.include_router(settings.router, prefix="/api/settings", tags=["settings"])
+
     # V12.4 A2A Protocol: Agent Card endpoint
     from .routes import a2a
 
@@ -166,7 +162,8 @@ def create_cerebro_app() -> FastAPI:
         """Root endpoint with API info."""
         return {
             "service": "NEXUS CEREBRO API",
-            "version": "13.0.0",  # V13.0 MEMORIA UNIVERSALIS
+            "version": NEXUS_VERSION,
+            "codename": NEXUS_CODENAME,
             "docs": "/docs",
             "health": "/health",
             "websocket": "/ws/stream",
@@ -188,6 +185,7 @@ def create_cerebro_app() -> FastAPI:
             # V12.4 P2.1: Causality Timeline
             "timeline": "/api/timeline/{task_id}",
             "timeline_summary": "/api/timeline/{task_id}/summary",
+            "settings_providers": "/api/settings/providers",
             # V12.4 A2A Protocol
             "agent_card": "/.well-known/agent.json",
         }

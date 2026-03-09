@@ -1,17 +1,7 @@
-"""NEXUS V11 Drivers Module
+"""NEXUS drivers package.
 
-V11 Abstraction Layer (F31-F33 fixes):
-- DriverProtocol: Unified interface for CLI/API drivers
-- CLIAdapters: Protocol-compliant wrappers for existing CLI drivers
-- SessionProtocol: Abstracted session management (F32)
-- ToolExecutorProtocol: Abstracted tool execution (F33)
-
-V9 Async-First Architecture:
-- AsyncClaudeDriver: True non-blocking Claude CLI driver
-- AsyncGeminiDriver: True non-blocking Gemini CLI driver
-- AsyncDriverFactory: Unified driver creation and management
-
-Legacy sync drivers kept for backwards compatibility.
+Exports the current CLI and SDK driver surface plus the shared abstractions used
+by the runtime.
 """
 
 # V11 Abstraction Layer (F31-F33)
@@ -70,6 +60,8 @@ from .inference_latency_analyzer import (
     reset_latency_analyzer,
 )
 from .kimi_sdk_driver import KimiSDKDriver
+from .minimax_sdk_driver import MiniMaxSDKDriver
+from .openai_sdk_driver import OpenAISDKDriver
 
 # V12.4 Local LLM Driver
 from .ollama_driver import OllamaDriver
@@ -154,6 +146,8 @@ __all__ = [
     "GoogleGenAISDKDriver",
     "DeepSeekSDKDriver",
     "KimiSDKDriver",
+    "OpenAISDKDriver",
+    "MiniMaxSDKDriver",
     # V12.4 Local LLM
     "OllamaDriver",
     # V12.4 Response Cache

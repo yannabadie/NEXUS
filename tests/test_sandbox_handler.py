@@ -198,12 +198,27 @@ class TestBashHandlerSandboxDelegation:
     """Test BashHandler delegating to sandbox."""
 
     def test_bash_handler_without_sandbox(self, tmp_path):
-        """BashHandler should work normally without sandbox flag."""
+        """Disabling sandbox keeps the handler in validated host mode."""
         from core.execution_pkg.execution.handlers.bash_handler import BashHandler
 
         with patch.dict(os.environ, {"NEXUS_FF_SANDBOX_ENABLED": "false"}):
             handler = BashHandler(tmp_path)
             assert handler._sandbox is None
+            assert handler.effective_mode() == "validated_host"
+
+    def test_bash_handler_blocks_host_execution_when_not_opted_in(self, tmp_path):
+        """Validated host execution is deny-by-default when no sandbox is available."""
+        from core.execution_pkg.execution.handlers.bash_handler import BashHandler
+
+        with patch.dict(
+            os.environ,
+            {"NEXUS_FF_SANDBOX_ENABLED": "false", "NEXUS_FF_HOST_EXECUTION_ALLOWED": "false"},
+        ):
+            handler = BashHandler(tmp_path)
+            result = handler.execute({"command": "echo hello"})
+
+        assert result.status == "BLOCKED"
+        assert "Validated host execution is disabled" in result.error
 
     @patch("shutil.which", return_value="/usr/bin/docker")
     @patch("subprocess.run")
@@ -215,3 +230,4 @@ class TestBashHandlerSandboxDelegation:
         with patch.dict(os.environ, {"NEXUS_FF_SANDBOX_ENABLED": "true"}):
             handler = BashHandler(tmp_path)
             assert handler._sandbox is not None
+            assert handler.effective_mode() == "sandboxed"

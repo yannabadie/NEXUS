@@ -76,6 +76,19 @@ class AgentInvoker:
             status: "active", "idle", or "complete"
             task_type: Optional task type description
         """
+        if callable(getattr(self._orch, "on_agent_status", None)):
+            try:
+                self._orch.on_agent_status(
+                    {
+                        "type": "agent_status",
+                        "agent": agent_name.lower(),
+                        "status": status,
+                        "task_type": task_type,
+                    }
+                )
+            except Exception as e:
+                self._logger.debug(f"[TELEMETRY] Local runtime callback failed (non-blocking): {e}")
+
         try:
             # Node IDs match workflow.py spawn: "gemini" and "claude"
             node_id = agent_name.lower()

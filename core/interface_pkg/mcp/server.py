@@ -90,13 +90,11 @@ def get_orchestrator():
     if _ORCHESTRATOR is not None:
         return _ORCHESTRATOR
     from core.config import Config
-    from core.orchestration_v7 import OrchestratorV7
+    from core.runtime import NexusSessionRuntime
 
     config = Config()
-    # V8.5.0: OrchestratorV7 requires workspace_path, config, and model info
-    gemini_info = {"model": config.gemini_pro_model, "provider": "gemini"}
-    claude_info = {"model": config.claude_opus_model, "provider": "claude"}
-    _ORCHESTRATOR = OrchestratorV7(config.workspace_path, config, gemini_info, claude_info)
+    runtime = NexusSessionRuntime.from_config(config, interaction_mode="headless")
+    _ORCHESTRATOR = runtime.orchestrator
     return _ORCHESTRATOR
 
 
@@ -540,16 +538,17 @@ if MCP_AVAILABLE:
             return f"Error exporting evidence pack: {e}"
 
     # =========================================================================
-    # Shell Execution (sandboxed)
+    # Shell Execution (sandboxed or validated host execution)
     # =========================================================================
 
     @mcp.tool()
     async def nexus_bash(command: str, timeout: int = 30) -> str:
         """
-        Execute a shell command in the NEXUS workspace (sandboxed).
+        Execute a shell command in the NEXUS workspace.
 
-        Security: Commands are validated by ExecutionPolicy before execution.
-        Dangerous commands (rm -rf, etc.) are blocked.
+        Execution mode is explicit:
+        - `sandboxed` when Docker isolation is active
+        - `validated_host` when host execution is explicitly allowed
 
         Args:
             command: Shell command to execute
@@ -559,6 +558,12 @@ if MCP_AVAILABLE:
             Command output (stdout + stderr)
         """
         try:
+            tool_manager = get_tool_manager()
+            bash_handler = tool_manager.tools.get("bash")
+            effective_mode = "validated_host"
+            if bash_handler and hasattr(bash_handler, "effective_mode"):
+                effective_mode = bash_handler.effective_mode()
+
             result = execute_tool(
                 "bash",
                 {
@@ -566,7 +571,9 @@ if MCP_AVAILABLE:
                     "timeout": min(timeout, 120) * 1000,  # Convert to ms, cap at 120s
                 },
             )
-            return result.output if result.status == "SUCCESS" else f"Error: {result.error}"
+            if result.status == "SUCCESS":
+                return f"[mode={effective_mode}]\n{result.output}"
+            return f"[mode={effective_mode}] Error: {result.error}"
         except Exception as e:
             logger.error(f"nexus_bash error: {e}")
             return f"Error executing command: {e}"

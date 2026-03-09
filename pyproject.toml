@@ -61,6 +61,7 @@ sdk = [
     # LLM provider SDKs
     "anthropic>=0.70.0",
     "google-genai>=1.0.0",
+    "openai>=1.68.0",
 ]
 mcp = [
     # MCP server protocol
@@ -143,7 +144,7 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 asyncio_mode = "auto"
 timeout = 30
-# Limit pytest workers to prevent OOM on large test suites (6348 tests)
+# Limit pytest workers to prevent OOM on large test suites
 addopts = "--maxfail=10 --tb=short"
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
@@ -173,3 +174,7 @@ python-source = "."
 features = []
 # Optional: compile with --release for performance
 profile = "release"
+
+[tool.nexus]
+codename = "COGNITIVE BOOST"
+canonical_branch = "NX-CG"

@@ -17,6 +17,7 @@ import asyncio
 import atexit
 import contextlib
 import importlib.util
+import json
 
 # Load version from .env (single source of truth)
 import os
@@ -39,10 +40,13 @@ import logging
 from datetime import UTC
 
 from dotenv import load_dotenv
+from core.provider_registry import build_provider_snapshot, get_replacement, refresh_provider_registry
+from core.version import NEXUS_CODENAME as DEFAULT_NEXUS_CODENAME
+from core.version import NEXUS_VERSION as DEFAULT_NEXUS_VERSION
 
 load_dotenv()
-NEXUS_VERSION = os.getenv("NEXUS_VERSION", "12.4.0")
-NEXUS_CODENAME = os.getenv("NEXUS_CODENAME", "COGNITIVE BOOST")
+NEXUS_VERSION = os.getenv("NEXUS_VERSION", DEFAULT_NEXUS_VERSION)
+NEXUS_CODENAME = os.getenv("NEXUS_CODENAME", DEFAULT_NEXUS_CODENAME)
 
 # Configure logging EARLY - FORCE override any existing config
 # Default to WARNING to hide INFO messages in production
@@ -135,164 +139,105 @@ def setup_signal_handlers():
         signal.signal(signal.SIGTERM, _signal_handler)
 
 
-def bootstrap():
-    """
-    Bootstrap NEXUS V7 - Vérifie tout avant de démarrer
+# =============================================================================
+# Runtime-Safe Bootstrap and Headless Overrides
+# =============================================================================
 
-    Vérifie:
-    0. KERNEL.py integrity (immutability verification)
-    1. Python version (3.11+)
-    2. Dependencies installées
-    3. Structure workspace créée
-    4. .env configuré
-    5. CLIs (gemini, claude) disponibles
 
-    Returns:
-        Tuple[Dict, Dict]: (gemini_info, claude_info)
+def bootstrap(config=None, workspace_path: Path | None = None):
+    """Driver-mode aware bootstrap used by the distributed runtime."""
+    print(f"NEXUS V{NEXUS_VERSION} {NEXUS_CODENAME} bootstrap...")
 
-    Raises:
-        SystemExit: Si bootstrap échoue
-    """
-    print(f"🚀 NEXUS V{NEXUS_VERSION} {NEXUS_CODENAME} Bootstrap...")
+    from core.config import load_config
+    from core.meta.cli_inspector import CLIInspector
 
-    # 0. VERIFY KERNEL.PY INTEGRITY (CRITICAL SECURITY CHECK)
-    # KERNEL.py location:
-    # - For children: same directory (copied by clone_and_mutate.py)
-    # - For parent NEXUS_V7_CHRYSALIS: at 20_NEXUS/KERNEL.py (parent.parent)
-    nexus_dir = Path(__file__).parent
-    kernel_locations = [
-        nexus_dir,  # Children: KERNEL.py in same dir
-        nexus_dir.parent,  # Fallback: parent dir
-        nexus_dir.parent.parent,  # Parent NEXUS: 20_NEXUS/
-    ]
+    config = config or load_config()
 
-    kernel_found = False
-    for loc in kernel_locations:
-        if (loc / "KERNEL.py").exists():
-            sys.path.insert(0, str(loc))
-            kernel_found = True
-            break
+    print(f"Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
 
-    if not kernel_found:
-        print("❌ FATAL: KERNEL.py not found in any expected location!")
-        print(f"   Searched: {[str(loc) for loc in kernel_locations]}")
-        sys.exit(1)
-
-    from KERNEL import verify_kernel_integrity
-
-    print("\n🔒 Verifying KERNEL.py integrity...")
-    if not verify_kernel_integrity():
-        print("\n" + "=" * 60)
-        print("❌ SECURITY VIOLATION: KERNEL.py has been modified!")
-        print("=" * 60)
-        print("\nNEXUS cannot start with compromised KERNEL.")
-        print("This file contains immutable invariants and must never change.")
-        print("\nIf this is intentional, delete KERNEL_HASH.txt and restart.")
-        print("=" * 60)
-        sys.exit(1)
-
-    print("✓ KERNEL.py integrity verified")
-
-    # 1. Check Python version
-
-    print(f"✓ Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
-
-    # 2. Check dependencies
     required_packages = ["prompt_toolkit", "rich", "pydantic", "python-dotenv", "tiktoken"]
-
     missing = []
     for pkg in required_packages:
-        # Handle special case for python-dotenv
         check_name = "dotenv" if pkg == "python-dotenv" else pkg
         if not importlib.util.find_spec(check_name):
             missing.append(pkg)
 
     if missing:
-        print(f"\n❌ Missing packages: {', '.join(missing)}")
-        print("\nInstall with:")
-        print(f"  pip install {' '.join(missing)}")
+        print(f"Missing packages: {', '.join(missing)}")
+        print(f"Install with: pip install {' '.join(missing)}")
         sys.exit(1)
 
-    print(f"✓ Dependencies installed ({len(required_packages)} packages)")
-
-    # 3. Create workspace structure
-    workspace = Path("workspace")
-    directories = [workspace / "_IO_BUFFER", workspace / ".nexus", workspace / "logs", workspace / "sessions"]
-
-    for directory in directories:
+    workspace = Path(workspace_path or getattr(config, "workspace_path", "workspace"))
+    config.workspace_path = workspace
+    for directory in [workspace / "_IO_BUFFER", workspace / ".nexus", workspace / "logs", workspace / "sessions"]:
         directory.mkdir(parents=True, exist_ok=True)
 
-    print(f"✓ Workspace structure ({len(directories)} directories)")
-
-    # 4. Check .env
     env_path = Path(".env")
     if not env_path.exists():
-        print("\n⚠️  No .env file found. Creating template...")
-        env_path.write_text(ENV_TEMPLATE)
-        print("✓ Created .env - Please configure your CLI paths if needed")
-    else:
-        print("✓ .env file found")
-
-    # 5. Test CLIs with Inspector
-    print("\n🔍 Testing CLI tools...")
-
-    # Import CLI Inspector
-    sys.path.insert(0, str(Path(__file__).parent))
-    from core.meta.cli_inspector import CLIInspector
+        env_path.write_text(ENV_TEMPLATE, encoding="utf-8")
 
     inspector = CLIInspector()
-    gemini_info = inspector.inspect_gemini()
-    claude_info = inspector.inspect_claude()
+    provider_snapshot = build_provider_snapshot(config)
+    gemini_cli_info = inspector.inspect_gemini()
+    claude_cli_info = inspector.inspect_claude()
 
-    # Check Gemini
-    if not gemini_info["available"]:
-        print("\n❌ Gemini CLI not available")
-        print("   Install: https://ai.google.dev/gemini-api/docs/cli")
-        if "error" in gemini_info:
-            print(f"   Error: {gemini_info['error']}")
+    driver_mode = config.driver_mode.lower()
+    gemini_uses_sdk = driver_mode == "sdk" or (driver_mode == "auto" and bool(config.google_api_key))
+    claude_uses_sdk = driver_mode == "sdk" or (driver_mode == "auto" and bool(config.anthropic_api_key))
+
+    if driver_mode == "sdk" and not config.google_api_key:
+        print("SDK mode requires GOOGLE_API_KEY or GEMINI_API_KEY for Gemini.")
+        sys.exit(1)
+    if driver_mode == "sdk" and not config.anthropic_api_key:
+        print("SDK mode requires ANTHROPIC_API_KEY for Claude.")
+        sys.exit(1)
+    if not gemini_uses_sdk and not gemini_cli_info.get("available"):
+        print("Gemini CLI not available for the selected runtime path.")
+        if "error" in gemini_cli_info:
+            print(f"Error: {gemini_cli_info['error']}")
+        sys.exit(1)
+    if not claude_uses_sdk and not claude_cli_info.get("available"):
+        print("Claude CLI not available for the selected runtime path.")
+        if "error" in claude_cli_info:
+            print(f"Error: {claude_cli_info['error']}")
         sys.exit(1)
 
-    # Check Claude
-    if not claude_info["available"]:
-        print("\n❌ Claude CLI not available")
-        print("   Install: https://docs.anthropic.com/en/docs/claude-cli")
-        if "error" in claude_info:
-            print(f"   Error: {claude_info['error']}")
-        sys.exit(1)
+    gemini_info = {
+        "model": config.gemini_pro_model,
+        "flash_model": config.gemini_flash_model,
+        "provider": "gemini",
+        "driver_mode": "sdk" if gemini_uses_sdk else "cli",
+        "context_window": gemini_cli_info.get("context_window", 0),
+        "version": gemini_cli_info.get("version", "SDK"),
+    }
+    claude_info = {
+        "model": config.claude_sonnet_model,
+        "opus_model": config.claude_opus_model,
+        "provider": "claude",
+        "driver_mode": "sdk" if claude_uses_sdk else "cli",
+        "context_window": claude_cli_info.get("context_window", 0),
+        "version": claude_cli_info.get("version", "SDK"),
+    }
 
-    # Success!
-    print("\n" + "=" * 60)
-    print(f"✅ NEXUS V{NEXUS_VERSION} {NEXUS_CODENAME} Bootstrap Complete")
-    print("=" * 60)
-    print("\n📊 Gemini")
-    print(f"   Model: {gemini_info['model']}")
-    print(f"   Context: {gemini_info['context_window']:,} tokens")
-    print(f"   Version: {gemini_info.get('version', 'Unknown')}")
-
-    print("\n🧠 Claude (Dynamic Routing)")
-    print(f"   Default: {claude_info['model']}")
-    print("   Opus 4.5: brainstorm, evolution, redteam, architect")
-    print("   Sonnet 4.5: tool, validation, simple tasks")
-    print(f"   Context: {claude_info['context_window']:,} tokens")
-    print(f"   Version: {claude_info.get('version', 'Unknown')}")
-
-    print("\n" + "=" * 60)
-
-    # V9.1.1: Windows Terminal recommendation for best experience
-    if sys.platform == "win32":
-        # Check if running in Windows Terminal (has WT_SESSION env var)
-        if not os.environ.get("WT_SESSION"):
-            print("\n💡 Tip: For best colors/Unicode, use Windows Terminal:")
-            print("   https://aka.ms/terminal")
-
-    print()
+    print("Provider runtime:")
+    print(f"  Gemini: {gemini_info['driver_mode']} | pro={gemini_info['model']} | flash={gemini_info['flash_model']}")
+    print(f"  Claude: {claude_info['driver_mode']} | sonnet={claude_info['model']} | opus={claude_info['opus_model']}")
+    additional_sdk = [
+        provider
+        for provider in provider_snapshot.get("available_sdk_providers", [])
+        if provider not in {"anthropic", "google"}
+    ]
+    if additional_sdk:
+        print(f"  Additional SDK providers detected: {', '.join(additional_sdk)}")
+    for warning in provider_snapshot.get("warnings", []):
+        stale_model = warning.split()[0]
+        replacement = get_replacement(stale_model)
+        if replacement:
+            print(f"  Warning: {stale_model} -> {replacement}")
+        else:
+            print(f"  Warning: {warning}")
 
     return gemini_info, claude_info
-
-
-# =============================================================================
-# V12.4: Headless Execution Mode
-# =============================================================================
 
 
 async def headless_main(
@@ -301,108 +246,67 @@ async def headless_main(
     output_path: str | None,
     config,
 ) -> int:
-    """
-    V12.4 Headless execution mode.
-
-    Runs a single task with no TTY interaction, producing deterministic
-    JSON output. Designed for CI/CD pipelines and automation.
-
-    Args:
-        workspace_path: Working directory
-        task: Task description to execute (None = boot validation only)
-        output_path: File path for JSON output (None = stdout)
-        config: Loaded NEXUS config
-
-    Returns:
-        Exit code: 0 for success, 1 for failure
-    """
+    """Unified headless runtime with strict JSON semantics."""
     import json
     from datetime import datetime
 
-    result = {
-        "nexus_version": NEXUS_VERSION,
-        "codename": NEXUS_CODENAME,
-        "mode": "headless",
-        "timestamp": datetime.now(UTC).isoformat(),
-        "task": task,
-        "status": "success",
-        "output": None,
-        "error": None,
-    }
+    from core.meta.cli_inspector import CLIInspector
+    from core.runtime import NexusSessionRuntime
+
+    timestamp = datetime.now(UTC).isoformat()
+    config.workspace_path = workspace_path
+    result: dict
 
     try:
-        # Use HeadlessProvider (no TTY)
-        from core.security_pkg.interaction.headless_provider import HeadlessProvider
+        inspector = CLIInspector()
+        driver_mode = config.driver_mode.lower()
+        gemini_uses_sdk = driver_mode == "sdk" or (driver_mode == "auto" and bool(config.google_api_key))
+        claude_uses_sdk = driver_mode == "sdk" or (driver_mode == "auto" and bool(config.anthropic_api_key))
 
-        HeadlessProvider(strict=False, publish_events=False)
+        if driver_mode == "sdk" and (not config.google_api_key or not config.anthropic_api_key):
+            raise RuntimeError("SDK mode requires both GOOGLE_API_KEY/GEMINI_API_KEY and ANTHROPIC_API_KEY.")
+        if not gemini_uses_sdk and not inspector.inspect_gemini().get("available"):
+            raise RuntimeError("Gemini CLI is required for the selected runtime path but is not available.")
+        if not claude_uses_sdk and not inspector.inspect_claude().get("available"):
+            raise RuntimeError("Claude CLI is required for the selected runtime path but is not available.")
 
-        if task is None:
-            # Boot validation only - verify system can initialize
-            result["output"] = "Headless boot validation successful"
-            result["status"] = "success"
-        else:
-            # Execute the task via SDK driver if API key available, else orchestrator
-            try:
-                from core.drivers.async_factory import AsyncDriverFactory
-
-                factory = AsyncDriverFactory(config, workspace_path)
-                driver_info = factory.get_driver_info()
-
-                if driver_info["claude_sdk_available"]:
-                    # V12.4: Direct SDK execution (no CLI bootstrap needed)
-                    sdk_driver = factory.get_claude_sdk()
-                    response = await sdk_driver.invoke(
-                        task,
-                        system_prompt="You are NEXUS, a collaborative AI orchestrator. Execute the task and return results.",
-                    )
-                    result["output"] = response.content
-                    result["status"] = "success" if response.status.name == "SUCCESS" else "failure"
-                    result["driver"] = "anthropic_sdk"
-                    if response.usage:
-                        result["token_usage"] = response.usage
-                elif driver_info["gemini_sdk_available"]:
-                    sdk_driver = factory.get_gemini_sdk()
-                    response = await sdk_driver.invoke(
-                        task,
-                        system_prompt="You are NEXUS, a collaborative AI orchestrator. Execute the task and return results.",
-                    )
-                    result["output"] = response.content
-                    result["status"] = "success" if response.status.name == "SUCCESS" else "failure"
-                    result["driver"] = "google_genai_sdk"
-                    if response.usage:
-                        result["token_usage"] = response.usage
-                else:
-                    # Fallback: try orchestrator (requires CLI tools)
-                    from core.orchestration_v7 import OrchestratorV7
-
-                    orch = OrchestratorV7(
-                        config=config,
-                        workspace_path=str(workspace_path),
-                    )
-                    response = await asyncio.wait_for(
-                        orch.process_headless(task),
-                        timeout=300.0,
-                    )
-                    result["output"] = response.get("content", str(response))
-                    result["status"] = "success" if response.get("success", True) else "failure"
-                    result["driver"] = "cli_orchestrator"
-
-            except TimeoutError:
-                result["status"] = "timeout"
-                result["error"] = "Task execution timed out (300s)"
-            except AttributeError:
-                # process_headless not yet implemented
-                result["output"] = f"Task queued: {task}"
-                result["status"] = "success"
-                result["error"] = "Headless task execution not yet fully wired (V12.4 preview)"
-
+        runtime = NexusSessionRuntime.from_config(config, workspace_path=workspace_path, interaction_mode="headless")
+        result = runtime.execute_headless(task, timestamp=timestamp).to_dict()
+    except TimeoutError:
+        result = {
+            "nexus_version": NEXUS_VERSION,
+            "codename": NEXUS_CODENAME,
+            "mode": "headless",
+            "timestamp": timestamp,
+            "task": task,
+            "status": "failure",
+            "driver": None,
+            "output": None,
+            "error": "Task execution timed out (300s)",
+            "error_code": "HEADLESS_TIMEOUT",
+            "warnings": [],
+            "artifacts": [],
+        }
     except Exception as e:
-        result["status"] = "failure"
-        result["error"] = str(e)
+        warnings = []
+        with contextlib.suppress(Exception):
+            warnings = list(getattr(config, "provider_snapshot", {}).get("warnings", []))
+        result = {
+            "nexus_version": NEXUS_VERSION,
+            "codename": NEXUS_CODENAME,
+            "mode": "headless",
+            "timestamp": timestamp,
+            "task": task,
+            "status": "failure",
+            "driver": None,
+            "output": None,
+            "error": str(e),
+            "error_code": type(e).__name__.upper(),
+            "warnings": warnings,
+            "artifacts": [],
+        }
 
-    # Output results
     json_output = json.dumps(result, indent=2, ensure_ascii=False)
-
     if output_path:
         Path(output_path).write_text(json_output, encoding="utf-8")
     else:
@@ -501,12 +405,12 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  nexus6                    Launch interactive REPL
-  nexus6 --verify           Verify installation (bootstrap only)
-  nexus6 --version          Show version
-  nexus6 --workspace ./myproject  Use custom workspace
+  nexus                     Launch interactive REPL
+  nexus --verify            Verify installation (bootstrap only)
+  nexus --version           Show version
+  nexus --workspace ./myproject  Use custom workspace
 
-Documentation: https://github.com/nexus-ai/nexus-v7
+Documentation: https://github.com/yannabadie/NEXUS
         """,
     )
 
@@ -527,8 +431,23 @@ Documentation: https://github.com/nexus-ai/nexus-v7
     parser.add_argument(
         "--output", type=str, default=None, help="Output file for headless results (default: stdout as JSON)"
     )
+    parser.add_argument(
+        "--refresh-provider-registry",
+        action="store_true",
+        help="Refresh core/provider_registry.json from official provider APIs/docs and exit.",
+    )
 
     args = parser.parse_args()
+
+    if args.refresh_provider_registry:
+        try:
+            registry = refresh_provider_registry()
+            print("Provider registry refreshed.")
+            print(json.dumps(registry, indent=2, ensure_ascii=False))
+            sys.exit(0)
+        except Exception as e:
+            print(f"Failed to refresh provider registry: {e}", file=sys.stderr)
+            sys.exit(1)
 
     # Handle --version
     if args.version:
@@ -537,7 +456,7 @@ Documentation: https://github.com/nexus-ai/nexus-v7
         print("https://github.com/yannabadie/NEXUS")
         sys.exit(0)
 
-    # V12.4: Headless mode - skip CLI bootstrap, use SDK drivers directly
+    # Headless mode uses the shared non-interactive session runtime.
     if args.headless:
         try:
             workspace_path = Path(args.workspace).resolve()
@@ -546,19 +465,11 @@ Documentation: https://github.com/nexus-ai/nexus-v7
             from core.config import load_config
 
             config = load_config()
+            config.workspace_path = workspace_path
 
-            exit_code = asyncio.run(
-                headless_main(
-                    workspace_path=workspace_path,
-                    task=args.task,
-                    output_path=args.output,
-                    config=config,
-                )
-            )
+            exit_code = asyncio.run(headless_main(workspace_path=workspace_path, task=args.task, output_path=args.output, config=config))
             sys.exit(exit_code)
         except Exception as e:
-            import json
-
             result = {
                 "nexus_version": NEXUS_VERSION,
                 "codename": NEXUS_CODENAME,
@@ -570,8 +481,16 @@ Documentation: https://github.com/nexus-ai/nexus-v7
             sys.exit(1)
 
     try:
-        # Bootstrap system (CLI verification for interactive mode)
-        gemini_info, claude_info = bootstrap()
+        workspace_path = Path(args.workspace).resolve()
+        workspace_path.mkdir(parents=True, exist_ok=True)
+
+        from core.config import load_config
+
+        config = load_config()
+        config.workspace_path = workspace_path
+
+        # Bootstrap system (driver-mode aware verification for interactive mode)
+        gemini_info, claude_info = bootstrap(config=config, workspace_path=workspace_path)
 
         # Handle --verify (exit after bootstrap)
         if args.verify:
@@ -580,14 +499,9 @@ Documentation: https://github.com/nexus-ai/nexus-v7
             sys.exit(0)
 
         # Import config and check pending reviews
-        from core.config import load_config
         from core.notifications import check_pending_review
 
-        workspace_path = Path(args.workspace).resolve()
-        workspace_path.mkdir(parents=True, exist_ok=True)
-
         # CHECK FOR PENDING REVIEW (Evolution notification system)
-        config = load_config()
         pending_metadata = check_pending_review(workspace_path)
 
         # V12.4 PHASE 2: Crash recovery check

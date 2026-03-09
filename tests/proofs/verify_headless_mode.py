@@ -2,7 +2,7 @@
 NEXUS V9.8 DETOX - Headless Mode Smoke Test
 
 This test verifies that NEXUS can run in headless mode without blocking.
-It's a "proof" that the DETOX operation was successful.
+It is a smoke check for the DETOX operation, not a formal proof artifact.
 
 Run with:
     python tests/proofs/verify_headless_mode.py
