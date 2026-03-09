@@ -21,23 +21,23 @@ def test_build_provider_snapshot_includes_auxiliary_sdk_providers():
         kimi_api_key = None
         openai_api_key = "sk-openai"
         minimax_api_key = "sk-minimax"
-        claude_sonnet_model = "claude-sonnet-4-20250514"
-        claude_opus_model = "claude-opus-4-1-20250805"
-        gemini_pro_model = "gemini-3-pro-preview"
+        claude_sonnet_model = "claude-sonnet-4-6"
+        claude_opus_model = "claude-opus-4-6"
+        gemini_pro_model = "gemini-3.1-pro-preview"
         gemini_flash_model = "gemini-3-flash-preview"
         deepseek_model = "deepseek-chat"
         kimi_model = "kimi-k2-thinking"
-        openai_model = "gpt-5.2"
-        openai_fast_model = "gpt-5.2-mini"
-        minimax_model = "MiniMax-M1"
-        minimax_fast_model = "MiniMax-M2.5"
+        openai_model = "gpt-5.4"
+        openai_fast_model = "gpt-5-mini"
+        minimax_model = "MiniMax-M2.5"
+        minimax_fast_model = "MiniMax-M2.5-HighSpeed"
 
     snapshot = build_provider_snapshot(StubConfig())
 
     assert snapshot["driver_mode"] == "sdk"
     assert set(snapshot["available_sdk_providers"]) == {"anthropic", "google", "deepseek", "openai", "minimax"}
-    assert snapshot["selected"]["openai"]["primary_model"] == "gpt-5.2"
-    assert snapshot["selected"]["minimax"]["fast_model"] == "MiniMax-M2.5"
+    assert snapshot["selected"]["openai"]["primary_model"] == "gpt-5.4"
+    assert snapshot["selected"]["minimax"]["fast_model"] == "MiniMax-M2.5-HighSpeed"
 
 
 def test_refresh_provider_registry_uses_provider_api_results(monkeypatch):
@@ -48,10 +48,9 @@ def test_refresh_provider_registry_uses_provider_api_results(monkeypatch):
         if "openai.com" in url:
             return {
                 "data": [
-                    {"id": "gpt-5.2"},
                     {"id": "gpt-5.4"},
-                    {"id": "gpt-5.4-mini"},
-                    {"id": "gpt-5.4-nano"},
+                    {"id": "gpt-5-mini"},
+                    {"id": "gpt-5-nano"},
                 ]
             }
         raise AssertionError(f"Unexpected URL: {url}")
@@ -60,8 +59,8 @@ def test_refresh_provider_registry_uses_provider_api_results(monkeypatch):
     registry = refresh_provider_registry(output_path=False, timeout=3)
 
     assert registry["providers"]["openai"]["models"]["flagship"]["default"] == "gpt-5.4"
-    assert registry["providers"]["openai"]["models"]["balanced"]["default"] == "gpt-5.4-mini"
-    assert registry["providers"]["openai"]["models"]["economy"]["default"] == "gpt-5.4-nano"
+    assert registry["providers"]["openai"]["models"]["balanced"]["default"] == "gpt-5-mini"
+    assert registry["providers"]["openai"]["models"]["economy"]["default"] == "gpt-5-nano"
 
 
 def test_refresh_provider_registry_writes_output(monkeypatch, tmp_path: Path):
@@ -71,4 +70,4 @@ def test_refresh_provider_registry_writes_output(monkeypatch, tmp_path: Path):
     registry = refresh_provider_registry(output_path=output)
 
     assert output.exists()
-    assert registry["providers"]["minimax"]["models"]["reasoning"]["default"] == "MiniMax-M1"
+    assert registry["providers"]["minimax"]["models"]["reasoning"]["default"] == "MiniMax-M2.5"

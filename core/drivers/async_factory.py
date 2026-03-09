@@ -39,6 +39,7 @@ from typing import TYPE_CHECKING, Any
 from core.foundation.async_primitives.process_handle import get_process_registry
 from core.infrastructure.resilience.circuit_breaker import get_hierarchical_breaker
 from core.observability.telemetry.budget_tracker import get_budget_tracker
+from core.provider_registry import get_default_model
 
 from .async_claude_driver import AsyncClaudeDriver, AsyncClaudeDriverConfig
 from .async_gemini_driver import AsyncGeminiDriver, AsyncGeminiDriverConfig
@@ -135,7 +136,7 @@ class AsyncDriverFactory:
             config = AsyncClaudeDriverConfig(
                 cli_path=getattr(self.config, "claude_cli_path", "claude"),
                 timeout=getattr(self.config, "timeout", 300.0),
-                model=model or getattr(self.config, "claude_sonnet_model", "claude-sonnet-4-5-20250929"),
+                model=model or getattr(self.config, "claude_sonnet_model", get_default_model("anthropic", "sonnet")),
                 workspace_path=self.workspace_path,
                 verbose=getattr(self.config, "verbose", False),
             )
@@ -159,7 +160,7 @@ class AsyncDriverFactory:
             config = AsyncGeminiDriverConfig(
                 cli_path=getattr(self.config, "gemini_cli_path", "gemini"),
                 timeout=getattr(self.config, "timeout", 300.0),
-                model=model or getattr(self.config, "gemini_default_model", "gemini-3-pro-preview"),
+                model=model or getattr(self.config, "gemini_default_model", get_default_model("google", "pro")),
                 workspace_path=self.workspace_path,
                 verbose=getattr(self.config, "verbose", False),
                 use_session_resume=getattr(self.config, "gemini_persistent_mode", True),
@@ -196,7 +197,7 @@ class AsyncDriverFactory:
             from .anthropic_sdk_driver import AnthropicSDKDriver
 
             self._claude_sdk = AnthropicSDKDriver(
-                model=model or getattr(self.config, "claude_sonnet_model", "claude-sonnet-4-5-20250929"),
+                model=model or getattr(self.config, "claude_sonnet_model", get_default_model("anthropic", "sonnet")),
                 api_key=self._anthropic_api_key,
                 max_tokens=getattr(self.config, "max_tokens", 8192),
                 timeout=float(getattr(self.config, "timeout", 300)),
@@ -237,7 +238,7 @@ class AsyncDriverFactory:
             from .google_genai_sdk_driver import GoogleGenAISDKDriver
 
             self._gemini_sdk = GoogleGenAISDKDriver(
-                model=model or getattr(self.config, "gemini_default_model", "gemini-3-pro-preview"),
+                model=model or getattr(self.config, "gemini_default_model", get_default_model("google", "pro")),
                 api_key=self._google_api_key,
                 timeout=float(getattr(self.config, "timeout", 300)),
                 response_cache=self._response_cache,
@@ -496,7 +497,7 @@ class AsyncDriverFactory:
         Get a driver by agent/provider ID.
 
         Args:
-            agent_id: "claude", "gemini", "deepseek", "kimi", "openai", or "minimax"
+            agent_id: "claude", "gemini", "deepseek", "deepeek", "kimi", "openai", or "minimax"
             model: Optional model override
             prefer_sdk: If True, use SDK driver when available (respects driver_mode)
 
@@ -513,7 +514,7 @@ class AsyncDriverFactory:
                 return self.get_best_claude(model)
             elif agent_lower == "gemini":
                 return self.get_best_gemini(model)
-            elif agent_lower == "deepseek":
+            elif agent_lower in {"deepseek", "deepeek"}:
                 return self.get_deepseek_sdk(model)
             elif agent_lower == "kimi":
                 return self.get_kimi_sdk(model)
@@ -528,7 +529,7 @@ class AsyncDriverFactory:
                 return self.get_gemini_driver(model)
 
         raise ValueError(
-            f"Unknown agent/provider: {agent_id}. Use claude, gemini, deepseek, kimi, openai, or minimax."
+            f"Unknown agent/provider: {agent_id}. Use claude, gemini, deepseek/deepeek, kimi, openai, or minimax."
         )
 
     # =========================================================================

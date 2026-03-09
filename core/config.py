@@ -202,7 +202,7 @@ class Config:
         # When set, the factory creates SDK drivers instead of CLI subprocess drivers
         self.anthropic_api_key: str | None = os.getenv("ANTHROPIC_API_KEY")
         self.google_api_key: str | None = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
-        self.deepseek_api_key: str | None = os.getenv("DEEPSEEK_API_KEY")
+        self.deepseek_api_key: str | None = os.getenv("DEEPSEEK_API_KEY") or os.getenv("DEEPEEK_API_KEY")
         self.kimi_api_key: str | None = os.getenv("KIMI_API_KEY")
         self.openai_api_key: str | None = os.getenv("OPENAI_API_KEY")
         self.minimax_api_key: str | None = os.getenv("MINIMAX_API_KEY")
@@ -218,7 +218,9 @@ class Config:
         self.gemini_default_model: str = os.getenv("GEMINI_MODEL", get_default_model("google", "pro"))
         self.gemini_pro_model: str = os.getenv("GEMINI_PRO_MODEL", get_default_model("google", "pro"))
         self.gemini_flash_model: str = os.getenv("GEMINI_FLASH_MODEL", get_default_model("google", "flash"))
-        self.deepseek_model: str = os.getenv("DEEPSEEK_MODEL", get_default_model("deepseek", "chat"))
+        self.deepseek_model: str = os.getenv("DEEPSEEK_MODEL") or os.getenv(
+            "DEEPEEK_MODEL", get_default_model("deepseek", "chat")
+        )
         self.kimi_model: str = os.getenv("KIMI_MODEL", get_default_model("kimi", "thinking"))
         self.openai_model: str = os.getenv("OPENAI_MODEL", get_default_model("openai", "flagship"))
         self.openai_fast_model: str = os.getenv("OPENAI_FAST_MODEL", get_default_model("openai", "balanced"))
@@ -442,7 +444,9 @@ class OrchestratorConfig:
         self.google_api_key: str | None = kwargs.get(
             "google_api_key", os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
         )
-        self.deepseek_api_key: str | None = kwargs.get("deepseek_api_key", os.getenv("DEEPSEEK_API_KEY"))
+        self.deepseek_api_key: str | None = kwargs.get(
+            "deepseek_api_key", os.getenv("DEEPSEEK_API_KEY") or os.getenv("DEEPEEK_API_KEY")
+        )
         self.kimi_api_key: str | None = kwargs.get("kimi_api_key", os.getenv("KIMI_API_KEY"))
         self.openai_api_key: str | None = kwargs.get("openai_api_key", os.getenv("OPENAI_API_KEY"))
         self.minimax_api_key: str | None = kwargs.get("minimax_api_key", os.getenv("MINIMAX_API_KEY"))
@@ -457,7 +461,9 @@ class OrchestratorConfig:
         self.response_cache_ttl: float = float(kwargs.get("response_cache_ttl", 300.0))
         self.routing_policy: str = kwargs.get("routing_policy", "balanced")
         self.workspace_path: Path = Path(kwargs.get("workspace_path", "./workspace"))
-        self.deepseek_model: str = kwargs.get("deepseek_model", get_default_model("deepseek", "chat"))
+        self.deepseek_model: str = kwargs.get(
+            "deepseek_model", os.getenv("DEEPSEEK_MODEL") or os.getenv("DEEPEEK_MODEL") or get_default_model("deepseek", "chat")
+        )
         self.kimi_model: str = kwargs.get("kimi_model", get_default_model("kimi", "thinking"))
         self.openai_model: str = kwargs.get("openai_model", get_default_model("openai", "flagship"))
         self.openai_fast_model: str = kwargs.get("openai_fast_model", get_default_model("openai", "balanced"))

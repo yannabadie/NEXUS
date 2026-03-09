@@ -21,6 +21,10 @@ from urllib.request import Request, urlopen
 
 _REGISTRY_PATH = Path(__file__).with_name("provider_registry.json")
 _JSON_HEADERS = {"Accept": "application/json", "Content-Type": "application/json"}
+_HTML_HEADERS = {
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "User-Agent": "NEXUS-ProviderRegistry/1.0",
+}
 _OPENAI_COMPATIBLE_HEADERS = {"Accept": "application/json"}
 _DEFAULT_TIMEOUT = 15
 
@@ -45,13 +49,13 @@ _DEFAULT_REGISTRY: dict[str, Any] = {
             "lookup": {"strategy": "docs", "requires_api_key": False},
             "models": {
                 "opus": {
-                    "default": "claude-opus-4-1-20250805",
-                    "fallback": "claude-opus-4-20250514",
+                    "default": "claude-opus-4-6",
+                    "fallback": "claude-opus-4-6",
                     "status": "active",
                 },
                 "sonnet": {
-                    "default": "claude-sonnet-4-20250514",
-                    "fallback": "claude-sonnet-4-20250514",
+                    "default": "claude-sonnet-4-6",
+                    "fallback": "claude-sonnet-4-6",
                     "status": "active",
                 },
             },
@@ -61,13 +65,13 @@ _DEFAULT_REGISTRY: dict[str, Any] = {
             "sdk_supported": True,
             "docs_url": "https://ai.google.dev/gemini-api/docs/models",
             "lookup": {
-                "strategy": "api",
-                "requires_api_key": True,
+                "strategy": "api+docs",
+                "requires_api_key": False,
                 "endpoint": "https://generativelanguage.googleapis.com/v1beta/models",
             },
             "models": {
                 "pro": {
-                    "default": "gemini-3-pro-preview",
+                    "default": "gemini-3.1-pro-preview",
                     "fallback": "gemini-2.5-pro",
                     "status": "active",
                 },
@@ -81,10 +85,10 @@ _DEFAULT_REGISTRY: dict[str, Any] = {
         "deepseek": {
             "display_name": "DeepSeek",
             "sdk_supported": True,
-            "docs_url": "https://api-docs.deepseek.com/quick_start/pricing",
+            "docs_url": "https://api-docs.deepseek.com/news/news250929",
             "lookup": {
-                "strategy": "api",
-                "requires_api_key": True,
+                "strategy": "api+docs",
+                "requires_api_key": False,
                 "endpoint": "https://api.deepseek.com/models",
             },
             "models": {
@@ -105,8 +109,8 @@ _DEFAULT_REGISTRY: dict[str, Any] = {
             "sdk_supported": True,
             "docs_url": "https://platform.moonshot.ai/docs/guide/use-kimi-k2-thinking-model",
             "lookup": {
-                "strategy": "api",
-                "requires_api_key": True,
+                "strategy": "api+docs",
+                "requires_api_key": False,
                 "endpoint": "https://api.moonshot.ai/v1/models",
             },
             "models": {
@@ -116,8 +120,8 @@ _DEFAULT_REGISTRY: dict[str, Any] = {
                     "status": "active",
                 },
                 "turbo": {
-                    "default": "kimi-k2-turbo-preview",
-                    "fallback": "kimi-k2-turbo-preview",
+                    "default": "kimi-k2-thinking-turbo",
+                    "fallback": "kimi-k2-thinking-turbo",
                     "status": "preview",
                 },
             },
@@ -127,24 +131,24 @@ _DEFAULT_REGISTRY: dict[str, Any] = {
             "sdk_supported": True,
             "docs_url": "https://developers.openai.com/resources/models",
             "lookup": {
-                "strategy": "api",
-                "requires_api_key": True,
+                "strategy": "api+docs",
+                "requires_api_key": False,
                 "endpoint": "https://api.openai.com/v1/models",
             },
             "models": {
                 "flagship": {
-                    "default": "gpt-5.2",
-                    "fallback": "gpt-5.2",
+                    "default": "gpt-5.4",
+                    "fallback": "gpt-5.4",
                     "status": "active",
                 },
                 "balanced": {
-                    "default": "gpt-5.2-mini",
-                    "fallback": "gpt-5.2-mini",
+                    "default": "gpt-5-mini",
+                    "fallback": "gpt-5-mini",
                     "status": "active",
                 },
                 "economy": {
-                    "default": "gpt-5.2-nano",
-                    "fallback": "gpt-5.2-nano",
+                    "default": "gpt-5-nano",
+                    "fallback": "gpt-5-nano",
                     "status": "active",
                 },
             },
@@ -152,31 +156,40 @@ _DEFAULT_REGISTRY: dict[str, Any] = {
         "minimax": {
             "display_name": "MiniMax",
             "sdk_supported": True,
-            "docs_url": "https://platform.minimaxi.chat/docs/guides/text-generation",
+            "docs_url": "https://platform.minimaxi.chat/docs/guides/models/text-models",
             "lookup": {
-                "strategy": "api",
-                "requires_api_key": True,
+                "strategy": "api+docs",
+                "requires_api_key": False,
                 "endpoint": "https://api.minimaxi.chat/v1/models",
             },
             "models": {
                 "reasoning": {
-                    "default": "MiniMax-M1",
-                    "fallback": "MiniMax-M1",
+                    "default": "MiniMax-M2.5",
+                    "fallback": "MiniMax-M2.5",
                     "status": "active",
                 },
                 "chat": {
-                    "default": "MiniMax-M2.5",
-                    "fallback": "MiniMax-M2.5",
+                    "default": "MiniMax-M2.5-HighSpeed",
+                    "fallback": "MiniMax-M2.5-HighSpeed",
                     "status": "active",
                 },
             },
         },
     },
     "replacements": {
-        "claude-opus-4-6-20250116": "claude-opus-4-1-20250805",
-        "claude-sonnet-4-5-20250929": "claude-sonnet-4-20250514",
+        "claude-opus-4-20250514": "claude-opus-4-6",
+        "claude-opus-4-1-20250805": "claude-opus-4-6",
+        "claude-opus-4-6-20250116": "claude-opus-4-6",
+        "claude-sonnet-4-20250514": "claude-sonnet-4-6",
+        "claude-sonnet-4-5-20250929": "claude-sonnet-4-6",
+        "gemini-3-pro-preview": "gemini-3.1-pro-preview",
         "gemini-2.5-flash": "gemini-3-flash-preview",
+        "gpt-5.2": "gpt-5.4",
+        "gpt-5.2-mini": "gpt-5-mini",
+        "gpt-5.2-nano": "gpt-5-nano",
         "kimi-k2.5": "kimi-k2-thinking",
+        "kimi-k2-turbo-preview": "kimi-k2-thinking-turbo",
+        "MiniMax-M1": "MiniMax-M2.5",
     },
 }
 
@@ -273,6 +286,7 @@ def refresh_provider_registry(
     registry["generated_at"] = datetime.now(UTC).isoformat()
     registry["sync_errors"] = []
 
+    _apply_refresh(registry, "anthropic", lambda: _refresh_anthropic_models(timeout=timeout))
     _apply_refresh(registry, "google", lambda: _refresh_google_models(timeout=timeout))
     _apply_refresh(registry, "openai", lambda: _refresh_openai_models(timeout=timeout))
     _apply_refresh(
@@ -291,7 +305,7 @@ def refresh_provider_registry(
         lambda: _refresh_openai_compatible_models(
             api_key=os.getenv("KIMI_API_KEY"),
             endpoint="https://api.moonshot.ai/v1/models",
-            mapping={"thinking": "kimi-k2-thinking", "turbo": "kimi-k2-turbo-preview"},
+            mapping={"thinking": "kimi-k2-thinking", "turbo": "kimi-k2-thinking-turbo"},
             timeout=timeout,
         ),
     )
@@ -301,7 +315,7 @@ def refresh_provider_registry(
         lambda: _refresh_openai_compatible_models(
             api_key=os.getenv("MINIMAX_API_KEY"),
             endpoint="https://api.minimaxi.chat/v1/models",
-            mapping={"reasoning": "MiniMax-M1", "chat": "MiniMax-M2.5"},
+            mapping={"reasoning": "MiniMax-M2.5", "chat": "MiniMax-M2.5-HighSpeed"},
             timeout=timeout,
         ),
     )
@@ -323,7 +337,7 @@ def _apply_refresh(registry: dict[str, Any], provider: str, callback) -> None:
 def _refresh_google_models(*, timeout: int) -> dict[str, Any] | None:
     api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
     if not api_key:
-        return None
+        return _refresh_google_models_from_docs(timeout=timeout)
 
     params = urlencode({"key": api_key})
     data = _fetch_json(f"https://generativelanguage.googleapis.com/v1beta/models?{params}", timeout=timeout)
@@ -354,7 +368,7 @@ def _refresh_google_models(*, timeout: int) -> dict[str, Any] | None:
 def _refresh_openai_models(*, timeout: int) -> dict[str, Any] | None:
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
-        return None
+        return _refresh_openai_models_from_docs(timeout=timeout)
 
     data = _fetch_json(
         "https://api.openai.com/v1/models",
@@ -395,7 +409,7 @@ def _refresh_openai_compatible_models(
     timeout: int,
 ) -> dict[str, Any] | None:
     if not api_key:
-        return None
+        return _refresh_openai_compatible_models_from_docs(mapping=mapping, endpoint=endpoint, timeout=timeout)
 
     data = _fetch_json(
         endpoint,
@@ -458,6 +472,94 @@ def _fetch_json(url: str, *, timeout: int, headers: dict[str, str] | None = None
         raise RuntimeError(f"{url} returned HTTP {exc.code}") from exc
     except URLError as exc:
         raise RuntimeError(f"Failed to reach {url}: {exc.reason}") from exc
+
+
+def _fetch_text(url: str, *, timeout: int) -> str:
+    request = Request(url, headers=_HTML_HEADERS, method="GET")
+    try:
+        with urlopen(request, timeout=timeout) as response:
+            return response.read().decode("utf-8", errors="replace")
+    except HTTPError as exc:
+        raise RuntimeError(f"{url} returned HTTP {exc.code}") from exc
+    except URLError as exc:
+        raise RuntimeError(f"Failed to reach {url}: {exc.reason}") from exc
+
+
+def _refresh_anthropic_models(*, timeout: int) -> dict[str, Any] | None:
+    text = _fetch_text(_DEFAULT_REGISTRY["providers"]["anthropic"]["docs_url"], timeout=timeout).lower()
+    current = _DEFAULT_REGISTRY["providers"]["anthropic"]["models"]
+    opus = "claude-opus-4-6" if "claude-opus-4-6" in text or "opus 4.6" in text else current["opus"]["default"]
+    sonnet = (
+        "claude-sonnet-4-6"
+        if "claude-sonnet-4-6" in text or "sonnet 4.6" in text
+        else current["sonnet"]["default"]
+    )
+    return {
+        "opus": {"default": opus, "fallback": current["opus"]["fallback"], "status": "active"},
+        "sonnet": {"default": sonnet, "fallback": current["sonnet"]["fallback"], "status": "active"},
+    }
+
+
+def _refresh_google_models_from_docs(*, timeout: int) -> dict[str, Any] | None:
+    text = " ".join(
+        [
+            _fetch_text("https://ai.google.dev/gemini-api/docs/deprecations", timeout=timeout).lower(),
+            _fetch_text(_DEFAULT_REGISTRY["providers"]["google"]["docs_url"], timeout=timeout).lower(),
+        ]
+    )
+    current = _DEFAULT_REGISTRY["providers"]["google"]["models"]
+    pro = "gemini-3.1-pro-preview" if "gemini-3.1-pro-preview" in text else current["pro"]["default"]
+    flash = current["flash"]["default"]
+    if "gemini-3-flash-preview" in text:
+        flash = "gemini-3-flash-preview"
+    elif "gemini-3.1-flash-preview" in text:
+        flash = "gemini-3.1-flash-preview"
+    return {
+        "pro": {"default": pro, "fallback": current["pro"]["fallback"], "status": "active"},
+        "flash": {"default": flash, "fallback": current["flash"]["fallback"], "status": "active"},
+    }
+
+
+def _refresh_openai_models_from_docs(*, timeout: int) -> dict[str, Any] | None:
+    text = _fetch_text(_DEFAULT_REGISTRY["providers"]["openai"]["docs_url"], timeout=timeout).lower()
+    current = _DEFAULT_REGISTRY["providers"]["openai"]["models"]
+    flagship = "gpt-5.4" if "gpt-5.4" in text else current["flagship"]["default"]
+    balanced = "gpt-5-mini" if "gpt-5 mini" in text or "gpt-5-mini" in text else current["balanced"]["default"]
+    economy = "gpt-5-nano" if "gpt-5 nano" in text or "gpt-5-nano" in text else current["economy"]["default"]
+    return {
+        "flagship": {"default": flagship, "fallback": current["flagship"]["fallback"], "status": "active"},
+        "balanced": {"default": balanced, "fallback": current["balanced"]["fallback"], "status": "active"},
+        "economy": {"default": economy, "fallback": current["economy"]["fallback"], "status": "active"},
+    }
+
+
+def _refresh_openai_compatible_models_from_docs(
+    *,
+    mapping: dict[str, str],
+    endpoint: str,
+    timeout: int,
+) -> dict[str, Any] | None:
+    docs_url = next(
+        (
+            provider_data["docs_url"]
+            for provider_data in _DEFAULT_REGISTRY["providers"].values()
+            if provider_data.get("lookup", {}).get("endpoint") == endpoint
+        ),
+        None,
+    )
+    if not docs_url:
+        return None
+    text = _fetch_text(docs_url, timeout=timeout).lower()
+    refreshed: dict[str, Any] = {}
+    for family, preferred_id in mapping.items():
+        candidates = [preferred_id]
+        if preferred_id == "kimi-k2-thinking-turbo":
+            candidates.append("kimi-k2-turbo-preview")
+        if preferred_id == "MiniMax-M2.5":
+            candidates.append("MiniMax-M1")
+        chosen = next((candidate for candidate in candidates if candidate.lower() in text), preferred_id)
+        refreshed[family] = {"default": chosen, "fallback": preferred_id, "status": "active"}
+    return refreshed
 
 
 __all__ = [
