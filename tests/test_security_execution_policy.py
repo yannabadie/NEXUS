@@ -75,6 +75,16 @@ class TestDangerousCommandBlocking:
         is_valid, error = policy.validate_command("powershell -c 'evil'")
         assert not is_valid
 
+    def test_blocks_cmd_exe(self, policy):
+        """cmd.exe should be blocked."""
+        is_valid, error = policy.validate_command("cmd.exe /c dir")
+        assert not is_valid
+
+    def test_blocks_pwsh(self, policy):
+        """pwsh should be blocked."""
+        is_valid, error = policy.validate_command("pwsh -c 'evil'")
+        assert not is_valid
+
 
 class TestCommandInjection:
     """Test command injection prevention."""
@@ -292,6 +302,30 @@ class TestNetworkBlocking:
         # These are blocked because they are dangerous executables
         assert not policy.validate_command("telnet evil.com 80")[0]
         assert not policy.validate_command("ftp evil.com")[0]
+
+    def test_blocks_local_binding_pattern(self, policy):
+        """Local listener/binding patterns should be blocked."""
+        is_valid, error = policy.validate_command("python -m http.server 8080 --bind 0.0.0.0")
+        assert not is_valid
+
+
+class TestAuditAndHistoryProtection:
+    """Test history/log tampering protections."""
+
+    def test_blocks_history_manipulation(self, policy):
+        """history -c should be blocked."""
+        is_valid, error = policy.validate_command("history -c")
+        assert not is_valid
+
+    def test_blocks_unset_hist(self, policy):
+        """unset HISTFILE should be blocked."""
+        is_valid, error = policy.validate_command("unset HISTFILE")
+        assert not is_valid
+
+    def test_blocks_log_tampering_redirect(self, policy):
+        """Redirects into /var/log should be blocked."""
+        is_valid, error = policy.validate_command("echo hacked > /var/log/app.log")
+        assert not is_valid
 
 
 class TestSingleton:
