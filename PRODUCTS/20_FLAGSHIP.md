@@ -1,12 +1,12 @@
 # Flagship: Research CLI + Evidence Pack
 
 ## Overview
-The flagship delivers a local-first evidence workflow that turns a question into a grounded evidence pack built from on-disk project files. It runs in mock/local mode by default, requires no external API keys, and now produces a deterministic synthesis layer: answer bullets, findings, heuristic contradiction detection, confidence scoring, and a provenance graph over retrieved sources.
+The flagship delivers a local-first evidence workflow that turns a question into a grounded evidence pack built from on-disk project files. It runs in mock/local mode by default, requires no external API keys, and now produces a deterministic verification layer on top of retrieval: decomposed subqueries, aggregated evidence, verified claims with supporting/opposing source IDs, contradiction heuristics, confidence scoring, and a provenance graph over retrieved sources.
 
 ## Quickstart (Mock Mode)
 ```bash
 python -m pip install -r requirements.txt
-python nexus_research.py "How does ProjectMemory index files?" --mode mock --path core/memory/project_memory.py
+python nexus_research.py "How does ProjectMemory index files?" --mode mock --path core/memory_pkg/memory/project_memory.py
 ```
 
 Alternate invocation:
@@ -17,16 +17,16 @@ python -m nexus_research "How does ProjectMemory index files?" --mode mock --pat
 Outputs land under `WORKSPACE_PATH` (default `./workspace/research/<timestamp>`), unless you pass `--output`.
 
 ## Evidence Pack Outputs
-- `report.md`: question, answer bullets, findings, contradictions, source table, and confidence score.
-- `sources.json`: structured sources with file paths, line ranges, excerpts, source IDs, and synthesis payload.
-- `trace.jsonl`: step-by-step trace (`start`, `index`, `retrieve`, `synthesize`, `write_outputs`).
-- `reasoning_graph.mmd`: Mermaid graph linking question -> findings -> sources.
-- `metrics.json`: duration, counts, finding count, contradiction count, unique files, and confidence metrics.
+- `report.md`: question, research plan, answer bullets, verified claims, findings, contradictions, source table, and confidence score.
+- `sources.json`: structured sources with file paths, line ranges, excerpts, query coverage, verification scores, source IDs, subqueries, retrieval summary, and synthesis payload.
+- `trace.jsonl`: step-by-step trace (`start`, `index`, `plan`, `retrieve`, `synthesize`, `write_outputs`).
+- `reasoning_graph.mmd`: Mermaid graph linking question -> verified claims -> sources, with dashed edges for opposing evidence.
+- `metrics.json`: duration, counts, claim breakdown, contradiction count, unique files, and confidence metrics.
 - `manifest.sha256`: SHA-256 checksums for the pack files.
 
 ## Configuration Notes
 - `--mode` supports `mock` or `local`.
-- `--backend` accepts `tfidf`, `bm25`, `dense`, or `auto` (mock defaults to `tfidf`).
+- `--backend` accepts `tfidf`, `bm25`, `dense`, `hybrid`, or `auto` (mock defaults to `tfidf`).
 - `--path` can be repeated to target specific files or directories.
 - `NEXUS_ROOT` controls the project root; `WORKSPACE_PATH` controls output base.
 

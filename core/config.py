@@ -12,7 +12,11 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except ImportError:  # pragma: no cover - exercised only in dependency-light environments
+    def load_dotenv(*_args, **_kwargs) -> bool:
+        return False
 
 from .provider_registry import build_provider_snapshot, get_default_model
 from .version import NEXUS_CODENAME, NEXUS_VERSION

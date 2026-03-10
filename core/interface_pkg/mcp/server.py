@@ -23,9 +23,13 @@ Usage:
 Reference: https://modelcontextprotocol.io/quickstart/server
 """
 
+import json
 import logging
 import os
 import sys
+import threading
+import uuid
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -50,6 +54,9 @@ except ImportError:
 
 _TOOL_MANAGER = None
 _ORCHESTRATOR = None
+_JOB_EXECUTOR = ThreadPoolExecutor(max_workers=2, thread_name_prefix="nexus-mcp-job")
+_JOB_LOCK = threading.Lock()
+_JOBS: dict[str, dict[str, Any]] = {}
 
 
 def get_tool_manager():
@@ -203,6 +210,8 @@ def build_evidence_pack(
     limit: int = 5,
     min_score: float = 0.2,
     paths: list[str] | None = None,
+    cancel_check=None,
+    progress_callback=None,
 ) -> dict[str, str]:
     if not question or not question.strip():
         raise ValueError("Question cannot be empty.")
@@ -227,9 +236,365 @@ def build_evidence_pack(
         limit=limit,
         min_score=min_score,
         paths=[str(p) for p in index_paths],
+        cancel_check=cancel_check,
+        progress_callback=progress_callback,
     )
 
     return {key: str(path) for key, path in outputs.items()}
+
+
+def _read_json(path: Path) -> dict[str, Any] | None:
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
+def _latest_matching_file(candidates: list[Path]) -> Path | None:
+    existing = [candidate for candidate in candidates if candidate.exists()]
+    if not existing:
+        return None
+    return max(existing, key=lambda candidate: candidate.stat().st_mtime)
+
+
+def get_latest_research_evidence(workspace_path: Path | None = None) -> dict[str, Any]:
+    workspace = _resolve_workspace(workspace_path)
+    matches = [
+        path
+        for path in workspace.rglob("sources.json")
+        if (path.parent / "report.md").exists() and (path.parent / "metrics.json").exists()
+    ]
+    latest = _latest_matching_file(matches)
+    if latest is None:
+        return {"found": False, "message": "No evidence pack found under workspace."}
+
+    output_dir = latest.parent
+    return {
+        "found": True,
+        "output_dir": str(output_dir),
+        "report": str(output_dir / "report.md"),
+        "sources": str(latest),
+        "trace": str(output_dir / "trace.jsonl"),
+        "graph": str(output_dir / "reasoning_graph.mmd"),
+        "metrics": _read_json(output_dir / "metrics.json"),
+        "summary": {
+            "question": (_read_json(latest) or {}).get("question"),
+            "backend": (_read_json(latest) or {}).get("backend"),
+            "claim_count": ((_read_json(latest) or {}).get("synthesis") or {}).get("verification_summary", {}).get(
+                "claim_count", 0
+            ),
+        },
+    }
+
+
+def get_latest_swarm_eval(root_path: Path | None = None, workspace_path: Path | None = None) -> dict[str, Any]:
+    root = _resolve_root(root_path)
+    workspace = _resolve_workspace(workspace_path)
+    matches: list[Path] = []
+    for base in (root / "artifacts", workspace, workspace / "evals"):
+        if not base.exists():
+            continue
+        matches.extend(path for path in base.rglob("report.json") if "swarm" in path.as_posix().lower())
+    latest = _latest_matching_file(matches)
+    if latest is None:
+        return {"found": False, "message": "No swarm evaluation report found."}
+
+    return {
+        "found": True,
+        "report": str(latest),
+        "payload": _read_json(latest),
+    }
+
+
+def get_latest_provider_canaries(root_path: Path | None = None, workspace_path: Path | None = None) -> dict[str, Any]:
+    root = _resolve_root(root_path)
+    workspace = _resolve_workspace(workspace_path)
+    matches: list[Path] = []
+    for base in (root / "artifacts", workspace):
+        if not base.exists():
+            continue
+        matches.extend(base.rglob("provider-canaries.json"))
+    latest = _latest_matching_file(matches)
+    if latest is None:
+        return {"found": False, "message": "No provider canary report found."}
+
+    return {
+        "found": True,
+        "report": str(latest),
+        "payload": _read_json(latest),
+    }
+
+
+def get_latest_evidence_ledger(root_path: Path | None = None, workspace_path: Path | None = None) -> dict[str, Any]:
+    root = _resolve_root(root_path)
+    workspace = _resolve_workspace(workspace_path)
+    matches: list[Path] = []
+    for base in (root / "artifacts", workspace):
+        if not base.exists():
+            continue
+        matches.extend(base.rglob("evidence-ledger.json"))
+    latest = _latest_matching_file(matches)
+    if latest is None:
+        return {"found": False, "message": "No evidence ledger found."}
+
+    return {
+        "found": True,
+        "report": str(latest),
+        "payload": _read_json(latest),
+    }
+
+
+def _terminal_job_status(status: str) -> bool:
+    return status in {"completed", "failed", "cancelled"}
+
+
+def _job_snapshot(job: dict[str, Any]) -> dict[str, Any]:
+    return {
+        key: value
+        for key, value in job.items()
+        if not key.startswith("_")
+    }
+
+
+def _update_job(job_id: str, **fields: Any) -> dict[str, Any]:
+    with _JOB_LOCK:
+        job = _JOBS[job_id]
+        job.update(fields)
+        return _job_snapshot(job)
+
+
+def list_recent_jobs(limit: int = 10) -> dict[str, Any]:
+    with _JOB_LOCK:
+        jobs = sorted(_JOBS.values(), key=lambda job: job["created_at"], reverse=True)[: max(limit, 1)]
+        return {"jobs": [_job_snapshot(job) for job in jobs]}
+
+
+def get_job_status(job_id: str) -> dict[str, Any]:
+    with _JOB_LOCK:
+        job = _JOBS.get(job_id)
+        if job is None:
+            return {"found": False, "job_id": job_id, "message": "Unknown job id."}
+        return {"found": True, **_job_snapshot(job)}
+
+
+def cancel_job(job_id: str) -> dict[str, Any]:
+    with _JOB_LOCK:
+        job = _JOBS.get(job_id)
+        if job is None:
+            return {"found": False, "job_id": job_id, "message": "Unknown job id."}
+        if _terminal_job_status(job["status"]):
+            return {"found": True, **_job_snapshot(job)}
+
+        job["_cancel_event"].set()
+        future = job.get("_future")
+        if future is not None and future.cancel():
+            job["status"] = "cancelled"
+            job["finished_at"] = _iso_now()
+            job["message"] = "Cancelled before execution started."
+            job["progress"] = {
+                "phase": "cancelled",
+                "completed": 1,
+                "total": 1,
+                "percentage": 100,
+                "message": job["message"],
+                "detail": {},
+                "ts": _iso_now(),
+            }
+        else:
+            job["status"] = "cancel_requested"
+            job["message"] = "Cancellation requested. Waiting for cooperative stop."
+
+        return {"found": True, **_job_snapshot(job)}
+
+
+def _run_evidence_job(job_id: str) -> None:
+    with _JOB_LOCK:
+        job = _JOBS[job_id]
+        cancel_event = job["_cancel_event"]
+        request = job["_request"]
+        job["status"] = "running"
+        job["started_at"] = _iso_now()
+        job["message"] = "Evidence-pack job running."
+
+    def _cancel_check() -> None:
+        if cancel_event.is_set():
+            from nexus_research import ResearchCancelledError
+
+            raise ResearchCancelledError("Evidence-pack job cancelled.")
+
+    def _progress(payload: dict[str, Any]) -> None:
+        with _JOB_LOCK:
+            current = _JOBS.get(job_id)
+            if current is None or _terminal_job_status(current["status"]):
+                return
+            current["progress"] = payload
+            current["message"] = payload.get("message", current.get("message"))
+
+    try:
+        outputs = build_evidence_pack(
+            question=request["question"],
+            root_path=request["root_path"],
+            workspace_path=request["workspace_path"],
+            output_dir=request["output_dir"],
+            mode=request["mode"],
+            backend=request["backend"],
+            limit=request["limit"],
+            min_score=request["min_score"],
+            paths=request["paths"],
+            cancel_check=_cancel_check,
+            progress_callback=_progress,
+        )
+        with _JOB_LOCK:
+            job = _JOBS[job_id]
+            job["finished_at"] = _iso_now()
+            job["result"] = outputs
+            if cancel_event.is_set():
+                job["status"] = "cancelled"
+                job["message"] = "Cancellation was requested before the job finished; outputs retained."
+            else:
+                job["status"] = "completed"
+                job["message"] = "Evidence-pack job completed."
+            job["progress"] = {
+                "phase": "completed",
+                "completed": 1,
+                "total": 1,
+                "percentage": 100,
+                "message": job["message"],
+                "detail": {"output_dir": outputs.get("output_dir")},
+                "ts": _iso_now(),
+            }
+    except Exception as exc:
+        from nexus_research import ResearchCancelledError
+
+        with _JOB_LOCK:
+            job = _JOBS[job_id]
+            job["finished_at"] = _iso_now()
+            if isinstance(exc, ResearchCancelledError):
+                job["status"] = "cancelled"
+                job["message"] = str(exc)
+            else:
+                job["status"] = "failed"
+                job["message"] = f"Evidence-pack job failed: {exc}"
+                job["error"] = str(exc)
+            job["progress"] = {
+                "phase": job["status"],
+                "completed": 1,
+                "total": 1,
+                "percentage": 100,
+                "message": job["message"],
+                "detail": {},
+                "ts": _iso_now(),
+            }
+
+
+def start_evidence_job(
+    question: str,
+    root_path: Path | None = None,
+    workspace_path: Path | None = None,
+    output_dir: str | None = None,
+    mode: str = "mock",
+    backend: str | None = None,
+    limit: int = 5,
+    min_score: float = 0.2,
+    paths: list[str] | None = None,
+) -> dict[str, Any]:
+    root = _resolve_root(root_path)
+    workspace = _resolve_workspace(workspace_path)
+    index_paths = _resolve_index_paths(root, paths)
+    resolved_output = _resolve_output_dir(workspace, output_dir)
+
+    job_id = str(uuid.uuid4())
+    request = {
+        "question": question,
+        "root_path": root,
+        "workspace_path": workspace,
+        "output_dir": str(resolved_output) if resolved_output is not None else None,
+        "mode": mode,
+        "backend": backend,
+        "limit": limit,
+        "min_score": min_score,
+        "paths": [str(path) for path in index_paths],
+    }
+    job = {
+        "job_id": job_id,
+        "kind": "evidence_pack",
+        "status": "pending",
+        "created_at": _iso_now(),
+        "started_at": None,
+        "finished_at": None,
+        "message": "Evidence-pack job queued.",
+        "progress": {
+            "phase": "queued",
+            "completed": 0,
+            "total": 1,
+            "percentage": 0,
+            "message": "Queued for execution.",
+            "detail": {"paths": request["paths"]},
+            "ts": _iso_now(),
+        },
+        "request": {
+            "question": question,
+            "mode": mode,
+            "backend": backend,
+            "limit": limit,
+            "min_score": min_score,
+            "paths": request["paths"],
+            "output_dir": request["output_dir"],
+        },
+        "result": None,
+        "error": None,
+        "_cancel_event": threading.Event(),
+        "_request": request,
+    }
+
+    with _JOB_LOCK:
+        _JOBS[job_id] = job
+
+    future = _JOB_EXECUTOR.submit(_run_evidence_job, job_id)
+    with _JOB_LOCK:
+        _JOBS[job_id]["_future"] = future
+        return _job_snapshot(_JOBS[job_id])
+
+
+def build_grounded_research_prompt(
+    question: str,
+    paths: list[str] | None = None,
+    mode: str = "mock",
+    backend: str | None = None,
+) -> str:
+    path_args = ""
+    if paths:
+        path_args = " ".join(f'--path "{path}"' for path in paths)
+
+    backend_arg = f' --backend "{backend}"' if backend else ""
+    return (
+        "Use NEXUS as an evidence-first research engine.\n"
+        f"Question: {question}\n"
+        f"Mode: {mode}\n"
+        f"CLI reference: python nexus_research.py \"{question}\" --mode {mode}{backend_arg} {path_args}\n"
+        "Workflow:\n"
+        "1. Call `nexus_research` for a quick grounded answer.\n"
+        "2. Call `nexus_memory_search` if you need raw claims, supporting sources, or contradictions.\n"
+        "3. Call `nexus_export_evidence_pack` or start an evidence job if you need persistent artifacts.\n"
+        "4. Cite source IDs when summarizing claims.\n"
+        "5. If evidence is mixed or weak, say so explicitly instead of smoothing over the conflict.\n"
+    )
+
+
+def build_evidence_review_prompt(output_dir: str | None = None) -> str:
+    location = output_dir or "the latest evidence pack under workspace"
+    return (
+        "Review a NEXUS evidence pack as an auditor, not as a marketer.\n"
+        f"Target: {location}\n"
+        "Workflow:\n"
+        "1. Read `nexus://evidence/latest` if no explicit output directory is known.\n"
+        "2. Inspect `report.md`, `sources.json`, and `metrics.json`.\n"
+        "3. Check whether verified claims have opposing evidence or weak confidence.\n"
+        "4. Call out missing support, contradictions, and path-scope issues before any summary.\n"
+        "5. Prefer exact source IDs and artifact paths in the review.\n"
+    )
 
 
 # =============================================================================
@@ -410,6 +775,13 @@ if MCP_AVAILABLE:
                 f"Backend: {payload.get('backend')}",
                 f"Generated: {payload.get('generated_at')}",
                 f"Confidence: {payload.get('synthesis', {}).get('overall_confidence', {}).get('label', 'unknown')}",
+                (
+                    "Claims: "
+                    f"{payload.get('synthesis', {}).get('verification_summary', {}).get('claim_count', 0)} "
+                    f"(supported {payload.get('synthesis', {}).get('verification_summary', {}).get('supported_claim_count', 0)}, "
+                    f"mixed {payload.get('synthesis', {}).get('verification_summary', {}).get('mixed_claim_count', 0)})"
+                ),
+                f"Subqueries: {len(payload.get('subqueries', []))}",
                 "",
                 "Answer:",
             ]
@@ -497,6 +869,50 @@ if MCP_AVAILABLE:
             logger.error(f"nexus_export_evidence_pack error: {e}")
             return f"Error exporting evidence pack: {e}"
 
+    @mcp.tool()
+    async def nexus_start_evidence_job(
+        question: str,
+        mode: str = "mock",
+        backend: str | None = None,
+        limit: int = 5,
+        min_score: float = 0.2,
+        output_dir: str | None = None,
+        paths: list[str] | None = None,
+    ) -> str:
+        """Start a background evidence-pack job and return a job id."""
+        try:
+            job = start_evidence_job(
+                question=question,
+                mode=mode,
+                backend=backend,
+                limit=limit,
+                min_score=min_score,
+                output_dir=output_dir,
+                paths=paths,
+            )
+            return json.dumps(job, indent=2, ensure_ascii=True)
+        except Exception as e:
+            logger.error(f"nexus_start_evidence_job error: {e}")
+            return f"Error starting evidence job: {e}"
+
+    @mcp.tool()
+    async def nexus_job_status(job_id: str) -> str:
+        """Fetch the latest state for a background job."""
+        try:
+            return json.dumps(get_job_status(job_id), indent=2, ensure_ascii=True)
+        except Exception as e:
+            logger.error(f"nexus_job_status error: {e}")
+            return f"Error getting job status: {e}"
+
+    @mcp.tool()
+    async def nexus_cancel_job(job_id: str) -> str:
+        """Request cancellation for a background job."""
+        try:
+            return json.dumps(cancel_job(job_id), indent=2, ensure_ascii=True)
+        except Exception as e:
+            logger.error(f"nexus_cancel_job error: {e}")
+            return f"Error cancelling job: {e}"
+
     # =========================================================================
     # Shell Execution (sandboxed or validated host execution)
     # =========================================================================
@@ -567,6 +983,61 @@ if MCP_AVAILABLE:
         except Exception as e:
             return f"Error loading agents: {e}"
 
+    @mcp.resource("nexus://evidence/latest")
+    async def get_latest_evidence_resource() -> str:
+        """Get the latest research evidence pack found under the workspace."""
+        try:
+            return json.dumps(get_latest_research_evidence(), indent=2, ensure_ascii=True)
+        except Exception as e:
+            return f"Error loading latest evidence pack: {e}"
+
+    @mcp.resource("nexus://swarm-eval/latest")
+    async def get_latest_swarm_eval_resource() -> str:
+        """Get the latest swarm evaluation report."""
+        try:
+            return json.dumps(get_latest_swarm_eval(), indent=2, ensure_ascii=True)
+        except Exception as e:
+            return f"Error loading latest swarm eval: {e}"
+
+    @mcp.resource("nexus://provider-canaries/latest")
+    async def get_latest_provider_canaries_resource() -> str:
+        """Get the latest provider canary report."""
+        try:
+            return json.dumps(get_latest_provider_canaries(), indent=2, ensure_ascii=True)
+        except Exception as e:
+            return f"Error loading latest provider canaries: {e}"
+
+    @mcp.resource("nexus://evidence-ledger/latest")
+    async def get_latest_evidence_ledger_resource() -> str:
+        """Get the latest CI evidence ledger."""
+        try:
+            return json.dumps(get_latest_evidence_ledger(), indent=2, ensure_ascii=True)
+        except Exception as e:
+            return f"Error loading latest evidence ledger: {e}"
+
+    @mcp.resource("nexus://jobs/latest")
+    async def get_latest_jobs_resource() -> str:
+        """Get recent MCP background jobs."""
+        try:
+            return json.dumps(list_recent_jobs(), indent=2, ensure_ascii=True)
+        except Exception as e:
+            return f"Error loading recent jobs: {e}"
+
+    if hasattr(mcp, "prompt"):
+
+        @mcp.prompt(title="Grounded Research")
+        def nexus_grounded_research_prompt(
+            question: str,
+            mode: str = "mock",
+            backend: str | None = None,
+            paths: list[str] | None = None,
+        ) -> str:
+            return build_grounded_research_prompt(question=question, paths=paths, mode=mode, backend=backend)
+
+        @mcp.prompt(title="Evidence Review")
+        def nexus_evidence_review_prompt(output_dir: str | None = None) -> str:
+            return build_evidence_review_prompt(output_dir=output_dir)
+
 
 # =============================================================================
 # Server Entry Point
@@ -592,9 +1063,16 @@ def main():
     logger.info("Starting NEXUS MCP Server...")
     logger.info(
         "Tools: nexus_read, nexus_glob, nexus_grep, nexus_analyze, nexus_status, "
-        "nexus_research, nexus_memory_search, nexus_export_evidence_pack, nexus_bash"
+        "nexus_research, nexus_memory_search, nexus_export_evidence_pack, "
+        "nexus_start_evidence_job, nexus_job_status, nexus_cancel_job, nexus_bash"
     )
-    logger.info("Resources: nexus://config, nexus://agents")
+    logger.info(
+        "Resources: nexus://config, nexus://agents, nexus://evidence/latest, "
+        "nexus://swarm-eval/latest, nexus://provider-canaries/latest, "
+        "nexus://evidence-ledger/latest, nexus://jobs/latest"
+    )
+    if hasattr(mcp, "prompt"):
+        logger.info("Prompts: Grounded Research, Evidence Review")
 
     # Run server with stdio transport
     mcp.run(transport="stdio")

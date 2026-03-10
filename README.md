@@ -287,9 +287,9 @@ Additional protections:
 | - project_knowledge.json                                     |
 | - optional lancedb/                                          |
 |                                                              |
-| Backend selection: auto | dense | bm25 | tfidf              |
-| HybridBackend exists as an implementation, but               |
-| ProjectMemory does not select it by default today.           |
+| Backend selection: auto | hybrid | dense | bm25 | tfidf     |
+| Backend selection now supports `hybrid` explicitly, and      |
+| `auto` prefers fusion when the required backends exist.      |
 +--------------------------------------------------------------+
 ```
 

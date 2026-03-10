@@ -120,6 +120,20 @@ Server tools (high-level):
 - `nexus_research` - local-first research summary (mock/local mode)
 - `nexus_memory_search` - structured project memory search
 - `nexus_export_evidence_pack` - evidence pack artifacts (report, sources, trace, graph, manifest)
+- `nexus_start_evidence_job`, `nexus_job_status`, `nexus_cancel_job` - background evidence-pack workflow control
+
+Server resources:
+- `nexus://config`
+- `nexus://agents`
+- `nexus://evidence/latest`
+- `nexus://evidence-ledger/latest`
+- `nexus://swarm-eval/latest`
+- `nexus://provider-canaries/latest`
+- `nexus://jobs/latest`
+
+Server prompts:
+- `Grounded Research`
+- `Evidence Review`
 
 Configure in Claude Desktop (`claude_desktop_config.json`):
 

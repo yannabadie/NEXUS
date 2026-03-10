@@ -20,10 +20,26 @@ powershell -ExecutionPolicy Bypass -File scripts/demo_companion.ps1
 ```
 
 ## Tools Exposed
-- `nexus_research`: markdown summary from project memory.
-- `nexus_memory_search`: JSON payload with matched chunks and metadata.
+- `nexus_research`: markdown summary from project memory with answer bullets, verified-claim counts, and source IDs.
+- `nexus_memory_search`: JSON payload with matched chunks, subqueries, verification scores, verified claims, and metadata.
 - `nexus_export_evidence_pack`: writes `report.md`, `sources.json`, `trace.jsonl`, `reasoning_graph.mmd`, `metrics.json`, `manifest.sha256`.
+- `nexus_start_evidence_job`: starts a background evidence-pack job and returns a job id.
+- `nexus_job_status`: returns status, progress, and outputs/error for a background job.
+- `nexus_cancel_job`: requests cooperative cancellation for a background job.
 - Existing tools: `nexus_status`, `nexus_read`, `nexus_glob`, `nexus_grep`, `nexus_analyze`, `nexus_bash`.
+
+## Resources Exposed
+- `nexus://config`
+- `nexus://agents`
+- `nexus://evidence/latest`
+- `nexus://evidence-ledger/latest`
+- `nexus://swarm-eval/latest`
+- `nexus://provider-canaries/latest`
+- `nexus://jobs/latest`
+
+## Prompts Exposed
+- `Grounded Research`
+- `Evidence Review`
 
 ## Configuration Example
 Claude Desktop config:

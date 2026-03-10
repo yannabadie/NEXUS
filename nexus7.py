@@ -39,7 +39,11 @@ if sys.platform == "win32":
 import logging
 from datetime import UTC
 
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except ImportError:  # pragma: no cover - exercised only in dependency-light environments
+    def load_dotenv(*_args, **_kwargs) -> bool:
+        return False
 
 from core.provider_registry import build_provider_snapshot, get_replacement, refresh_provider_registry
 from core.version import NEXUS_CODENAME, NEXUS_VERSION
@@ -153,11 +157,10 @@ def bootstrap(config=None, workspace_path: Path | None = None):
 
     print(f"Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
 
-    required_packages = ["prompt_toolkit", "rich", "pydantic", "python-dotenv", "tiktoken"]
+    required_packages = ["prompt_toolkit", "rich", "pydantic", "tiktoken"]
     missing = []
     for pkg in required_packages:
-        check_name = "dotenv" if pkg == "python-dotenv" else pkg
-        if not importlib.util.find_spec(check_name):
+        if not importlib.util.find_spec(pkg):
             missing.append(pkg)
 
     if missing:

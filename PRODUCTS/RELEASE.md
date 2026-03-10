@@ -8,7 +8,7 @@
 ## Flagship Quickstart (Research CLI)
 ```bash
 python -m pip install -r requirements.txt
-python nexus_research.py "How does ProjectMemory index files?" --mode mock --path core/memory/project_memory.py
+python nexus_research.py "How does ProjectMemory index files?" --mode mock --path core/memory_pkg/memory/project_memory.py
 ```
 
 Expected outputs (under `WORKSPACE_PATH`, default `./workspace/research/<timestamp>`):

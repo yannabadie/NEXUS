@@ -7,7 +7,7 @@ Stores indexed code and documentation for context-aware responses.
 V10 Architecture:
 - EmbeddingEngine: Global singleton for shared compute (DI support)
 - Storage: Tenant-isolated paths (multi-tenant support)
-- Backends: Dense (semantic) > BM25S (lexical) > TF-IDF (fallback)
+- Backends: Hybrid (dense + sparse) > Dense (semantic) > BM25S (lexical) > TF-IDF (fallback)
 
 Chunking Strategy:
 - .py files: Split by function/class definitions
@@ -18,9 +18,9 @@ Backend Architecture:
 - SEMANTIC: Dense embeddings (LanceDB + shared EmbeddingEngine) - ~+10% recall
 - LEXICAL: BM25S sparse retrieval (if installed) - ~15% better than TF-IDF
 - FALLBACK: TF-IDF weighted Jaccard similarity (built-in, no dependencies)
-- Pluggable: MemoryBackend ABC allows future backends (Hybrid, etc.)
+- Pluggable: MemoryBackend ABC allows future backends and fusion strategies
 
-Environment: PROJECT_MEMORY_BACKEND = "auto" | "dense" | "bm25" | "tfidf"
+Environment: PROJECT_MEMORY_BACKEND = "auto" | "hybrid" | "dense" | "bm25" | "tfidf"
 
 Usage:
     memory = ProjectMemory(nexus_root)
@@ -42,14 +42,6 @@ from typing import TYPE_CHECKING, Any, Optional
 if TYPE_CHECKING:
     from .embedding_engine import EmbeddingEngine
 
-# V8.8: Spotlighter for RAG content protection (OWASP LLM01:2025)
-try:
-    from core.security_pkg.security import get_spotlighter
-
-    SPOTLIGHTER_AVAILABLE = True
-except ImportError:
-    SPOTLIGHTER_AVAILABLE = False
-
 # V12.4 P3.2: Load feature flag for default datamarking behavior
 from core.config import Config
 
@@ -58,6 +50,7 @@ from .backends import (
     STEMMER_AVAILABLE,
     Bm25Backend,
     DenseBackend,
+    HybridBackend,
     MemoryBackend,
     TfidfBackend,
 )
@@ -133,6 +126,16 @@ LINES_PER_CHUNK = 50  # For line-based chunking
 LINES_OVERLAP = 10  # Overlap between chunks
 
 
+def _get_spotlighter_or_none():
+    """Lazy-load Spotlighter so local/mock retrieval does not import the full security stack at module import time."""
+    try:
+        from core.security_pkg.security import get_spotlighter
+
+        return get_spotlighter()
+    except Exception:
+        return None
+
+
 # =============================================================================
 # ProjectMemory Class (Facade)
 # =============================================================================
@@ -145,7 +148,7 @@ class ProjectMemory:
     V10 MEMORY FORGE Architecture:
     - EmbeddingEngine injection for shared compute across tenants
     - Storage paths are tenant-isolated (each tenant has own .nexus/)
-    - Pluggable backends: Dense (semantic) > BM25S (lexical) > TF-IDF
+    - Pluggable backends: Hybrid (fusion) > Dense (semantic) > BM25S (lexical) > TF-IDF
 
     Key Design Decisions:
     - Stored at NEXUS_ROOT/.nexus/project_knowledge.json (not in workspace/)
@@ -155,7 +158,13 @@ class ProjectMemory:
 
     STORAGE_FILE = "project_knowledge.json"
 
-    def __init__(self, nexus_root: Path, embedding_engine: Optional["EmbeddingEngine"] = None):
+    def __init__(
+        self,
+        nexus_root: Path,
+        embedding_engine: Optional["EmbeddingEngine"] = None,
+        storage_dir: Path | None = None,
+        persist: bool = True,
+    ):
         """
         Initialize ProjectMemory.
 
@@ -164,12 +173,15 @@ class ProjectMemory:
                        Storage will be at nexus_root/.nexus/project_knowledge.json
             embedding_engine: Optional EmbeddingEngine instance (for DI/testing).
                              If None, DenseBackend will use global singleton.
+            storage_dir: Optional storage override for ephemeral/test indices.
+            persist: Whether index updates should be written back to storage_path.
         """
         self.nexus_root = Path(nexus_root)
-        self.storage_dir = self.nexus_root / ".nexus"
+        self.storage_dir = Path(storage_dir) if storage_dir is not None else self.nexus_root / ".nexus"
         self.storage_path = self.storage_dir / self.STORAGE_FILE
 
         self._logger = logging.getLogger("nexus.project_memory")
+        self._persist = persist
 
         # V10 MEMORY FORGE: Store engine for injection into DenseBackend
         self._embedding_engine: EmbeddingEngine | None = embedding_engine
@@ -217,7 +229,8 @@ class ProjectMemory:
         V10 MEMORY FORGE: Passes embedding_engine to DenseBackend for shared compute.
 
         Environment variable PROJECT_MEMORY_BACKEND controls selection:
-        - "auto" (default): Best available (Dense > BM25S > TF-IDF)
+        - "auto" (default): Best available (Hybrid > Dense > BM25S > TF-IDF)
+        - "hybrid": Reciprocal-rank fusion across dense + sparse backends
         - "dense": Force dense embeddings (fallback if unavailable)
         - "bm25": Force BM25S (fallback if unavailable)
         - "tfidf": Force TF-IDF (always available)
@@ -229,7 +242,14 @@ class ProjectMemory:
         lancedb_path = self.storage_dir / "lancedb"
 
         # Explicit preference
-        if backend_pref == "dense":
+        if backend_pref == "hybrid":
+            if HybridBackend.is_available():
+                self._logger.info("Using Hybrid backend (dense + sparse fusion)")
+                return HybridBackend(lancedb_path)
+            else:
+                self._logger.warning("Hybrid backend requested but unavailable, falling back")
+
+        elif backend_pref == "dense":
             if DenseBackend.is_available():
                 self._logger.info("Using Dense backend (semantic search)")
                 # V10: Inject embedding engine
@@ -248,8 +268,11 @@ class ProjectMemory:
             self._logger.info("Using TF-IDF backend (requested)")
             return TfidfBackend()
 
-        # Auto selection: Dense > BM25S > TF-IDF
-        if DenseBackend.is_available():
+        # Auto selection: Hybrid > Dense > BM25S > TF-IDF
+        if HybridBackend.is_available():
+            self._logger.info("Using Hybrid backend (fusion, best overall recall)")
+            return HybridBackend(lancedb_path)
+        elif DenseBackend.is_available():
             self._logger.info("Using Dense backend (semantic search, best recall)")
             # V10: Inject embedding engine
             return DenseBackend(lancedb_path, embedding_engine=self._embedding_engine)
@@ -704,9 +727,8 @@ class ProjectMemory:
         # Extract query terms (for sparse backends)
         query_terms = self._extract_terms(query)
 
-        # Dense backend can work with raw_query even if no terms extracted
-        # Sparse backends need terms
-        if not query_terms and not isinstance(self._backend, DenseBackend):
+        # Dense and hybrid backends can work with raw_query even if no sparse terms extracted.
+        if not query_terms and not isinstance(self._backend, (DenseBackend, HybridBackend)):
             return []
 
         # Use backend for retrieval
@@ -727,18 +749,20 @@ class ProjectMemory:
                 fallback.build_index(self.chunks)
                 results = fallback.retrieve(list(query_terms), self.chunks, limit, min_score, raw_query=query)
 
-            # V8.8 / V12.4: Apply Spotlighter datamarking if requested
-            # Uses dataclasses.replace on frozen Chunk for immutable copy
-            if apply_datamarking and results and SPOTLIGHTER_AVAILABLE:
+            # V8.8 / V12.4: Apply Spotlighter datamarking if requested.
+            # Spotlighter is loaded lazily so local/mock retrieval does not
+            # drag the interaction/security stack into module import time.
+            if apply_datamarking and results:
                 from dataclasses import replace as dc_replace
 
-                spotlighter = get_spotlighter()
-                marked_results = []
-                for chunk in results:
-                    marked_content = spotlighter.spotlight(chunk.content, source=chunk.file_path)
-                    marked_chunk = dc_replace(chunk, content=marked_content)
-                    marked_results.append(marked_chunk)
-                return marked_results
+                spotlighter = _get_spotlighter_or_none()
+                if spotlighter is not None:
+                    marked_results = []
+                    for chunk in results:
+                        marked_content = spotlighter.spotlight(chunk.content, source=chunk.file_path)
+                        marked_chunk = dc_replace(chunk, content=marked_content)
+                        marked_results.append(marked_chunk)
+                    return marked_results
 
             return results
 
@@ -826,6 +850,9 @@ class ProjectMemory:
 
     def save(self):
         """Save index to disk."""
+        if not self._persist:
+            return
+
         data = {
             "version": "1.1",  # V7.9: Bump version for backend abstraction
             "indexed_at": datetime.now().isoformat(),
