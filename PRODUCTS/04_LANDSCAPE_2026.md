@@ -1,40 +1,42 @@
 # Landscape 2026
 
 ## Summary
-The 2025-2026 landscape favors local-first agent tooling, standardized tool integration (MCP), and verifiable outputs (evidence packs and eval harnesses). The market is crowded with orchestration frameworks, but gaps remain for privacy-first research workflows, reproducible audits, and integration-ready evidence export.
+As of March 9, 2026, the bar for agent systems is no longer just “can orchestrate tools.” The leading surfaces combine deep-research style planning, progress tracking, connectors or MCP integrations, reusable subagents, persistent project memory, and dataset-backed evaluation workflows. NEXUS is strongest where many 2026 products are still weak: local-first evidence artifacts, explicit CI evidence, and reproducible companion surfaces. It is weaker on runtime ergonomics, security hardening, MCP richness, and live evaluation depth.
 
 ## Trends
-1. Standardized tool integration for agents via MCP, with a growing ecosystem of servers and clients.
-2. Local-first model execution for privacy and cost control (Ollama and similar tooling).
-3. Evaluation and regression harnesses becoming table-stakes (OpenAI evals, LM Evaluation Harness).
-4. Observability and traceability platforms (Langfuse) used for cost, latency, and quality analysis.
-5. Vendor documentation and toolkits emphasizing safe tool use and guardrails (Anthropic docs).
+1. MCP is evolving from “tool bridge” into a richer contract with tools, resources, prompts, roots, and progress-aware workflows.
+2. State-of-the-art research agents expose planning and iterative refinement, not just one-shot retrieval plus formatting.
+3. Coding/runtime agents now ship built-in ergonomics around subagents, memory, hooks, slash commands, and approval-aware execution.
+4. Evaluation is shifting from ad-hoc smoke checks to dataset/experiment workflows, live evaluators, and regression dashboards.
+5. Trust surfaces increasingly require explicit evidence: traces, grounded claims, live canaries, and security posture reporting.
 
 ## Competitive Landscape (selected)
-- MCP ecosystem: standard for tool interoperability and client/server integration.
-- Eval harnesses: open-source benchmarking frameworks (OpenAI evals, LM Evaluation Harness).
-- Local model runners: Ollama for offline/local inference.
-- Observability: Langfuse for traces, metrics, and evaluation workflows.
+- OpenAI Deep Research and Responses tools: strong on multi-step research UX, connectors/MCP, and integrated web/file/computer tooling.
+- Anthropic Claude Code: strong on coding ergonomics through memory, subagents, hooks, MCP, and workflow-native CLI patterns.
+- MCP ecosystem: strong interoperability baseline, increasingly expecting richer server contracts than bare tool wrappers.
+- Langfuse and similar evaluation platforms: strong on dataset-driven experiments, evaluators, and longitudinal quality tracking.
 
 ## Differentiation Opportunities
-- Few products combine MCP integration with evidence-pack outputs (sources + trace + hashes).
-- Most eval stacks are generic; there is room for task-specific, auditable harnesses targeting agent workflows.
-- Security/compliance stakeholders need reproducible reports, not just chat transcripts.
+- NEXUS can own the “evidence-native agent runtime” position if it treats evidence as a control plane, not just an export artifact.
+- Few systems combine local-first execution, verifiable evidence packs, comparative orchestration evals, and provider canaries in one repo.
+- Security/compliance buyers still need grounded outputs, release-grade evidence, and policy-constrained operation rather than pure chat UX.
 
 ## Risks and Assumptions
-- Assumes MCP remains the default interoperability standard for agent tooling.
-- Assumes demand for local-first execution continues due to cost/privacy pressure.
-- Evidence-pack expectations may raise UX complexity; needs <5 minute time-to-value.
+- Assumes MCP remains the dominant interoperability layer instead of fragmenting into vendor-specific connectors.
+- Assumes local-first and auditability stay differentiated versus hosted research/coding products with stronger UX.
+- NEXUS risks over-claiming if security posture, runtime boot reliability, and MCP surface area lag behind its evidence-first narrative.
 
 ## Implications for NEXUS
-- Position flagship around evidence-pack research or compliance-ready analysis with offline/mock mode.
-- Ship a companion MCP server to embed NEXUS into modern toolchains.
-- Add a lightweight evaluation harness to differentiate on quality and reproducibility.
+- Keep the flagship centered on grounded evidence, but add research-agent ergonomics: explicit planning, progress, refinement loops, and stronger trust controls.
+- Treat the companion as an MCP evidence control plane: richer resources/prompts, eval status, provider health, and latest ledger access.
+- Turn evaluation into a real product surface with datasets, longitudinal experiments, and release-blocking thresholds.
+- Make security posture a differentiator only after Shadow Red Team results are enforced as gates rather than documented as known debt.
+- Unify the product story so REPL/runtime, headless, flagship CLI, and MCP feel like one system instead of adjacent surfaces.
 
 ## Sources
-- https://modelcontextprotocol.io/ (accessed 2026-01-21)
-- https://docs.anthropic.com/ (accessed 2026-01-21)
-- https://github.com/openai/evals (accessed 2026-01-21)
-- https://github.com/EleutherAI/lm-evaluation-harness (accessed 2026-01-21)
-- https://ollama.com/ (accessed 2026-01-21)
-- https://docs.langfuse.com/ (accessed 2026-01-21)
+- https://openai.com/index/introducing-deep-research/ (accessed 2026-03-09)
+- https://platform.openai.com/docs/guides/tools (accessed 2026-03-09)
+- https://docs.anthropic.com/en/docs/claude-code/overview (accessed 2026-03-09)
+- https://docs.anthropic.com/en/docs/claude-code/sub-agents (accessed 2026-03-09)
+- https://modelcontextprotocol.io/specification/2025-06-18 (accessed 2026-03-09)
+- https://langfuse.com/docs/evaluation/overview (accessed 2026-03-09)
